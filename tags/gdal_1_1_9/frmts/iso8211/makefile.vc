@@ -1,0 +1,23 @@
+
+OBJ =	ddfmodule.obj ddfutils.obj ddffielddefn.obj ddfrecord.obj \
+	ddffield.obj ddfsubfielddefn.obj
+
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+default:	$(OBJ)
+	copy *.obj ..\o
+
+clean:
+	-del *.obj
+	-del *.exe
+
+all:	default 8211view.exe 8211dump.exe
+
+8211view.exe:	8211view.obj $(OBJ)
+	$(CC) $(CFLAGS) 8211view.obj $(OBJ) $(CPLLIB) /link $(LINKER_FLAGS)
+
+8211dump.exe:	8211dump.obj $(OBJ)
+	$(CC) $(CFLAGS) 8211dump.obj $(OBJ) $(CPLLIB) /link $(LINKER_FLAGS)
+

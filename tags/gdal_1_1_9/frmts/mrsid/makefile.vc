@@ -1,0 +1,16 @@
+
+OBJ	=	mrsiddataset.obj
+
+EXTRAFLAGS = 	-I$(MRSID_DIR)\include -I..\gtiff\libgeotiff
+
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+default:	$(OBJ)
+	copy *.obj ..\o
+
+clean:
+	-del *.obj
+
+

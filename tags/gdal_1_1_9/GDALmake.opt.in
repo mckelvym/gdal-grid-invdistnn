@@ -1,0 +1,211 @@
+CC	=	@CC@
+CXX	=	@CXX@
+INSTALL = 	$(GDAL_ROOT)/install-sh -c
+INSTALL_DATA = 	$(GDAL_ROOT)/install-sh -c -m 0644
+INSTALL_DIR = 	$(GDAL_ROOT)/install-sh -d
+
+#Flags to build optimized relese version
+CXX_OPTFLAGS =	@CXXFLAGS@
+C_OPTFLAGS =	@CFLAGS@
+# Flags to build debug version
+CXX_DBGFLAGS =	-g -DDEBUG
+C_DBGFLAGS =	-g -DDEBUG
+# Flags to build profiling version
+CXX_PROFFLAGS =	-g3 -pg -DDEBUG
+C_PROFFLAGS =	-g3 -pg -DDEBUG
+
+LIBS	=	@LIBS@ -lm
+
+PYTHON_INCLUDES = @PYTHON_INCLUDES@
+PYTHON_LIBS = @PYTHON_LIBS@
+PYTHON_CFLAGS = @PYTHON_CFLAGS@ @NUMPY_FLAG@
+PYTHON = @PYTHON@
+
+HAVE_OGDI = @HAVE_OGDI@
+OGR_ENABLED = @OGR_ENABLED@
+
+prefix		=	@prefix@
+exec_prefix	=	@exec_prefix@
+INST_PREFIX	=	@exec_prefix@
+INST_INCLUDE	=	@exec_prefix@/include
+INST_DATA 	=	@exec_prefix@/share/gdal
+INST_LIB	=	@libdir@
+INST_BIN	=	@bindir@
+INST_PYMOD      =       @pymoddir@
+INST_DOCS	=	@exec_prefix@/doc
+
+#
+#	Whether we use debug flags, or optimization is determined by
+#	the CFG environment variable.  Set to debug for debug builds.
+#	This is similar to the OGDI builds. 
+#
+ifneq (,$(findstring debug,$(CFG)))
+C_ODFLAGS 	= $(C_DBGFLAGS)
+CXX_ODFLAGS 	= $(CXX_DBGFLAGS)
+endif
+
+ifneq (,$(findstring gprof,$(CFG)))
+C_ODFLAGS =	$(CXX_PROFFLAGS)
+CXX_ODFLAGS =	$(C_PROFFLAGS)
+LNK_FLAGS =	-pg
+LIBS		:= $(filter-out -ldbmalloc,$(LIBS))
+endif
+
+ifeq ($(CFG),)
+C_ODFLAGS =	$(C_OPTFLAGS)
+CXX_ODFLAGS =	$(CXX_OPTFLAGS)
+LIBS		:= $(filter-out -ldbmalloc,$(LIBS))
+endif
+
+CFLAGS		= @C_WFLAGS@ @C_PIC@ $(C_ODFLAGS) @EXTRA_INCLUDES@ \
+                  @CPPFLAGS@ $(USER_DEFS)
+CXXFLAGS	= @CXX_WFLAGS@ @CXX_PIC@ $(CXX_ODFLAGS) \
+		  @EXTRA_INCLUDES@ @CPPFLAGS@ $(USER_DEFS)
+
+RANLIB		=	@RANLIB@
+SO_EXT		=	@SO_EXT@
+LD_SHARED	=	@LD_SHARED@
+EXE		=       @EXE_EXT@
+
+ifeq ($(notdir $(LD_SHARED)),true)
+HAVE_LD_SHARED  =	no
+else
+HAVE_LD_SHARED  =	yes
+endif
+
+GDAL_INCLUDE	=	-I$(GDAL_ROOT) -I$(GDAL_ROOT)/port -I$(GDAL_ROOT)/gcore\
+			-I$(GDAL_ROOT)/ogr
+
+GDAL_VER	=	1.1
+GDAL_LIB	= 	$(GDAL_ROOT)/gdal.a
+GDAL_SLIB	=	$(GDAL_ROOT)/libgdal.$(GDAL_VER).$(SO_EXT)
+GDAL_SLIB_LINK	=	-L$(GDAL_ROOT) -lgdal.$(GDAL_VER)
+#GDAL_SLIB_SONAME = 	-Wl,-soname,libgdal.so.$(sover)
+
+OGR_LIB		=	$(GDAL_ROOT)/ogr/ogr.a
+CPL_LIB		=	$(GDAL_ROOT)/port/cpl.a
+OGRFRMTS_LIB	=	$(GDAL_ROOT)/ogr/ogrsf_frmts/ogrsf_frmts.a
+
+#
+# OGR/PostgreSQL support.
+#
+HAVE_OGR_PG     = @HAVE_PG@
+PG_LIB	=	@PG_LIB@
+PG_INC	=	@PG_INC@
+
+#
+# HDF4 Support.
+#
+HAVE_HDF4     = @HAVE_HDF4@
+HDF4_INCLUDE  = @HDF4_INCLUDE@
+
+#
+# JPEG2000 via Kakadu Support.
+#
+KAKDIR = @KAKDIR@
+
+#
+# JPEG-2000 Support via JasPer library.
+#
+HAVE_JASPER     = @HAVE_JASPER@
+
+#
+# MrSID support via LizardTech's DSDK
+#
+MRSID_HOME =	@MRSID_HOME@
+ifneq ($(MRSID_HOME),)
+MRSID_INCLUDE =	-I$(MRSID_HOME)/include
+MRSID_LIB =	-L$(MRSID_HOME)/bin/lib -lMrSIDDecode -llt_xTrans
+LIBS	:=	$(MRSID_LIB) $(LIBS) 
+endif
+
+#
+# Xerces C++ XML Parser for GML.
+#
+HAVE_XERCES    = @HAVE_XERCES@
+XERCES_INCLUDE	=	@XERCES_INCLUDE@
+
+#
+# Oracle Spatial Support
+#
+ifneq ($(ORACLE_HOME),)
+HAVE_OCI = yes
+OCI_INCLUDE =   -I$(ORACLE_HOME)/rdbms/demo -I$(ORACLE_HOME)/rdbms/public
+OCI_LIB =	-L$(ORACLE_HOME)/lib -lclntsh
+else
+HAVE_OCI = no
+endif
+
+#
+# FMEObjects
+#
+ifeq (@X_FME_HOME@,)
+HAVE_FME        =       no
+FME_INCLUDE	=	
+else
+HAVE_FME        =       yes
+FME_INCLUDE	=	-I@X_FME_HOME@/fmeobjects/cpp
+endif
+
+
+OGDI_INCLUDE	=	@OGDI_INCLUDE@
+
+
+PNG_SETTING	=	@PNG_SETTING@
+JPEG_SETTING	=	@JPEG_SETTING@
+TIFF_SETTING	=	@TIFF_SETTING@
+GEOTIFF_SETTING	=	@GEOTIFF_SETTING@
+GIF_SETTING	=	@GIF_SETTING@
+FITS_SETTING    =       @FITS_SETTING@
+OGDI_SETTING	=	@HAVE_OGDI@
+
+GDAL_LIBS	=	$(GDAL_LIB) $(OGR_LIB) \
+			$(GDAL_LIB) $(CPL_LIB)
+GDALA_DEP	=	$(OGR_LIB)
+GDAL_OBJ	=	$(GDAL_ROOT)/frmts/o/*.o \
+			$(GDAL_ROOT)/gcore/*.o \
+			$(GDAL_ROOT)/port/*.o \
+			$(GDAL_ROOT)/alg/*.o \
+			$(GDAL_ROOT)/ogr/ogrct.o \
+			$(GDAL_ROOT)/ogr/ogr_opt.o \
+			$(GDAL_ROOT)/ogr/ogr_fromepsg.o \
+			$(GDAL_ROOT)/ogr/ogr_srs_validate.o \
+			$(GDAL_ROOT)/ogr/ogrutils.o \
+			$(GDAL_ROOT)/ogr/ogr_srs_proj4.o \
+			$(GDAL_ROOT)/ogr/ograssemblepolygon.o \
+			$(GDAL_ROOT)/ogr/ogr_api.o
+
+ifeq ($(OGR_ENABLED),yes)
+GDAL_LIBS := $(OGRFRMTS_LIB) $(PG_LIB) $(OCI_LIB) $(GDAL_LIBS)
+GDALA_DEP := $(GDALA_DEP) $(OGRFRMTS_LIB)
+
+GDAL_OBJ := $(GDAL_OBJ) $(GDAL_ROOT)/ogr/ogrsf_frmts/generic/ogrregisterall.o \
+		$(GDAL_ROOT)/ogr/ogrfeaturestyle.o
+endif
+
+#
+#	Note these codes have to exactly match the format directory names, 
+#	and their uppercase form should be the format portion of the
+#	format registration entry point.  eg. gdb -> GDALRegister_GDB().
+#
+GDAL_FORMATS = 	gxf gtiff hfa aigrid aaigrid ceos ceos2 iso8211 bsb xpm \
+		sdts raw dted mem jdem envisat elas fit vrt usgsdem l1b \
+		nitf bmp \
+		@OPT_GDAL_FORMATS@
+
+#
+# CONFIG_LIBS is what local program should link against, and CONFIG_LIBS_INS
+# is what will be emitted into the gdal-config script that is installed
+# globally.
+#
+
+ifeq ($(HAVE_LD_SHARED),yes)					
+CONFIG_LIBS	=	$(GDAL_SLIB_LINK) $(LIBS)
+CONFIG_LIBS_INS	=	-L$(INST_LIB) -lgdal.$(GDAL_VER)
+EXE_DEP_LIBS	=	$(GDAL_SLIB)
+else
+CONFIG_LIBS	=	$(GDAL_LIBS) $(LIBS)
+CONFIG_LIBS_INS	=	$(foreach LF,$(GDAL_LIBS),$(INST_LIB)/$(notdir $(LF)))\
+			 $(LIBS)
+EXE_DEP_LIBS	=	$(GDALA_DEP)
+endif
