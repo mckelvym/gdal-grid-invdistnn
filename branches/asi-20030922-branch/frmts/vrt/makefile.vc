@@ -1,0 +1,14 @@
+
+OBJ	=	vrtdataset.obj vrtrasterband.obj vrtdriver.obj \
+		vrtsources.obj vrtfilters.obj
+
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+default:	$(OBJ)
+	copy *.obj ..\o
+
+clean:
+	-del *.obj
+

@@ -1,0 +1,160 @@
+GDAL_ROOT = .
+
+!INCLUDE nmake.opt
+
+##############################################################################
+# The following determines whether we are linking all the OGR formats 
+# into the DLL, or only the minimum spatial reference related stuff required
+# for a raster-gdal build.
+
+!IFDEF INCLUDE_OGR_FRMTS
+OGR_OBJ = ogr\ogrsf_frmts\ogrsf_frmts.lib ogr\ogr.lib
+OGR_INCLUDE = /INCLUDE:_OCTNewCoordinateTransformation \
+		/INCLUDE:_OGRRegisterAll \
+		/INCLUDE:_OGRFeatureStylePuller \
+		/INCLUDE:_OSRValidate \
+		/INCLUDE:_OPTGetProjectionMethods \
+		/INCLUDE:_OGR_G_GetPointCount 
+!ELSE
+OGR_OBJ = ogr\ogr.lib
+OGR_INCLUDE =	/INCLUDE:_OCTNewCoordinateTransformation /INCLUDE:_OGRFree \
+		/INCLUDE:_OPTGetParameterList
+!ENDIF
+
+BASE_INCLUDE =	/INCLUDE:_GDALSimpleImageWarp \
+		/INCLUDE:_GDALSuggestedWarpOutput \
+		/INCLUDE:_GDALGCPTransform \
+		/INCLUDE:_GDALComputeMedianCutPCT \
+		/INCLUDE:_GDALDitherRGB2PCT
+
+LIBOBJ = port\*.obj gcore\*.obj alg\*.obj frmts\o\*.obj $(OGR_OBJ)
+	
+DISTDIR	=	gdal_$(VERSION)
+
+default:	port_dir ogr_dir core_dir frmts_dir $(GDAL_DLL) \
+		apps_dir pymod_dir ogr_apps
+
+lib:
+	if exist gdal.lib del gdal.lib
+	lib /out:gdal.lib $(LIBOBJ)
+
+clean:	
+	cd port
+	$(MAKE) /f makefile.vc clean
+	cd ..
+	cd gcore
+	$(MAKE) /f makefile.vc clean
+	cd ..
+	cd alg
+	$(MAKE) /f makefile.vc clean
+	cd ..
+	cd frmts
+	$(MAKE) /f makefile.vc clean
+	cd ..
+	cd ogr
+	$(MAKE) allclean
+	cd ..
+	cd apps
+	$(MAKE) /f makefile.vc clean
+	cd ..
+	cd pymod
+	$(MAKE) /f makefile.vc clean
+	cd ..
+	if exist gdal.lib del gdal.lib
+	if exist $(GDAL_DLL) del $(GDAL_DLL)
+	if exist gdal_i.lib del gdal_i.*
+	-del *.ilk
+	-del *.pdb
+
+port_dir:
+	cd port
+	$(MAKE) /f makefile.vc
+	cd ..
+
+ogr_min:
+	cd ogr
+	$(MAKE) ogr.lib
+	cd ..
+
+core_dir:
+	cd gcore
+	$(MAKE) /f makefile.vc
+	cd ..\alg
+	$(MAKE) /f makefile.vc
+	cd ..
+
+frmts_dir:
+	cd frmts
+	$(MAKE) /f makefile.vc
+	cd ..
+
+apps_dir:
+	cd apps
+	$(MAKE) /f makefile.vc
+	cd ..
+
+pymod_dir:
+	cd pymod
+	if exist $(PYDIR)\python.exe $(MAKE) /f makefile.vc
+	cd ..
+
+ogr_dir:      port_dir
+	cd frmts/iso8211
+	$(MAKE) /f makefile.vc
+	cd ..\sdts	
+	$(MAKE) /f makefile.vc
+	cd ..\..\ogr
+!IFDEF INCLUDE_OGR_FRMTS
+	$(MAKE) ogr.lib frmts
+!ELSE
+	$(MAKE) ogr.lib
+!ENDIF
+	cd ..
+
+ogr_apps:
+	cd ogr
+!IFDEF INCLUDE_OGR_FRMTS
+	$(MAKE) default
+!ENDIF
+	cd ..
+
+lib_dist:	default
+	rm -rf $(DISTDIR)
+	mkdir $(DISTDIR)
+	cp gdal.lib port\*.h gcore\*.h ogr\*.h $(DISTDIR)
+	zip -r $(DISTDIR).zip $(DISTDIR)
+
+$(GDAL_DLL):	lib
+	link /dll /debug $(OGR_INCLUDE) $(BASE_INCLUDE) $(LIBOBJ) \
+		$(ECWLIB) $(OGDILIB) $(XERCES_LIB) $(FME_LIB) $(JASPER_LIB)\
+		$(HDF4_LIB) $(OCI_LIB) $(PNG_LIB) $(JPEG_LIB) $(PG_LIB) \
+		$(MRSID_LIB) $(FITS_LIB) \
+		 /out:$(GDAL_DLL) /implib:gdal_i.lib $(LINKER_FLAGS)
+
+install: $(GDAL_DLL) apps_dir pymod_dir
+  -mkdir $(BINDIR)
+  -mkdir $(DATADIR)
+	xcopy /y /r /d /f $(GDAL_DLL) $(BINDIR)
+	cd apps
+	$(MAKE) /f makefile.vc install
+	cd ..\pymod
+	if exist $(PYDIR)\python.exe $(MAKE) /f makefile.vc install
+	cd ..
+	xcopy /y /r /d /f data\*.* $(DATADIR)
+!IFDEF INCLUDE_OGR_FRMTS
+	cd ogr
+	$(MAKE) install
+!ENDIF
+	cd ..
+
+devinstall: install
+  -mkdir $(INCDIR)
+  -mkdir $(LIBDIR)
+	copy port\*.h $(INCDIR)
+	copy gcore\*.h $(INCDIR)
+	copy alg\*.h $(INCDIR)
+	copy ogr\*.h $(INCDIR)
+!IFDEF INCLUDE_OGR_FRMTS
+	copy ogr\ogrsf_frmts\*.h $(INCDIR)
+!ENDIF
+	copy gdal_i.lib $(LIBDIR)

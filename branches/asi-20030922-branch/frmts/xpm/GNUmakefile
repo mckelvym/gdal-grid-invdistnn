@@ -1,0 +1,16 @@
+GDAL_ROOT	=	../..
+
+OBJ	=	xpmdataset.o
+
+include $(GDAL_ROOT)/GDALmake.opt
+
+XTRAOPTS = -I../mem
+
+CPPFLAGS	+=	$(GDAL_INCLUDE) $(XTRAOPTS)
+
+default:	$(OBJ)
+
+clean:
+	rm -f *.o
+
+install-obj:	$(O_OBJ)
