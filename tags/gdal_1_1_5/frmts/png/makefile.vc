@@ -1,0 +1,19 @@
+
+OBJ	=	\
+	pngdataset.obj
+
+GDAL_ROOT	=	..\..
+
+EXTRAFLAGS = 	-I..\zlib -Ilibpng
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+default:	$(OBJ)
+	copy *.obj ..\o
+	cd libpng
+	$(MAKE) /f makefile.vc
+	cd ..
+
+clean:
+	-del *.obj
+

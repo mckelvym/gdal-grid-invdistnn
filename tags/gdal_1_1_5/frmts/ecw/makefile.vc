@@ -1,0 +1,15 @@
+
+EXTRAFLAGS = 	-I$(ECWDIR)/include /DWIN32 -DFRMT_ecw
+
+OBJ	=	ecwdataset.obj 
+
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+default:	$(OBJ)
+	copy *.obj ..\o
+
+clean:
+	-del *.obj
+
