@@ -1,0 +1,28 @@
+
+OBJ	=	geotiff.obj gt_wkt_srs.obj gt_overview.obj \
+		tif_overview.obj tif_ovrcache.obj tif_memio.obj
+
+EXTRAFLAGS = 	-Ilibtiff -Ilibgeotiff
+
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+default:	$(OBJ) tiff geotiff
+	copy *.obj ..\o
+
+tiff:
+	cd libtiff
+	$(MAKE) /f makefile.vc
+	cd ..
+
+geotiff:
+	cd libgeotiff
+	$(MAKE) /f makefile.vc
+	cd ..
+
+clean:
+	-del *.obj libtiff\*.obj libgeotiff\*.obj
+	
+
+

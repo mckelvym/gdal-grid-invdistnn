@@ -1,0 +1,16 @@
+#
+# Algorithms
+#
+
+OBJ =	gdaldither.obj gdalmediancut.obj gdal_crs.obj gdaltransformer.obj \
+	gdalsimplewarp.obj 
+
+GDAL_ROOT	=	..
+
+!INCLUDE ..\nmake.opt
+
+default:	$(OBJ)
+
+clean:
+	-del *.obj
+
