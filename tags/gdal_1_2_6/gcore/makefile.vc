@@ -1,0 +1,23 @@
+#
+# CPL (Common Portability Library) makefile
+#
+
+OBJ	=	gdalopen.obj gdaldrivermanager.obj gdaldriver.obj \
+		gdaldataset.obj gdalrasterband.obj gdal_misc.obj \
+		rasterio.obj gdalrasterblock.obj \
+		gdalcolortable.obj overview.obj gdaldefaultoverviews.obj \
+		gdalmajorobject.obj 
+
+RES	=	Version.res
+
+GDAL_ROOT	=	..
+
+!INCLUDE ..\nmake.opt
+
+default:	$(OBJ) $(RES)
+
+clean:
+	-del *.obj *.res
+
+Version.res:	
+	rc -fo Version.res -r -I..\port Version.rc
