@@ -1,0 +1,39 @@
+
+OBJ	=	gdalopen.obj gdaldrivermanager.obj gdaldriver.obj \
+		gdaldataset.obj gdalrasterband.obj gdal_misc.obj \
+		rasterio.obj gdalrasterblock.obj gdalprojdef.obj
+
+GDAL_ROOT	=	..
+
+XTRAOBJ =	$(SETARGV)
+
+LIBS	=	$(GDAL_ROOT)\gdal_i.lib
+
+!INCLUDE ..\nmake.opt
+
+default:	gdal_translate.exe gdalinfo.exe gdaladdo.exe
+
+gdalinfo.exe:	gdalinfo.c $(GDALLIB) $(XTRAOBJ) 
+	$(CC) $(CFLAGS) gdalinfo.c $(XTRAOBJ) $(LIBS) /link $(LINKER_FLAGS)
+	
+gdal_translate.exe:	gdal_translate.c $(GDALLIB) $(XTRAOBJ)
+	$(CC) $(CFLAGS) gdal_translate.c $(XTRAOBJ) $(LIBS) \
+		/link $(LINKER_FLAGS)
+	
+gdaladdo.exe:	gdaladdo.cpp $(GDALLIB) $(XTRAOBJ)
+	$(CC) $(CFLAGS) gdaladdo.cpp $(XTRAOBJ) $(LIBS) /link $(LINKER_FLAGS)
+	
+gdal2raw.exe:	gdal2raw.c $(GDALLIB) $(XTRAOBJ)
+	$(CC) $(CFLAGS) gdal2raw.c $(XTRAOBJ) $(LIBS) /link $(LINKER_FLAGS)
+	
+gdaltindex.exe:	gdaltindex.c $(GDALLIB) $(XTRAOBJ)
+	$(CC) /I$(GDAL_ROOT) $(CFLAGS) gdaltindex.c \
+		../frmts/shapelib/shpopen.c \
+		../frmts/shapelib/dbfopen.c \
+		$(XTRAOBJ) $(LIBS) /link $(LINKER_FLAGS)
+	
+clean:
+	-del *.obj *.exe
+
+install:	default
+	copy *.exe $(BINDIR)

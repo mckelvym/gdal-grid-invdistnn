@@ -1,0 +1,52 @@
+
+# Location of Visual C++ directory (avoid spaces!)
+VCDIR   = 	C:\PROGRA~1\VISUAL~1\VC98
+
+# Location of Python 
+PYDIR   =	C:\PROGRA~1\Python20
+
+# Enable the following if VCDIR set properly, to get wildcard support.
+#SETARGV =	$(VCDIR)\lib\setargv.obj
+
+# Enable the following for ECW (ERMapper Wavelet) support.
+#ECWDIR  = 	D:\Software\ECW_SDK
+#ECWLIB  =       $(ECWDIR)\lib\NCSEcw.lib $(ECWDIR)\lib\NCSEcwC.lib \
+#		$(ECWDIR)\lib\NCSUtil.lib
+
+# Enable the following for OGDI support.
+#OGDIDIR =	D:\warmerda\iii\devdir
+#OGDIVER =	31
+#OGDILIB =	$(OGDIDIR)\lib\$(TARGET)\ogdi$(OGDIVER).lib \
+#		$(OGDIDIR)\lib\$(TARGET)\zlib_ogdi$(OGDIVER).lib
+
+# Location to install .exe, .dll and python stuff
+
+BINDIR = D:\bin
+PY_INST_DIR = D:\bin\pymod
+
+# Location of MS Data Access SDK - Only for OLE DB stuff.
+# MSDASDK =	D:\Software\MDAC_2.6
+
+VERSION =	11
+GDAL_DLL =	gdal$(VERSION).dll
+
+INC	=	-I$(GDAL_ROOT)\port -I$(GDAL_ROOT)\ogr -I$(GDAL_ROOT)\core
+OPTFLAGS=	/nologo /Zi /Fd$(GDAL_ROOT)\gdal.pdb
+#OPTFLAGS=	/nologo /Zi /MDd /Fd$(GDAL_ROOT)\gdal.pdb
+#LINKER_FLAGS =	/NODEFAULTLIB:LIBC 
+
+CFLAGS	=	$(OPTFLAGS) $(INC) $(EXTRAFLAGS)
+MAKE	=	nmake /nologo
+
+CC	=	cl
+
+CPLLIB	=    $(GDAL_ROOT)/port/cpl.lib
+GDALLIB	=    $(GDAL_ROOT)/gdal.lib
+
+.c.obj:	
+	$(CC) $(CFLAGS) /c $*.c
+
+.cpp.obj:	
+	$(CC) $(CFLAGS) /c $*.cpp
+
+
