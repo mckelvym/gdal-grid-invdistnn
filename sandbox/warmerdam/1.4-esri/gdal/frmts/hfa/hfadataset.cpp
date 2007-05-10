@@ -50,6 +50,13 @@ CPL_C_END
 #  define D2R	(PI/180)
 #endif
 
+#define SRS_PT_ECKERT_I         "Eckert_I"
+#define SRS_PT_ECKERT_II        "Eckert_II"
+#define SRS_PT_ECKERT_III       "Eckert_III"
+#define SRS_PT_ECKERT_IV        "Eckert_IV"
+#define SRS_PT_ECKERT_V         "Eckert_V"
+#define SRS_PT_ECKERT_VI        "Eckert_VI"
+
 static const char *apszDatumMap[] = {
     /* Imagine name, WKT name */
     "NAD27", "North_American_Datum_1927",
@@ -1596,10 +1603,42 @@ CPLErr HFADataset::WriteProjection()
         sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
         sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
     }
+    else if( EQUAL(pszProjName,SRS_PT_ECKERT_I) )
+    {
+        sPro.proNumber = EPRJ_ECKERT_I;
+        sPro.proName = "Eckert I";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,SRS_PT_ECKERT_II) )
+    {
+        sPro.proNumber = EPRJ_ECKERT_II;
+        sPro.proName = "Eckert II";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,SRS_PT_ECKERT_III) )
+    {
+        sPro.proNumber = EPRJ_ECKERT_III;
+        sPro.proName = "Eckert III";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
     else if( EQUAL(pszProjName,SRS_PT_ECKERT_IV) )
     {
         sPro.proNumber = EPRJ_ECKERT_IV;
         sPro.proName = "Eckert IV";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,SRS_PT_ECKERT_VI) )
+    {
+        sPro.proNumber = EPRJ_ECKERT_V;
+        sPro.proName = "Eckert V";
         sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
         sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
         sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
@@ -1635,6 +1674,58 @@ CPLErr HFADataset::WriteProjection()
         sPro.proName = "Bonne";
         sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
         sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,"Loximuthal") )
+    {
+        sPro.proNumber = EPRJ_LOXIMUTHAL;
+        sPro.proName = "Loximuthal";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm("central_parallel")*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,"Quartic_Authalic") )
+    {
+        sPro.proNumber = EPRJ_QUARTIC_AUTHALIC;
+        sPro.proName = "Quartic Authalic";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,"Winkel_I") )
+    {
+        sPro.proNumber = EPRJ_WINKEL_I;
+        sPro.proName = "Winkel I";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,"Winkel_II") )
+    {
+        sPro.proNumber = EPRJ_WINKEL_II;
+        sPro.proName = "Winkel II";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,"Winkel_II") )
+    {
+        sPro.proNumber = EPRJ_WINKEL_II;
+        sPro.proName = "Winkel II";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName,"Behrmann") )
+    {
+        sPro.proNumber = EPRJ_BEHRMANN;
+        sPro.proName = "Behrmann";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
         sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
         sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
     }
@@ -2012,9 +2103,16 @@ CPLErr HFADataset::ReadProjection()
                             psPro->proParams[6], psPro->proParams[7] );
         break;
 
+      case EPRJ_PLATE_CARREE:
       case EPRJ_EQUIRECTANGULAR:
         oSRS.SetEquirectangular(
             psPro->proParams[5]*R2D, psPro->proParams[4]*R2D,
+            psPro->proParams[6], psPro->proParams[7] );
+        break;
+
+      case EPRJ_EQUIDISTANT_CYLINDRICAL:
+        oSRS.SetEquirectangular(
+            psPro->proParams[2]*R2D, psPro->proParams[4]*R2D,
             psPro->proParams[6], psPro->proParams[7] );
         break;
 
@@ -2046,20 +2144,82 @@ CPLErr HFADataset::ReadProjection()
                            psPro->proParams[6], psPro->proParams[7] );
         break;
 
-      case EPRJ_ECKERT_IV:
-        oSRS.SetEckertIV( psPro->proParams[4]*R2D,
-                          psPro->proParams[6], psPro->proParams[7] );
-        break;
-
-      case EPRJ_ECKERT_VI:
-        oSRS.SetEckertVI( psPro->proParams[4]*R2D,
-                          psPro->proParams[6], psPro->proParams[7] );
-        break;
-
       case EPRJ_GALL_STEREOGRAPHIC:
         oSRS.SetGS( psPro->proParams[4]*R2D,
                     psPro->proParams[6], psPro->proParams[7] );
         break;
+
+      case EPRJ_ECKERT_I:
+      {
+          oSRS.SetProjection( SRS_PT_ECKERT_I );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                                psPro->proParams[4]*R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, 
+                                psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, 
+                                psPro->proParams[7] );
+      }
+      break;
+
+      case EPRJ_ECKERT_II:
+      {
+          oSRS.SetProjection( SRS_PT_ECKERT_II );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                                psPro->proParams[4]*R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, 
+                                psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, 
+                                psPro->proParams[7] );
+      }
+      break;
+
+      case EPRJ_ECKERT_III:
+      {
+          oSRS.SetProjection( SRS_PT_ECKERT_III );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                                psPro->proParams[4]*R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, 
+                                psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, 
+                                psPro->proParams[7] );
+      }
+      break;
+
+      case EPRJ_ECKERT_IV:
+      {
+          oSRS.SetProjection( SRS_PT_ECKERT_IV );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                                psPro->proParams[4]*R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, 
+                                psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, 
+                                psPro->proParams[7] );
+      }
+      break;
+
+      case EPRJ_ECKERT_V:
+      {
+          oSRS.SetProjection( SRS_PT_ECKERT_V );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                                psPro->proParams[4]*R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, 
+                                psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, 
+                                psPro->proParams[7] );
+      }
+      break;
+
+      case EPRJ_ECKERT_VI:
+      {
+          oSRS.SetProjection( SRS_PT_ECKERT_VI );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                                psPro->proParams[4]*R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, 
+                                psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, 
+                                psPro->proParams[7] );
+      }
+      break;
 
       case EPRJ_CASSINI:
         oSRS.SetCS( psPro->proParams[5]*R2D, psPro->proParams[4]*R2D,
@@ -2076,6 +2236,62 @@ CPLErr HFADataset::ReadProjection()
         oSRS.SetBonne( psPro->proParams[2]*R2D, psPro->proParams[4]*R2D,
                        psPro->proParams[6], psPro->proParams[7] );
         break;
+
+      case EPRJ_LOXIMUTHAL:
+      {
+          oSRS.SetProjection( "Loximuthal" );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                           psPro->proParams[4] * R2D );
+          oSRS.SetNormProjParm( "central_parallel", 
+                           psPro->proParams[5] * R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, psPro->proParams[6] );
+      }
+      break;
+
+      case EPRJ_QUARTIC_AUTHALIC:
+      {
+          oSRS.SetProjection( "Quartic_Authalic" );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                           psPro->proParams[4] * R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, psPro->proParams[6] );
+      }
+      break;
+
+      case EPRJ_WINKEL_I:
+      {
+          oSRS.SetProjection( "Winkel_I" );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                           psPro->proParams[4] * R2D );
+          oSRS.SetNormProjParm( SRS_PP_STANDARD_PARALLEL_1, 
+                           psPro->proParams[2] * R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, psPro->proParams[6] );
+      }
+      break;
+
+      case EPRJ_WINKEL_II:
+      {
+          oSRS.SetProjection( "Winkel_II" );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                           psPro->proParams[4] * R2D );
+          oSRS.SetNormProjParm( SRS_PP_STANDARD_PARALLEL_1, 
+                           psPro->proParams[2] * R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, psPro->proParams[6] );
+      }
+      break;
+
+      case EPRJ_BEHRMANN:
+      {
+          oSRS.SetProjection( "Behrmann" );
+          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
+                           psPro->proParams[4] * R2D );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, psPro->proParams[6] );
+          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, psPro->proParams[6] );
+      }
+      break;
 
       default:
         if( oSRS.IsProjected() )
