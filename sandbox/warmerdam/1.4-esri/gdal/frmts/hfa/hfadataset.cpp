@@ -278,6 +278,10 @@ class CPL_DLL HFADataset : public GDALPamDataset
     CPLErr      ReadProjection();
     CPLErr      WriteProjection();
 
+    void        UseXFormStack( int nStepCount,
+                               Efga_Polynomial *pasPolyListForward,
+                               Efga_Polynomial *pasPolyListReverse );
+
   protected:
     virtual CPLErr IRasterIO( GDALRWFlag, int, int, int, int,
                               void *, int, int, GDALDataType,
@@ -1257,7 +1261,7 @@ HFADataset::HFADataset()
     hHFA = NULL;
     bGeoDirty = FALSE;
     pszProjection = CPLStrdup("");
-    this->bMetadataDirty = FALSE;
+    bMetadataDirty = FALSE;
     bIgnoreUTM = FALSE;
 }
 
@@ -2457,9 +2461,26 @@ GDALDataset *HFADataset::Open( GDALOpenInfo * poOpenInfo )
     }
 
 /* -------------------------------------------------------------------- */
-/*      Get geotransform.                                               */
+/*      Get geotransform, or if that fails, try to find XForms to 	*/
+/*	build gcps, and metadata.					*/
 /* -------------------------------------------------------------------- */
-    HFAGetGeoTransform( hHFA, poDS->adfGeoTransform );
+    if( !HFAGetGeoTransform( hHFA, poDS->adfGeoTransform ) )
+    {
+        Efga_Polynomial *pasPolyListForward = NULL;
+        Efga_Polynomial *pasPolyListReverse = NULL;
+        int nStepCount = 
+            HFAReadXFormStack( hHFA, &pasPolyListForward, 
+                               &pasPolyListReverse );
+
+        if( nStepCount > 0 )
+        {
+            poDS->UseXFormStack( nStepCount, 
+                                 pasPolyListForward, 
+                                 pasPolyListReverse );
+            CPLFree( pasPolyListForward );
+            CPLFree( pasPolyListReverse );
+        }
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Get the projection.                                             */
@@ -2648,6 +2669,83 @@ CPLErr HFADataset::IRasterIO( GDALRWFlag eRWFlag,
                                     pData, nBufXSize, nBufYSize, eBufType, 
                                     nBandCount, panBandMap, 
                                     nPixelSpace, nLineSpace, nBandSpace );
+}
+
+/************************************************************************/
+/*                           UseXFormStack()                            */
+/************************************************************************/
+
+void HFADataset::UseXFormStack( int nStepCount,
+                                Efga_Polynomial *pasPLForward,
+                                Efga_Polynomial *pasPLReverse )
+
+{
+/* -------------------------------------------------------------------- */
+/*      Store the transform as metadata.                                */
+/* -------------------------------------------------------------------- */
+    int iStep, i;
+
+    GDALMajorObject::SetMetadataItem( 
+        "XFORM_STEPS", 
+        CPLString().Printf("%d",nStepCount),
+        "XFORMS" );
+
+    for( iStep = 0; iStep < nStepCount; iStep++ )
+    {
+        GDALMajorObject::SetMetadataItem( 
+            CPLString().Printf("XFORM%d_ORDER", iStep),
+            CPLString().Printf("%d",pasPLForward[iStep].order),
+            "XFORMS" );
+
+        if( pasPLForward[iStep].order == 1 )
+        {
+            for( i = 0; i < 4; i++ )
+                GDALMajorObject::SetMetadataItem( 
+                    CPLString().Printf("XFORM%d_POLYCOEFMTX[%d]", iStep, i),
+                    CPLString().Printf("%.15g",
+                                       pasPLForward[iStep].polycoefmtx[i]),
+                    "XFORMS" );
+            
+            for( i = 0; i < 2; i++ )
+                GDALMajorObject::SetMetadataItem( 
+                    CPLString().Printf("XFORM%d_POLYCOEFVECTOR[%d]", iStep, i),
+                    CPLString().Printf("%.15g",
+                                       pasPLForward[iStep].polycoefvector[i]),
+                    "XFORMS" );
+            
+            continue;
+        }
+
+        CPLAssert( pasPLForward[iStep].order == 2 );
+
+        for( i = 0; i < 10; i++ )
+            GDALMajorObject::SetMetadataItem( 
+                CPLString().Printf("XFORM%d_FWD_POLYCOEFMTX[%d]", iStep, i),
+                CPLString().Printf("%.15g",
+                                   pasPLForward[iStep].polycoefmtx[i]),
+                "XFORMS" );
+            
+        for( i = 0; i < 2; i++ )
+            GDALMajorObject::SetMetadataItem( 
+                CPLString().Printf("XFORM%d_FWD_POLYCOEFVECTOR[%d]", iStep, i),
+                CPLString().Printf("%.15g",
+                                   pasPLForward[iStep].polycoefvector[i]),
+                "XFORMS" );
+            
+        for( i = 0; i < 10; i++ )
+            GDALMajorObject::SetMetadataItem( 
+                CPLString().Printf("XFORM%d_REV_POLYCOEFMTX[%d]", iStep, i),
+                CPLString().Printf("%.15g",
+                                   pasPLReverse[iStep].polycoefmtx[i]),
+                "XFORMS" );
+            
+        for( i = 0; i < 2; i++ )
+            GDALMajorObject::SetMetadataItem( 
+                CPLString().Printf("XFORM%d_REV_POLYCOEFVECTOR[%d]", iStep, i),
+                CPLString().Printf("%.15g",
+                                   pasPLReverse[iStep].polycoefvector[i]),
+                "XFORMS" );
+    }
 }
 
 /************************************************************************/
