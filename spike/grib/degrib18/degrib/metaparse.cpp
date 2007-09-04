@@ -28,6 +28,8 @@
 #include "memendian.h"
 #include "myutil.h"
 
+#define pow(a,b) pow((double)(a),b) // prevent Visual Studio 7 from using int pow(int,int)
+
 /*****************************************************************************
  * MetaInit() --
  *

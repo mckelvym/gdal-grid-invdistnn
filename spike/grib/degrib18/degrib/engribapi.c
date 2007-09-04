@@ -24,6 +24,8 @@
 #include "memwatch.h"
 #endif
 
+#define pow(a,b) pow((double)(a),b) // prevent Visual Studio 7 from using int pow(int,int)
+
 #define GRIB2MISSING_1 (int) (0xff)
 #define GRIB2MISSING_2 (int) (0xffff)
 #define GRIB2MISSING_4 (sInt4) (0xffffffff)

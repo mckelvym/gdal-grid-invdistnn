@@ -14,6 +14,8 @@
 #include "memwatch.h"
 #endif
 
+#define pow(a,b) pow((double)(a),b) // prevent Visual Studio 7 from using int pow(int,int)
+
 #define GRIB_UNSIGN_INT3(a,b,c) ((a<<16)+(b<<8)+c)
 #define GRIB_UNSIGN_INT2(a,b) ((a<<8)+b)
 #define GRIB_SIGN_INT3(a,b,c) ((1-(int) ((unsigned) (a & 0x80) >> 6)) * (int) (((a & 127) << 16)+(b<<8)+c))

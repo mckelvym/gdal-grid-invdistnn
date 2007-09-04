@@ -33,6 +33,8 @@
 
 #define SECT0LEN_BYTE 16
 
+#define pow(a,b) pow((double)(a),b) // prevent Visual Studio 7 from using int pow(int,int)
+
 typedef union {
    sInt4 li;
    char buffer[4];

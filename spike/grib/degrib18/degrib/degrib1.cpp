@@ -25,6 +25,8 @@
 #include "metaname.h"
 #include "clock.h"
 
+#define pow(a,b) pow((double)(a),b) // prevent Visual Studio 7 from using int pow(int,int)
+
 /* default missing data value (see: bitmap GRIB1: sect3 and sect4) */
 /* UNDEFINED is default, UNDEFINED_PRIM is desired choice. */
 #define UNDEFINED 9.999e20

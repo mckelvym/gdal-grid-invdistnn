@@ -23,6 +23,8 @@
 #include "myassert.h"
 //#include "config.h" /*config.h created by configure - ADT mod*/
 
+#define pow(a,b) pow((double)(a),b) // prevent Visual Studio 7 from using int pow(int,int)
+
 /* Declare the external FORTRAN routine
  * gcc has two __ if there is one _ in the procedure name. */
 #ifdef _FORTRAN
