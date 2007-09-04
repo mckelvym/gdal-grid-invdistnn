@@ -64,7 +64,7 @@ enum { NDFD_MAX, NDFD_MIN, NDFD_POP, NDFD_TEMP, NDFD_WD, NDFD_WS,
 
 /* For GRIB1 GDS Types. */
 enum { GB1S2_LATLON = 0, GB1S2_MERCATOR = 1, GB1S2_LAMBERT = 3,
-      GB1S2_POLAR = 5
+      GB1S2_GAUSSIAN_LATLON = 4, GB1S2_POLAR = 5
 };
 
 /* For TDLP GDS Types. */
@@ -380,7 +380,7 @@ typedef struct {
  * section 2.
  */
 enum { GS3_LATLON = 0, GS3_MERCATOR = 10, GS3_POLAR = 20,
-       GS3_LAMBERT = 30, GS3_ORTHOGRAPHIC = 90,
+       GS3_LAMBERT = 30, GS3_GAUSSIAN_LATLON = 40, GS3_ORTHOGRAPHIC = 90,
        GS3_EQUATOR_EQUIDIST = 110, GS3_AZIMUTH_RANGE = 120};
 
 /* Note: It appears that compilers break up a struct based on the largest

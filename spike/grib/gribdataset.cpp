@@ -385,6 +385,7 @@ void GRIBDataset::SetMetaData(grib_MetaData* meta)
 		switch(meta->gds.projType)
 		{
 		case GS3_LATLON:
+		case GS3_GAUSSIAN_LATLON:
 			// No projection, only latlon system (geographic)
 			break;
 		case GS3_MERCATOR:

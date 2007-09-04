@@ -823,6 +823,7 @@ static int ParseSect3 (sInt4 *is3, sInt4 ns3, grib_MetaData *meta)
    meta->gds.lat2 = meta->gds.lon2 = 0;
    switch (is3[12]) {
       case GS3_LATLON: /* 0: Regular lat/lon grid. */
+      case GS3_GAUSSIAN_LATLON:  /* 40: Gaussian lat/lon grid. */
          if (ns3 < 72) {
             return -1;
          }
@@ -848,7 +849,11 @@ static int ParseSect3 (sInt4 *is3, sInt4 ns3, grib_MetaData *meta)
          meta->gds.lat2 = is3[55] * unit;
          meta->gds.lon2 = is3[59] * unit;
          meta->gds.Dx = is3[63] * unit; /* degrees. */
-         meta->gds.Dy = is3[67] * unit; /* degrees. */
+         if (is3[12] == GS3_GAUSSIAN_LATLON) {
+            int np = is3[67]; /* parallels between a pole and the equator */
+            meta->gds.Dy = 90.0 / np;
+         } else
+            meta->gds.Dy = is3[67] * unit; /* degrees. */
          meta->gds.scan = (uChar) is3[71];
          meta->gds.meshLat = 0;
          meta->gds.orientLon = 0;

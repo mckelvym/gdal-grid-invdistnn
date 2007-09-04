@@ -863,13 +863,17 @@ static int ReadGrib1Sect2 (uChar *gds, uInt4 gribLen, uInt4 *curLoc,
    gds += 2;
    gridType = *(gds++);
    switch (gridType) {
-      case GB1S2_LATLON:
+      case GB1S2_LATLON: // Latitude/Longitude Grid
+      case GB1S2_GAUSSIAN_LATLON: // Gaussian Latitude/Longitude
          if ((sectLen != 32) && (sectLen != 42) && (sectLen != 52)) {
             errSprintf ("For LatLon GDS, should have 32 or 42 or 52 bytes "
                         "of data\n");
             return -1;
          }
-         gdsMeta->projType = GS3_LATLON;
+         if (gridType == GB1S2_GAUSSIAN_LATLON)
+            gdsMeta->projType = GS3_GAUSSIAN_LATLON;
+         else
+            gdsMeta->projType = GS3_LATLON;
          gdsMeta->orientLon = 0;
          gdsMeta->meshLat = 0;
          gdsMeta->scaleLat1 = 0;
@@ -904,7 +908,11 @@ static int ReadGrib1Sect2 (uChar *gds, uInt4 gribLen, uInt4 *curLoc,
          gds += 3;
          gdsMeta->Dx = GRIB_UNSIGN_INT2 (*gds, gds[1]) * unit;
          gds += 2;
-         gdsMeta->Dy = GRIB_UNSIGN_INT2 (*gds, gds[1]) * unit;
+         if (gridType == GB1S2_GAUSSIAN_LATLON) {
+            int np = GRIB_UNSIGN_INT2 (*gds, gds[1]); /* parallels between a pole and the equator */
+            gdsMeta->Dy = 90.0 / np;
+         } else
+            gdsMeta->Dy = GRIB_UNSIGN_INT2 (*gds, gds[1]) * unit;
          gds += 2;
          gdsMeta->scan = *gds;
          gdsMeta->f_typeLatLon = 0;
