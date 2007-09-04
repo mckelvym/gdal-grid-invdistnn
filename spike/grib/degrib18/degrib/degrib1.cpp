@@ -867,15 +867,23 @@ static int ReadGrib1Sect2 (uChar *gds, uInt4 gribLen, uInt4 *curLoc,
    switch (gridType) {
       case GB1S2_LATLON: // Latitude/Longitude Grid
       case GB1S2_GAUSSIAN_LATLON: // Gaussian Latitude/Longitude
+      case GB1S2_ROTATED_LATLON: // Rotated Latitude/Longitude
          if ((sectLen != 32) && (sectLen != 42) && (sectLen != 52)) {
             errSprintf ("For LatLon GDS, should have 32 or 42 or 52 bytes "
                         "of data\n");
             return -1;
          }
-         if (gridType == GB1S2_GAUSSIAN_LATLON)
-            gdsMeta->projType = GS3_GAUSSIAN_LATLON;
-         else
+         switch(gridType) {
+         case GB1S2_LATLON:
             gdsMeta->projType = GS3_LATLON;
+            break;
+         case GB1S2_GAUSSIAN_LATLON:
+            gdsMeta->projType = GS3_GAUSSIAN_LATLON;
+            break;
+         case GB1S2_ROTATED_LATLON:
+            gdsMeta->projType = GS3_ROTATED_LATLON;
+            break;
+         }
          gdsMeta->orientLon = 0;
          gdsMeta->meshLat = 0;
          gdsMeta->scaleLat1 = 0;
