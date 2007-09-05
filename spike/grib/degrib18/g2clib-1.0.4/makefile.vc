@@ -6,6 +6,11 @@ GDAL_ROOT       =       ..\..\..\..
 
 !INCLUDE $(GDAL_ROOT)\nmake.opt
 
+!IFDEF JASPER_DIR
+OBJ = $(OBJ) dec_jpeg2000.obj jpcunpack.obj jpcpack.obj enc_jpeg2000.obj
+EXTRAFLAGS = $(EXTRAFLAGS) $(JASPER_INCLUDE) -DUSE_JPEG2000
+!ENDIF
+
 default: $(OBJ)
         xcopy /D /Y *.obj ..\..\..\o
 
