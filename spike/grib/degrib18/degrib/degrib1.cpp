@@ -874,14 +874,14 @@ static int ReadGrib1Sect2 (uChar *gds, uInt4 gribLen, uInt4 *curLoc,
             return -1;
          }
          switch(gridType) {
-         case GB1S2_LATLON:
-            gdsMeta->projType = GS3_LATLON;
-            break;
          case GB1S2_GAUSSIAN_LATLON:
             gdsMeta->projType = GS3_GAUSSIAN_LATLON;
             break;
          case GB1S2_ROTATED_LATLON:
             gdsMeta->projType = GS3_ROTATED_LATLON;
+            break;
+         default:
+            gdsMeta->projType = GS3_LATLON;
             break;
          }
          gdsMeta->orientLon = 0;
