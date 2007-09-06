@@ -103,7 +103,7 @@ void mkieee(g2float *a,g2int *rieee,g2int num)
             atemp=(atemp/int_power(2.0,n))-1.0;
           else
             atemp=atemp*two126;
-          imant=(g2int)rint(atemp*two23);
+          imant=(g2int)RINT(atemp*two23);
         }
         else {
           imant=0;

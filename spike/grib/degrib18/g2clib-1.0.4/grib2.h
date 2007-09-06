@@ -201,7 +201,7 @@ struct gribfield {
 
 typedef struct gribfield gribfield;
 
-#define rint(d)   (floor(d+0.5))
+#define RINT(d)   (floor(d+0.5))
 
 /*  Prototypes for unpacking API  */
 void seekgb(FILE *,g2int ,g2int ,g2int *,g2int *);
