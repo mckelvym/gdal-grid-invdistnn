@@ -1,13 +1,18 @@
 
 
-EXTRAFLAGS = -Idegrib18/degrib -DUSE_PNG -I../png/libpng -I../zlib
+EXTRAFLAGS = -Idegrib18/degrib
 
 include ../../GDALmake.opt
 
 OBJ	=	gribdataset.o \
                 clock.o \
                 degrib1.o \
-                degrib2.o inventory.o metaname.o myerror.o tdlpack.o filedatasource.o memorydatasource.o grib1tab.o myutil.o metaparse.o weather.o metaprint.o engribapi.o grib2api.o myassert.o scan.o memendian.o fileendian.o gridtemplates.o drstemplates.o pdstemplates.o gbits.o g2_free.o g2_unpack1.o g2_unpack2.o g2_unpack3.o g2_unpack4.o g2_unpack5.o g2_unpack6.o g2_unpack7.o g2_info.o g2_getfld.o simunpack.o comunpack.o pack_gp.o reduce.o specpack.o specunpack.o rdieee.o mkieee.o int_power.o simpack.o compack.o cmplxpack.o misspack.o g2_create.o g2_addlocal.o g2_addgrid.o g2_addfield.o g2_gribend.o getdim.o g2_miss.o getpoly.o seekgb.o dec_png.o pngunpack.o pngpack.o enc_png.o
+                degrib2.o inventory.o metaname.o myerror.o tdlpack.o filedatasource.o memorydatasource.o grib1tab.o myutil.o metaparse.o weather.o metaprint.o engribapi.o grib2api.o myassert.o scan.o memendian.o fileendian.o gridtemplates.o drstemplates.o pdstemplates.o gbits.o g2_free.o g2_unpack1.o g2_unpack2.o g2_unpack3.o g2_unpack4.o g2_unpack5.o g2_unpack6.o g2_unpack7.o g2_info.o g2_getfld.o simunpack.o comunpack.o pack_gp.o reduce.o specpack.o specunpack.o rdieee.o mkieee.o int_power.o simpack.o compack.o cmplxpack.o misspack.o g2_create.o g2_addlocal.o g2_addgrid.o g2_addfield.o g2_gribend.o getdim.o g2_miss.o getpoly.o seekgb.o
+
+ifeq ($(HAVE_JASPER),yes)
+EXTRAFLAGS	:= 	$(EXTRAFLAGS) -DUSE_JPEG2000
+OBJ		:= $(OBJ) dec_jpeg2000.o jpcunpack.o jpcpack.o enc_jpeg2000.o
+endif
 
 CPPFLAGS	:=	$(GDAL_INCLUDE) $(CPPFLAGS) $(EXTRAFLAGS)
 
