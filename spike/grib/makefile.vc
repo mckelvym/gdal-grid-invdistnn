@@ -11,4 +11,6 @@ default:	$(OBJ)
 
 clean:
 	-del *.obj
+	-del degrib18\degrib\*.obj
+	-del degrib18\g2clib-1.0.4\*.obj
 
