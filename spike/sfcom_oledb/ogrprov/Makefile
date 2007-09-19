@@ -1,6 +1,6 @@
 
-GDAL_ROOT = 	..\..\..
-OGR       =	..\..
+GDAL_ROOT = 	C:\warmerda\gdal
+OGR       =	$(GDAL_ROOT)\ogr
 SFOLEDB   =     ..
 
 PROJ	=	smsf
@@ -13,7 +13,7 @@ EXTRAFLAGS =	-I$(SFOLEDB) \
 		-I$(SFOLEDB)\atl_net -DSUPPORT_ATL_NET \
 #		-I$(SFOLEDB)\atl_vc6 \
 		-I$(MSDASDK)\include\oledb -I$(OGR) /W2 \
-		-I$(OGR)\ogrsf_frmts -I$(VCDIR)\ATL\Include \
+		-I$(OGR)\ogrsf_frmts -I..\client -I$(VCDIR)\ATL\Include \
 		-DCACHE_OGRDATASOURCE \
 		-DSUPPORT_ADSK_GEOM_EXTENT \
 #		-DSUPPORT_2D_FLATTEN
