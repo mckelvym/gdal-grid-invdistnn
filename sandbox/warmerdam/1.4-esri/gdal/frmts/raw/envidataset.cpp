@@ -200,7 +200,7 @@ static int ESRIToUSGSZone( int nESRIZone )
             return anUsgsEsriZones[i*2];
     }
 
-    return 0;
+    return nESRIZone; // perhaps it *is* the USGS zone?
 }
 
 /************************************************************************/
@@ -227,6 +227,9 @@ class ENVIDataset : public RawDataset
 
     int         ReadHeader( FILE * );
     int         ProcessMapinfo( const char * );
+    void        SetENVIDatum( OGRSpatialReference *, const char * );
+    void        SetENVIEllipse( OGRSpatialReference *, char ** );
+    void        WriteProjectionInfo();
     
     char        **SplitList( const char * );
 
@@ -408,44 +411,7 @@ void ENVIDataset::FlushCache()
 /* -------------------------------------------------------------------- */
 /*      Write the rest of header.                                       */
 /* -------------------------------------------------------------------- */
-    if ( pszProjection && !EQUAL(pszProjection, "") )
-    {
-        const char	*pszHemisphere;
-        double		dfPixelY;
-        int		bNorth;
-        int		iUTMZone;
-        OGRSpatialReference oSRS;
-
-        char	*pszProj = pszProjection;
-
-        oSRS.importFromWkt( &pszProj );
-        iUTMZone = oSRS.GetUTMZone( &bNorth );
-        if ( iUTMZone )
-        {
-            if ( bNorth )
-            {
-                pszHemisphere = "North";
-                dfPixelY = -adfGeoTransform[5];
-            }
-            else
-            {
-                pszHemisphere = "South";
-                dfPixelY = adfGeoTransform[5];
-            }
-  	    VSIFPrintf( fp, "map info = {UTM, 1, 1, %f, %f, %f, %f, %d, %s}\n",
-                        adfGeoTransform[0], adfGeoTransform[3], adfGeoTransform[1],
-                        dfPixelY, iUTMZone, pszHemisphere);
-        }
-    } else {
-        // Suppose we are in North hemisphere.
-        double dfPixelY = -adfGeoTransform[5];
-        const char* pszHemisphere = "North";
-        VSIFPrintf( fp, "map info = {Unknown, 1, 1, %f, %f, %f, %f, %d, %s}\n",
-                    adfGeoTransform[0], adfGeoTransform[3], adfGeoTransform[1],
-                    dfPixelY, 0, pszHemisphere);
-    }
-    
-
+    WriteProjectionInfo();
     VSIFPrintf( fp, "band names = {\n" );
     for ( int i = 1; i <= nBands; i++ )
     {
@@ -459,6 +425,377 @@ void ENVIDataset::FlushCache()
     }
     VSIFPrintf( fp, "}\n" );
 }
+
+/************************************************************************/
+/*                           GetEPSGGeogCS()                            */
+/*                                                                      */
+/*      Try to establish what the EPSG code for this coordinate         */
+/*      systems GEOGCS might be.  Returns -1 if no reasonable guess     */
+/*      can be made.                                                    */
+/*                                                                      */
+/*      TODO: We really need to do some name lookups.                   */
+/************************************************************************/
+
+static int ENVIGetEPSGGeogCS( OGRSpatialReference *poThis )
+
+{
+    const char *pszAuthName = poThis->GetAuthorityName( "GEOGCS" );
+
+/* -------------------------------------------------------------------- */
+/*      Do we already have it?                                          */
+/* -------------------------------------------------------------------- */
+    if( pszAuthName != NULL && EQUAL(pszAuthName,"epsg") )
+        return atoi(poThis->GetAuthorityCode( "GEOGCS" ));
+
+/* -------------------------------------------------------------------- */
+/*      Get the datum and geogcs names.                                 */
+/* -------------------------------------------------------------------- */
+    const char *pszGEOGCS = poThis->GetAttrValue( "GEOGCS" );
+    const char *pszDatum = poThis->GetAttrValue( "DATUM" );
+
+    // We can only operate on coordinate systems with a geogcs.
+    if( pszGEOGCS == NULL || pszDatum == NULL )
+        return -1;
+
+/* -------------------------------------------------------------------- */
+/*      Is this a "well known" geographic coordinate system?            */
+/* -------------------------------------------------------------------- */
+    int bWGS, bNAD;
+
+    bWGS = strstr(pszGEOGCS,"WGS") != NULL
+        || strstr(pszDatum, "WGS")
+        || strstr(pszGEOGCS,"World Geodetic System")
+        || strstr(pszGEOGCS,"World_Geodetic_System")
+        || strstr(pszDatum, "World Geodetic System")
+        || strstr(pszDatum, "World_Geodetic_System"); 
+
+    bNAD = strstr(pszGEOGCS,"NAD") != NULL
+        || strstr(pszDatum, "NAD")
+        || strstr(pszGEOGCS,"North American")
+        || strstr(pszGEOGCS,"North_American")
+        || strstr(pszDatum, "North American")
+        || strstr(pszDatum, "North_American"); 
+
+    if( bWGS && (strstr(pszGEOGCS,"84") || strstr(pszDatum,"84")) )
+        return 4326;
+
+    if( bWGS && (strstr(pszGEOGCS,"72") || strstr(pszDatum,"72")) )
+        return 4322;
+
+    if( bNAD && (strstr(pszGEOGCS,"83") || strstr(pszDatum,"83")) )
+        return 4269;
+
+    if( bNAD && (strstr(pszGEOGCS,"27") || strstr(pszDatum,"27")) )
+        return 4267;
+
+/* -------------------------------------------------------------------- */
+/*      If we know the datum, associate the most likely GCS with        */
+/*      it.                                                             */
+/* -------------------------------------------------------------------- */
+    pszAuthName = poThis->GetAuthorityName( "GEOGCS|DATUM" );
+
+    if( pszAuthName != NULL 
+        && EQUAL(pszAuthName,"epsg") 
+        && poThis->GetPrimeMeridian() == 0.0 )
+    {
+        int nDatum = atoi(poThis->GetAuthorityCode("GEOGCS|DATUM"));
+        
+        if( nDatum >= 6000 && nDatum <= 6999 )
+            return nDatum - 2000;
+    }
+
+    return -1;
+}
+
+/************************************************************************/
+/*                        WriteProjectionInfo()                         */
+/************************************************************************/
+
+void ENVIDataset::WriteProjectionInfo()
+
+{
+/* -------------------------------------------------------------------- */
+/*      Format the location (geotransform) portion of the map info      */
+/*      line.                                                           */
+/* -------------------------------------------------------------------- */
+    CPLString   osLocation;
+
+    osLocation.Printf( "1, 1, %.15g, %.15g, %.15g, %.15g", 
+                       adfGeoTransform[0], adfGeoTransform[3], 
+                       adfGeoTransform[1], fabs(adfGeoTransform[5]) );
+                       
+/* -------------------------------------------------------------------- */
+/*      Minimal case - write out simple geotransform if we have a       */
+/*      non-default geotransform.                                       */
+/* -------------------------------------------------------------------- */
+    if( pszProjection == NULL || strlen(pszProjection) == 0 )
+    {
+        if( adfGeoTransform[0] != 0.0 || adfGeoTransform[1] != 1.0
+            || adfGeoTransform[2] != 0.0 || adfGeoTransform[3] != 0.0
+            || adfGeoTransform[4] != 0.0 || adfGeoTransform[5] != 1.0 )
+        {
+            const char* pszHemisphere = "North";
+            VSIFPrintf( fp, "map info = {Unknown, %s, %d, %s}\n",
+                        osLocation.c_str(), 0, pszHemisphere);
+        }
+        return;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Ingest WKT.                                                     */
+/* -------------------------------------------------------------------- */
+    OGRSpatialReference oSRS;
+    
+    char	*pszProj = pszProjection;
+    
+    if( oSRS.importFromWkt( &pszProj ) != OGRERR_NONE )
+        return;
+
+/* -------------------------------------------------------------------- */
+/*      Try to translate the datum and get major/minor ellipsoid        */
+/*      values.                                                         */
+/* -------------------------------------------------------------------- */
+    int nEPSG_GCS = ENVIGetEPSGGeogCS( &oSRS );
+    CPLString osDatum, osCommaDatum;
+    double dfA, dfB;
+
+    if( nEPSG_GCS == 4326 )
+        osDatum = "WGS-84";
+    else if( nEPSG_GCS == 4322 )
+        osDatum = "WGS-72";
+    else if( nEPSG_GCS == 4269 )
+        osDatum = "North America 1983";
+    else if( nEPSG_GCS == 4267 )
+        osDatum = "North America 1927";
+    else if( nEPSG_GCS == 4230 )
+        osDatum = "European 1950";
+    else if( nEPSG_GCS == 4277 )
+        osDatum = "Ordnance Survey of Great Britain '36";
+    else if( nEPSG_GCS == 4291 )
+        osDatum = "SAD-69/Brazil";
+    else if( nEPSG_GCS == 4283 )
+        osDatum = "Geocentric Datum of Australia 1994";
+    else if( nEPSG_GCS == 4275 )
+        osDatum = "Nouvelle Triangulation Francaise IGN";
+
+    if( osDatum != "" )
+        osCommaDatum.Printf( ",%s", osDatum.c_str() );
+
+    dfA = oSRS.GetSemiMajor();
+    dfB = oSRS.GetSemiMinor();
+
+/* -------------------------------------------------------------------- */
+/*      Do we have unusual linear units?                                */
+/* -------------------------------------------------------------------- */
+    CPLString osOptionalUnits;
+    if( fabs(oSRS.GetLinearUnits()-0.3048) < 0.0001 )
+        osOptionalUnits = ", units=Feet";
+
+/* -------------------------------------------------------------------- */
+/*      Handle UTM case.                                                */
+/* -------------------------------------------------------------------- */
+    const char	*pszHemisphere;
+    const char  *pszProjName = oSRS.GetAttrValue("PROJECTION");
+    int		bNorth;
+    int		iUTMZone;
+
+    iUTMZone = oSRS.GetUTMZone( &bNorth );
+    if ( iUTMZone )
+    {
+        if ( bNorth )
+            pszHemisphere = "North";
+        else
+            pszHemisphere = "South";
+
+        VSIFPrintf( fp, "map info = {UTM, %s, %d, %s%s%s}\n",
+                    osLocation.c_str(), iUTMZone, pszHemisphere,
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+    }
+    else if( oSRS.IsGeographic() )
+    {
+        VSIFPrintf( fp, "map info = {Geographic Lat/Lon, %s%s}\n",
+                    osLocation.c_str(), osCommaDatum.c_str());
+    }
+    else if( pszProjName == NULL )
+    {
+        // what to do? 
+    }
+    else if( EQUAL(pszProjName,SRS_PT_NEW_ZEALAND_MAP_GRID) )
+    {
+        VSIFPrintf( fp, "map info = {New Zealand Map Grid, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {39, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, New Zealand Map Grid}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_TRANSVERSE_MERCATOR) )
+    {
+        VSIFPrintf( fp, "map info = {Transverse Mercator, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {3, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Transverse Mercator}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_SCALE_FACTOR,1.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP)
+         || EQUAL(pszProjName,SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP_BELGIUM) )
+    {
+        VSIFPrintf( fp, "map info = {Lambert Conformal Conic, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {4, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Lambert Conformal Conic}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_STANDARD_PARALLEL_1,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_STANDARD_PARALLEL_2,0.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,
+                   SRS_PT_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_NATURAL_ORIGIN) )
+    {
+        VSIFPrintf( fp, "map info = {Hotine Oblique Mercator A, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {5, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Hotine Oblique Mercator A}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_POINT_1,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_LONGITUDE_OF_POINT_1,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_POINT_2,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_LONGITUDE_OF_POINT_2,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_SCALE_FACTOR,1.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_HOTINE_OBLIQUE_MERCATOR) )
+    {
+        VSIFPrintf( fp, "map info = {Hotine Oblique Mercator B, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {6, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Hotine Oblique Mercator B}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_AZIMUTH,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_SCALE_FACTOR,1.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_STEREOGRAPHIC) 
+             || EQUAL(pszProjName,SRS_PT_OBLIQUE_STEREOGRAPHIC) )
+    {
+        VSIFPrintf( fp, "map info = {Stereographic (ellipsoid), %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {7, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Stereographic (ellipsoid)}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_SCALE_FACTOR,1.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_ALBERS_CONIC_EQUAL_AREA) )
+    {
+        VSIFPrintf( fp, "map info = {Albers Conical Equal Area, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {9, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Albers Conical Equal Area}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_STANDARD_PARALLEL_1,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_STANDARD_PARALLEL_2,0.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_POLYCONIC) )
+    {
+        VSIFPrintf( fp, "map info = {Polyconic, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {10, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Polyconic}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_LAMBERT_AZIMUTHAL_EQUAL_AREA) )
+    {
+        VSIFPrintf( fp, "map info = {Lambert Azimuthal Equal Area, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {11, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Lambert Azimuthal Equal Area}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_AZIMUTHAL_EQUIDISTANT) )
+    {
+        VSIFPrintf( fp, "map info = {Azimuthal Equadistant, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {12, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Azimuthal Equadistant}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    osCommaDatum.c_str() );
+    }
+    else if( EQUAL(pszProjName,SRS_PT_POLAR_STEREOGRAPHIC) )
+    {
+        VSIFPrintf( fp, "map info = {Polar Stereographic, %s%s%s}\n",
+                    osLocation.c_str(), 
+                    osCommaDatum.c_str(), osOptionalUnits.c_str() );
+
+        VSIFPrintf( fp, "projection info = {31, %.16g, %.16g, %.16g, %.16g, %.16g, %.16g%s, Polar Stereographic}\n",
+                    dfA, dfB, 
+                    oSRS.GetNormProjParm(SRS_PP_LATITUDE_OF_ORIGIN,90.0),
+                    oSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_EASTING,0.0),
+                    oSRS.GetNormProjParm(SRS_PP_FALSE_NORTHING,0.0),
+                    osCommaDatum.c_str() );
+    }
+    else
+    {
+        VSIFPrintf( fp, "map info = {%s, %s}\n",
+                    pszProjName, osLocation.c_str());
+    }
+}
+
 
 /************************************************************************/
 /*                          GetProjectionRef()                          */
@@ -567,6 +904,77 @@ char **ENVIDataset::SplitList( const char *pszCleanInput )
 }
 
 /************************************************************************/
+/*                            SetENVIDatum()                            */
+/************************************************************************/
+
+void ENVIDataset::SetENVIDatum( OGRSpatialReference *poSRS, 
+                                const char *pszENVIDatumName )
+
+{
+    // datums
+    if( EQUAL(pszENVIDatumName, "WGS-84") )
+        poSRS->SetWellKnownGeogCS( "WGS84" );
+    else if( EQUAL(pszENVIDatumName, "WGS-72") )
+        poSRS->SetWellKnownGeogCS( "WGS72" );
+    else if( EQUAL(pszENVIDatumName, "North America 1983") )
+        poSRS->SetWellKnownGeogCS( "NAD83" );
+    else if( EQUAL(pszENVIDatumName, "North America 1927") 
+             || strstr(pszENVIDatumName,"NAD27") 
+             || strstr(pszENVIDatumName,"NAD-27") )
+        poSRS->SetWellKnownGeogCS( "NAD27" );
+    else if( EQUALN(pszENVIDatumName, "European 1950",13) )
+        poSRS->SetWellKnownGeogCS( "EPSG:4230" );
+    else if( EQUAL(pszENVIDatumName, "Ordnance Survey of Great Britain '36") )
+        poSRS->SetWellKnownGeogCS( "EPSG:4277" );
+    else if( EQUAL(pszENVIDatumName, "SAD-69/Brazil") )
+        poSRS->SetWellKnownGeogCS( "EPSG:4291" );
+    else if( EQUAL(pszENVIDatumName, "Geocentric Datum of Australia 1994") )
+        poSRS->SetWellKnownGeogCS( "EPSG:4283" );
+    else if( EQUAL(pszENVIDatumName, "Nouvelle Triangulation Francaise IGN") )
+        poSRS->SetWellKnownGeogCS( "EPSG:4275" );
+
+    // Ellipsoids
+    else if( EQUAL(pszENVIDatumName, "GRS 80") )
+        poSRS->SetWellKnownGeogCS( "NAD83" );
+    else if( EQUAL(pszENVIDatumName, "Airy") )
+        poSRS->SetWellKnownGeogCS( "EPSG:4001" );
+    else if( EQUAL(pszENVIDatumName, "Australian National") )
+        poSRS->SetWellKnownGeogCS( "EPSG:4003" );
+    else if( EQUAL(pszENVIDatumName, "Bessel 1841") )
+        poSRS->SetWellKnownGeogCS( "EPSG:4004" );
+    else if( EQUAL(pszENVIDatumName, "Clark 1866") )
+        poSRS->SetWellKnownGeogCS( "EPSG:4008" );
+    else 
+    {
+        CPLError( CE_Warning, CPLE_AppDefined,
+                  "Unrecognised datum '%s', defaulting to WGS84." );
+        poSRS->SetWellKnownGeogCS( "WGS84" );
+    }
+}
+
+/************************************************************************/
+/*                           SetENVIEllipse()                           */
+/************************************************************************/
+
+void ENVIDataset::SetENVIEllipse( OGRSpatialReference *poSRS, 
+                                  char **papszPI_EI )
+
+{
+    double dfA = CPLAtofM(papszPI_EI[0]);
+    double dfB = CPLAtofM(papszPI_EI[1]);
+    double dfInvF;
+
+    if( fabs(dfA-dfB) < 0.1 )
+        dfInvF = 0.0; // sphere
+    else
+        dfInvF = dfA / (dfA - dfB);
+    
+    
+    poSRS->SetGeogCS( "Ellipse Based", "Ellipse Based", "Unnamed", 
+                      dfA, dfInvF );
+}
+
+/************************************************************************/
 /*                           ProcessMapinfo()                           */
 /*                                                                      */
 /*      Extract projection, and geotransform from a mapinfo value in    */
@@ -589,6 +997,21 @@ int ENVIDataset::ProcessMapinfo( const char *pszMapinfo )
         return FALSE;
     }
 
+/* -------------------------------------------------------------------- */
+/*      Check if we have projection info, and if so parse it.           */
+/* -------------------------------------------------------------------- */
+    char        **papszPI = NULL;
+    int         nPICount = 0;
+    if( CSLFetchNameValue( papszHeader, "projection_info" ) != NULL )
+    {
+        papszPI = SplitList( 
+            CSLFetchNameValue( papszHeader, "projection_info" ) );
+        nPICount = CSLCount(papszPI);
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Capture geotransform.                                           */
+/* -------------------------------------------------------------------- */
     adfGeoTransform[1] = atof(papszFields[5]);	    // Pixel width
     adfGeoTransform[5] = -atof(papszFields[6]);	    // Pixel height
     adfGeoTransform[0] =			    // Upper left X coordinate
@@ -598,31 +1021,139 @@ int ENVIDataset::ProcessMapinfo( const char *pszMapinfo )
     adfGeoTransform[2] = 0.0;
     adfGeoTransform[4] = 0.0;
 
+/* -------------------------------------------------------------------- */
+/*      Capture projection.                                             */
+/* -------------------------------------------------------------------- */
     if( EQUALN(papszFields[0],"UTM",3) && nCount >= 9 )
     {
         oSRS.SetUTM( atoi(papszFields[7]), 
                      !EQUAL(papszFields[8],"South") );
-        oSRS.SetWellKnownGeogCS( "WGS84" );
+        if( nCount >= 10 && strstr(papszFields[9],"=") == NULL )
+            SetENVIDatum( &oSRS, papszFields[9] );
+        else
+            oSRS.SetWellKnownGeogCS( "WGS84" );
     }
     else if( EQUALN(papszFields[0],"State Plane (NAD 27)",19)
-             && nCount >= 8 )
+             && nCount >= 7 )
     {
         oSRS.SetStatePlane( ESRIToUSGSZone(atoi(papszFields[7])), FALSE );
     }
     else if( EQUALN(papszFields[0],"State Plane (NAD 83)",19)
-             && nCount >= 8 )
+             && nCount >= 7 )
     {
         oSRS.SetStatePlane( ESRIToUSGSZone(atoi(papszFields[7])), TRUE );
     }
     else if( EQUALN(papszFields[0],"Geographic Lat",14) 
              && nCount >= 8 )
     {
-        oSRS.SetWellKnownGeogCS( "WGS84" );
+        if( nCount >= 8 && strstr(papszFields[7],"=") == NULL )
+            SetENVIDatum( &oSRS, papszFields[7] );
+        else
+            oSRS.SetWellKnownGeogCS( "WGS84" );
+    }
+    else if( nPICount > 8 && atoi(papszPI[0]) == 3 ) // TM
+    {
+        oSRS.SetTM( CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
+                    CPLAtofM(papszPI[7]),
+                    CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+    }
+    else if( nPICount > 8 && atoi(papszPI[0]) == 4 ) // Lambert Conformal Conic
+    {
+        oSRS.SetLCC( CPLAtofM(papszPI[7]), CPLAtofM(papszPI[8]),
+                     CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
+                     CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+    }
+    else if( nPICount > 10 && atoi(papszPI[0]) == 5 ) // Oblique Merc (2 point)
+    {
+        oSRS.SetHOM2PNO( CPLAtofM(papszPI[3]), 
+                         CPLAtofM(papszPI[4]), CPLAtofM(papszPI[5]), 
+                         CPLAtofM(papszPI[6]), CPLAtofM(papszPI[7]), 
+                         CPLAtofM(papszPI[10]), 
+                         CPLAtofM(papszPI[8]), CPLAtofM(papszPI[9]) );
+    }
+    else if( nPICount > 8 && atoi(papszPI[0]) == 6 ) // Oblique Merc 
+    {
+        oSRS.SetHOM(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+                    CPLAtofM(papszPI[5]), 0.0,
+                    CPLAtofM(papszPI[8]), 
+                    CPLAtofM(papszPI[6]), CPLAtofM(papszPI[7]) );
+    }
+    else if( nPICount > 8 && atoi(papszPI[0]) == 7 ) // Stereographic
+    {
+        oSRS.SetStereographic( CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
+                               CPLAtofM(papszPI[7]),
+                               CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+    }
+    else if( nPICount > 8 && atoi(papszPI[0]) == 9 ) // Albers Equal Area
+    {
+        oSRS.SetACEA( CPLAtofM(papszPI[7]), CPLAtofM(papszPI[8]),
+                      CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
+                      CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+    }
+    else if( nPICount > 6 && atoi(papszPI[0]) == 10 ) // Polyconic
+    {
+        oSRS.SetPolyconic(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+                          CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+    }
+    else if( nPICount > 6 && atoi(papszPI[0]) == 11 ) // LAEA
+    {
+        oSRS.SetLAEA(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+                     CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+    }
+    else if( nPICount > 6 && atoi(papszPI[0]) == 12 ) // Azimuthal Equid.
+    {
+        oSRS.SetAE(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+                   CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+    }
+    else if( nPICount > 6 && atoi(papszPI[0]) == 31 ) // Polar Stereographic
+    {
+        oSRS.SetPS(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+                   1.0,
+                   CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
     }
 
+    // Still lots more that could be added for someone with the patience.
+
+/* -------------------------------------------------------------------- */
+/*      fallback to localcs if we don't recognise things.               */
+/* -------------------------------------------------------------------- */
     if( oSRS.GetRoot() == NULL )
         oSRS.SetLocalCS( papszFields[0] );
 
+/* -------------------------------------------------------------------- */
+/*      Try to set datum from projection info line if we have a         */
+/*      projected coordinate system without a GEOGCS.                   */
+/* -------------------------------------------------------------------- */
+    if( oSRS.IsProjected() && oSRS.GetAttrNode("GEOGCS") == NULL 
+        && nPICount > 3 )
+    {
+        // Do we have a datum on the projection info line?
+        int iDatum = nPICount-1;
+
+        // Ignore units= items.
+        if( strstr(papszPI[iDatum],"=") != NULL )
+            iDatum--;
+
+        // Skip past the name. 
+        iDatum--;
+    
+        CPLString osDatumName = papszPI[iDatum];
+        if( osDatumName.find_first_of("abcdefghijklmnopqrstuvwxyz"
+                                      "ABCDEFGHIJKLMNOPQRSTUVWXYZ") 
+                                      != std::string::npos )
+        {
+            SetENVIDatum( &oSRS, osDatumName );
+        }
+        else
+        {
+            SetENVIEllipse( &oSRS, papszPI + 1 );
+        }
+    }
+
+
+/* -------------------------------------------------------------------- */
+/*      Try to process specialized units.                               */
+/* -------------------------------------------------------------------- */
     if( EQUAL(papszFields[nCount-1],"units=Feet") )
     {
         oSRS.SetLinearUnits( SRS_UL_US_FOOT, atof(SRS_UL_US_FOOT_CONV) );
@@ -639,6 +1170,9 @@ int ENVIDataset::ProcessMapinfo( const char *pszMapinfo )
         adfGeoTransform[5] /= 3600.0;
     }
 
+/* -------------------------------------------------------------------- */
+/*      Turn back into WKT.                                             */
+/* -------------------------------------------------------------------- */
     if( oSRS.GetRoot() != NULL )
     {
         oSRS.Fixup();
@@ -651,6 +1185,7 @@ int ENVIDataset::ProcessMapinfo( const char *pszMapinfo )
     }
 
     CSLDestroy( papszFields );
+    CSLDestroy( papszPI );
     return TRUE;
 }
 
@@ -755,7 +1290,7 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
 /*      to whatever we currently have.                                  */
 /* -------------------------------------------------------------------- */
     const char	*pszMode;
-    const char	*pszHdrFilename;
+    CPLString   osHdrFilename;
     FILE	*fpHeader;
 
     if( poOpenInfo->eAccess == GA_Update )
@@ -763,28 +1298,28 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
     else
 	pszMode = "r";
 
-    pszHdrFilename = CPLResetExtension( poOpenInfo->pszFilename, "hdr" );
-    fpHeader = VSIFOpen( pszHdrFilename, pszMode );
+    osHdrFilename = CPLResetExtension( poOpenInfo->pszFilename, "hdr" );
+    fpHeader = VSIFOpen( osHdrFilename, pszMode );
 
 #ifndef WIN32
     if( fpHeader == NULL )
     {
-        pszHdrFilename = CPLResetExtension( poOpenInfo->pszFilename, "HDR" );
-        fpHeader = VSIFOpen( pszHdrFilename, pszMode );
+        osHdrFilename = CPLResetExtension( poOpenInfo->pszFilename, "HDR" );
+        fpHeader = VSIFOpen( osHdrFilename, pszMode );
     }
 #endif
     if( fpHeader == NULL )
     {
-        pszHdrFilename = CPLFormFilename( NULL, poOpenInfo->pszFilename, 
+        osHdrFilename = CPLFormFilename( NULL, poOpenInfo->pszFilename, 
                                           "hdr" );
-        fpHeader = VSIFOpen( pszHdrFilename, pszMode );
+        fpHeader = VSIFOpen( osHdrFilename, pszMode );
     }
 #ifndef WIN32
     if( fpHeader == NULL )
     {
-        pszHdrFilename = CPLFormFilename( NULL, poOpenInfo->pszFilename, 
+        osHdrFilename = CPLFormFilename( NULL, poOpenInfo->pszFilename, 
                                           "HDR" );
-        fpHeader = VSIFOpen( pszHdrFilename, pszMode );
+        fpHeader = VSIFOpen( osHdrFilename, pszMode );
     }
 #endif
 
@@ -813,7 +1348,7 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
     ENVIDataset 	*poDS;
 
     poDS = new ENVIDataset();
-    poDS->pszHDRFilename = pszHdrFilename;
+    poDS->pszHDRFilename = CPLStrdup(osHdrFilename);
     poDS->fp = fpHeader;
 
 /* -------------------------------------------------------------------- */
@@ -830,6 +1365,7 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
     if( EQUAL(CPLGetExtension(poOpenInfo->pszFilename), "hdr") )
     {
+        delete poDS;
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "The selected file is an ENVI header file, but to\n"
                   "open ENVI datasets, the data file should be selected\n"
