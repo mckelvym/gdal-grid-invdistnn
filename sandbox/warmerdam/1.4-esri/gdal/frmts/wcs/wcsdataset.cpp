@@ -603,6 +603,8 @@ CPLErr WCSDataset::GetCoverage( int nXOff, int nYOff, int nXSize, int nYSize,
                                 CPLHTTPResult **ppsResult )
 
 {
+    CPLLocaleC oLocaleEnforcer;
+
 /* -------------------------------------------------------------------- */
 /*      Figure out the georeferenced extents.                           */
 /* -------------------------------------------------------------------- */
