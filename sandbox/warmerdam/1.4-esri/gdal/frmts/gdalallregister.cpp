@@ -213,6 +213,7 @@ void CPL_STDCALL GDALAllRegister()
     GDALRegister_DOQ2();
     GDALRegister_ENVI();
     GDALRegister_EHdr();
+    GDALRegister_GenBin();
     GDALRegister_PAux();
     GDALRegister_MFF();
     GDALRegister_HKV();
