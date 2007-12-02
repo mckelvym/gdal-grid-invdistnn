@@ -1,2 +1,2 @@
-%include SpatialReference.i
-%include CoordinateTransformation.i
+%include osr/SpatialReference.i
+%include osr/CoordinateTransformation.i
