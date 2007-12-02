@@ -5,4 +5,3 @@
 %include OGRFeature.i
 %include OGRFieldDefn.i
 %include OGRGeometry.i
-

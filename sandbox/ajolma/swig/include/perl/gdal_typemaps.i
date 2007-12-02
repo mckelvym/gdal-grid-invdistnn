@@ -741,16 +741,16 @@ CHECK_NOT_UNDEF(OGRFeatureShadow, feature, feature)
     if ($4) free($4);
 }
 
-%typemap(arginit, noblock=1) ( void* callback_data=NULL)
+%typemap(arginit, noblock=1) ( void* callback_data )
 {
     SavedEnv saved_env;
     saved_env.fct = NULL;
     saved_env.data = NULL;
 }
 
-%typemap(in) (GDALProgressFunc callback = NULL)
+%typemap(in) (GDALProgressFunc callback)
 {
-    /* %typemap(in) (GDALProgressFunc callback = NULL) */
+    /* %typemap(in) (GDALProgressFunc callback) */
     if (SvOK($input)) {
 	saved_env.fct = (SV *)$input;
 	$1 = &callback_d_cp_vp;
@@ -758,9 +758,9 @@ CHECK_NOT_UNDEF(OGRFeatureShadow, feature, feature)
 	$1 = NULL;
 }
 
-%typemap(in) (void* callback_data=NULL)
+%typemap(in) (void* callback_data)
 {
-    /* %typemap(in) (void* callback_data=NULL) */
+    /* %typemap(in) (void* callback_data) */
     if (SvOK($input))
 	saved_env.data = (SV *)$input;
     if (saved_env.fct)

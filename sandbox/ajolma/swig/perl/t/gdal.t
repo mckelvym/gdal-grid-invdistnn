@@ -328,8 +328,8 @@ sub gdal_tests {
 	    } else 
 	    {
 		my @gcps = ();
-		push @gcps,new Geo::GDAL::GCP(1.1,2.2);
-		push @gcps,new Geo::GDAL::GCP(2.1,3.2);
+		push @gcps,new Geo::GDAL::GCP(1.1,2.2,0,0,0,undef,undef);
+		push @gcps,new Geo::GDAL::GCP(2.1,3.2,0,0,0,undef,undef);
 		my $po = "ho ho ho";
 		$dataset->SetGCPs(\@gcps,$po);
 		my $c = $dataset->GetGCPCount();

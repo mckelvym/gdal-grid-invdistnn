@@ -39,17 +39,14 @@ OGRErr GetUserInputAsWKT( const char *name, char **argout ) {
  */
 
 #if !defined(SWIGPYTHON)
-%rename (GetProjectionMethods) OPTGetProjectionMethods;
 %apply (char **CSL) {(char **)};
 char **OPTGetProjectionMethods();
 %clear (char **);
 
-%rename (GetProjectionMethodParameterList) OPTGetParameterList;
 %apply (char **CSL) {(char **)};
 char **OPTGetParameterList( char *method, char **username );
 %clear (char **);
 
-%rename (GetProjectionMethodParamInfo) OPTGetParameterInfo;
 void OPTGetParameterInfo( char *method, char *param, char **usrname,
                           char **type, double *defaultval );
 #endif

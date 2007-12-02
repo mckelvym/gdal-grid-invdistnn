@@ -28,17 +28,7 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-#ifdef PERL_CPAN_NAMESPACE
-%module "Geo::GDAL::Const"
-#elif defined(SWIGCSHARP)
-%module GdalConst
-#else
-%module gdalconst 
-#endif
-
-#if defined(SWIGJAVA)
-%include gdalconst_java.i
-#endif
+%include gdalconst_init.i
 
 %{
 #include "gdal.h"

@@ -28,27 +28,12 @@
  *****************************************************************************/
 
 %include ogr_init.i
-
-%feature("compactdefaultargs");
-%feature("autodoc");
-
 %include ogr_headers.i
-%include cpl_headers.i
 %include ogr_enums.i
-
 %include exception.i
-
-/* typemaps are language specific */
 %include gdal_typemaps.i
-
 %import osr.i
-
-/* renames are language specific */
 %include ogr_renames.i
-
 %include ogr_global.i
-
 %include ogr_classes.i
-
-/* language specific extensions */
 %include ogr_extensions.i

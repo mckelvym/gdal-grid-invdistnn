@@ -28,40 +28,7 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-
-#ifdef SWIGRUBY
-%rename (push_error_handler) CPLPushErrorHandler;
-%rename (pop_error_handler) CPLPopErrorHandler;
-%rename (error_reset) CPLErrorReset;
-%rename (get_last_error_no) CPLGetLastErrorNo;
-%rename (get_last_error_type) CPLGetLastErrorType;
-%rename (get_last_error_msg) CPLGetLastErrorMsg;
-%rename (push_finder_location) CPLPushFinderLocation;
-%rename (pop_finder_location) CPLPopFinderLocation;
-%rename (finder_clean) CPLFinderClean;
-%rename (find_file) CPLFindFile;
-%rename (read_dir) VSIReadDir;
-%rename (set_config_option) CPLSetConfigOption;
-%rename (get_config_option) CPLGetConfigOption;
-%rename (binary_to_hex) CPLBinaryToHex;
-%rename (hex_to_binary) CPLHexToBinary;
-#else
-%rename (PushErrorHandler) CPLPushErrorHandler;
-%rename (PopErrorHandler) CPLPopErrorHandler;
-%rename (ErrorReset) CPLErrorReset;
-%rename (GetLastErrorNo) CPLGetLastErrorNo;
-%rename (GetLastErrorType) CPLGetLastErrorType;
-%rename (GetLastErrorMsg) CPLGetLastErrorMsg;
-%rename (PushFinderLocation) CPLPushFinderLocation;
-%rename (PopFinderLocation) CPLPopFinderLocation;
-%rename (FinderClean) CPLFinderClean;
-%rename (FindFile) CPLFindFile;
-%rename (ReadDir) VSIReadDir;
-%rename (SetConfigOption) CPLSetConfigOption;
-%rename (GetConfigOption) CPLGetConfigOption;
-%rename (CPLBinaryToHex) CPLBinaryToHex;
-%rename (CPLHexToBinary) CPLHexToBinary;
-#endif
+%include cpl_renames.i
 
 void CPLPushErrorHandler( CPLErrorHandler );
 
@@ -94,4 +61,3 @@ const char * CPLGetConfigOption( const char *, const char * );
 /* Provide hooks to hex encoding methods */
 char *CPLBinaryToHex( int nBytes, const GByte *pabyData );
 GByte *CPLHexToBinary( const char *pszHex, int *pnBytes );
-

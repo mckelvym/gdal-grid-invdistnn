@@ -117,11 +117,11 @@ public:
     return OGR_G_GetZ(self, point);
   } 
 
-  void GetPoint(int iPoint = 0, double argout[3] = NULL) {
+  void GetPoint(int iPoint, double argout[3]) {
     OGR_G_GetPoint( self, iPoint, argout+0, argout+1, argout+2 );
   }
 
-  void GetPoint_2D(int iPoint = 0, double argout[2] = NULL) {
+  void GetPoint_2D(int iPoint, double argout[2]) {
     OGR_G_GetPoint( self, iPoint, argout+0, argout+1, NULL );
   }
 

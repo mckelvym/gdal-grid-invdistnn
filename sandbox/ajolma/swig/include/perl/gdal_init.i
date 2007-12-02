@@ -1,4 +1,8 @@
+#ifdef PERL_CPAN_NAMESPACE
 %module "Geo::GDAL"
+#else
+%module gdal
+#endif
 
 %init %{
   /* gdal_init.i %init code */

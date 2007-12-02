@@ -1,4 +1,4 @@
-const char *GDALVersionInfo( const char *request = "VERSION_NUM" );
+const char *GDALVersionInfo( const char *request );
 
 void GDALAllRegister();
 
@@ -20,16 +20,12 @@ const char *GDALGetColorInterpretationName( GDALColorInterp );
 
 const char *GDALGetPaletteInterpretationName( GDALPaletteInterp );
 
-const char *GDALDecToDMS( double, const char *, int = 2 );
+const char *GDALDecToDMS( double, const char *, int );
 
 double GDALPackedDMSToDec( double );
 
 double GDALDecToPackedDMS( double );
 
-
-#if defined(SWIGCSHARP)
-%newobject CPLParseXMLString;
-#endif
 CPLXMLNode *CPLParseXMLString( char * );
 
 char *CPLSerializeXMLTree( CPLXMLNode *xmlnode );

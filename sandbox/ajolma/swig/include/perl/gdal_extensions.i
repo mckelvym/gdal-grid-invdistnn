@@ -528,8 +528,8 @@
 			   int nFixedLevelCount, double *padfFixedLevels,
 			   int bUseNoData, double dfNoDataValue, 
 			   OGRLayerShadow *hLayer, int iIDField, int iElevField,
-			   GDALProgressFunc callback = NULL,
-			   void* callback_data = NULL) {
+			   GDALProgressFunc callback,
+			   void* callback_data) {
 	return GDALContourGenerate( self, dfContourInterval, dfContourBase,
 				    nFixedLevelCount, padfFixedLevels,
 				    bUseNoData, dfNoDataValue, 

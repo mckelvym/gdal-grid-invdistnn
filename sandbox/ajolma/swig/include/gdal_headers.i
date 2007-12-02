@@ -9,6 +9,7 @@ using namespace std;
 #include "gdal_priv.h"
 #include "gdal_alg.h"
 #include "gdalwarper.h"
+#include "ogr_core.h"
 
 typedef void GDALMajorObjectShadow;
 typedef void GDALDriverShadow;

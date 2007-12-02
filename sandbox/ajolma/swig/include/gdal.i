@@ -28,31 +28,13 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-/* init is language specific */
 %include gdal_init.i
-
-%feature ("compactdefaultargs");
-
 %include gdal_headers.i
-%include cpl_headers.i
 %include gdal_enums.i
-
 %include exception.i
-
-/* typemaps are language specific */
 %include gdal_typemaps.i
-
 %include cpl.i
-
-/* renames are language specific */
 %include gdal_renames.i
-
 %include gdal_global.i
-
-/* which classes to use, is language specific */
 %include gdal_classes.i
-
-%include Operations.i
-
-/* language specific extensions */
 %include gdal_extensions.i

@@ -2,19 +2,16 @@
 /*      Geometry factory methods.                                       */
 /* -------------------------------------------------------------------- */
 
-#ifndef SWIGJAVA
 %feature( "kwargs" ) CreateGeometryFromWkb;
-%newobject CreateGeometryFromWkb;
 #ifndef SWIGCSHARP
-%apply (int nLen, char *pBuf ) { (int len, char *bin_string)};
-#else
-%apply (void *buffer_ptr) {char *bin_string};
+%apply (int nLen, char *pBuf ) { (int len, void *buffer_ptr)};
 #endif
+%newobject CreateGeometryFromWkb;
 %inline %{
-  OGRGeometryShadow* CreateGeometryFromWkb( int len, char *bin_string, 
+  OGRGeometryShadow* CreateGeometryFromWkb( int len, void *buffer_ptr, 
                                             OSRSpatialReferenceShadow *reference=NULL ) {
     void *geom;
-    OGRErr err = OGR_G_CreateFromWkb( (unsigned char *) bin_string,
+    OGRErr err = OGR_G_CreateFromWkb( (unsigned char *) buffer_ptr,
                                       reference,
                                       &geom,
                                       len );
@@ -26,28 +23,8 @@
   }
  
 %}
-#endif
 #ifndef SWIGCSHARP
-%clear (int len, char *bin_string);
-#else
-%clear (char *bin_string);
-#endif
-
-#ifdef SWIGJAVA
-%newobject CreateGeometryFromWkb;
-%feature("kwargs") CreateGeometryFromWkb;
-%inline {
-OGRGeometryShadow* CreateGeometryFromWkb(int nLen, unsigned char *pBuf, 
-                                            OSRSpatialReferenceShadow *reference=NULL ) {
-    void *geom;
-    OGRErr err = OGR_G_CreateFromWkb((unsigned char*) pBuf, reference, &geom, nLen);
-    if (err != 0 ) {
-       CPLError(CE_Failure, err, "%s", OGRErrMessages(err));
-       return NULL;
-    }
-    return (OGRGeometryShadow*) geom;
-  }
-}
+%clear (int len, void *buffer_ptr);
 #endif
 
 %feature( "kwargs" ) CreateGeometryFromWkt;
@@ -110,9 +87,7 @@ char const *OGRDataSourceShadow_name_get( OGRDataSourceShadow *h ) {
 }
 %}
 
-#ifndef GDAL_BINDINGS
 int OGRGetDriverCount();
-#endif
 
 int OGRGetOpenDSCount();
 
@@ -159,7 +134,6 @@ void OGRRegisterAll();
   }
 %}
 
-#ifndef GDAL_BINDINGS
 %inline %{
 OGRDriverShadow* GetDriverByName( char const *name ) {
   return (OGRDriverShadow*) OGRGetDriverByName( name );
@@ -169,4 +143,3 @@ OGRDriverShadow* GetDriver(int driver_number) {
   return (OGRDriverShadow*) OGRGetDriver(driver_number);
 }
 %}
-#endif

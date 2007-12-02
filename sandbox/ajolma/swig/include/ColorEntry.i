@@ -1,4 +1,3 @@
-%aaa
 %rename (ColorEntry) GDALColorEntry;
 typedef struct
 {
