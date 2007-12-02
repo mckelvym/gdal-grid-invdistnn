@@ -32,7 +32,7 @@
 %include gdal_headers.i
 %include gdal_enums.i
 %include exception.i
-%include gdal_typemaps.i
+%include typemaps.i
 %include cpl.i
 %include gdal_renames.i
 %include gdal_global.i

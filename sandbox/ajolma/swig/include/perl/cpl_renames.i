@@ -1,0 +1,15 @@
+%rename (PushErrorHandler) CPLPushErrorHandler;
+%rename (PopErrorHandler) CPLPopErrorHandler;
+%rename (ErrorReset) CPLErrorReset;
+%rename (GetLastErrorNo) CPLGetLastErrorNo;
+%rename (GetLastErrorType) CPLGetLastErrorType;
+%rename (GetLastErrorMsg) CPLGetLastErrorMsg;
+%rename (PushFinderLocation) CPLPushFinderLocation;
+%rename (PopFinderLocation) CPLPopFinderLocation;
+%rename (FinderClean) CPLFinderClean;
+%rename (FindFile) CPLFindFile;
+%rename (ReadDir) VSIReadDir;
+%rename (SetConfigOption) CPLSetConfigOption;
+%rename (GetConfigOption) CPLGetConfigOption;
+%rename (CPLBinaryToHex) CPLBinaryToHex;
+%rename (CPLHexToBinary) CPLHexToBinary;

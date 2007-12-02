@@ -31,7 +31,7 @@
 %include ogr_headers.i
 %include ogr_enums.i
 %include exception.i
-%include gdal_typemaps.i
+%include typemaps.i
 %import osr.i
 %include ogr_renames.i
 %include ogr_global.i
