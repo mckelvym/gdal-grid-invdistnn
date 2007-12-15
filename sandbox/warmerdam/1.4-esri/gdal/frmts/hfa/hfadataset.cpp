@@ -1820,7 +1820,16 @@ CPLErr HFADataset::WriteProjection()
 /* -------------------------------------------------------------------- */
 /*      Write out definitions.                                          */
 /* -------------------------------------------------------------------- */
-    HFASetMapInfo( hHFA, &sMapInfo );
+    if( adfGeoTransform[2] == 0.0 && adfGeoTransform[4] == 0.0 )
+    {
+        HFASetMapInfo( hHFA, &sMapInfo );
+    }
+    else
+    {
+        HFASetGeoTransform( hHFA, 
+                            sMapInfo.proName, sMapInfo.units,
+                            adfGeoTransform );
+    }
 
     if( bHaveSRS && sPro.proName != NULL )
     {
