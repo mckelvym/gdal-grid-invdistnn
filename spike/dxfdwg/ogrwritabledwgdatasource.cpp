@@ -69,7 +69,8 @@ OGRWritableDWGDataSource::~OGRWritableDWGDataSource()
 {
     OdDb::SaveType fileType = OdDb::kDwg;
     OdDb::DwgVersion outVer = OdDb::vAC12;
-    OdWrFileBuf fb(osFilename);
+    OdString OdFilename = OdString(osFilename);
+    OdWrFileBuf fb(OdFilename);
 
     if( osOutClass == "DWG" ) 
         fileType = OdDb::kDwg;

@@ -41,26 +41,17 @@
 #include "DbHostAppServices.h"
 #include "Gs/Gs.h"
 #include "OdFileBuf.h"
-//#include "ExSystemServices.h"
-//#include "ExHostAppServices.h"
 #include "DynamicLinker.h"
 
 #include "RxDynamicModule.h"
 #include "DbViewport.h"
 
-#ifdef notdef
-class MyServices : public ExSystemServices, public ExHostAppServices
-{
-protected:
-  ODRX_USING_HEAP_OPERATORS(ExSystemServices);
-};
-#endif
 
 /************************************************************************/
 /*                              OGRServices                             */
 /************************************************************************/
 
-class OGRServices : public OdDbHostAppServices, public OdDbSystemServices
+class OGRServices : public OdDbHostAppServices2, public OdDbSystemServices
 
 {
 protected:
@@ -88,15 +79,15 @@ public:
     }
 
     virtual OdStreamBufPtr createFile(
-        const OdChar* pcFilename,                   // file name
-        Oda::FileAccessMode nDesiredAccess,
-        Oda::FileShareMode nShareMode,
-        Oda::FileCreationDisposition nCreationDisposition)
+        const OdString& pcFilename,                   // file name
+        Oda::FileAccessMode nDesiredAccess = Oda::kFileRead,
+        Oda::FileShareMode nShareMode = Oda::kShareDenyNo,
+        Oda::FileCreationDisposition nCreationDisposition = Oda::kOpenExisting)
 
         {
             OdSmartPtr<OdBaseFileBuf> pFile;
             
-            if(pcFilename && pcFilename[0])
+            if(!pcFilename.isEmpty() && pcFilename[0])
             {
                 if (nDesiredAccess == Oda::kFileRead)
                 {
@@ -133,7 +124,7 @@ public:
 #define OD_MESSAGE_DEF(cod, desc) desc,
 #include "MessageDefs.h"
 #undef OD_MESSAGE_DEF
-                    ""// DummyLastMassage
+                    DD_T("")// DummyLastMassage
                 };
             OdString msg;
             if (argList)
@@ -143,41 +134,41 @@ public:
             return msg;
         }
 
-    virtual bool accessFile(const OdChar* pcFilename, int mode)
+        virtual bool accessFile(const OdString& pcFilename, int mode)
         {  
-            VSIStatBufL sStatBuf;
-            if( VSIStatL( pcFilename, &sStatBuf ) == 0 )
-                return true;
-            else
-                return false;
+			try
+			{
+				createFile(pcFilename, (Oda::FileAccessMode)mode);
+				return true;
+			}
+			catch(...) 
+			{
+				return false; // Do NOT remove this, or else some compilers (e.g. cw7 mac) will optimize out the catch! 
+			}
+			return false;
         }
 
-    long getFileCTime(const OdChar* name)
+        OdInt64 getFileCTime(const OdString& name)
         {
-            VSIStatBufL sStatBuf;
-            if( VSIStatL( name, &sStatBuf ) == 0 )
-                return sStatBuf.st_ctime;
-            else
-                return 0;
+            return -1;
         }
 
-    long getFileMTime(const OdChar* name)
+        OdInt64 getFileMTime(const OdString& name)
         {
-            VSIStatBufL sStatBuf;
-            if( VSIStatL( name, &sStatBuf ) == 0 )
-                return sStatBuf.st_mtime;
-            else
-                return 0;
+            return -1;
         }
 
-    OdInt64 getFileSize(const OdChar* name)
+    OdInt64 getFileSize(const OdString& name)
         {
-            VSIStatBufL sStatBuf;
-            if( VSIStatL( name, &sStatBuf ) == 0 )
-                return sStatBuf.st_size;
-            else
-                return 0;
+            struct stat st;
+            OdString tmp(name);
+            if (stat(static_cast<const char*>(tmp), &st)) return OdInt64(-1);
+            return OdInt64(st.st_size);
         }
+
+        OdResult initModelerLibrary() {return eNotImplemented;};
+        OdResult uninitModelerLibrary() {return eNotImplemented;};
+
 };
 
 /************************************************************************/
