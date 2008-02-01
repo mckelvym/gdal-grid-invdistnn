@@ -156,7 +156,7 @@ typedef unsigned long g2intu;
 #endif
 typedef float g2float;
 
-struct template {
+typedef struct {
    g2int type;           /* 3=Grid Defintion Template.                       */
                          /* 4=Product Defintion Template.                    */
                          /* 5=Data Representation Template.                  */
@@ -170,9 +170,9 @@ struct template {
    g2int extlen;         /* number of entries in the template extension.     */
    g2int *ext;           /* num of octets of each entry in the extension     */
                          /*                      part of the template.       */
-};
+} template;
 
-typedef struct template template;
+//typedef struct template template; // otherwise VC6 gives "error C2447: missing function header (old-style formal list?)"
 
 struct gribfield {
    g2int   version,discipline;
