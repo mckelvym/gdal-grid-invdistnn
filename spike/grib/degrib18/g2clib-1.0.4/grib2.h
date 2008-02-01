@@ -156,6 +156,9 @@ typedef unsigned long g2intu;
 #endif
 typedef float g2float;
 
+/* We do this in an effort to make this include file work from C++! */
+#define template xxtemplate
+
 typedef struct {
    g2int type;           /* 3=Grid Defintion Template.                       */
                          /* 4=Product Defintion Template.                    */
