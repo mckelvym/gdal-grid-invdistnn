@@ -12,6 +12,11 @@ OBJ	=	gribdataset.o \
 ifeq ($(HAVE_JASPER),yes)
 EXTRAFLAGS	:= 	$(EXTRAFLAGS) -DUSE_JPEG2000
 OBJ		:= $(OBJ) dec_jpeg2000.o jpcunpack.o jpcpack.o enc_jpeg2000.o
+else
+ifeq ($(ECW_SETTING),yes)
+EXTRAFLAGS	:= 	$(EXTRAFLAGS) -DUSE_JPEG2000 -DUSE_JPEG2000_J2KSUBFILE
+OBJ		:= $(OBJ) dec_jpeg2000.o jpcunpack.o jpcpack.o enc_jpeg2000.o
+endif
 endif
 
 CPPFLAGS	:=	$(GDAL_INCLUDE) $(CPPFLAGS) $(EXTRAFLAGS)
