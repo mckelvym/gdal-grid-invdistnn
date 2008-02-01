@@ -9,6 +9,11 @@ GDAL_ROOT       =       ..\..\..\..
 !IFDEF JASPER_DIR
 OBJ = $(OBJ) dec_jpeg2000.obj jpcunpack.obj jpcpack.obj enc_jpeg2000.obj
 EXTRAFLAGS = $(EXTRAFLAGS) $(JASPER_INCLUDE) -DUSE_JPEG2000
+!ELSE
+!IFDEF ECWDIR
+OBJ = $(OBJ) dec_jpeg2000.obj jpcunpack.obj jpcpack.obj enc_jpeg2000.obj
+EXTRAFLAGS = $(EXTRAFLAGS) -DUSE_JPEG2000 -DUSE_JPEG2000_J2KSUBFILE
+!ENDIF
 !ENDIF
 
 default: $(OBJ)
