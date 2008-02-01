@@ -27,19 +27,25 @@ default:	$(OBJ)
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -Idegrib18/g2clib-1.0.4 $< -o $@
 
 ../o/%.o:	degrib18/degrib/%.cpp
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
 ../o/%.o:	degrib18/g2clib-1.0.4/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+../o/%.o:	degrib18/g2clib-1.0.4/%.cpp
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
 %.o:	degrib18/degrib/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -Idegrib18/g2clib-1.0.4 $< -o $@
 
 %.o:	degrib18/degrib/%.cpp
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
 %.o:	degrib18/g2clib-1.0.4/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+%.o:	degrib18/g2clib-1.0.4/%.cpp
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
 defaultold:	$(OBJ)
 	(cd degrib18/degrib; $(MAKE)); cd ../..
