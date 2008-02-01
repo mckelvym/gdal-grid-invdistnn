@@ -420,6 +420,12 @@ void GRIBDataset::SetMetaData(grib_MetaData* meta)
 
 		double a = meta->gds.majEarth * 1000.0; // in meters
 		double b = meta->gds.minEarth * 1000.0;
+                if( a == 0 && b == 0 )
+                {
+                    a = 6377563.396;
+                    b = 6356256.910;
+                }
+
 		if (meta->gds.f_sphere)
 		{
 			oSRS.SetGeogCS( "Coordinate System imported from GRIB file",
