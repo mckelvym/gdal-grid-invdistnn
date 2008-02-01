@@ -1,13 +1,67 @@
 #include "grib2.h"
+
 #ifndef USE_JPEG2000
 int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld) {return 0;}
-#else   /* USE_JPEG2000 */
+#else
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef USE_JPEG2000_J2KSUBFILE
+#include <gdal_pam.h>
+#else
 #include <jasper/jasper.h>
 #define JAS_1_700_2
+#endif /* USE_JPEG2000_J2KSUBFILE */
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+#ifdef USE_JPEG2000_J2KSUBFILE
+
+#define	J2K_SIGNATURE		0x6a502020	/* Signature, string "jP  " */
+#define FILE_TYPE	      0x66747970	/* File Type, string "ftyp" */
+#define	J2K_CODESTREAM	0x6a703263	/* Code Stream, string "jp2c" */
+#define	MAGIC_NUMBER	  0x0d0a870a  /* Magic number */
+#define	MAJOR_VERSION		0x6a703220  /* Major version, string "jp2 " */
+#define	MINOR_VERSION		0
+
+void writeChar(char c, char** buf)
+{
+  **buf = c;
+  ++(*buf);
+}
+
+void writeUInt32(g2intu i, char **buf)
+{
+	writeChar((i >> 24) & 0xff, buf);
+	writeChar((i >> 16) & 0xff, buf);
+	writeChar((i >> 8) & 0xff, buf);
+	writeChar(i & 0xff, buf);
+}
+
+void writeJ2KHeaders(char* buf)
+{
+  // signature box
+  writeUInt32(12, &buf); // size = 12 bytes: 4 size, 4 type, 4 magic
+  writeUInt32(J2K_SIGNATURE, &buf);
+  writeUInt32(MAGIC_NUMBER, &buf);
+
+  // file type box
+  writeUInt32(20, &buf); // size = 20 bytes: 4 size, 4 type, 4 majver, 4 minver, 4 compatibility code
+  writeUInt32(FILE_TYPE, &buf);
+  writeUInt32(MAJOR_VERSION, &buf);
+  writeUInt32(MINOR_VERSION, &buf);
+  writeUInt32(MAJOR_VERSION, &buf); // repeat majver as "compatibility code"
+
+  // code stream box: j2k_data follows
+  writeUInt32(0, &buf);  // size = 0 means rest of buffer contains j2k_data
+  writeUInt32(J2K_CODESTREAM, &buf);
+}
+
+#endif /* USE_JPEG2000_J2KSUBFILE */
 
    int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld)
 /*$$$  SUBPROGRAM DOCUMENTATION BLOCK
@@ -50,6 +104,87 @@ int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld) {return 0;}
 *$$$*/
 
 {
+
+#ifdef USE_JPEG2000_J2KSUBFILE
+     
+    // J2K_SUBFILE method
+    
+    // Specifically ECW needs a few JP2 headers (the so-called "boxes") .. prepend them to the memory buffer
+    // Does Kakadu need them as well?
+    const int headersize = 40;  // 40 bytes of headers will be prepended
+    char* jpcbuf = injpc; // remember old buffer
+    injpc = (char*)malloc(bufsize + headersize); // old buffer is too small, thus allocate new buffer
+    writeJ2KHeaders(injpc); // write out the 40 header bytes
+    memcpy(injpc + headersize, jpcbuf, bufsize); // append the jpeg2000 data
+
+    // create "memory file" from buffer
+    int fileNumber = 0;
+    VSIStatBufL   sStatBuf;
+    char *pszFileName = CPLStrdup( "/vsimem/work.jp2" );
+
+    // ensure we don't overwrite an existing file accidentally
+    while ( VSIStatL( pszFileName, &sStatBuf ) == 0 ) {
+          CPLFree( pszFileName );
+          pszFileName = CPLStrdup( CPLSPrintf( "/vsimem/work%d.jp2", ++fileNumber ) );
+    }
+
+    VSIFCloseL( VSIFileFromMemBuffer( pszFileName, (unsigned char*)injpc, bufsize + headersize, TRUE ) ); // TRUE to let vsi delete the buffer when done
+
+    // Open it with a JPEG2000 driver supporting J2K_SUBFILE
+    char *pszDSName = CPLStrdup( CPLSPrintf( "J2K_SUBFILE:%d,%d,%s", 0, bufsize, pszFileName ) );
+
+    // Open memory buffer for reading 
+    GDALDataset* poJ2KDataset = (GDALDataset *)GDALOpen( pszDSName, GA_ReadOnly ); // This goes to CNCSJP2FileView
+    //GDALDataset* poJ2KDataset = (GDALDataset *)GDALOpen( "/vsimem/work.jp2", GA_ReadOnly ); // This goes to CNCSJP2File, and fails
+ 
+    if( poJ2KDataset == NULL )
+    {
+        printf("dec_jpeg2000: Unable to open JPEG2000 image within GRIB file.\n"
+                  "Is the JPEG2000 driver available?" );
+        return -3;
+    }
+
+    if( poJ2KDataset->GetRasterCount() != 1 )
+    {
+       printf("dec_jpeg2000: Found color image.  Grayscale expected.\n");
+       return (-5);
+    }
+
+    GDALRasterBand *poBand = poJ2KDataset->GetRasterBand(1);
+
+    // Fulfill administration: initialize parameters required for RasterIO
+    int nXSize = poJ2KDataset->GetRasterXSize();
+    int nYSize = poJ2KDataset->GetRasterYSize();
+    int nXOff = 0;
+    int nYOff = 0;
+    int nBufXSize = nXSize;
+    int nBufYSize = nYSize;
+    GDALDataType eBufType = GDT_Int32; // map to type of "outfld" buffer: g2int*
+    int nBandCount = 1;
+    int* panBandMap = NULL;
+    int nPixelSpace = 0;
+    int nLineSpace = 0;
+    int nBandSpace = 0;
+
+    //    Decompress the JPEG2000 into the output integer array.
+    poJ2KDataset->RasterIO( GF_Read, nXOff, nYOff, nXSize, nYSize,
+                                       outfld, nBufXSize, nBufYSize, eBufType,
+                                       nBandCount, panBandMap, 
+                                       nPixelSpace, nLineSpace, nBandSpace );
+
+    // close source file, and "unlink" it.
+    GDALClose( poJ2KDataset );
+    VSIUnlink( pszFileName );
+
+    CPLFree( pszDSName );
+    CPLFree( pszFileName );
+
+    return 0;
+
+#else /* USE_JPEG2000_J2KSUBFILE */
+
+    // JasPer method
+    
     int ier;
     g2int i,j,k;
     jas_image_t *image=0;
@@ -70,6 +205,7 @@ int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld) {return 0;}
 //   
 //     Decode JPEG200 codestream into jas_image_t structure.
 //       
+
     image=jpc_decode(jpcstream,opts);
     if ( image == 0 ) {
        printf(" jpc_decode return = %d \n",ier);
@@ -137,6 +273,11 @@ int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld) {return 0;}
     jas_image_destroy(image);
 
     return 0;
-
+#endif /* USE_JPEG2000_J2KSUBFILE */
 }
-#endif   /* USE_JPEG2000 */
+
+#ifdef __cplusplus
+}
+#endif  /* __cplusplus */
+
+#endif /* USE_JPEG2000 */
