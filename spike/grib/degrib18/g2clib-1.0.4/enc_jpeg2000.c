@@ -7,9 +7,13 @@ int enc_jpeg2000(unsigned char *cin,g2int width,g2int height,g2int nbits,
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef USE_JPEG2000_J2KSUBFILE
+// J2KSUBFILE includes .. TODO!!
+#else
 #include <jasper/jasper.h>
 #define JAS_1_700_2
-
+#endif /* USE_JPEG2000_J2KSUBFILE */
 
 int enc_jpeg2000(unsigned char *cin,g2int width,g2int height,g2int nbits,
                  g2int ltype, g2int ratio, g2int retry, char *outjpc, 
@@ -71,6 +75,16 @@ int enc_jpeg2000(unsigned char *cin,g2int width,g2int height,g2int nbits,
 *
 *$$$*/
 {
+
+#ifdef USE_JPEG2000_J2KSUBFILE
+     
+    // J2KSUBFILE method ... TODO!!
+    return 0;
+
+#else /* USE_JPEG2000_J2KSUBFILE */
+
+    // JasPer method
+
     int ier,rwcnt;
     jas_image_t image;
     jas_stream_t *jpcstream,*istream;
@@ -175,6 +189,8 @@ int enc_jpeg2000(unsigned char *cin,g2int width,g2int height,g2int nbits,
 //      Return size of jpeg2000 code stream
 //
     return (rwcnt);
+
+#endif /* USE_JPEG2000_J2KSUBFILE */
 
 }
 
