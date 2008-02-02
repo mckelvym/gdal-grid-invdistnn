@@ -43,7 +43,7 @@ g2int getdrsindex(g2int number)
 }
 
 
-template *getdrstemplate(g2int number)
+xxtemplate *getdrstemplate(g2int number)
 /*!$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !                .      .    .                                       .
 ! SUBPROGRAM:    getdrstemplate 
@@ -76,12 +76,12 @@ template *getdrstemplate(g2int number)
 !$$$*/
 {
            g2int index;
-           template *new;
+           xxtemplate *new;
 
            index=getdrsindex(number);
 
            if (index != -1) {
-              new=(template *)malloc(sizeof(template));
+              new=(xxtemplate *)malloc(sizeof(xxtemplate));
               new->type=5;
               new->num=templatesdrs[index].template_num;
               new->maplen=templatesdrs[index].mapdrslen;
@@ -99,7 +99,7 @@ template *getdrstemplate(g2int number)
          return(0);        //NULL
 }
 
-template *extdrstemplate(g2int number,g2int *list)
+xxtemplate *extdrstemplate(g2int number,g2int *list)
 /*!$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !                .      .    .                                       .
 ! SUBPROGRAM:    extdrstemplate 
@@ -131,7 +131,7 @@ template *extdrstemplate(g2int number,g2int *list)
 !
 !$$$*/
 {
-           template *new;
+           xxtemplate *new;
            g2int index,i;
 
            index=getdrsindex(number);

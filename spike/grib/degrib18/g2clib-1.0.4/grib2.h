@@ -156,9 +156,6 @@ typedef unsigned long g2intu;
 #endif
 typedef float g2float;
 
-/* We do this in an effort to make this include file work from C++! */
-#define template xxtemplate
-
 typedef struct {
    g2int type;           /* 3=Grid Defintion Template.                       */
                          /* 4=Product Defintion Template.                    */
@@ -173,7 +170,7 @@ typedef struct {
    g2int extlen;         /* number of entries in the template extension.     */
    g2int *ext;           /* num of octets of each entry in the extension     */
                          /*                      part of the template.       */
-} template;
+} xxtemplate;
 
 //typedef struct template template; // otherwise VC6 gives "error C2447: missing function header (old-style formal list?)"
 
@@ -225,12 +222,12 @@ g2int g2_gribend(unsigned char *);
 extern double int_power(double, g2int );
 extern void mkieee(g2float *,g2int *,g2int);
 void rdieee(g2int *,g2float *,g2int );
-extern template *getpdstemplate(g2int);
-extern template *extpdstemplate(g2int,g2int *);
-extern template *getdrstemplate(g2int);
-extern template *extdrstemplate(g2int,g2int *);
-extern template *getgridtemplate(g2int);
-extern template *extgridtemplate(g2int,g2int *);
+extern xxtemplate *getpdstemplate(g2int);
+extern xxtemplate *extpdstemplate(g2int,g2int *);
+extern xxtemplate *getdrstemplate(g2int);
+extern xxtemplate *extdrstemplate(g2int,g2int *);
+extern xxtemplate *getgridtemplate(g2int);
+extern xxtemplate *extgridtemplate(g2int,g2int *);
 extern void simpack(g2float *,g2int,g2int *,unsigned char *,g2int *);
 extern void compack(g2float *,g2int,g2int,g2int *,unsigned char *,g2int *);
 void misspack(g2float *,g2int ,g2int ,g2int *, unsigned char *, g2int *);

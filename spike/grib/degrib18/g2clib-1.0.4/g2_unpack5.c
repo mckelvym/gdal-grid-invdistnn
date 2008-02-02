@@ -53,7 +53,7 @@ g2int g2_unpack5(unsigned char *cgrib,g2int *iofst,g2int *ndpts,g2int *idrsnum,
       g2int ierr,needext,i,j,nbits,isecnum;
       g2int lensec,isign,newlen;
       g2int *lidrstmpl=0;
-      template *mapdrs;
+      xxtemplate *mapdrs;
 
       ierr=0;
       *idrstmpl=0;       //NULL

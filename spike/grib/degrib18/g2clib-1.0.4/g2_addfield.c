@@ -131,7 +131,7 @@ g2int g2_addfield(unsigned char *cgrib,g2int ipdsnum,g2int *ipdstmpl,
       g2int   *coordieee;
       g2int   width,height,iscan,itemp;
       g2float *pfld;
-      template  *mappds,*mapdrs;
+      xxtemplate  *mappds,*mapdrs;
       unsigned int allones=4294967295u;
  
       ierr=0;

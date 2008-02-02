@@ -43,7 +43,7 @@ g2int getpdsindex(g2int number)
 }
 
 
-template *getpdstemplate(g2int number)
+xxtemplate *getpdstemplate(g2int number)
 ///$$$  SUBPROGRAM DOCUMENTATION BLOCK
 //                .      .    .                                       .
 // SUBPROGRAM:    getpdstemplate 
@@ -76,12 +76,12 @@ template *getpdstemplate(g2int number)
 //$$$/
 {
            g2int index;
-           template *new;
+           xxtemplate *new;
 
            index=getpdsindex(number);
 
            if (index != -1) {
-              new=(template *)malloc(sizeof(template));
+              new=(xxtemplate *)malloc(sizeof(xxtemplate));
               new->type=4;
               new->num=templatespds[index].template_num;
               new->maplen=templatespds[index].mappdslen;
@@ -100,7 +100,7 @@ template *getpdstemplate(g2int number)
 }
          
         
-template *extpdstemplate(g2int number,g2int *list)
+xxtemplate *extpdstemplate(g2int number,g2int *list)
 ///$$$  SUBPROGRAM DOCUMENTATION BLOCK
 //                .      .    .                                       .
 // SUBPROGRAM:    extpdstemplate 
@@ -132,7 +132,7 @@ template *extpdstemplate(g2int number,g2int *list)
 //
 //$$$
 {
-           template *new;
+           xxtemplate *new;
            g2int index,i,j,k,l;
 
            index=getpdsindex(number);

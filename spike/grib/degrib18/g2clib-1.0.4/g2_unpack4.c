@@ -61,7 +61,7 @@ g2int g2_unpack4(unsigned char *cgrib,g2int *iofst,g2int *ipdsnum,g2int **ipdstm
       g2int *coordieee;
       g2int *lipdstmpl=0;
       g2float *lcoordlist;
-      template *mappds;
+      xxtemplate *mappds;
 
       ierr=0;
       *ipdstmpl=0;    // NULL

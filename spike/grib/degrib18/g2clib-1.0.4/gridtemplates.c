@@ -42,7 +42,7 @@ g2int getgridindex(g2int number)
            return(getgridindex);
 }
 
-template *getgridtemplate(g2int number)
+xxtemplate *getgridtemplate(g2int number)
 /*!$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !                .      .    .                                       .
 ! SUBPROGRAM:    getgridtemplate 
@@ -75,12 +75,12 @@ template *getgridtemplate(g2int number)
 !$$$*/
 {
            g2int index;
-           template *new;
+           xxtemplate *new;
 
            index=getgridindex(number);
 
            if (index != -1) {
-              new=(template *)malloc(sizeof(template));
+              new=(xxtemplate *)malloc(sizeof(xxtemplate));
               new->type=3;
               new->num=templatesgrid[index].template_num;
               new->maplen=templatesgrid[index].mapgridlen;
@@ -99,7 +99,7 @@ template *getgridtemplate(g2int number)
 }
 
 
-template *extgridtemplate(g2int number,g2int *list)
+xxtemplate *extgridtemplate(g2int number,g2int *list)
 /*!$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !                .      .    .                                       .
 ! SUBPROGRAM:    extgridtemplate 
@@ -131,7 +131,7 @@ template *extgridtemplate(g2int number,g2int *list)
 !
 !$$$*/
 {
-           template *new;
+           xxtemplate *new;
            g2int index,i;
 
            index=getgridindex(number);

@@ -81,7 +81,7 @@ g2int g2_addgrid(unsigned char *cgrib,g2int *igds,g2int *igdstmpl,g2int *ideflis
       static g2int one=1,three=3,miss=65535;
       g2int   lensec3,iofst,ibeg,lencurr,len;
       g2int   i,j,temp,ilen,isecnum,nbits;
-      template *mapgrid=0;
+      xxtemplate *mapgrid=0;
  
       ierr=0;
 //
