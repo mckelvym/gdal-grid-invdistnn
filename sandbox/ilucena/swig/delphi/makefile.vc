@@ -1,0 +1,25 @@
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+INC = -I. $(INC)
+
+OBJ = gdal_wrapper.obj ogr_api_wrapper.obj ogr_core_wrapper.obj ogr_srs_api_wrapper.obj
+
+build: $(OBJ)
+	link /dll /out:gdal6opw.dll $(GDALLIB) $(OBJ) 
+
+install: build
+    copy gdal6opw.dll $(GDAL_HOME)\bin\.
+    echo install on DELPHI
+
+clean:
+	-del *.dll
+	-del *.obj
+	-del *.exp
+	-del *.ilk
+	-del *.pdb
+	-del *.tlb
+	-del *.snk
+	-del *.cs
+	-del *.lib
