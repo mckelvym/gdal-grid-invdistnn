@@ -1,3 +1,14 @@
+/******************************************************************************
+ * $Id: $
+ *
+ * Name:     cpl.i
+ * Project:  GDAL SWIG Interface
+ * Purpose:  Typemaps for Delphi bindings
+ * Author:   Stefano Moratto
+ ******************************************************************************
+ * Copyright (c) 2008, Stefano Moratto <stefano.moratto@gmail.com> 
+ */
+ 
 /* File : example.i */
 %module cpl
 %include "typemaps.i"

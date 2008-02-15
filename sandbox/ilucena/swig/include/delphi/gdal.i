@@ -1,3 +1,14 @@
+/******************************************************************************
+ * $Id: $
+ *
+ * Name:     gdal.i
+ * Project:  GDAL SWIG Interface
+ * Purpose:  Typemaps for Delphi bindings
+ * Author:   Stefano Moratto
+ ******************************************************************************
+ * Copyright (c) 2008, Stefano Moratto <stefano.moratto@gmail.com> 
+ */
+
 //-delphi -opaquerecord -noproxy -I$(ProgramFiles)\FWTOOLS2.0.3\include gdal.i 
 
 %module gdal

@@ -1,3 +1,14 @@
+/******************************************************************************
+ * $Id: $
+ *
+ * Name:     ogr_srs_api.i
+ * Project:  GDAL SWIG Interface
+ * Purpose:  Typemaps for Delphi bindings
+ * Author:   Stefano Moratto
+ ******************************************************************************
+ * Copyright (c) 2008, Stefano Moratto <stefano.moratto@gmail.com> 
+ */
+
 %module ogr_srs_api
 %include "typemaps.i"
 
