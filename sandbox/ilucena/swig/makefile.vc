@@ -60,14 +60,22 @@ ruby: gdalvars
         nmake /f makefile.vc build
         nmake /f makefile.vc install 
 
+lua: gdalvars
+        cd lua
+        $(SWIG) -lua -I../include/lua -o gdalconst_wrap.c ../include/gdalconst.i
+        $(SWIG) -c++ -lua -I../include/lua -o gdal_wrap.cpp ../include/gdal.i
+        $(SWIG) -c++ -lua -I../include/lua -o osr_wrap.cpp ../include/osr.i
+        $(SWIG) -c++ -lua -I../include/lua -o ogr_wrap.cpp ../include/ogr.i
+        nmake /f makefile.vc build
+        nmake /f makefile.vc install 
+
 delphi: gdalvars
         cd delphi
-        del *.pas
-        $(SWIG) -delphi -noproxy -opaquerecord -wrapdllname gdal6opw.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -o ogr_core_wrapper.cpp           -oh ogr_core_wrapper.h    ../include/delphi/ogr_core.i 
-        $(SWIG) -delphi -noproxy -opaquerecord -wrapdllname gdal6opw.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -o ogr_srs_api_wrapper.cpp        -oh ogr_srs_api_wrapper.h ../include/delphi/ogr_srs_api.i 
-        $(SWIG) -delphi -noproxy -opaquerecord -wrapdllname gdal6opw.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -o ogr_api_wrapper.cpp            -oh ogr_api_wrapper.h     ../include/delphi/ogr_api.i 
-        $(SWIG) -delphi -noproxy -opaquerecord -wrapdllname gdal6opw.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o gdal_wrapper.cpp -oh gdal_wrapper.h        ../include/delphi/gdal.i         
-        $(SWIG) -xmlout tree.xml -delphi -noproxy -opaquerecord -wrapdllname gdal6opw.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o gdal_wrapper.cpp -oh gdal_wrapper.h        ../include/delphi/gdal.i         
+        $(SWIG) -delphi -noproxy -wrapdllname gdal_op.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o ogr_srs_api_wrapper.cpp ../include/delphi/ogr_srs_api.i 
+        $(SWIG) -delphi -noproxy -wrapdllname gdal_op.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o ogr_core_wrapper.cpp    ../include/delphi/ogr_core.i 
+        $(SWIG) -delphi -noproxy -wrapdllname gdal_op.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o ogr_api_wrapper.cpp     ../include/delphi/ogr_api.i 
+        $(SWIG) -delphi -noproxy -wrapdllname gdal_op.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o gdal_wrapper.cpp        ../include/delphi/gdal.i         
+        $(SWIG) -delphi -noproxy -wrapdllname gdal_op.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o cpl_wrapper.cpp         ../include/delphi/cpl.i 
         nmake /f makefile.vc build
         nmake /f makefile.vc install
         
