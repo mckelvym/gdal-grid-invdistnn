@@ -858,7 +858,6 @@ int ReadGrib2Record (DataSource &fp, sChar f_unit, double **Grib_Data,
    int unitLen;         /* String length of string name of current unit. */
    int version;         /* Which version of GRIB is in this message. */
    sInt4 cnt;           /* Used to help compact the weather table. */
-   gdsType newGds;      /* The GDS of the subgrid if needed. */
    int x1, y1;          /* The original grid coordinates of the lower left
                          * corner of the subgrid. */
    int x2, y2;          /* The original grid coordinates of the upper right
@@ -1047,7 +1046,7 @@ int ReadGrib2Record (DataSource &fp, sChar f_unit, double **Grib_Data,
          } else if (jer[ndjer + i] == 1) {
             /* Warning. */
 #ifdef DEBUG
-            printf ("Warning: Unpack library warning code (%ld %ld)\n",
+            printf ("Warning: Unpack library warning code (%d %d)\n",
                     jer[i], jer[ndjer + i]);
 #endif
          } else {
@@ -1069,9 +1068,9 @@ int ReadGrib2Record (DataSource &fp, sChar f_unit, double **Grib_Data,
       FILE *fp;
       if ((fp = fopen ("dump.is0", "wt")) != NULL) {
          for (i = 0; i < 8; i++) {
-            fprintf (fp, "---Section %d---\n", i);
+            fprintf (fp, "---Section %d---\n", (int) i);
             for (j = 1; j <= IS->ns[i]; j++) {
-               fprintf (fp, "IS%d Item %d = %ld\n", i, j, IS->is[i][j - 1]);
+               fprintf (fp, "IS%d Item %d = %d\n", (int) i, (int) j, IS->is[i][j - 1]);
             }
          }
          fclose (fp);

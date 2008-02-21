@@ -368,7 +368,7 @@ static int TransferInt (float * fld, sInt4 ngrdpts, sInt4 ibitmap,
 
    if (nd2x3 < ngrdpts) {
 #ifdef DEBUG
-      printf ("nd2x3(%ld) is < ngrdpts(%ld)\n", nd2x3, ngrdpts);
+      printf ("nd2x3(%d) is < ngrdpts(%d)\n", nd2x3, ngrdpts);
 #endif
       return 1;
    }
@@ -391,7 +391,7 @@ static int TransferInt (float * fld, sInt4 ngrdpts, sInt4 ibitmap,
    } else {
       if (nx * ny != ngrdpts) {
 #ifdef DEBUG
-         printf ("nx * ny (%ld) != ngrdpts(%ld)\n", nx * ny, ngrdpts);
+         printf ("nx * ny (%d) != ngrdpts(%d)\n", nx * ny, ngrdpts);
 #endif
          return 2;
       }
@@ -473,7 +473,7 @@ static int TransferFloat (float * fld, sInt4 ngrdpts, sInt4 ibitmap,
 
    if (nd2x3 < ngrdpts) {
 #ifdef DEBUG
-      printf ("nd2x3(%ld) is < ngrdpts(%ld)\n", nd2x3, ngrdpts);
+      printf ("nd2x3(%d) is < ngrdpts(%d)\n", nd2x3, ngrdpts);
 #endif
       return 1;
    }
@@ -496,7 +496,7 @@ static int TransferFloat (float * fld, sInt4 ngrdpts, sInt4 ibitmap,
    } else {
       if (nx * ny != ngrdpts) {
 #ifdef DEBUG
-         printf ("nx * ny (%ld) != ngrdpts(%ld)\n", nx * ny, ngrdpts);
+         printf ("nx * ny (%d) != ngrdpts(%d)\n", nx * ny, ngrdpts);
 #endif
          return 2;
       }
@@ -1190,6 +1190,7 @@ void unpk_g2ncep (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nd2x3,
  * NOTES
  *****************************************************************************
  */
+#ifdef notdef
 static int validate (char *filename, float * ain, sInt4 * iain,
                      sInt4 * nd2x3, sInt4 * idat, sInt4 * nidat,
                      float * rdat, sInt4 * nrdat, sInt4 * is0, sInt4 * ns0,
@@ -1210,62 +1211,63 @@ static int validate (char *filename, float * ain, sInt4 * iain,
       return -1;
    }
    for (i = 0; i < *ns0; i++) {
-      fprintf (fp, "Sect 0 : %d of %ld : %ld\n", i, *ns0, is0[i]);
+      fprintf (fp, "Sect 0 : %d of %d : %d\n", i, *ns0, is0[i]);
    }
    for (i = 0; i < *ns1; i++) {
-      fprintf (fp, "Sect 1 : %d of %ld : %ld\n", i, *ns1, is1[i]);
+      fprintf (fp, "Sect 1 : %d of %d : %d\n", i, *ns1, is1[i]);
    }
    for (i = 0; i < *ns2; i++) {
-      fprintf (fp, "Sect 2 : %d of %ld : %ld\n", i, *ns2, is2[i]);
+      fprintf (fp, "Sect 2 : %d of %d : %d\n", i, *ns2, is2[i]);
    }
    for (i = 0; i < idat[0]; i++) {
-      fprintf (fp, "idat : %d of %ld : %ld\n", i, idat[0], idat[i]);
+      fprintf (fp, "idat : %d of %d : %d\n", i, idat[0], idat[i]);
    }
    for (i = 0; i < rdat[0]; i++) {
       fprintf (fp, "rdat : %d of %f : %f\n", i, rdat[0], rdat[i]);
    }
    for (i = 0; i < *ns3; i++) {
-      fprintf (fp, "Sect 3 : %d of %ld : %ld\n", i, *ns3, is3[i]);
+      fprintf (fp, "Sect 3 : %d of %d : %d\n", i, *ns3, is3[i]);
    }
    for (i = 0; i < *ns4; i++) {
-      fprintf (fp, "Sect 4 : %d of %ld : %ld\n", i, *ns4, is4[i]);
+      fprintf (fp, "Sect 4 : %d of %d : %d\n", i, *ns4, is4[i]);
    }
    for (i = 0; i < *ns5; i++) {
-      fprintf (fp, "Sect 5 : %d of %ld : %ld\n", i, *ns5, is5[i]);
+      fprintf (fp, "Sect 5 : %d of %d : %d\n", i, *ns5, is5[i]);
    }
    for (i = 0; i < *ns6; i++) {
-      fprintf (fp, "Sect 6 : %d of %ld : %ld\n", i, *ns6, is6[i]);
+      fprintf (fp, "Sect 6 : %d of %d : %d\n", i, *ns6, is6[i]);
    }
    for (i = 0; i < *ns7; i++) {
-      fprintf (fp, "Sect 7 : %d of %ld : %ld\n", i, *ns7, is7[i]);
+      fprintf (fp, "Sect 7 : %d of %d : %d\n", i, *ns7, is7[i]);
    }
    fprintf (fp, "Xmissp = %f\n", *xmissp);
    fprintf (fp, "xmisss = %f\n", *xmisss);
    if ((is5[9] == 0) || (is5[9] == 1) || (is5[9] == 2) || (is5[9] == 3)) {
       if (is5[20] == 1) {
          for (i = 0; i < *nd2x3; i++) {
-            fprintf (fp, "Int Data : %d of %ld : %ld\n", i, *nd2x3, iain[i]);
+            fprintf (fp, "Int Data : %d of %d : %d\n", i, *nd2x3, iain[i]);
          }
       }
    } else {
       for (i = 0; i < *nd2x3; i++) {
-         fprintf (fp, "Float Data : %d of %ld : %f\n", i, *nd2x3, ain[i]);
+         fprintf (fp, "Float Data : %d of %d : %f\n", i, *nd2x3, ain[i]);
       }
    }
-   fprintf (fp, "ibitmap = %ld\n", *ibitmap);
+   fprintf (fp, "ibitmap = %d\n", *ibitmap);
    if (*ibitmap) {
       for (i = 0; i < *nd2x3; i++) {
-         fprintf (fp, "Bitmap Data : %d of %ld : %ld\n", i, *nd2x3, ib[i]);
+         fprintf (fp, "Bitmap Data : %d of %d : %d\n", i, *nd2x3, ib[i]);
       }
    }
    for (i = 0; i < *ndjer; i++) {
-      fprintf (fp, "jer(i,1) %ld jer(i,2) %ld\n", jer[i], jer[i + *ndjer]);
+      fprintf (fp, "jer(i,1) %d jer(i,2) %d\n", jer[i], jer[i + *ndjer]);
    }
-   fprintf (fp, "kjer = %ld\n", *kjer);
-   fprintf (fp, "iendpk = %ld\n", *iendpk);
+   fprintf (fp, "kjer = %d\n", *kjer);
+   fprintf (fp, "iendpk = %d\n", *iendpk);
    fclose (fp);
    return 0;
 }
+#endif /* def notdef */
 
 /*****************************************************************************
  * clear() --
@@ -1313,6 +1315,7 @@ static int validate (char *filename, float * ain, sInt4 * iain,
  * NOTES
  *****************************************************************************
  */
+/*
 static void clear (float * ain, sInt4 * iain, sInt4 * nd2x3, sInt4 * idat,
                    sInt4 * nidat, float * rdat, sInt4 * nrdat, sInt4 * is0,
                    sInt4 * ns0, sInt4 * is1, sInt4 * ns1, sInt4 * is2,
@@ -1344,6 +1347,7 @@ static void clear (float * ain, sInt4 * iain, sInt4 * nd2x3, sInt4 * idat,
    memset ((void *) jer, 0, 2 * *ndjer * sizeof (sInt4));
    *kjer = 0;
 }
+*/
 
 /*****************************************************************************
  * BigByteCpy() --
@@ -1504,7 +1508,7 @@ static int FindTemplateIDs (sInt4 * ipack, sInt4 nd5, int subgNum,
             break;
          default:
 #ifdef DEBUG
-            printf ("Invalid section id %ld.\n", sectId);
+            printf ("Invalid section id %d.\n", sectId);
 #endif
             return 2;
       }
@@ -1626,17 +1630,9 @@ void unpk_grib2 (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nd2x3,
    sInt4 pdsTmpl;
    sInt4 drsTmpl;
    sInt4 numGrps;
-   sInt4 *jmin;
-   sInt4 *lbit;
-   sInt4 *nov;
-   sInt4 *iwork;
-   char f_useMDL = 0;   /* Instructed 3/8/2005 10:30 to not use MDL. */
+      char f_useMDL = 0;   /* Instructed 3/8/2005 10:30 to not use MDL. */
    uChar f_noBitmap;    /* 0 if bitmap, else no bitmap. */
    sInt4 orderDiff;
-
-#ifdef DEBUG
-   f_useMDL = 0;   /* Experiment with smoke data 12/16/2005 */
-#endif
 
    if (FindTemplateIDs (ipack, *nd5, 0, &gdsTmpl, &pdsTmpl, &drsTmpl,
                         &numGrps, &f_noBitmap, &orderDiff) != 0) {
@@ -1644,12 +1640,6 @@ void unpk_grib2 (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nd2x3,
       jer[0] = 3000;    /* Couldn't figure out which templates are used. */
       *kjer = 1;
    }
-#ifdef DEBUG
-   printf ("gdsTemplate number = %ld\n", gdsTmpl);
-   printf ("pdsTemplate number = %ld\n", pdsTmpl);
-   printf ("drsTemplate number = %ld\n", drsTmpl);
-   printf ("f_noBitmap = %d\n", f_noBitmap);
-#endif
    if ((gdsTmpl != 0) && (gdsTmpl != 10) && (gdsTmpl != 20) &&
        (gdsTmpl != 30) && (gdsTmpl != 90) && (gdsTmpl != 110) &&
        (gdsTmpl != 120)) {
@@ -1660,30 +1650,17 @@ void unpk_grib2 (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nd2x3,
        (pdsTmpl != 30)) {
       f_useMDL = 0;
    }
-#ifdef DEBUG
-   printf ("UseMDL? 1=yes 0=no : ans %d\n", f_useMDL);
-#endif
    if ((drsTmpl != 0) && (drsTmpl != 2) && (drsTmpl != 3)) {
       f_useMDL = 0;
    }
-#ifdef DEBUG
-   printf ("UseMDL? 1=yes 0=no : ans %d\n", f_useMDL);
-#endif
    /* MDL GRIB2 lib does not support drsTmpl 2 or 3 if there is a bitmap. */
    if ((!f_noBitmap) && ((drsTmpl == 2) || (drsTmpl == 3))) {
       f_useMDL = 0;
    }
-#ifdef DEBUG
-   printf ("UseMDL? 1=yes 0=no : ans %d\n", f_useMDL);
-#endif
    /* MDL GRIB2 lib does not support anything but second order differencing. */
    if ((drsTmpl == 3) && (orderDiff != 2) && (orderDiff != 0)) {
       f_useMDL = 0;
    }
-#ifdef DEBUG
-   printf ("orderDiff = %d, drsTmpl = %d\n", orderDiff, drsTmpl), 
-   printf ("UseMDL? 1=yes 0=no : ans %d\n", f_useMDL);
-#endif
 
 #ifdef _FORTRAN
    if (f_useMDL) {
@@ -2034,7 +2011,6 @@ void pk_grib2 (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nx,
    sInt4 *newbox;
    sInt4 *newboxp;
    sInt4 *ia;
-   unsigned char *c_ipack;
 /*   float *a;*/
    char f_useMDL = 1;
    int i;
@@ -2136,7 +2112,7 @@ void pk_grib2 (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nx,
 #else
 
       printf ("Unable to use MDL Pack library?\n");
-      printf ("gdsTmpl : %ld , pdsTmpl %ld : drsTmpl %ld\n", gdsTmpl,
+      printf ("gdsTmpl : %d , pdsTmpl %d : drsTmpl %d\n", gdsTmpl,
               pdsTmpl, drsTmpl);
       jer[0 + *ndjer] = 31415926;
       *kjer = 1;

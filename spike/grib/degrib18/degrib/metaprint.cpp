@@ -305,9 +305,9 @@ static void PrintSect2 (sect2_type * sect2)
                 sect2->wx.dataLen);
          for (i = 0; i < sect2->wx.dataLen; i++) {
             if (sect2->wx.ugly[i].validIndex != -1) {
-               sprintf (buffer, "Elem %3d  Is Used", i);
+                sprintf (buffer, "Elem %3d  Is Used", (int) i);
             } else {
-               sprintf (buffer, "Elem %3d NOT Used", i);
+                sprintf (buffer, "Elem %3d NOT Used", (int) i);
             }
             Print ("PDS-S2", buffer, Prt_S, sect2->wx.data[i]);
          }
@@ -316,7 +316,7 @@ static void PrintSect2 (sect2_type * sect2)
          Print ("PDS-S2", "Number of Elements in Section 2", Prt_D,
                 sect2->unknown.dataLen);
          for (i = 0; i < sect2->unknown.dataLen; i++) {
-            sprintf (buffer, "Element %d", i);
+             sprintf (buffer, "Element %d", (int) i);
             Print ("PDS-S2", buffer, Prt_F, sect2->unknown.data[i]);
          }
          break;
@@ -700,12 +700,12 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
                    Lookup (tbl411, sizeof (tbl411),
                            sect4->Interval[i].incrType));
             /* Following is so we get "# str" not "# (str)" */
-            sprintf (buffer, "%ld %s", sect4->Interval[i].lenTime,
+            sprintf (buffer, "%d %s", sect4->Interval[i].lenTime,
                      Lookup (tbl44, sizeof (tbl44),
                              sect4->Interval[i].timeRangeUnit));
             Print ("PDS-S4", "Time range for processing", Prt_S, buffer);
             /* Following is so we get "# str" not "# (str)" */
-            sprintf (buffer, "%ld %s", sect4->Interval[i].timeIncr,
+            sprintf (buffer, "%d %s", sect4->Interval[i].timeIncr,
                      Lookup (tbl44, sizeof (tbl44),
                              sect4->Interval[i].incrUnit));
             Print ("PDS-S4", "Time increment", Prt_S, buffer);
@@ -741,12 +741,12 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
                    Lookup (tbl411, sizeof (tbl411),
                            sect4->Interval[i].incrType));
             /* Following is so we get "# str" not "# (str)" */
-            sprintf (buffer, "%ld %s", sect4->Interval[i].lenTime,
+            sprintf (buffer, "%d %s", sect4->Interval[i].lenTime,
                      Lookup (tbl44, sizeof (tbl44),
                              sect4->Interval[i].timeRangeUnit));
             Print ("PDS-S4", "Time range for processing", Prt_S, buffer);
             /* Following is so we get "# str" not "# (str)" */
-            sprintf (buffer, "%ld %s", sect4->Interval[i].timeIncr,
+            sprintf (buffer, "%d %s", sect4->Interval[i].timeIncr,
                      Lookup (tbl44, sizeof (tbl44),
                              sect4->Interval[i].incrUnit));
             Print ("PDS-S4", "Time increment", Prt_S, buffer);
@@ -759,12 +759,12 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
                 sect4->numForeProbs);
          Print ("PDS-S4", "Probability type", Prt_DS, sect4->probType,
                 Lookup (tbl49, sizeof (tbl49), sect4->probType));
-         sprintf (buffer, "%ld, %d", sect4->lowerLimit.value,
+         sprintf (buffer, "%d, %d", sect4->lowerLimit.value,
                   sect4->lowerLimit.factor);
          Print ("PDS-S4", "Lower limit (scale value, scale factor)", Prt_GS,
                 sect4->lowerLimit.value *
                 pow (10, -1 * sect4->lowerLimit.factor), buffer);
-         sprintf (buffer, "%ld, %d", sect4->upperLimit.value,
+         sprintf (buffer, "%d, %d", sect4->upperLimit.value,
                   sect4->upperLimit.factor);
          Print ("PDS-S4", "Upper limit (scale value, scale factor)", Prt_GS,
                 sect4->upperLimit.value *
@@ -794,12 +794,12 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
                    Lookup (tbl411, sizeof (tbl411),
                            sect4->Interval[i].incrType));
             /* Following is so we get "# str" not "# (str)" */
-            sprintf (buffer, "%ld %s", sect4->Interval[i].lenTime,
+            sprintf (buffer, "%d %s", sect4->Interval[i].lenTime,
                      Lookup (tbl44, sizeof (tbl44),
                              sect4->Interval[i].timeRangeUnit));
             Print ("PDS-S4", "Time range for processing", Prt_S, buffer);
             /* Following is so we get "# str" not "# (str)" */
-            sprintf (buffer, "%ld %s", sect4->Interval[i].timeIncr,
+            sprintf (buffer, "%d %s", sect4->Interval[i].timeIncr,
                      Lookup (tbl44, sizeof (tbl44),
                              sect4->Interval[i].incrUnit));
             Print ("PDS-S4", "Time increment", Prt_S, buffer);
@@ -812,12 +812,12 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
                 sect4->numForeProbs);
          Print ("PDS-S4", "Probability type", Prt_DS, sect4->probType,
                 Lookup (tbl49, sizeof (tbl49), sect4->probType));
-         sprintf (buffer, "%ld, %d", sect4->lowerLimit.value,
+         sprintf (buffer, "%d, %d", sect4->lowerLimit.value,
                   sect4->lowerLimit.factor);
          Print ("PDS-S4", "Lower limit (scale value, scale factor)", Prt_GS,
                 sect4->lowerLimit.value *
                 pow (10, -1 * sect4->lowerLimit.factor), buffer);
-         sprintf (buffer, "%ld, %d", sect4->upperLimit.value,
+         sprintf (buffer, "%d, %d", sect4->upperLimit.value,
                   sect4->upperLimit.factor);
          Print ("PDS-S4", "Upper limit (scale value, scale factor)", Prt_GS,
                 sect4->upperLimit.value *
@@ -845,12 +845,12 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
                    Lookup (tbl411, sizeof (tbl411),
                            sect4->Interval[i].incrType));
             /* Following is so we get "# str" not "# (str)" */
-            sprintf (buffer, "%ld %s", sect4->Interval[i].lenTime,
+            sprintf (buffer, "%d %s", sect4->Interval[i].lenTime,
                      Lookup (tbl44, sizeof (tbl44),
                              sect4->Interval[i].timeRangeUnit));
             Print ("PDS-S4", "Time range for processing", Prt_S, buffer);
             /* Following is so we get "# str" not "# (str)" */
-            sprintf (buffer, "%ld %s", sect4->Interval[i].timeIncr,
+            sprintf (buffer, "%d %s", sect4->Interval[i].timeIncr,
                      Lookup (tbl44, sizeof (tbl44),
                              sect4->Interval[i].incrUnit));
             Print ("PDS-S4", "Time increment", Prt_S, buffer);
@@ -859,7 +859,7 @@ static int PrintSect4 (grib_MetaData *meta, sChar f_unit)
       default:
          /* This case should have been handled in first switch statement of
           * this procedure, but just in case... */
-         errSprintf ("Un-supported Sect4 template %ld\n", sect4->templat);
+         errSprintf ("Un-supported Sect4 template %d\n", sect4->templat);
          return -2;
    }
    return 0;
@@ -1150,7 +1150,7 @@ static int PrintGDS (gdsType *gds, int version)
 */
       default:
          Print ("GDS", "Projection Type", Prt_D, gds->projType);
-         errSprintf ("Un-supported Map Projection %ld\n", gds->projType);
+         errSprintf ("Un-supported Map Projection %d\n", gds->projType);
          return -1;
    }
    if (gds->f_sphere) {

@@ -6,6 +6,7 @@
 class DataSource
 {
 public:
+        virtual ~DataSource() {}
 	virtual size_t DataSourceFread(void* lpBuf, size_t size, size_t count) = 0;
 	virtual int DataSourceFgetc() = 0;
 	virtual int DataSourceUngetc(int c) = 0;

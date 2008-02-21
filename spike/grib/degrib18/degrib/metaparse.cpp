@@ -1149,9 +1149,9 @@ static int ParseSect4 (sInt4 *is4, sInt4 ns4, grib_MetaData *meta)
    }
    if (is4[4] != 4) {
 #ifdef DEBUG
-      printf ("ERROR IS4 not labeled correctly. %ld\n", is4[4]);
+      printf ("ERROR IS4 not labeled correctly. %d\n", is4[4]);
 #endif
-      errSprintf ("ERROR IS4 not labeled correctly. %ld\n", is4[4]);
+      errSprintf ("ERROR IS4 not labeled correctly. %d\n", is4[4]);
       return -2;
    }
    if (is4[5] != 0) {
@@ -1169,9 +1169,9 @@ static int ParseSect4 (sInt4 *is4, sInt4 ns4, grib_MetaData *meta)
        (is4[7] != GS4_PERCENTILE) && (is4[7] != GS4_ENSEMBLE_STAT) &&
        (is4[7] != GS4_SATELLITE) && (is4[7] != GS4_DERIVED_INTERVAL)) {
 #ifdef DEBUG
-      printf ("Un-supported Template. %ld\n", is4[7]);
+      printf ("Un-supported Template. %d\n", is4[7]);
 #endif
-      errSprintf ("Un-supported Template. %ld\n", is4[7]);
+      errSprintf ("Un-supported Template. %d\n", is4[7]);
       return -4;
    }
    meta->pds2.sect4.templat = (unsigned short int) is4[7];
@@ -1789,7 +1789,7 @@ int MetaParse (grib_MetaData *meta, sInt4 *is0, sInt4 ns0,
                              meta->pds2.sect4.foreSec -
                              meta->pds2.refTime) / 3600);
       } else if (meta->pds2.sect4.Interval[0].timeRangeUnit == 0) {
-         lenTime = meta->pds2.sect4.Interval[0].lenTime / 60.;
+          lenTime = (sInt4) (meta->pds2.sect4.Interval[0].lenTime / 60.);
       } else if (meta->pds2.sect4.Interval[0].timeRangeUnit == 1) {
          lenTime = meta->pds2.sect4.Interval[0].lenTime;
       } else if (meta->pds2.sect4.Interval[0].timeRangeUnit == 2) {
@@ -1801,7 +1801,7 @@ int MetaParse (grib_MetaData *meta, sInt4 *is0, sInt4 ns0,
       } else if (meta->pds2.sect4.Interval[0].timeRangeUnit == 12) {
          lenTime = meta->pds2.sect4.Interval[0].lenTime * 12;
       } else if (meta->pds2.sect4.Interval[0].timeRangeUnit == 13) {
-         lenTime = meta->pds2.sect4.Interval[0].lenTime / 3600.;
+         lenTime = (sInt4) (meta->pds2.sect4.Interval[0].lenTime / 3600.);
       } else {
          lenTime = 0;
          printf ("Can't handle this timeRangeUnit\n");

@@ -123,13 +123,13 @@ void GRIB2InventoryPrint (inventoryType *Inv, uInt4 LenInv)
       delta = (Inv[i].validTime - Inv[i].refTime) / 3600.;
       delta = myRound (delta, 2);
       if (Inv[i].comment == NULL) {
-         printf ("%d.%d, %ld, %d, %s, %s, %s, %s, %.2f\n",
+         printf ("%d.%d, %d, %d, %s, %s, %s, %s, %.2f\n",
                  Inv[i].msgNum, Inv[i].subgNum, Inv[i].start,
                  Inv[i].GribVersion, Inv[i].element, Inv[i].shortFstLevel,
                  refTime, validTime, delta);
          fflush (stdout);
       } else {
-         printf ("%d.%d, %ld, %d, %s=\"%s\", %s, %s, %s, %.2f\n",
+         printf ("%d.%d, %d, %d, %s=\"%s\", %s, %s, %s, %.2f\n",
                  Inv[i].msgNum, Inv[i].subgNum, Inv[i].start,
                  Inv[i].GribVersion, Inv[i].element, Inv[i].comment,
                  Inv[i].shortFstLevel, refTime, validTime, delta);
@@ -626,7 +626,7 @@ enum { GS4_ANALYSIS, GS4_ENSEMBLE, GS4_DERIVED, GS4_PROBABIL_PNT = 5,
 /*   myAssert (timeRangeUnit == 1);*/
    /* Try to convert lenTime to hourly. */
    if (timeRangeUnit == 0) {
-      lenTime = lenTime / 60.;
+      lenTime = (sInt4) (lenTime / 60.);
       timeRangeUnit = 1;
    } else if (timeRangeUnit == 1) {
    } else if (timeRangeUnit == 2) {
@@ -642,7 +642,7 @@ enum { GS4_ANALYSIS, GS4_ENSEMBLE, GS4_DERIVED, GS4_PROBABIL_PNT = 5,
       lenTime = lenTime * 12;
       timeRangeUnit = 1;
    } else if (timeRangeUnit == 13) {
-      lenTime = lenTime / 3600.;
+      lenTime = (sInt4) (lenTime / 3600.);
       timeRangeUnit = 1;
    } else {
       printf ("Can't handle this timeRangeUnit\n");
@@ -894,7 +894,7 @@ int GRIB2Inventory (DataSource &fp, inventoryType **Inv, uInt4 *LenInv,
          } else {
             /* Handle case where there are trailing bytes. */
             msg = errSprintf (NULL);
-            printf ("Warning: Inside GRIB2Inventory, Message # %ld\n",
+            printf ("Warning: Inside GRIB2Inventory, Message # %d\n",
                     msgNum);
             printf ("%s", msg);
             free (msg);
@@ -902,7 +902,7 @@ int GRIB2Inventory (DataSource &fp, inventoryType **Inv, uInt4 *LenInv,
             fp.DataSourceFseek (0L, SEEK_END);
             fileLen = fp.DataSourceFtell();
             /* fseek (fp, 0L, SEEK_SET); */
-            printf ("There were %ld trailing bytes in the file.\n",
+            printf ("There were %d trailing bytes in the file.\n",
                     fileLen - offset);
             free (buffer);
             free (buff);
@@ -1127,14 +1127,14 @@ int GRIB2RefTime (char *filename, double *refTime)
          } else {
             /* Handle case where there are trailing bytes. */
             msg = errSprintf (NULL);
-            printf ("Warning: Inside GRIB2RefTime, Message # %ld\n", msgNum);
+            printf ("Warning: Inside GRIB2RefTime, Message # %d\n", msgNum);
             printf ("%s", msg);
             free (msg);
             /* find out how big the file is. */
             fp.DataSourceFseek (0L, SEEK_END);
             fileLen = fp.DataSourceFtell();
             /* fseek (fp, 0L, SEEK_SET); */
-            printf ("There were %ld trailing bytes in the file.\n",
+            printf ("There were %d trailing bytes in the file.\n",
                     fileLen - offset);
             free (buffer);
             free (buff);

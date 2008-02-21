@@ -207,7 +207,8 @@ void GRIBRasterBand::ReadGribData( DataSource & fp, sInt4 start, int subgNum, do
                      majEarth, minEarth, f_SimpleVer, &f_endMsg, &lwlf, &uprt);
 
     char * errMsg = errSprintf(NULL); // no intention to show errors, just swallow it and free the memory
-    CPLDebug( "GRIB", "%s", errMsg );
+    if( errMsg != NULL )
+        CPLDebug( "GRIB", "%s", errMsg );
     free(errMsg);
     IS_Free(&is);
 }
@@ -301,7 +302,8 @@ GDALDataset *GRIBDataset::Open( GDALOpenInfo * poOpenInfo )
     if (ReadSECT0 (mds, &buff, &buffLen, -1, sect0, &gribLen, &version) < 0) {
         free (buff);
         char * errMsg = errSprintf(NULL);
-        CPLDebug( "GRIB", "%s", errMsg );
+        if( errMsg != NULL )
+            CPLDebug( "GRIB", "%s", errMsg );
         free(errMsg);
         return NULL;
     }

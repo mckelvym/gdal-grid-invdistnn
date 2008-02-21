@@ -406,6 +406,7 @@ int myStat (char *filename, char *perm, sInt4 *size, double *mtime)
    }
 }
 
+/** 
 static int FileMatch (const char *filename, const char *filter)
 {
    const char *ptr1;
@@ -436,6 +437,7 @@ static int FileMatch (const char *filename, const char *filter)
    }
    return (*ptr2 == '\0');
 }
+**/
 
 int myGlob (const char *dirName, const char *filter, size_t *Argc,
             char ***Argv)

@@ -3,9 +3,9 @@
 
 MemoryDataSource::MemoryDataSource(unsigned char * block, long length)
 : seekPos(0)
-, memoryBlock(block)
 , blockLength(length)
 , eof(false)
+, memoryBlock(block)
 {
 }
 
@@ -15,7 +15,7 @@ MemoryDataSource::~MemoryDataSource()
 
 size_t MemoryDataSource::DataSourceFread(void* lpBuf, size_t size, size_t count)
 {
-	if (seekPos + size * count > blockLength)
+        if (seekPos + size * count > (size_t) blockLength)
 	{
 		count = (blockLength - seekPos) / size;
 		eof = true;

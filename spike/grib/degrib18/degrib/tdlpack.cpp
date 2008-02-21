@@ -235,7 +235,7 @@ static int ReadTDLPSect1 (uChar *pds, sInt4 tdlpLen, sInt4 *curLoc,
    tau = pdsMeta->ID3 - ((pdsMeta->ID3 / 1000) * 1000);
    if (tau != project_hr) {
       printf ("Warning: Inconsistant Projections in hours in "
-              "ReadTDLPSect1 (%ld vs %d)\n", tau, project_hr);
+              "ReadTDLPSect1 (%d vs %d)\n", tau, project_hr);
 /*
       errSprintf ("Warning: Inconsistant Projections in hours in "
                   "ReadTDLPSect1 (%ld vs %d)\n", tau, project_hr);
@@ -338,11 +338,11 @@ void PrintPDS_TDLP (pdsTDLPType * pds)
 
    Print ("PDS-TDLP", "Reference Time", Prt_S, buffer);
    Print ("PDS-TDLP", "Plain Language", Prt_S, pds->Descriptor);
-   sprintf (buffer, "%09ld", pds->ID1);
+   sprintf (buffer, "%09d", pds->ID1);
    Print ("PDS-TDLP", "ID 1", Prt_S, buffer);
-   sprintf (buffer, "%09ld", pds->ID2);
+   sprintf (buffer, "%09d", pds->ID2);
    Print ("PDS-TDLP", "ID 2", Prt_S, buffer);
-   sprintf (buffer, "%09ld", pds->ID3);
+   sprintf (buffer, "%09d", pds->ID3);
    Print ("PDS-TDLP", "ID 3", Prt_S, buffer);
    Print ("PDS-TDLP", "ID 4", Prt_D, pds->ID4);
    Print ("PDS-TDLP", "Model or Process Number", Prt_D, pds->procNum);
@@ -1065,8 +1065,8 @@ static int ReadTDLPSect4 (uChar *bds, sInt4 tdlpLen, sInt4 *curLoc,
 #ifdef DEBUG
    printf ("nbit %d, ibit %d, jbit %d, kbit %d\n", nbit, ibit, jbit, kbit);
    if ((t_numBytes + ceil (t_numBits / 8.)) != sectLen) {
-      printf ("Caution: # bytes in groups %ld (%ld + %ld / 8) != "
-              "sectLen %ld\n", (sInt4) (t_numBytes + ceil (t_numBits / 8.)),
+      printf ("Caution: # bytes in groups %d (%d + %d / 8) != "
+              "sectLen %d\n", (sInt4) (t_numBytes + ceil (t_numBits / 8.)),
               t_numBytes, t_numBits, sectLen);
    }
 #endif
@@ -1174,7 +1174,7 @@ static int ReadTDLPSect4 (uChar *bds, sInt4 tdlpLen, sInt4 *curLoc,
                   if ((grp[i].bit == 0) && (grp[i].min != 0)) {
 #ifdef DEBUG
                      printf ("This doesn't happen often.\n");
-                     printf ("%d %d %ld\n", i, grp[i].bit, grp[i].min);
+                     printf ("%d %d %d\n", (int) i, grp[i].bit, grp[i].min);
 #endif
                      myAssert (1 == 2);
                      f_missing = 0;
@@ -1373,7 +1373,7 @@ static int ReadTDLPSect4 (uChar *bds, sInt4 tdlpLen, sInt4 *curLoc,
                   if ((grp[i].bit == 0) && (grp[i].min != 0)) {
 #ifdef DEBUG
                      printf ("This doesn't happen often.\n");
-                     printf ("%d %d %ld\n", i, grp[i].bit, grp[i].min);
+                     printf ("%d %d %d\n", (int) i, grp[i].bit, grp[i].min);
                      myAssert (1 == 2);
 #endif
                      f_missing = 0;
@@ -4381,7 +4381,7 @@ int WriteTDLPRecord (FILE * fp, double *Data, sInt4 DataLen, int DSF,
 #ifdef DEBUG
    /* Sanity check ! */
    if (li_temp != DataLen) {
-      printf ("Total packed in groups %ld != DataLen %ld\n", li_temp,
+      printf ("Total packed in groups %d != DataLen %d\n", li_temp,
               DataLen);
    }
    myAssert (li_temp == DataLen);

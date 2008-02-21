@@ -587,7 +587,7 @@ static int ReadGrib1Sect1 (uChar *pds, uInt4 gribLen, uInt4 *curLoc,
          /* 87 ... 100 was reserved, but may not be encoded */
          if ((sectLen < 100) && (sectLen != 86)) {
             printf ("Warning! Problems with Ensemble Clustering section\n");
-            printf ("Section length == %ld\n", sectLen);
+            printf ("Section length == %d\n", sectLen);
             return 0;
          }
          if (pdsMeta->f_hasProb == 0) {
@@ -624,12 +624,12 @@ static int ReadGrib1Sect1 (uChar *pds, uInt4 gribLen, uInt4 *curLoc,
       }
       pds += 12;
       i_temp = GRIB_SIGN_INT2 (pds[3], pds[4]);
-      printf ("ID %d Class %d Type %d Stream %ld", pds[0], pds[1], pds[2],
+      printf ("ID %d Class %d Type %d Stream %d", pds[0], pds[1], pds[2],
               i_temp);
       pds += 5;
       printf (" Ver %c%c%c%c, ", pds[0], pds[1], pds[2], pds[3]);
       pds += 4;
-      printf ("Octet-50 %d, Octet-51 %d SectLen %ld\n", pds[0], pds[1],
+      printf ("Octet-50 %d, Octet-51 %d SectLen %d\n", pds[0], pds[1],
               sectLen);
    } else {
       printf ("Un-handled possible ensemble section center %d "
@@ -1287,7 +1287,7 @@ static int UnpackCmplx (uChar *bds, uInt4 gribLen, uInt4 *curLoc,
       bufLoc = 8;
       for (i = 0; i < P2; i++) {
          memBitRead (&uli_temp, sizeof (sInt4), bds, 1, &bufLoc, &numUsed);
-         printf ("(%d %ld) ", i, uli_temp);
+         printf ("(%d %d) ", i, uli_temp);
          if (numUsed != 0) {
             printf ("\n");
             bds += numUsed;
@@ -1298,7 +1298,7 @@ static int UnpackCmplx (uChar *bds, uInt4 gribLen, uInt4 *curLoc,
          bds++;
          secLen++;
       }
-      printf ("Observed Sec Len %ld\n", secLen);
+      printf ("Observed Sec Len %d\n", secLen);
    } else {
       /* Jump over widths and secondary bitmap */
       bds += (N1 - 21);
@@ -1308,8 +1308,8 @@ static int UnpackCmplx (uChar *bds, uInt4 gribLen, uInt4 *curLoc,
    bufLoc = 8;
    for (i = 0; i < P1; i++) {
       memBitRead (&uli_temp, sizeof (sInt4), bds, numBits, &bufLoc, &numUsed);
-      printf ("(%d %ld) (numUsed %d numBits %d)", i, uli_temp, numUsed,
-              numBits);
+      printf ("(%d %d) (numUsed %ld numBits %d)", i, uli_temp, 
+              (long) numUsed, numBits);
       if (numUsed != 0) {
          printf ("\n");
          bds += numUsed;
@@ -1321,7 +1321,7 @@ static int UnpackCmplx (uChar *bds, uInt4 gribLen, uInt4 *curLoc,
       secLen++;
    }
 
-   printf ("Observed Sec Len %ld\n", secLen);
+   printf ("Observed Sec Len %d\n", secLen);
    printf ("N2 = %d\n", N2);
 
    errSprintf ("Don't know how to handle Complex GRIB1 packing yet.\n");
@@ -1477,8 +1477,8 @@ static int ReadGrib1Sect4 (uChar *bds, uInt4 gribLen, uInt4 *curLoc,
 
    if (!f_bms && (meta->gds.numPts * numBits + numUnusedBit) !=
        (sectLen - 11) * 8) {
-      printf ("numPts * (numBits in a Group) + # of unused bits %ld != "
-              "# of available bits %ld\n",
+      printf ("numPts * (numBits in a Group) + # of unused bits %d != "
+              "# of available bits %d\n",
               (sInt4) (meta->gds.numPts * numBits + numUnusedBit),
               (sInt4) ((sectLen - 11) * 8));
 /*
@@ -1723,7 +1723,7 @@ int ReadGrib1Record (DataSource &fp, sChar f_unit, double **Grib_Data,
    /* Make room for entire message, and read it in. */
    /* nd5 needs to be gribLen in (sInt4) units rounded up. */
 #ifdef DEBUG
-   printf ("GribLen == %ld\n", gribLen);
+   printf ("GribLen == %d\n", gribLen);
 #endif
    nd5 = (gribLen + 3) / 4;
    if (nd5 > IS->ipackLen) {
