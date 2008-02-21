@@ -1382,7 +1382,7 @@ static void BigByteCpy (sInt4 * dst, sInt4 * ipack, sInt4 nd5,
                         unsigned int startInt, unsigned int startByte,
                         int numByte)
 {
-   static char Lshift[] = { 0, 8, 16, 24 }; /* Amounts to shift left by. */
+   static int Lshift[] = { 0, 8, 16, 24 }; /* Amounts to shift left by. */
    unsigned int intIndex; /* Where in ipack to read from. */
    unsigned int byteIndex; /* Where in intIndex to read from. */
    uInt4 curInt;        /* An unsigned version of the current int. */
