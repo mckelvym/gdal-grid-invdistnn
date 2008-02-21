@@ -19,6 +19,9 @@
 #include "grib2api.h"
 #include "engribapi.h"
 #include "myassert.h"
+#include "gridtemplates.h"
+#include "pdstemplates.h"
+#include "drstemplates.h"
 
 #ifdef MEMWATCH
 #include "memwatch.h"
@@ -29,49 +32,6 @@
 #define GRIB2MISSING_1 (int) (0xff)
 #define GRIB2MISSING_2 (int) (0xffff)
 #define GRIB2MISSING_4 (sInt4) (0xffffffff)
-
-/* Following is from gridtemplates.h */
-#define MAXGRIDTEMP 23              /* maximum number of templates */
-#define MAXGRIDMAPLEN 200           /* maximum template map length */
-
-struct gridtemplate {
-   sInt4 template_num;
-   sInt4 mapgridlen;
-   sInt4 needext;
-   sInt4 mapgrid[MAXGRIDMAPLEN];
-};
-
-extern const struct gridtemplate templatesgrid[MAXGRIDTEMP];
-/* End of stuff from gridtemplates.h */
-
-/* Following is from pdstemplates.h */
-#define MAXPDSTEMP 23           /* maximum number of templates */
-#define MAXPDSMAPLEN 200        /* maximum template map length */
-
-struct pdstemplate {
-   sInt4 template_num;
-   sInt4 mappdslen;
-   sInt4 needext;
-   sInt4 mappds[MAXPDSMAPLEN];
-};
-
-extern const struct pdstemplate templatespds[MAXPDSTEMP];
-/* End of stuff from pdstemplates.h */
-
-/* Following is from drstemplates.h */
-#define MAXDRSTEMP 8            /* maximum number of templates */
-#define MAXDRSMAPLEN 200        /* maximum template map length */
-
-struct drstemplate {
-   sInt4 template_num;
-   sInt4 mapdrslen;
-   sInt4 needext;
-   sInt4 mapdrs[MAXDRSMAPLEN];
-};
-
-extern const struct drstemplate templatesdrs[MAXDRSTEMP];
-/* End of stuff from drstemplates.h */
-
 
 /*****************************************************************************
  * NearestInt() -- Arthur Taylor / MDL
@@ -461,6 +421,7 @@ int fillSect3 (enGribMeta *en, uShort2 tmplNum, double majEarth,
                double meshLat, double orientLon, double scaleLat1,
                double scaleLat2, double southLat, double southLon)
 {
+   const struct gridtemplate *templatesgrid = get_templatesgrid();
    int i;               /* loop counter over number of GDS templates. */
    double unit;         /* Used to convert from stored value to degrees
                          * lat/lon. See GRIB2 Regulation 92.1.6 */
@@ -682,6 +643,7 @@ int fillSect4_0 (enGribMeta *en, uShort2 tmplNum, uChar cat, uChar subCat,
                  double dSurfVal2)
 {
    int i;               /* loop counter over number of PDS templates. */
+   const struct pdstemplate *templatespds = get_templatespds();
 
    /* analysis template (0) */
    /* In addition templates (1, 2, 5, 8, 9, 12) begin with 4.0 info. */
@@ -1237,6 +1199,7 @@ int fillSect5 (enGribMeta *en, uShort2 tmplNum, sShort2 BSF, sShort2 DSF,
                uChar orderOfDiff)
 {
    int i;               /* loop counter over number of DRS templates. */
+   const struct drstemplate *templatesdrs = get_templatesdrs();
 
    /* Find NCEP's template match */
    for (i = 0; i < MAXDRSTEMP; i++) {

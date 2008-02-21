@@ -21,6 +21,10 @@
 #include "scan.h"
 #include "memendian.h"
 #include "myassert.h"
+#include "gridtemplates.h"
+#include "pdstemplates.h"
+#include "drstemplates.h"
+
 //#include "config.h" /*config.h created by configure - ADT mod*/
 
 #define pow(a,b) pow((double)(a),b) // prevent Visual Studio 7 from using int pow(int,int)
@@ -51,56 +55,6 @@
    float * xmisss, sInt4 * inew, sInt4 * minpk, sInt4 * iclean,
    sInt4 * l3264b, sInt4 * jer, sInt4 * ndjer, sInt4 * kjer);
 #endif
-/* Would prefer to include "gribtemplates.h" but can't since NCEP decided to
- * put a const struct in it.  The result is if I include it, I get 2 copies
- * of the data.
- */
-extern sInt4 getgridindex (sInt4 number);
-
-/* have now put this in grib2api.h... may bring it back. */
-#define MAXGRIDTEMP 23  /* maximum number of templates */
-#define MAXGRIDMAPLEN 200 /* maximum template map length */
-struct gridtemplate {
-   sInt4 template_num;
-   sInt4 mapgridlen;
-   sInt4 needext;
-   sInt4 mapgrid[MAXGRIDMAPLEN];
-};
-extern const struct gridtemplate templatesgrid[MAXGRIDTEMP];
-
-/* Would prefer to include "pdstemplates.h" but can't since NCEP decided to
- * put a const struct in it.  The result is if I include it, I get 2 copies
- * of the data.
- */
-extern sInt4 getpdsindex (sInt4 number);
-
-/* have now put this in grib2api.h... may bring it back. */
-#define MAXPDSTEMP 23   /* maximum number of templates */
-#define MAXPDSMAPLEN 200 /* maximum template map length */
-struct pdstemplate {
-   sInt4 template_num;
-   sInt4 mappdslen;
-   sInt4 needext;
-   sInt4 mappds[MAXPDSMAPLEN];
-};
-extern const struct pdstemplate templatespds[MAXPDSTEMP];
-
-/* Would prefer to include "drstemplates.h" but can't since NCEP decided to
- * put a const struct in it.  The result is if I include it, I get 2 copies
- * of the data.
- */
-extern sInt4 getdrsindex (sInt4 number);
-
-#define MAXDRSTEMP 8    /* maximum number of templates */
-#define MAXDRSMAPLEN 200 /* maximum template map length */
-struct drstemplate {
-   sInt4 template_num;
-   sInt4 mapdrslen;
-   sInt4 needext;
-   sInt4 mapdrs[MAXDRSMAPLEN];
-};
-extern const struct drstemplate templatesdrs[MAXDRSTEMP];
-
 
 /*****************************************************************************
  * mdl_LocalUnpack() --
@@ -1006,6 +960,7 @@ void unpk_g2ncep (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nd2x3,
    }
    curIndex = 14;
    for (i = 0; i < gfld->igdtlen; i++) {
+      const struct gridtemplate *templatesgrid = get_templatesgrid();
       is3[curIndex] = gfld->igdtmpl[i];
       curIndex += abs (templatesgrid[gridIndex].mapgrid[i]);
    }
@@ -1073,6 +1028,7 @@ void unpk_g2ncep (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nd2x3,
    }
    curIndex = 9;
    for (i = 0; i < gfld->ipdtlen; i++) {
+      const struct pdstemplate *templatespds = get_templatespds();
       is4[curIndex] = gfld->ipdtmpl[i];
       curIndex += abs (templatespds[pdsIndex].mappds[i]);
    }
@@ -1090,6 +1046,7 @@ void unpk_g2ncep (sInt4 * kfildo, float * ain, sInt4 * iain, sInt4 * nd2x3,
    }
    curIndex = 11;
    for (i = 0; i < gfld->idrtlen; i++) {
+      const struct drstemplate *templatesdrs = get_templatesdrs();
       is5[curIndex] = gfld->idrtmpl[i];
       curIndex += abs (templatesdrs[drsIndex].mapdrs[i]);
    }

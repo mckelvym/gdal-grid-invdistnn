@@ -2,6 +2,82 @@
 #include "grib2.h"
 #include "pdstemplates.h"
 
+
+static const struct pdstemplate templatespds[MAXPDSTEMP] = {
+             // 4.0: Analysis or Forecast at Horizontal Level/Layer
+             //      at a point in time
+         {0,15,0, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4} },
+             // 4.1: Individual Ensemble Forecast at Horizontal Level/Layer
+             //      at a point in time
+         {1,18,0, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,1} },
+             // 4.2: Derived Fcst based on whole Ensemble at Horiz Level/Layer
+             //      at a point in time
+         {2,17,0, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1} },
+             // 4.3: Derived Fcst based on Ensemble cluster over rectangular
+             //      area at Horiz Level/Layer at a point in time
+         {3,31,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,1,1,1,1,1,-4,-4,4,4,1,-1,4,-1,4} },
+             // 4.4: Derived Fcst based on Ensemble cluster over circular
+             //      area at Horiz Level/Layer at a point in time
+         {4,30,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,1,1,1,1,1,-4,4,4,1,-1,4,-1,4} },
+             // 4.5: Probablility Forecast at Horiz Level/Layer
+             //      at a point in time
+         {5,22,0, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,1,-1,-4,-1,-4} },
+             // 4.6: Percentile Forecast at Horiz Level/Layer
+             //      at a point in time
+         {6,16,0, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1} },
+             // 4.7: Analysis or Forecast Error at Horizontal Level/Layer
+             //      at a point in time
+         {7,15,0, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4} },
+             // 4.8: Ave/Accum/etc... at Horiz Level/Layer
+             //      in a time interval
+         {8,29,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,2,1,1,1,1,1,1,4,1,1,1,4,1,4} },
+             // 4.9: Probablility Forecast at Horiz Level/Layer
+             //      in a time interval
+         {9,36,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,1,-1,-4,-1,-4,2,1,1,1,1,1,1,4,1,1,1,4,1,4} },
+             // 4.10: Percentile Forecast at Horiz Level/Layer
+             //       in a time interval
+         {10,30,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,2,1,1,1,1,1,1,4,1,1,1,4,1,4} },
+             // 4.11: Individual Ensemble Forecast at Horizontal Level/Layer
+             //       in a time interval
+         {11,32,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,1,2,1,1,1,1,1,1,4,1,1,1,4,1,4} },
+             // 4.12: Derived Fcst based on whole Ensemble at Horiz Level/Layer
+             //       in a time interval
+         {12,31,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,2,1,1,1,1,1,1,4,1,1,1,4,1,4} },
+             // 4.13: Derived Fcst based on Ensemble cluster over rectangular
+             //       area at Horiz Level/Layer in a time interval
+         {13,45,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,1,1,1,1,1,-4,-4,4,4,1,-1,4,-1,4,2,1,1,1,1,1,1,4,1,1,1,4,1,4} },
+             // 4.14: Derived Fcst based on Ensemble cluster over circular
+             //       area at Horiz Level/Layer in a time interval
+         {14,44,1, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,1,1,1,1,1,1,1,-4,4,4,1,-1,4,-1,4,2,1,1,1,1,1,1,4,1,1,1,4,1,4} },
+             // 4.20: Radar Product
+         {20,19,0, {1,1,1,1,1,-4,4,2,4,2,1,1,1,1,1,2,1,3,2} },
+             // 4.30: Satellite Product
+         {30,5,1, {1,1,1,1,1} },
+             // 4.254: CCITT IA5 Character String
+         {254,3,0, {1,1,4} },
+             // 4.1000: Cross section of analysis or forecast
+             //         at a point in time
+         {1000,9,0, {1,1,1,1,1,2,1,1,4} },
+             // 4.1001: Cross section of Ave/Accum/etc... analysis or forecast
+             //         in a time interval
+         {1001,16,0, {1,1,1,1,1,2,1,1,4,4,1,1,1,4,1,4} },
+             // 4.1001: Cross section of Ave/Accum/etc... analysis or forecast
+             //         over latitude or longitude
+         {1002,15,0, {1,1,1,1,1,2,1,1,4,1,1,1,4,4,2} },
+             // 4.1100: Hovmoller-type grid w/ no averaging or other
+             //         statistical processing
+         {1100,15,0, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4} },
+             // 4.1100: Hovmoller-type grid with averaging or other
+             //         statistical processing
+         {1101,22,0, {1,1,1,1,1,2,1,1,4,1,-1,-4,1,-1,-4,4,1,1,1,4,1,4} }
+
+      } ;
+
+const struct pdstemplate *get_templatespds()
+{
+    return templatespds;
+}
+
 g2int getpdsindex(g2int number)
 ///$$$  SUBPROGRAM DOCUMENTATION BLOCK
 //                .      .    .                                       .
