@@ -66,7 +66,7 @@ class GRIBDataset : public GDALPamDataset
     CPLErr 	GetGeoTransform( double * padfTransform );
     const char *GetProjectionRef();
 	private:
-		void SetMetaData(grib_MetaData* meta);
+		void SetGribMetaData(grib_MetaData* meta);
     FILE	*fp;
     char  *pszProjection;
 		char  *pszDescription;
@@ -197,8 +197,6 @@ void GRIBRasterBand::ReadGribData( DataSource & fp, sInt4 start, int subgNum, do
 
     IS_Init (&is);
 
-    int bandNr = 0;
-
 
     /* Read GRIB message from file position "start". */
     fp.DataSourceFseek(start, SEEK_SET);
@@ -209,12 +207,13 @@ void GRIBRasterBand::ReadGribData( DataSource & fp, sInt4 start, int subgNum, do
                      majEarth, minEarth, f_SimpleVer, &f_endMsg, &lwlf, &uprt);
 
     char * errMsg = errSprintf(NULL); // no intention to show errors, just swallow it and free the memory
+    CPLDebug( "GRIB", "%s", errMsg );
     free(errMsg);
     IS_Free(&is);
 }
 
 /************************************************************************/
-/*                           ~MSGRasterBand()                           */
+/*                           ~GRIBRasterBand()                          */
 /************************************************************************/
 
 GRIBRasterBand::~GRIBRasterBand()
@@ -302,6 +301,7 @@ GDALDataset *GRIBDataset::Open( GDALOpenInfo * poOpenInfo )
     if (ReadSECT0 (mds, &buff, &buffLen, -1, sect0, &gribLen, &version) < 0) {
         free (buff);
         char * errMsg = errSprintf(NULL);
+        CPLDebug( "GRIB", "%s", errMsg );
         free(errMsg);
         return NULL;
     }
@@ -338,29 +338,47 @@ GDALDataset *GRIBDataset::Open( GDALOpenInfo * poOpenInfo )
     uInt4 LenInv = 0;        /* size of Inv (also # of GRIB2 messages) */
     int msgNum =0;          /* The messageNumber during the inventory. */
 
-    if (GRIB2Inventory (grib_fp, &Inv, &LenInv, 0, &msgNum) >= 0)
+    if (GRIB2Inventory (grib_fp, &Inv, &LenInv, 0, &msgNum) <= 0 )
     {
-        for (uInt4 i = 0; i < LenInv; ++i)
-        {
-            uInt4 bandNr = i+1;
-            if (bandNr == 1)
-            {
-                // important: set DataSet extents before creating first RasterBand in it
-                double * data = NULL;
-                grib_MetaData* metaData;
-                GRIBRasterBand::ReadGribData(grib_fp, 0, Inv[i].subgNum, &data, &metaData);
-                poDS->SetMetaData(metaData); // set the DataSet's x,y size, georeference and projection from the first GRIB band
-                GRIBRasterBand* gribBand = new GRIBRasterBand( poDS, bandNr, Inv[i].start, Inv[i].subgNum, Inv[i].longFstLevel);
-                gribBand->m_Grib_Data = data;
-                gribBand->m_Grib_MetaData = metaData;
-                poDS->SetBand( bandNr, gribBand);
-            }
-            else
-                poDS->SetBand( bandNr, new GRIBRasterBand( poDS, bandNr, Inv[i].start, Inv[i].subgNum, Inv[i].longFstLevel));
-            GRIB2InventoryFree (Inv + i);
-        }
-        free (Inv);
+        CPLError( CE_Failure, CPLE_OpenFailed, 
+                  "%s is a grib file, but no raster dataset was successfully identified.",
+                  poOpenInfo->pszFilename );
+        delete poDS;
+        return NULL;
     }
+
+/* -------------------------------------------------------------------- */
+/*      Create band objects.                                            */
+/* -------------------------------------------------------------------- */
+    for (uInt4 i = 0; i < LenInv; ++i)
+    {
+        uInt4 bandNr = i+1;
+        if (bandNr == 1)
+        {
+            // important: set DataSet extents before creating first RasterBand in it
+            double * data = NULL;
+            grib_MetaData* metaData;
+            GRIBRasterBand::ReadGribData(grib_fp, 0, Inv[i].subgNum, &data, &metaData);
+            if (metaData->gds.Nx < 1 || metaData->gds.Ny < 1 )
+            {
+                CPLError( CE_Failure, CPLE_OpenFailed, 
+                          "%s is a grib file, but no raster dataset was successfully identified.",
+                          poOpenInfo->pszFilename );
+                delete poDS;
+                return NULL;
+            }
+
+            poDS->SetGribMetaData(metaData); // set the DataSet's x,y size, georeference and projection from the first GRIB band
+            GRIBRasterBand* gribBand = new GRIBRasterBand( poDS, bandNr, Inv[i].start, Inv[i].subgNum, Inv[i].longFstLevel);
+            gribBand->m_Grib_Data = data;
+            gribBand->m_Grib_MetaData = metaData;
+            poDS->SetBand( bandNr, gribBand);
+        }
+        else
+            poDS->SetBand( bandNr, new GRIBRasterBand( poDS, bandNr, Inv[i].start, Inv[i].subgNum, Inv[i].longFstLevel));
+        GRIB2InventoryFree (Inv + i);
+    }
+    free (Inv);
 
 /* -------------------------------------------------------------------- */
 /*      Initialize any PAM information.                                 */
@@ -375,7 +393,7 @@ GDALDataset *GRIBDataset::Open( GDALOpenInfo * poOpenInfo )
 /*                            SetMetadata()                             */
 /************************************************************************/
 
-void GRIBDataset::SetMetaData(grib_MetaData* meta)
+void GRIBDataset::SetGribMetaData(grib_MetaData* meta)
 {
     nRasterXSize = meta->gds.Nx;
     nRasterYSize = meta->gds.Ny;
