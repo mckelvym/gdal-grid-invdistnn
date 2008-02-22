@@ -8,12 +8,11 @@ void simpack(g2float *, g2int, g2int *, unsigned char *, g2int *);
 void cmplxpack(g2float *, g2int, g2int, g2int *, unsigned char *, g2int *);
 void specpack(g2float *,g2int,g2int,g2int,g2int,g2int *,unsigned char *,
               g2int *);
+void jpcpack(g2float *,g2int,g2int,g2int *,unsigned char *,g2int *);
 #ifdef USE_PNG
   void pngpack(g2float *,g2int,g2int,g2int *,unsigned char *,g2int *);
 #endif  /* USE_PNG */
-#ifdef USE_JPEG2000
-  void jpcpack(g2float *,g2int,g2int,g2int *,unsigned char *,g2int *);
-#endif  /* USE_JPEG2000 */
+
 
 
 g2int g2_addfield(unsigned char *cgrib,g2int ipdsnum,g2int *ipdstmpl,
@@ -339,7 +338,6 @@ g2int g2_addfield(unsigned char *cgrib,g2int ipdsnum,g2int *ipdstmpl,
            return (-9);
         }
       }
-#ifdef USE_JPEG2000
       else if (idrsnum == 40 || idrsnum == 40000) {    /*  JPEG2000 encoding  */
         if (ibmap == 255) {
            getdim(cgrib+lpos3,&width,&height,&iscan);
@@ -364,7 +362,6 @@ g2int g2_addfield(unsigned char *cgrib,g2int ipdsnum,g2int *ipdstmpl,
         lcpack=nsize;
         jpcpack(pfld,width,height,idrstmpl,cpack,&lcpack);
       }
-#endif  /* USE_JPEG2000 */
 #ifdef USE_PNG
       else if (idrsnum == 41 || idrsnum == 40010) {      /*  PNG encoding   */
         if (ibmap == 255) {

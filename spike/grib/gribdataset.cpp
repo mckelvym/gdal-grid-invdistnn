@@ -117,23 +117,6 @@ GRIBRasterBand::GRIBRasterBand( GRIBDataset *poDS, int nBand, sInt4 start, int s
 
     nBlockXSize = poDS->nRasterXSize;
     nBlockYSize = 1;
-
-    // printf("Band %d: %s\n", nBand, GetDescription());
-    //printf("size x=%d,y=%d pixels\n", poDS->nRasterXSize, poDS->nRasterYSize);
-    //if (m_meta->gridAttrib.f_maxmin)
-    //	printf("Min = %f\nMax = %f\n", m_meta->gridAttrib.min, m_meta->gridAttrib.max);
-    //if (m_meta->gridAttrib.f_miss)
-    //{
-    //	printf("Missing data value = %f\n", m_meta->gridAttrib.missPri);
-    //	if (m_meta->gridAttrib.f_miss > 1)
-    //		printf("Secondary missing data value = %f\n", m_meta->gridAttrib.missSec);
-    //}
-    //printf("Content: %s\n", m_meta->longFstLevel);
-
-    //if (m_meta->gds.numPts != poDS->nRasterYSize * poDS->nRasterXSize)
-    //	printf("ERROR: numPts != Nx * Ny? (%ld != %ld * %ld)\n", m_meta->gds.numPts, poDS->nRasterXSize, poDS->nRasterYSize);
-    //else if ((m_meta->gds.Dx <= 0) || (m_meta->gds.Dy <= 0))
-    //	printf("Projection code requires Dx (%f) > 0 and Dy (%f) > 0\n", m_meta->gds.Dx, m_meta->gds.Dy);
 }
 
 /************************************************************************/
@@ -223,7 +206,10 @@ GRIBRasterBand::~GRIBRasterBand()
     if (m_Grib_Data)
         free (m_Grib_Data);
     if (m_Grib_MetaData)
-        free(m_Grib_MetaData);
+    {
+        MetaFree( m_Grib_MetaData );
+        delete m_Grib_MetaData;
+    }
 }
 
 /************************************************************************/
@@ -467,10 +453,7 @@ void GRIBDataset::SetGribMetaData(grib_MetaData* meta)
     }
 
     OGRSpatialReference oLL; // construct the "geographic" part of oSRS
-    char *pszLL;
-    (oSRS.GetAttrNode("GEOGCS"))->exportToWkt(&pszLL);
-    oLL.importFromWkt(&pszLL); // set ellipsoid only (latlon system)
-    // delete pszLL;
+    oLL.CopyGeogCSFrom( &oSRS );
 
     double rMinX;
     double rMaxY;
@@ -505,6 +488,8 @@ void GRIBDataset::SetGribMetaData(grib_MetaData* meta)
     adfGeoTransform[1] = rPixelSizeX;
     adfGeoTransform[5] = -rPixelSizeY;
 
+    CPLFree( pszProjection );
+    pszProjection = NULL;
     oSRS.exportToWkt( &(pszProjection) );
 }
 
