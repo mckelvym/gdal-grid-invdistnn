@@ -1,69 +1,33 @@
 #include "grib2.h"
 
-#ifndef USE_JPEG2000
-int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld) {return 0;}
-#else
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef USE_JPEG2000_J2KSUBFILE
-#include <gdal_pam.h>
-#else
+/* -------------------------------------------------------------------- */
+/* ==================================================================== */
+/*      We prefer to use JasPer directly if it is available.  If not    */
+/*      we fallback on calling back to GDAL to try and process the      */
+/*      jpeg2000 chunks.                                                */
+/* ==================================================================== */
+/* -------------------------------------------------------------------- */
+
+#include <cpl_port.h>
+
+#ifdef HAVE_JASPER
 #include <jasper/jasper.h>
 #define JAS_1_700_2
-#endif /* USE_JPEG2000_J2KSUBFILE */
+#else
+#include <gdal_pam.h>
+#include <cpl_conv.h>
+#endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+CPL_C_START
+// Cripes ... shouldn't this go in an include files!
+int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld);
+CPL_C_END
 
-#ifdef USE_JPEG2000_J2KSUBFILE
-
-#define	J2K_SIGNATURE		0x6a502020	/* Signature, string "jP  " */
-#define FILE_TYPE	      0x66747970	/* File Type, string "ftyp" */
-#define	J2K_CODESTREAM	0x6a703263	/* Code Stream, string "jp2c" */
-#define	MAGIC_NUMBER	  0x0d0a870a  /* Magic number */
-#define	MAJOR_VERSION		0x6a703220  /* Major version, string "jp2 " */
-#define	MINOR_VERSION		0
-
-void writeChar(char c, char** buf)
-{
-  **buf = c;
-  ++(*buf);
-}
-
-void writeUInt32(g2intu i, char **buf)
-{
-	writeChar((i >> 24) & 0xff, buf);
-	writeChar((i >> 16) & 0xff, buf);
-	writeChar((i >> 8) & 0xff, buf);
-	writeChar(i & 0xff, buf);
-}
-
-void writeJ2KHeaders(char* buf)
-{
-  // signature box
-  writeUInt32(12, &buf); // size = 12 bytes: 4 size, 4 type, 4 magic
-  writeUInt32(J2K_SIGNATURE, &buf);
-  writeUInt32(MAGIC_NUMBER, &buf);
-
-  // file type box
-  writeUInt32(20, &buf); // size = 20 bytes: 4 size, 4 type, 4 majver, 4 minver, 4 compatibility code
-  writeUInt32(FILE_TYPE, &buf);
-  writeUInt32(MAJOR_VERSION, &buf);
-  writeUInt32(MINOR_VERSION, &buf);
-  writeUInt32(MAJOR_VERSION, &buf); // repeat majver as "compatibility code"
-
-  // code stream box: j2k_data follows
-  writeUInt32(0, &buf);  // size = 0 means rest of buffer contains j2k_data
-  writeUInt32(J2K_CODESTREAM, &buf);
-}
-
-#endif /* USE_JPEG2000_J2KSUBFILE */
-
-   int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld)
+int dec_jpeg2000(char *injpc,g2int bufsize,g2int *outfld)
 /*$$$  SUBPROGRAM DOCUMENTATION BLOCK
 *                .      .    .                                       .
 * SUBPROGRAM:    dec_jpeg2000      Decodes JPEG2000 code stream
@@ -104,38 +68,37 @@ void writeJ2KHeaders(char* buf)
 *$$$*/
 
 {
-
-#ifdef USE_JPEG2000_J2KSUBFILE
-     
+#ifndef HAVE_JASPER
     // J2K_SUBFILE method
     
-    // Specifically ECW needs a few JP2 headers (the so-called "boxes") .. prepend them to the memory buffer
-    // Does Kakadu need them as well?
-    const int headersize = 40;  // 40 bytes of headers will be prepended
-    char* jpcbuf = injpc; // remember old buffer
-    injpc = (char*)malloc(bufsize + headersize); // old buffer is too small, thus allocate new buffer
-    writeJ2KHeaders(injpc); // write out the 40 header bytes
-    memcpy(injpc + headersize, jpcbuf, bufsize); // append the jpeg2000 data
-
     // create "memory file" from buffer
     int fileNumber = 0;
     VSIStatBufL   sStatBuf;
-    char *pszFileName = CPLStrdup( "/vsimem/work.jp2" );
+    CPLString osFileName = "/vsimem/work.jpc";
 
     // ensure we don't overwrite an existing file accidentally
-    while ( VSIStatL( pszFileName, &sStatBuf ) == 0 ) {
-          CPLFree( pszFileName );
-          pszFileName = CPLStrdup( CPLSPrintf( "/vsimem/work%d.jp2", ++fileNumber ) );
+    while ( VSIStatL( osFileName, &sStatBuf ) == 0 ) {
+        osFileName.Printf( "/vsimem/work%d.jpc", ++fileNumber );
     }
 
-    VSIFCloseL( VSIFileFromMemBuffer( pszFileName, (unsigned char*)injpc, bufsize + headersize, TRUE ) ); // TRUE to let vsi delete the buffer when done
+    VSIFCloseL( VSIFileFromMemBuffer( 
+                    osFileName, (unsigned char*)injpc, bufsize, 
+                    FALSE ) ); // TRUE to let vsi delete the buffer when done
 
-    // Open it with a JPEG2000 driver supporting J2K_SUBFILE
-    char *pszDSName = CPLStrdup( CPLSPrintf( "J2K_SUBFILE:%d,%d,%s", 0, bufsize, pszFileName ) );
+/* -------------------------------------------------------------------- */
+/*      Currently the JP2ECW driver doesn't support /vsimem and         */
+/*      other virtual files *unless* we force processing to go          */
+/*      through J2K_SUBFILE.  Grr.  It would be ideal to fix this in    */
+/*      the ECW driver eventually.                                      */
+/* -------------------------------------------------------------------- */
+    CPLString osSubfileName;
+
+    osSubfileName.Printf( "J2K_SUBFILE:%d,%d,%s", 
+                          0, bufsize, osFileName.c_str() );
 
     // Open memory buffer for reading 
-    GDALDataset* poJ2KDataset = (GDALDataset *)GDALOpen( pszDSName, GA_ReadOnly ); // This goes to CNCSJP2FileView
-    //GDALDataset* poJ2KDataset = (GDALDataset *)GDALOpen( "/vsimem/work.jp2", GA_ReadOnly ); // This goes to CNCSJP2File, and fails
+    GDALDataset* poJ2KDataset = (GDALDataset *)
+        GDALOpen( osSubfileName, GA_ReadOnly );
  
     if( poJ2KDataset == NULL )
     {
@@ -149,8 +112,6 @@ void writeJ2KHeaders(char* buf)
        printf("dec_jpeg2000: Found color image.  Grayscale expected.\n");
        return (-5);
     }
-
-    GDALRasterBand *poBand = poJ2KDataset->GetRasterBand(1);
 
     // Fulfill administration: initialize parameters required for RasterIO
     int nXSize = poJ2KDataset->GetRasterXSize();
@@ -168,20 +129,17 @@ void writeJ2KHeaders(char* buf)
 
     //    Decompress the JPEG2000 into the output integer array.
     poJ2KDataset->RasterIO( GF_Read, nXOff, nYOff, nXSize, nYSize,
-                                       outfld, nBufXSize, nBufYSize, eBufType,
-                                       nBandCount, panBandMap, 
-                                       nPixelSpace, nLineSpace, nBandSpace );
+                            outfld, nBufXSize, nBufYSize, eBufType,
+                            nBandCount, panBandMap, 
+                            nPixelSpace, nLineSpace, nBandSpace );
 
     // close source file, and "unlink" it.
     GDALClose( poJ2KDataset );
-    VSIUnlink( pszFileName );
-
-    CPLFree( pszDSName );
-    CPLFree( pszFileName );
+    VSIUnlink( osFileName );
 
     return 0;
 
-#else /* USE_JPEG2000_J2KSUBFILE */
+#else 
 
     // JasPer method
     
@@ -213,35 +171,6 @@ void writeJ2KHeaders(char* buf)
     }
     
     pcmpt=image->cmpts_[0];
-/*
-    printf(" SAGOUT DECODE:\n");
-    printf(" tlx %d \n",image->tlx_);
-    printf(" tly %d \n",image->tly_);
-    printf(" brx %d \n",image->brx_);
-    printf(" bry %d \n",image->bry_);
-    printf(" numcmpts %d \n",image->numcmpts_);
-    printf(" maxcmpts %d \n",image->maxcmpts_);
-#ifdef JAS_1_500_4
-    printf(" colormodel %d \n",image->colormodel_);
-#endif
-#ifdef JAS_1_700_2
-    printf(" colorspace %d \n",image->clrspc_);
-#endif
-    printf(" inmem %d \n",image->inmem_);
-    printf(" COMPONENT:\n");
-    printf(" tlx %d \n",pcmpt->tlx_);
-    printf(" tly %d \n",pcmpt->tly_);
-    printf(" hstep %d \n",pcmpt->hstep_);
-    printf(" vstep %d \n",pcmpt->vstep_);
-    printf(" width %d \n",pcmpt->width_);
-    printf(" height %d \n",pcmpt->height_);
-    printf(" prec %d \n",pcmpt->prec_);
-    printf(" sgnd %d \n",pcmpt->sgnd_);
-    printf(" cps %d \n",pcmpt->cps_);
-#ifdef JAS_1_700_2
-    printf(" type %d \n",pcmpt->type_);
-#endif
-*/
 
 //   Expecting jpeg2000 image to be grayscale only.
 //   No color components.
@@ -273,11 +202,5 @@ void writeJ2KHeaders(char* buf)
     jas_image_destroy(image);
 
     return 0;
-#endif /* USE_JPEG2000_J2KSUBFILE */
+#endif
 }
-
-#ifdef __cplusplus
-}
-#endif  /* __cplusplus */
-
-#endif /* USE_JPEG2000 */
