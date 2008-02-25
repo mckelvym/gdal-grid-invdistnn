@@ -531,7 +531,7 @@ void GDALRegister_GRIB()
         poDriver->SetMetadataItem( GDAL_DMD_LONGNAME, 
                                    "GRIdded Binary (.grb)" );
         poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
-                                   "frmt_various.html#GRIB" );
+                                   "frmt_grib.html" );
         poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "grb" );
 
         poDriver->pfnOpen = GRIBDataset::Open;
