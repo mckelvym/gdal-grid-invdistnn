@@ -396,8 +396,7 @@ void GRIBDataset::SetGribMetaData(grib_MetaData* meta)
           break;
       case GS3_MERCATOR:
         oSRS.SetMercator(meta->gds.meshLat, meta->gds.orientLon,
-                         meta->gds.scaleLat1, 
-                         0.0, 0.0);
+                         1.0, 0.0, 0.0);
         break;
       case GS3_POLAR:
         oSRS.SetPS(meta->gds.meshLat, meta->gds.orientLon,
@@ -437,9 +436,7 @@ void GRIBDataset::SetGribMetaData(grib_MetaData* meta)
         oSRS.SetGeogCS( "Coordinate System imported from GRIB file",
                         NULL,
                         "Sphere",
-                        a, 0.0,
-                        "Greenwich", 0.0,
-                        NULL, 0.0);
+                        a, 0.0 );
     }
     else
     {
@@ -447,9 +444,7 @@ void GRIBDataset::SetGribMetaData(grib_MetaData* meta)
         oSRS.SetGeogCS( "Coordinate System imported from GRIB file",
                         NULL,
                         "Spheroid imported from GRIB file",
-                        a, fInv,
-                        "Greenwich", 0.0,
-                        NULL, 0.0);
+                        a, fInv );
     }
 
     OGRSpatialReference oLL; // construct the "geographic" part of oSRS
@@ -469,7 +464,7 @@ void GRIBDataset::SetGribMetaData(grib_MetaData* meta)
         rPixelSizeX = geosExtentInMeters / meta->gds.Nx;
         rPixelSizeY = geosExtentInMeters / meta->gds.Ny;
     }
-    else
+    else if( oSRS.IsProjected() )
     {
         rMinX = meta->gds.lon1; // longitude in degrees, to be transformed to meters (or degrees in case of latlon)
         rMaxY = meta->gds.lat1; // latitude in degrees, to be transformed to meters 
@@ -478,11 +473,37 @@ void GRIBDataset::SetGribMetaData(grib_MetaData* meta)
         {
             if (meta->gds.scan == GRIB2BIT_2) // Y is minY, GDAL wants maxY
                 rMaxY += (meta->gds.Ny - 1) * meta->gds.Dy; // -1 because we GDAL needs the coordinates of the centre of the pixel
+            rPixelSizeX = meta->gds.Dx;
+            rPixelSizeY = meta->gds.Dy;
+        }
+        else
+        {
+            rMinX = 0.0;
+            rMaxY = 0.0;
+            
+            rPixelSizeX = 1.0;
+            rPixelSizeY = -1.0;
+            
+            oSRS.Clear();
+
+            CPLError( CE_Warning, CPLE_AppDefined,
+                      "Unable to perform coordinate transformations, so the correct\n"
+                      "projected geotransform could not be deduced from the lat/long\n"
+                      "control points.  Defaulting to ungeoreferenced." );
         }
         delete poTransformLLtoSRS;
+    }
+    else
+    {
+        rMinX = meta->gds.lon1; // longitude in degrees, to be transformed to meters (or degrees in case of latlon)
+        rMaxY = meta->gds.lat1; // latitude in degrees, to be transformed to meters 
+
+        if (meta->gds.scan == GRIB2BIT_2) // Y is minY, GDAL wants maxY
+            rMaxY += (meta->gds.Ny - 1) * meta->gds.Dy; // -1 because we GDAL needs the coordinates of the centre of the pixel
         rPixelSizeX = meta->gds.Dx;
         rPixelSizeY = meta->gds.Dy;
     }
+
     adfGeoTransform[0] = rMinX;
     adfGeoTransform[3] = rMaxY;
     adfGeoTransform[1] = rPixelSizeX;
