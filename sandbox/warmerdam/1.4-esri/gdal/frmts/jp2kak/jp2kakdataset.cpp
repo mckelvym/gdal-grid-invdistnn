@@ -45,6 +45,7 @@
 #include "dbg_file_source.h"
 #endif
 #include "subfile_source.h"
+#include "vsil_target.h"
 
 // Application level includes
 #include "kdu_file_io.h"
@@ -1093,7 +1094,7 @@ int JP2KAKDataset::Identify( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Check header                                                    */
 /* -------------------------------------------------------------------- */
-    if( poOpenInfo->fp == NULL )
+    if( poOpenInfo->nHeaderBytes < (int) sizeof(jp2_header) )
     {
         const char  *pszExtension = NULL;
 
@@ -1122,9 +1123,11 @@ int JP2KAKDataset::Identify( GDALOpenInfo * poOpenInfo )
         const char  *pszExtension = NULL;
 
         pszExtension = CPLGetExtension( poOpenInfo->pszFilename );
-        if( !EQUAL(pszExtension,"jpc") && !EQUAL(pszExtension,"j2k") 
-            && !EQUAL(pszExtension,"jp2") && !EQUAL(pszExtension,"jpx") 
-            && !EQUAL(pszExtension,"j2c") )
+        if( EQUAL(pszExtension,"jpc") 
+            || EQUAL(pszExtension,"j2k") 
+            || EQUAL(pszExtension,"jp2") 
+            || EQUAL(pszExtension,"jpx") 
+            || EQUAL(pszExtension,"j2c") )
             return TRUE;
     }
 
@@ -1151,7 +1154,7 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
 /*      Handle setting up datasource for JPIP.                          */
 /* -------------------------------------------------------------------- */
     pszExtension = CPLGetExtension( poOpenInfo->pszFilename );
-    if( poOpenInfo->fp == NULL )
+    if( poOpenInfo->nHeaderBytes < 16 )
     {
         if( (EQUALN(poOpenInfo->pszFilename,"http://",7)
              || EQUALN(poOpenInfo->pszFilename,"https://",8)
@@ -1167,7 +1170,8 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
             KakaduInitialize();
             try
             {
-                poRawInput = new subfile_source( poOpenInfo->pszFilename );
+                poRawInput = new subfile_source();
+                poRawInput->open( poOpenInfo->pszFilename );
                 poRawInput->seek( 0 );
 
                 poRawInput->read( abySubfileHeader, 16 );
@@ -1187,14 +1191,31 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
     }
     else
     {
-        if( poOpenInfo->nHeaderBytes < 16 )
-            return NULL;
-
         pabyHeader = poOpenInfo->pabyHeader;
     }
 
     KakaduInitialize();
         
+/* -------------------------------------------------------------------- */
+/*      If we think this should be access via vsil, then open it        */
+/*      accordingly.                                                    */
+/* -------------------------------------------------------------------- */
+    if( poOpenInfo->fp == NULL
+        && poRawInput == NULL
+        && !bIsJPIP )
+    {
+        try
+        {
+            poRawInput = new subfile_source;
+            poRawInput->open( poOpenInfo->pszFilename );
+            poRawInput->seek( 0 );
+        }
+        catch( ... )
+        {
+            return NULL;
+        }
+    }
+
 /* -------------------------------------------------------------------- */
 /*      If the header is a JP2 header, mark this as a JP2 dataset.      */
 /* -------------------------------------------------------------------- */
@@ -1406,7 +1427,7 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Look for supporting coordinate system information.              */
 /* -------------------------------------------------------------------- */
-        if( poOpenInfo->fp != NULL )
+        if( poOpenInfo->nHeaderBytes > 0 )
         {
             GDALJP2Metadata oJP2Geo;
         
@@ -2357,15 +2378,19 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         && !bIsJPX;
     kdu_codestream         oCodeStream;
 
+    vsil_target            oVSILTarget;
+
     if( !pfnProgress( 0.0, NULL, pProgressData ) )
         return NULL;
 
     try
     {
+        oVSILTarget.open( pszFilename, "w" );
+
         if( bIsJP2 )
         {
 #ifdef KAKADU4
-            family.open( pszFilename );
+            family.open( &oVSILTarget );
 
             jp2_out.open( &family );
 #else
@@ -2376,7 +2401,7 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 #ifdef KAKADU42
         else if( bIsJPX )
         {
-            jpx_family.open( pszFilename );
+            jpx_family.open( &oVSILTarget );
 
             jpx_out.open( &jpx_family );
             jpx_out.add_codestream();
@@ -2384,8 +2409,7 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 #endif
         else
         {
-            jpc_out.open( pszFilename );
-            poOutputFile = &jpc_out;
+            poOutputFile = &oVSILTarget;
         }
 
         oCodeStream.create(&oSizeParams, poOutputFile );
@@ -2712,6 +2736,8 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
     {
         poOutputFile->close();
     }
+
+    oVSILTarget.close();
 
     if( !pfnProgress( 1.0, NULL, pProgressData ) )
         return NULL;
