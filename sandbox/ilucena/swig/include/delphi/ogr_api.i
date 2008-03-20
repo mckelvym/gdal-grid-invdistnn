@@ -15,6 +15,7 @@
 //%pragma(delphi) CALLCONV = "cdecl" 
 
 %header %{
+//#include <stdafx.h>
 #include <stdarg.h>
 #include <ogr_api.h>
 
@@ -27,9 +28,9 @@
 %pragma(delphi) USES = "cpl, ogr_core, ogr_srs_api" 
 
 
-DeclarePlaceHolder(interface_end, OGRGeometryH);
-DeclarePlaceHolder(interface_end, OGRSFDriverH);
-DeclarePlaceHolder(interface_end, CFILE);
+//DeclarePlaceHolder(interface_end, OGRGeometryH);
+//DeclarePlaceHolder(interface_end, OGRSFDriverH);
+//DeclarePlaceHolder(interface_end, CFILE);
 
 %include "ogr_api.h"
 

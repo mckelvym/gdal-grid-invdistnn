@@ -16,6 +16,7 @@
 
 
 %header %{
+//#include <stdafx.h>
 #include <stdarg.h>
 #include <ogr_srs_api.h>
 

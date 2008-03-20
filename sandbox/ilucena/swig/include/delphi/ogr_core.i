@@ -14,6 +14,7 @@
 %include "typemaps.i"
 
 %header %{
+//#include <stdafx.h>
 #include <stdarg.h>
 #include <cpl_error.h>
 #include <cpl_port.h>
@@ -28,7 +29,7 @@
 
 %pragma(delphi) USES = "cpl" 
 
-DeclarePlaceHolder(interface_end, CFILE);
+//DeclarePlaceHolder(interface_end, CFILE);
 
 
 

@@ -15,6 +15,7 @@
 %include <typemaps\typemaps.swg>
 
 %header %{
+//#include <stdafx.h>
 #include <stdarg.h>
 #include <gdal.h>
 
