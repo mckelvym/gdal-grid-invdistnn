@@ -11,10 +11,10 @@ OBJ = cpl_wrapper.obj \
       ogr_srs_api_wrapper.obj
 
 build: $(OBJ)
-	link /dll /out:gdal_op.dll $(GDALLIB) $(OBJ) 
+	link /dll /out:gdal_pas.dll $(GDALLIB) $(OBJ) 
 
 install: $(OBJ)
-    copy gdal6opw.dll $(GDAL_HOME)\bin\.
+    copy gdal_op.dll $(GDAL_HOME)\bin\.
     echo install on DELPHI
 
 clean:
