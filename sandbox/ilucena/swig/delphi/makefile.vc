@@ -14,7 +14,7 @@ build: $(OBJ)
 	link /dll /out:gdal_pas.dll $(GDALLIB) $(OBJ) 
 
 install: $(OBJ)
-    copy gdal_op.dll $(GDAL_HOME)\bin\.
+    copy gdal_pas.dll $(GDAL_HOME)\bin\.
     echo install on DELPHI
 
 clean:
