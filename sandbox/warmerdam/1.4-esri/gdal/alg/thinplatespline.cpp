@@ -73,8 +73,8 @@ void VizGeorefSpline2D::grow_points()
         index = (int *) VSIMalloc( sizeof(int) * new_max );
         for( i = 0; i < VIZGEOREF_MAX_VARS; i++ )
         {
-            rhs[i] = (double *) VSIMalloc( sizeof(double) * new_max );
-            coef[i] = (double *) VSIMalloc( sizeof(double) * new_max );
+            rhs[i] = (double *) VSICalloc( sizeof(double), new_max );
+            coef[i] = (double *) VSICalloc( sizeof(double), new_max );
         }
     }
     else
@@ -276,14 +276,14 @@ int VizGeorefSpline2D::solve(void)
     type = VIZ_GEOREF_SPLINE_FULL;
     // Make the necessary memory allocations
     if ( _AA )
-        delete _AA;
+        CPLFree(_AA);
     if ( _Ainv )
-        delete _Ainv;
+        CPLFree(_Ainv);
 	
     _nof_eqs = _nof_points + 3;
 	
-    _AA = ( double * )calloc( _nof_eqs * _nof_eqs, sizeof( double ) );
-    _Ainv = ( double * )calloc( _nof_eqs * _nof_eqs, sizeof( double ) );
+    _AA = ( double * )CPLCalloc( _nof_eqs * _nof_eqs, sizeof( double ) );
+    _Ainv = ( double * )CPLCalloc( _nof_eqs * _nof_eqs, sizeof( double ) );
 	
     // Calc the values of the matrix A
     for ( r = 0; r < 3; r++ )
