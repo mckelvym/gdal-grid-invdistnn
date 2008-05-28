@@ -1,0 +1,20 @@
+
+OBJ	=	ogrpgdriver.obj ogrpgdatasource.obj ogrpglayer.obj \
+		ogrpgtablelayer.obj ogrpgresultlayer.obj
+
+GDAL_ROOT	=	..\..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+EXTRAFLAGS = -I.. -I..\.. -I$(PG_INC_DIR)
+
+default:	$(OBJ)
+
+ogr_PG.dll:	$(OBJ)
+	link /dll /out:ogr_PG.dll $(OBJ) \
+		$(GDALLIB) $(PG_LIB)
+		
+clean:
+	-del *.lib
+	-del *.obj *.pdb
+	-del *.exe
