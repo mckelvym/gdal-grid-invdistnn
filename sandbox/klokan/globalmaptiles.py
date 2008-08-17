@@ -56,7 +56,8 @@ Created by Klokan Petr Pridal on 2008-07-03.
 Google Summer of Code 2008, project GDAL2Tiles for OSGEO.
 
 In case you use this class in your product, translate it to another language
-or find it usefull for your project please let me know. My email: klokan@klokan.cz.
+or find it usefull for your project please let me know.
+My email: klokan at klokan dot cz.
 I would like to know where it was used.
 
 Class is available under the open-source GDAL license (www.gdal.org).
@@ -243,15 +244,14 @@ class GlobalMercator(object):
 		"Resolution (meters/pixel) for given zoom level (measured at Equator)"
 		
 		# return (2 * math.pi * 6378137) / (self.tileSize * 2**zoom)
-		# TODO: self.tileSize!!!
 		return self.initialResolution / (2**zoom)
 		
 	def ZoomForPixelSize(self, pixelSize ):
-		"Maximal zoom of the pyramid closest to the pixelSize"
+		"Maximal scaledown zoom of the pyramid closest to the pixelSize."
 		
 		for i in range(30):
-			if pixelSize >= self.Resolution(i):
-				return i #-1 if i!=0 else 0
+			if pixelSize > self.Resolution(i):
+				return i-1 if i!=0 else 0 # We don't want to scale up
 
 	def GoogleTile(self, tx, ty, zoom):
 		"Converts TMS tile coordinates to Google Tile coordinates"
@@ -275,6 +275,7 @@ class GlobalMercator(object):
 			
 		return quadKey
 
+#---------------------
 
 class GlobalGeodetic(object):
 	"""
@@ -346,241 +347,94 @@ class GlobalGeodetic(object):
 		)
 
 if __name__ == "__main__":
-
-	try:
-		from osgeo import gdal
-		from osgeo import osr
-	except ImportError:
-		import gdal
-		import osr
-		
 	import sys, os
 		
-	def Usage():
-		print "Usage: globalmaptiles.py [-s_srs srs_def] source_file"
+	def Usage(s = ""):
+		print "Usage: globalmaptiles.py [-profile 'mercator'|'geodetic'] zoomlevel lat lon [latmax lonmax]"
+		print
+		if s:
+			print s
+			print
+		print "This utility prints for given WGS84 lat/lon coordinates (or bounding box) the list of tiles"
+		print "covering specified area. Tiles are in the given 'profile' (default is Google Maps 'mercator')"
+		print "and in the given pyramid 'zoomlevel'."
+		print "For each tile several information is printed including bonding box in EPSG:900913 and WGS84."
 		sys.exit(1)
 
-	src_filename = None
-	s_srs = None
-	
-	#sys.argv=['globalmaptiles.py','../USGS-topo/O38108a6.tif']
-	gdal.AllRegister()
-	argv = gdal.GeneralCmdLineProcessor( sys.argv )
-	if argv is None:
-		sys.exit( 0 )
-	
-	# Parse command line arguments.
+	profile = 'mercator'
+	zoomlevel = None
+	lat, lon, latmax, lonmax = None, None, None, None
+	boundingbox = False
+
+	argv = sys.argv
 	i = 1
 	while i < len(argv):
 		arg = argv[i]
 
-		if arg == '-s_srs':
+		if arg == '-profile':
 			i = i + 1
-			s_srs = argv[i]
-	
-		elif src_filename is None:
-			src_filename = argv[i]
-
+			profile = argv[i]
+		
+		if zoomlevel is None:
+			zoomlevel = int(argv[i])
+		elif lat is None:
+			lat = float(argv[i])
+		elif lon is None:
+			lon = float(argv[i])
+		elif latmax is None:
+			latmax = float(argv[i])
+		elif lonmax is None:
+			lonmax = float(argv[i])
 		else:
-			Usage()
+			Usage("ERROR: Too many parameters")
 
 		i = i + 1
-
-	if not src_filename:
-		Usage()
 	
-	src_ds = gdal.Open(src_filename, gdal.GA_ReadOnly)
-	if not src_ds:
-		print "Could not open source file:", src_filename
-		Usage()
-
-	if src_ds.RasterCount != 4:
-		print "Now only 4 bands (RGBA) dataset is supported as the source"
-		print "From paletted file you can create such (temp.vrt) by:"
-		print "gdal_translate -of vrt -expand rgba yourfile.xxx temp.vrt"
-		Usage()
+	if profile != 'mercator':
+		Usage("ERROR: Sorry, given profile is not implemented yet.")
 	
-	# TODO: nodata mask support:
+	if zoomlevel == None or lat == None or lon == None:
+		Usage("ERROR: Specify at least 'zoomlevel', 'lat' and 'lon'.")
+	if latmax is not None and lonmax is None:
+		Usage("ERROR: Both 'latmax' and 'lonmax' must be given.")
 	
-	# http://trac.osgeo.org/gdal/browser/trunk/autotest/gcore/mask.py
-	# get the mask band by querying GetMaskBand() on your first band.
-	# print ds.GetRasterBand(1).GetNoDataValue() returns None if there's no nodata value!
+	if latmax != None and lonmax != None:
+		if latmax < lat:
+			Usage("ERROR: 'latmax' must be bigger then 'lat'")
+		if lonmax < lon:
+			Usage("ERROR: 'lonmax' must be bigger then 'lon'")
+		boundingbox = (lon, lat, lonmax, latmax)
 	
-	# Changing of nodata value could be: on a band .Fill()
-	
-	# We need to reproject the source file to EPSG:900913
-	
-	ref = osr.SpatialReference()
-	ref.ImportFromEPSG(900913)
-	t_srs_wkt = ref.ExportToWkt()
-	
-	if s_srs:
-		ref.SetFromUserInput(s_srs)
-		s_srs_wkt = ref.ExportToWkt()
-	else:
-		s_srs_wkt = src_ds.GetProjection()
-		if not s_srs_wkt and src_ds.GetGCPCount() != 0:
-			s_srs_wkt = src_ds.GetGCPProjection()
-	
-	if (src_ds.GetGeoTransform() == (0.0, 1.0, 0.0, 0.0, 0.0, 1.0) and src_ds.GetGCPCount() == 0):
-		print "There is no georeference - neither affine transformation (worldfile) nor GCPs"
-		print "Use a GIS software for georeference e.g. gdal_transform -gcp / -a_ullr / -a_srs"
-		Usage()
-
-	#print "s_srs_wkt: '%s'" % s_srs_wkt
-	if not s_srs_wkt:
-		print "The spatial reference system of the raster is not known. Specify it by -s_srs."
-		Usage()
-
-	ds = gdal.AutoCreateWarpedVRT( src_ds, s_srs_wkt, t_srs_wkt )
-
-	# Save the VRT file for usage by other GDAL tools:
-	ds.GetDriver().CreateCopy("tiles.vrt", ds)
-
-	print "Source file:", src_filename, "( %sP x %sL - %s bands)" % (src_ds.RasterXSize, src_ds.RasterYSize, src_ds.RasterCount)
-	print "Tile projected file:", "tiles.vrt", "( %sP x %sL - %s bands)" % (ds.RasterXSize, ds.RasterYSize, ds.RasterCount)
-
-	geotran = ds.GetGeoTransform()
-
-	originX, originY = geotran[0], geotran[3]
-	pixelSize = geotran[1] # = geotran[5]
-	
-	# warped to epsg:900913: pixelSize is square, no rotation on the raster 
-	north = originY
-	south = originY-ds.RasterYSize*pixelSize
-	west = originX
-	east = originX+ds.RasterXSize*pixelSize
-	
-	# Main object for counting the tiles
+	tz = zoomlevel
 	mercator = GlobalMercator()
+
+	mx, my = mercator.LatLonToMeters( lat, lon )
+	print "Spherical Mercator (ESPG:900913) coordinates for lat/lon: "
+	print (mx, my)
+	tminx, tminy = mercator.MetersToTile( mx, my, tz )
 	
-	print "OriginX, OriginY, PixelSize", (originX, originY), pixelSize
-	print "Lat/Lon coordinates:", mercator.MetersToLatLon( originX, originY)
-
-	z = mercator.ZoomForPixelSize( pixelSize )
-	res = mercator.Resolution( z )
-	print "MaxZoomLevel:", z, "(",res,")"
-	#z -= 3
-
-	px, py = mercator.MetersToPixels( originX, originY, z)
-	mx, my = mercator.PixelsToMeters( px, py, z) # OriginX, OriginY
-	print "Pixel coordinates:", px, py, (mx, my)
-	print
-	print "Tiles generated from the max zoom level:"
-	print "----------------------------------------"
-	print
-	
-	def DSMemGeoReadRaster(ulx, uly, lrx, lry):
+	if boundingbox:
+		mx, my = mercator.LatLonToMeters( latmax, lonmax )
+		print "Spherical Mercator (ESPG:900913) cooridnate for maxlat/maxlon: "
+		print (mx, my)
+		tmaxx, tmaxy = mercator.MetersToTile( mx, my, tz )
+	else:
+		tmaxx, tmaxy = tminx, tminy
 		
-		rx= int((ulx - geotran[0]) / geotran[1] + 0.001)
-		ry= int((uly - geotran[3]) / geotran[5] + 0.001)
-		rxsize= int((lrx - ulx) / geotran[1] + 0.5)
-		rysize= int((lry - uly) / geotran[5] + 0.5)
+	for ty in range(tminy, tmaxy+1):
+		for tx in range(tminx, tmaxx+1):
+			tilefilename = "%s/%s/%s" % (tz, tx, ty)
+			print tilefilename, "( TileMapService: z / x / y )"
 		
-		# Note: For source drivers based on WaveLet compression the ReadRaster
-		# function returns high-quality raster (not ugly nearest neighbour).
-		
-		tempdriver = gdal.GetDriverByName( 'MEM' )
-
-		wxsize, wysize = 1024, 1024
-		ds_msrc = tempdriver.Create('', wxsize, wysize, bands=4)
-
-		# Coordinates should not go out of the extent of the raster!
-		wxshift = 0
-		if rx < 0:
-			rxshift = abs(rx)
-			wxshift = int( wxsize * (float(rxshift) / rxsize) )
-			wxsize = wxsize - wxshift
-			rxsize = rxsize - int( rxsize * (float(rxshift) / rxsize) )
-			rx = 0
-		if rx+rxsize > ds.RasterXSize:
-			wxsize = int( wxsize * (float(ds.RasterXSize - rx) / rxsize) )
-			rxsize = ds.RasterXSize - rx
-
-		wyshift = 0
-		if ry < 0:
-			ryshift = abs(ry)
-			wyshift = int( wysize * (float(ryshift) / rysize) )
-			wysize = wysize - wyshift
-			rysize = rysize - int( rysize * (float(ryshift) / rysize) )
-			ry = 0
-		if ry+rysize > ds.RasterYSize:
-			wysize = int( wysize * (float(ds.RasterYSize - ry) / rysize) )
-			rysize = ds.RasterYSize - ry
-
-		# This should be the result of the function
-		#return (rx, ry, rx+rxsize, ry+rysize, wxshift==0, wyshift==0)
-
-		# For now lets generate the memory raster as well
-		print "\tReadRaster Extent: ", (rx, ry, rx+rxsize, ry+rysize), (wxshift==0, wyshift==0)
-		
-		#print rx, ry, rxsize, rysize, wxsize, wysize
-
-		# Read window from original raster (nearest neighbour)
-		data = ds.ReadRaster(rx, ry, rxsize, rysize, wxsize, wysize)
-		
-		# Write it in the correct position in the big memory window
-		ds_msrc.WriteRaster(wxshift, wyshift, wxsize, wysize, data, band_list=range(1,4+1))
-
-		# If PIL is available scale by PIL's 'antialias' (lanczos) directly
-		# into the final tile from native resulution of the raster (scaling up in the lower level of pyramid)
-
-		# GDAL 'average' done by Overview functions to scale down the big
-		# nearest neighbour query to the size of the final tile
-
-		ds_mtrg = tempdriver.Create('', 256, 256, bands=4)
-		# Scale this window by 'average' to requested size
-		for i in range(1,5):
-			gdal.RegenerateOverview( ds_msrc.GetRasterBand(i),
-				ds_mtrg.GetRasterBand(i), 'average' )
-
-		return ds_mtrg
-		
-	#tx, ty = mercator.PixelsToTile( px, py, z)
-
-	#tminx, tminy = mercator.MetersToTile( west, south, z )
-	#tmaxx, tmaxy = mercator.MetersToTile( east, north, z )
-
-	# Just the center tile
-	#tminx = tminx+ (tmaxx - tminx)/2
-	#tminy = tminy+ (tmaxy - tminy)/2
-	#tmaxx = tminx
-	#tmaxy = tminy
-
-	# Generate the tiles in the max level
-
-	for tz in range(z-1, z-2, -1):
-		tminx, tminy = mercator.MetersToTile( west, south, tz )
-		tmaxx, tmaxy = mercator.MetersToTile( east, north, tz )	
-		for ty in range(tminy, tmaxy+1):
-			for tx in range(tminx, tmaxx+1):
-				b = mercator.TileBounds(tx, ty, tz)
-				tilefilename = "%s/%s/%s.png" % (tz, tx, ty)
-				print tilefilename, "( TileMapService: z / x / y )"
-			
-				gx, gy = mercator.GoogleTile(tx, ty, tz)
-				print "\tGoogle:", gx, gy
-				quadkey = mercator.QuadTree(tx, ty, tz)
-				print "\tQuadkey:", quadkey, '(',int(quadkey, 4),')'
-				bounds = mercator.TileBounds( tx, ty, tz)
-				print "\tEPSG:900913 Extent: ", bounds
-				wgsbounds = mercator.TileLatLonBounds( tx, ty, tz)
-				print "\tWGS84 Extent:", wgsbounds
-				print "\ttest:"
-				print "\tgdalwarp -ts 256 256 -te %s %s %s %s %s %s_%s_%s.tif" % ( b[0], b[1], b[2], b[3], "tiles.vrt", tz, tx, ty)
-			
-				ds_mtarget = DSMemGeoReadRaster(b[0], b[3], b[2], b[1])
-			
-				if not os.path.exists(os.path.dirname(tilefilename)):
-					os.makedirs(os.path.dirname(tilefilename))
-				
-				# Write a copy to tile png
-				gdal.GetDriverByName('PNG').CreateCopy(tilefilename, ds_mtarget, strict=0)
-				del ds_mtarget
-			
-	# Build the pyramid from generated tiles...
-	
-	  # similar like in gdal_retile.py
-	  # Use of existing tiles from 4 tiles generating one new.
-		
-	# Pass all the PNG tiles to 'advpng -4 -z' or use 'optipng library'?
+			gx, gy = mercator.GoogleTile(tx, ty, tz)
+			print "\tGoogle:", gx, gy
+			quadkey = mercator.QuadTree(tx, ty, tz)
+			print "\tQuadkey:", quadkey, '(',int(quadkey, 4),')'
+			bounds = mercator.TileBounds( tx, ty, tz)
+			print
+			print "\tEPSG:900913 Extent: ", bounds
+			wgsbounds = mercator.TileLatLonBounds( tx, ty, tz)
+			print "\tWGS84 Extent:", wgsbounds
+			print "\tgdalwarp -ts 256 256 -te %s %s %s %s %s %s_%s_%s.tif" % (
+				bounds[0], bounds[1], bounds[2], bounds[3], "<your-raster-file-in-epsg900913.ext>", tz, tx, ty)
+			print
