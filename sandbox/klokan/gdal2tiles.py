@@ -132,6 +132,8 @@ if __name__ == "__main__":
 	src_filename = None
 	s_srs = None
 	nogooglemaps = False
+	noopenlayers = False
+	generatekml = True
 	tileformat = 'png' # 'jpg'
 	resampling_method = 'average'
 	resampling_method_list = ('average','near','bilinear','cubic','cubicspline','lanczos','antialias')
@@ -232,7 +234,7 @@ if __name__ == "__main__":
 	ds = gdal.AutoCreateWarpedVRT( src_ds, s_srs_wkt, t_srs_wkt )
 
 	# Save the VRT file for usage by other GDAL tools:
-	ds.GetDriver().CreateCopy("tiles.vrt", ds)
+	##ds.GetDriver().CreateCopy("tiles.vrt", ds)
 
 	print "Source file:", src_filename, "( %sP x %sL - %s bands)" % (src_ds.RasterXSize, src_ds.RasterYSize, src_ds.RasterCount)
 	print "Tile projected file:", "tiles.vrt", "( %sP x %sL - %s bands)" % (ds.RasterXSize, ds.RasterYSize, ds.RasterCount)
@@ -245,22 +247,22 @@ if __name__ == "__main__":
 	title = src_filename
 	
 	# warped to epsg:900913: pixelSize is square, no rotation on the raster 
-	north = originY
-	south = originY-ds.RasterYSize*pixelSize
-	west = originX
-	east = originX+ds.RasterXSize*pixelSize
+	mmaxy = originY
+	mminy = originY-ds.RasterYSize*pixelSize
+	mminx = originX
+	mmaxx = originX+ds.RasterXSize*pixelSize
 	
 	# Main object for counting the Mercator tiles extents
 	mercator = GlobalMercator()
 	
 	print "OriginX, OriginY, PixelSize", (originX, originY), pixelSize
-	print "Lat/Lon bounds:", mercator.MetersToLatLon( west, south), mercator.MetersToLatLon( east, north)
+	print "Lat/Lon bounds:", mercator.MetersToLatLon( mminx, mminy), mercator.MetersToLatLon( mmaxx, mmaxy)
 
 	# Generate table with min max tile coordinates for all zoomlevels
 	tminmax = range(0,32)
 	for tz in range(0, 32):
-		tminx, tminy = mercator.MetersToTile( west, south, tz )
-		tmaxx, tmaxy = mercator.MetersToTile( east, north, tz )
+		tminx, tminy = mercator.MetersToTile( mminx, mminy, tz )
+		tmaxx, tmaxy = mercator.MetersToTile( mmaxx, mmaxy, tz )
 		tminmax[tz] = (tminx, tminy, tmaxx, tmaxy)
 
 	# Get the minimal zoom level (map is covered by one tile)
@@ -286,6 +288,7 @@ if __name__ == "__main__":
 	tilebands = 4
 	output_dir = '.'
 	googlemapskey = 'INSERT_YOUR_GOOGLE_KEY_HERE'
+	yahooappid = 'INSERT_YOUR_YAHOO_APP_ID_HERE'
 	publishurl = ''
 	
 	########################
@@ -298,19 +301,20 @@ if __name__ == "__main__":
 	#f.write( generate_tilemapresource( ... ))
 	#f.close()
 
-	# TODO:::: this is wrong, minx, miny, maxy, maxy should be placed correctly:
-	lwest, lsouth = mercator.MetersToLatLon( west, south)
-	least, lnorth = mercator.MetersToLatLon( east, north)
+	south, west = mercator.MetersToLatLon( mminx, mminy)
+	north, east = mercator.MetersToLatLon( mmaxx, mmaxy)
+	#sw ne =
+	
 	# Generate googlemaps.html
 	if not nogooglemaps:
 		f = open(os.path.join(output_dir, 'googlemaps.html'), 'w')
 		f.write( generate_googlemaps_overlay(
 		  title = title,
 		  googlemapskey = googlemapskey,
-		  north = lnorth,
-		  south = lsouth,
-		  east = least,
-		  west = lwest,
+		  north = north,
+		  south = south,
+		  east = east,
+		  west = west,
 		  minzoom = tminz,
 		  maxzoom = tmaxz,
 		  tilesize = tilesize,
@@ -319,14 +323,26 @@ if __name__ == "__main__":
 		f.close()
 
 	# Generate openlayers.html
-	# TODO
-	#if not noopenlayers:
-	#	f = open(os.path.join(output_dir, 'openlayers.html'), 'w')
-	#	f.write( generate_openlayers( .. ))
-	#	f.close()
-		
+	if not noopenlayers:
+		f = open(os.path.join(output_dir, 'openlayers.html'), 'w')
+		f.write( generate_openlayers_overlay(
+		  title = title,
+		  googlemapskey = googlemapskey,
+		  yahooappid = yahooappid,
+		  north = north,
+		  south = south,
+		  east = east,
+		  west = west,
+		  minzoom = tminz,
+		  maxzoom = tmaxz,
+		  tilesize = tilesize,
+		  publishurl = publishurl
+		))
+		f.close()
+	
+	x, y, x, y = tminmax[tminz]
+	childkml = "%s/%s/%s.kml" % (tminz, x, y)
 	# Generate Root KML
-	s = """
 	if generatekml:
 		f = open(os.path.join(output_dir, 'doc.kml'), 'w')
 		f.write( generate_rootkml(
@@ -337,10 +353,10 @@ if __name__ == "__main__":
 			west = west,
 			tilesize = tilesize,
 			tileformat = tileformat,
-			publishurl = ""
+			publishurl = publishurl,
+			childkml = childkml
 		))
 		f.close()
-	"""
 		
 	########################
 	## Generate all tiles in the max zoom level
@@ -440,6 +456,7 @@ if __name__ == "__main__":
 				#	dsquery.GetRasterBand(1).Fill(tilenodata)
 				dsquery.WriteRaster(wx, wy, wxsize, wysize, data, band_list=range(1,tilebands+1))
 				
+				# TODO:
 				ScaleQueryToTile(dsquery, dstile, tilefilename)
 				del dsquery
 			
@@ -451,12 +468,26 @@ if __name__ == "__main__":
 			
 			del dstile
 			
+			# Create a KML file for this tile.
+			if generatekml:
+				f = open( os.path.join(output_dir, '%d/%d/%d.kml' % (tz, tx, ty)), 'w')
+				f.write( generate_kml_new(
+					swne = mercator.TileLatLonBounds(tx, ty, tz),
+					tx = tx, ty = ty, tz = tz,
+					tilesize = tilesize,
+					tileformat = tileformat,
+					maxzoom = tmaxz,
+					childern = []
+				))
+				f.close()
+			
 	########################
 	## Build upper levels of the pyramid from already generated tiles of the maxzoom level...
 	########################
 		
 	s = """
 	"""
+	
 	# Usage of existing tiles: from 4 underlying tiles generate one as overview.
 	querysize = tilesize * 2
 	for tz in range(tmaxz-1, tminz-1, -1):
@@ -480,6 +511,7 @@ if __name__ == "__main__":
 				# TODO: Implement more clever walking on the tiles with cache functionality
 				# probably walk should start with reading of four tiles from top left corner
 				
+				kmlchildern = []
 				# Read the tiles and write them to query window
 				for y in range(2*ty,2*ty+2):
 					for x in range(2*tx,2*tx+2):
@@ -489,14 +521,28 @@ if __name__ == "__main__":
 							dsquery.WriteRaster( x % (2*tx) * tilesize, tilesize if not (y % (2*ty)) else 0, tilesize, tilesize,
 								dsquerytile.ReadRaster(0,0,tilesize,tilesize),
 								band_list=range(1,tilebands+1))
-				
+							kmlchildern.append({ 'swne': mercator.TileLatLonBounds(x, y, tz+1) })
+						else:
+							kmlchildern.append({})
+
 				ScaleQueryToTile(dsquery, dstile, tilefilename)
 				# Write a copy of tile to png/jpg
 				tiledriver.CreateCopy(tilefilename, dstile, strict=0)
 				
-				#dsquery.WriteRaster(wx, wy, wxsize, wysize, data, band_list=range(1,tilebands+1))
-
 				print "\tbuild from zoom", tz+1," tiles:", (2*tx, 2*ty), (2*tx+1, 2*ty),(2*tx, 2*ty+1), (2*tx+1, 2*ty+1)
+				
+				# Create a KML file for this tile.
+				if generatekml:
+					f = open( os.path.join(output_dir, '%d/%d/%d.kml' % (tz, tx, ty)), 'w')
+					f.write( generate_kml_new(
+						swne = mercator.TileLatLonBounds(tx, ty, tz),
+						tx = tx, ty = ty, tz = tz,
+						tilesize = tilesize,
+						tileformat = tileformat,
+						maxzoom = tmaxz,
+						childern = kmlchildern
+					))
+					f.close()
 	
 
 	########################
