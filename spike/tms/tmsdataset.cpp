@@ -98,11 +98,19 @@ GDALDataset *TMSDataset::Open (GDALOpenInfo *info)
     TMSDataset *ds;
     
     if (!info->fp) return NULL;
-    
+
+    if( info->pabyHeader == NULL 
+        || strstr((const char *) info->pabyHeader, "<TileMap") == NULL )
+        return NULL;
+
     if (!(config = CPLParseXMLFile (info->pszFilename)))
         return NULL;
+
     if (!(tileMap = CPLGetXMLNode (config, "=TileMap")))
+    {
+        CPLDestroyXMLNode( config );
         return NULL;
+    }
         
     ds = new TMSDataset (CPLGetDirname (info->pszFilename));
     ds->xmlfn = CPLStrdup (info->pszFilename);
