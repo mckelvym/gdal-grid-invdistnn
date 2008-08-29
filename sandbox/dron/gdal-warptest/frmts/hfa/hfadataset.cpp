@@ -1136,13 +1136,15 @@ CPLErr HFARasterBand::BuildOverviews( const char *pszResampling,
     CPLErr eErr = CE_None;
 
     if( !bNoRegen )
-        eErr = GDALRegenerateOverviews( this, nReqOverviews, papoOvBands,
+        eErr = GDALRegenerateOverviews( (GDALRasterBandH) this, 
+                                        nReqOverviews, 
+                                        (GDALRasterBandH *) papoOvBands,
                                         pszResampling, 
                                         pfnProgress, pProgressData );
     
     CPLFree( papoOvBands );
     
-    return CE_None;
+    return eErr;
 }
 
 /************************************************************************/
@@ -1396,9 +1398,34 @@ HFADataset::~HFADataset()
 {
     FlushCache();
 
-    if( hHFA != NULL )
-        HFAClose( hHFA );
+/* -------------------------------------------------------------------- */
+/*      Destroy the raster bands if they exist.  We forcably clean      */
+/*      them up now to avoid any effort to write to them after the      */
+/*      file is closed.                                                 */
+/* -------------------------------------------------------------------- */
+    int i;
 
+    for( i = 0; i < nBands && papoBands != NULL; i++ )
+    {
+        if( papoBands[i] != NULL )
+            delete papoBands[i];
+    }
+
+    CPLFree( papoBands );
+    papoBands = NULL;
+
+/* -------------------------------------------------------------------- */
+/*      Close the file                                                  */
+/* -------------------------------------------------------------------- */
+    if( hHFA != NULL )
+    {
+        HFAClose( hHFA );
+        hHFA = NULL;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Cleanup                                                         */
+/* -------------------------------------------------------------------- */
     CPLFree( pszProjection );
     if( nGCPCount > 0 )
         GDALDeinitGCPs( 36, asGCPList );
@@ -1892,8 +1919,11 @@ CPLErr HFADataset::WriteProjection()
 /* -------------------------------------------------------------------- */
 /*      MapInfo                                                         */
 /* -------------------------------------------------------------------- */
+    const char *pszPROJCS = oSRS.GetAttrValue( "PROJCS" );
 
-    if( bHaveSRS && sPro.proName != NULL )
+    if( pszPROJCS )
+        sMapInfo.proName = (char *) pszPROJCS;
+    else if( bHaveSRS && sPro.proName != NULL )
         sMapInfo.proName = sPro.proName;
     else
         sMapInfo.proName = (char*) "Unknown";
@@ -2037,6 +2067,9 @@ CPLErr HFADataset::ReadProjection()
     
 /* -------------------------------------------------------------------- */
 /*      General case for Erdas style projections.                       */
+/*                                                                      */
+/*      We make a particular effort to adapt the mapinfo->proname as    */
+/*      the PROJCS[] name per #2422.                                    */
 /* -------------------------------------------------------------------- */
     psDatum = HFAGetDatum( hHFA );
     psPro = HFAGetProParameters( hHFA );
@@ -2057,6 +2090,11 @@ CPLErr HFADataset::ReadProjection()
         oSRS.SetLocalCS( psPro->proName );
     }
 
+    else if( psPro->proNumber != EPRJ_LATLONG
+             && psMapInfo != NULL )
+    {
+        oSRS.SetProjCS( psMapInfo->proName );
+    }
     else if( psPro->proNumber != EPRJ_LATLONG )
     {
         oSRS.SetProjCS( psPro->proName );
@@ -3373,13 +3411,15 @@ void GDALRegister_HFA()
 
         poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST, 
 "<CreationOptionList>"
-"   <Option name='BLOCKSIZE' type='integer' description='tile width/height (32-2048)'/>"
+"   <Option name='BLOCKSIZE' type='integer' description='tile width/height (32-2048)' default='64'/>"
 "   <Option name='USE_SPILL' type='boolean' description='Force use of spill file'/>"
-"   <Option name='COMPRESSED' type='boolean' description='compress blocks, default NO'/>"
+"   <Option name='COMPRESSED' alias='COMPRESS' type='boolean' description='compress blocks'/>"
 "   <Option name='PIXELTYPE' type='string' description='By setting this to SIGNEDBYTE, a new Byte file can be forced to be written as signed byte'/>"
 "   <Option name='AUX' type='boolean' description='Create an .aux file'/>"
-"   <Option name='IGNOREUTM' type='boolean' description='Ignore UTM when selecting coordinate system - will use Transverse Mercator, default NO'/>"
+"   <Option name='IGNOREUTM' type='boolean' description='Ignore UTM when selecting coordinate system - will use Transverse Mercator. Only used for Create() method'/>"
 "   <Option name='NBITS' type='integer' description='Create file with special sub-byte data type (1/2/4)'/>"
+"   <Option name='STATISTICS' type='boolean' description='Generate statistics and a histogram'/>"
+"   <Option name='DEPENDENT_FILE' type='string' description='Name of dependent file (must not have absolute path)'/>"
 "</CreationOptionList>" );
 
         poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );

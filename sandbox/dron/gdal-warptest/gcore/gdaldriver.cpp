@@ -61,6 +61,28 @@ GDALDriver::~GDALDriver()
 }
 
 /************************************************************************/
+/*                         GDALDestroyDriver()                          */
+/************************************************************************/
+
+/**
+ * Destroy a GDALDriver.
+ * 
+ * This is roughly equivelent to deleting the driver, but is guaranteed
+ * to take place in the GDAL heap.  It is important this that function
+ * not be called on a driver that is registered with the GDALDriverManager.
+ * 
+ * @param hDriver the driver to destroy.
+ */
+
+void CPL_STDCALL GDALDestroyDriver( GDALDriverH hDriver )
+
+{
+    VALIDATE_POINTER0( hDriver, "GDALDestroyDriver" );
+
+    delete ((GDALDriver *) hDriver);
+}
+
+/************************************************************************/
 /*                               Create()                               */
 /************************************************************************/
 
@@ -119,6 +141,7 @@ GDALDataset * GDALDriver::Create( const char * pszFilename,
 /* -------------------------------------------------------------------- */
     QuietDelete( pszFilename );
 
+    GDALValidateCreationOptions( this, papszParmList);
 /* -------------------------------------------------------------------- */
 /*      Proceed with creation.                                          */
 /* -------------------------------------------------------------------- */
@@ -523,6 +546,7 @@ GDALDataset *GDALDriver::CreateCopy( const char * pszFilename,
 /* -------------------------------------------------------------------- */
     QuietDelete( pszFilename );
 
+    GDALValidateCreationOptions( this, papszOptions);
 /* -------------------------------------------------------------------- */
 /*      If the format provides a CreateCopy() method use that,          */
 /*      otherwise fallback to the internal implementation using the     */
@@ -935,6 +959,19 @@ CPLErr CPL_STDCALL GDALCopyDatasetFiles( GDALDriverH hDriver,
 /*                       GDALGetDriverShortName()                       */
 /************************************************************************/
 
+/**
+ * Return the short name of a driver
+ *
+ * Return the short name of a the driver. This is the string that can be
+ * passed to the GDALGetDriverByName() function.
+ *
+ * For the GeoTIFF driver, this is "GTiff"
+ *
+ * @param hDriver the handle of the driver
+ * @return the short name of the driver. The
+ *         returned string should not be freed and is owned by the driver.
+ */
+
 const char * CPL_STDCALL GDALGetDriverShortName( GDALDriverH hDriver )
 
 {
@@ -946,6 +983,18 @@ const char * CPL_STDCALL GDALGetDriverShortName( GDALDriverH hDriver )
 /************************************************************************/
 /*                       GDALGetDriverLongName()                        */
 /************************************************************************/
+
+/**
+ * Return the long name of a driver
+ *
+ * Return the long name of a the driver.
+ *
+ * For the GeoTIFF driver, this is "GeoTIFF"
+ *
+ * @param hDriver the handle of the driver
+ * @return the long name of the driver or empty string. The
+ *         returned string should not be freed and is owned by the driver.
+ */
 
 const char * CPL_STDCALL GDALGetDriverLongName( GDALDriverH hDriver )
 
@@ -965,6 +1014,19 @@ const char * CPL_STDCALL GDALGetDriverLongName( GDALDriverH hDriver )
 /*                       GDALGetDriverHelpTopic()                       */
 /************************************************************************/
 
+/**
+ * Return the URL to the help that describes the driver
+ *
+ * Return the URL to the help that describes the driver. That URL is
+ * relative to the GDAL documentation directory.
+ *
+ * For the GeoTIFF driver, this is "frmt_gtiff.html"
+ *
+ * @param hDriver the handle of the driver
+ * @return the URL to the help that describes the driver or NULL. The
+ *         returned string should not be freed and is owned by the driver.
+ */
+
 const char * CPL_STDCALL GDALGetDriverHelpTopic( GDALDriverH hDriver )
 
 {
@@ -976,6 +1038,18 @@ const char * CPL_STDCALL GDALGetDriverHelpTopic( GDALDriverH hDriver )
 /************************************************************************/
 /*                   GDALGetDriverCreationOptionList()                  */
 /************************************************************************/
+
+/**
+ * Return the list of creation options of the driver
+ *
+ * Return the list of creation options of the driver used by Create() and
+ * CreateCopy() as an XML string
+ *
+ * @param hDriver the handle of the driver
+ * @return an XML string that describes the list of creation options or
+ *         empty string. The returned string should not be freed and is
+ *         owned by the driver.
+ */
 
 const char * CPL_STDCALL GDALGetDriverCreationOptionList( GDALDriverH hDriver )
 
@@ -994,6 +1068,29 @@ const char * CPL_STDCALL GDALGetDriverCreationOptionList( GDALDriverH hDriver )
 /************************************************************************/
 /*                   GDALValidateCreationOptions()                      */
 /************************************************************************/
+
+/**
+ * Validate the list of creation options that are handled by a driver
+ *
+ * This is a helper method primarily used by Create() and
+ * CreateCopy() to validate that the passed in list of creation options
+ * is compatible with the GDAL_DMD_CREATIONOPTIONLIST metadata item defined
+ * by some drivers. @see GDALGetDriverCreationOptionList()
+ *
+ * If the GDAL_DMD_CREATIONOPTIONLIST metadata item is not defined, this
+ * function will return TRUE. Otherwise it will check that the keys and values
+ * in the list of creation options are compatible with the capabilities declared
+ * by the GDAL_DMD_CREATIONOPTIONLIST metadata item. In case of incompatibility
+ * a (non fatal) warning will be emited and FALSE will be returned.
+ *
+ * @param hDriver the handle of the driver with whom the lists of creation option
+ *                must be validated
+ * @param papszCreationOptions the list of creation options. An array of strings,
+ *                             whose last element is a NULL pointer
+ * @return TRUE if the list of creation options is compatible with the Create()
+ *         and CreateCopy() method of the driver, FALSE otherwise.
+ */
+
 int CPL_STDCALL GDALValidateCreationOptions( GDALDriverH hDriver,
                                              char** papszCreationOptions)
 {
@@ -1021,12 +1118,33 @@ int CPL_STDCALL GDALValidateCreationOptions( GDALDriverH hDriver,
     {
         char* pszKey = NULL;
         const char* pszValue = CPLParseNameValue(*papszCreationOptions, &pszKey);
+        if (pszKey == NULL)
+        {
+            CPLError(CE_Warning, CPLE_NotSupported,
+                     "Creation option '%s' is not formatted with the key=value format",
+                     *papszCreationOptions);
+            bRet = FALSE;
+
+            papszCreationOptions ++;
+            continue;
+        }
+
         CPLXMLNode* psChildNode = psNode->psChild;
         while(psChildNode)
         {
             if (EQUAL(psChildNode->pszValue, "OPTION"))
             {
-                if (EQUAL(CPLGetXMLValue(psChildNode, "name", ""), pszKey))
+                const char* pszOptionName = CPLGetXMLValue(psChildNode, "name", "");
+                /* For option names terminated by wildcard (NITF BLOCKA option names for example) */
+                if (strlen(pszOptionName) > 0 &&
+                    pszOptionName[strlen(pszOptionName) - 1] == '*' &&
+                    EQUALN(pszOptionName, pszKey, strlen(pszOptionName) - 1))
+                {
+                    break;
+                }
+
+                if (EQUAL(pszOptionName, pszKey) ||
+                    EQUAL(CPLGetXMLValue(psChildNode, "alias", ""), pszKey))
                 {
                     break;
                 }
@@ -1041,7 +1159,9 @@ int CPL_STDCALL GDALValidateCreationOptions( GDALDriverH hDriver,
                      pszKey);
             CPLFree(pszKey);
             bRet = FALSE;
-            break;
+
+            papszCreationOptions ++;
+            continue;
         }
         const char* pszType = CPLGetXMLValue(psChildNode, "type", NULL);
         if (pszType != NULL)
@@ -1090,7 +1210,6 @@ int CPL_STDCALL GDALValidateCreationOptions( GDALDriverH hDriver,
                              "'%s' is an unexpected value for %s creation option of type float.",
                              pszValue, pszKey);
                     bRet = FALSE;
-                    break;
                 }
             }
             else if (EQUAL(pszType, "BOOLEAN"))
@@ -1102,7 +1221,6 @@ int CPL_STDCALL GDALValidateCreationOptions( GDALDriverH hDriver,
                              "'%s' is an unexpected value for %s creation option of type boolean.",
                              pszValue, pszKey);
                     bRet = FALSE;
-                    break;
                 }
             }
             else if (EQUAL(pszType, "STRING-SELECT"))
@@ -1128,12 +1246,21 @@ int CPL_STDCALL GDALValidateCreationOptions( GDALDriverH hDriver,
                              "'%s' is an unexpected value for %s creation option of type string-select.",
                              pszValue, pszKey);
                     bRet = FALSE;
-                    break;
                 }
             }
             else if (EQUAL(pszType, "STRING"))
             {
-                /* Nothing to check */
+                const char* pszMaxSize = CPLGetXMLValue(psChildNode, "maxsize", NULL);
+                if (pszMaxSize != NULL)
+                {
+                    if ((int)strlen(pszValue) > atoi(pszMaxSize))
+                    {
+                        CPLError(CE_Warning, CPLE_NotSupported,
+                             "'%s' is of size %d, whereas maximum size for %s creation option is %d.",
+                             pszValue, strlen(pszValue), pszKey, atoi(pszMaxSize));
+                        bRet = FALSE;
+                    }
+                }
             }
             else
             {
@@ -1164,6 +1291,35 @@ int CPL_STDCALL GDALValidateCreationOptions( GDALDriverH hDriver,
 /************************************************************************/
 /*                         GDALIdentifyDriver()                         */
 /************************************************************************/
+
+/**
+ * Identify the driver that can open a raster file.
+ *
+ * This function will try to identify the driver that can open the passed file
+ * name by invoking the Identify method of each registered GDALDriver in turn. 
+ * The first driver that successful identifies the file name will be returned.
+ * If all drivers fail then NULL is returned.
+ *
+ * In order to reduce the need for such searches touch the operating system
+ * file system machinery, it is possible to give an optional list of files.
+ * This is the list of all files at the same level in the file system as the
+ * target file, including the target file. The filenames will not include any
+ * path components, are an essentially just the output of CPLReadDir() on the
+ * parent directory. If the target object does not have filesystem semantics
+ * then the file list should be NULL.
+ *
+ * @param pszFilename the name of the file to access.  In the case of
+ * exotic drivers this may not refer to a physical file, but instead contain
+ * information for the driver on how to access a dataset.
+ *
+ * @param papszFileList an array of strings, whose last element is the NULL pointer.
+ * These strings are filenames that are auxiliary to the main filename. The passed
+ * value may be NULL.
+ *
+ * @return A GDALDriverH handle or NULL on failure.  For C++ applications
+ * this handle can be cast to a GDALDriver *. 
+ */
+
 
 GDALDriverH CPL_STDCALL 
 GDALIdentifyDriver( const char * pszFilename, 

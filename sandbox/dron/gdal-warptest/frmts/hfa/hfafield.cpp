@@ -36,7 +36,7 @@ CPL_CVSID("$Id$");
                            
 /************************************************************************/
 /* ==================================================================== */
-/*      		       HFAField					*/
+/*		                HFAField				*/
 /* ==================================================================== */
 /************************************************************************/
 
@@ -407,9 +407,15 @@ HFAField::SetInstValue( const char * pszField, int nIndexValue,
             return CE_Failure;
         }
 
-        nOffset = nCount;
+        // we will update the object count iff we are writing beyond the end
+        memcpy( &nOffset, pabyData, 4 );
         HFAStandard( 4, &nOffset );
-        memcpy( pabyData, &nOffset, 4 );
+        if( nOffset < nCount )
+        {
+            nOffset = nCount;
+            HFAStandard( 4, &nOffset );
+            memcpy( pabyData, &nOffset, 4 );
+        }
 
         if( pValue == NULL )
             nOffset = 0;
@@ -1065,10 +1071,8 @@ HFAField::ExtractInstValue( const char * pszField, int nIndexValue,
     {
         if( pszStringRet == NULL )
         {
-            static char	szNumber[28]; // This is NOT threadsafe.
-
-            sprintf( szNumber, "%d", nIntRet );
-            pszStringRet = szNumber;
+            sprintf( szNumberString, "%d", nIntRet );
+            pszStringRet = szNumberString;
         }
         
         *((char **) pReqReturn) = pszStringRet;
@@ -1290,11 +1294,9 @@ void HFAField::DumpInstValue( FILE *fpOut,
               if( ExtractInstValue( NULL, iEntry, 
                                     pabyData, nDataOffset, nDataSize, 
                                     'd', &dfValue ) )
-                  VSIFPrintf( fpOut, "%.15g\n", 
-                              pszPrefix, dfValue );
+                  VSIFPrintf( fpOut, "%s%.15g\n", pszPrefix, dfValue );
               else
-                  VSIFPrintf( fpOut, "(access failed)\n", 
-                              pszPrefix );
+                  VSIFPrintf( fpOut, "%s(access failed)\n", pszPrefix );
           }
           break;
 

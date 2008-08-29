@@ -57,8 +57,8 @@ static void Usage()
         "    [-ot {Byte/Int16/UInt16/UInt32/Int32/Float32/Float64/\n"
         "          CInt16/CInt32/CFloat32/CFloat64}]\n"
         "    [-of format] [-co \"NAME=VALUE\"]\n"
-        "    [-a_srs srs_def]\n"
-        "    [-spat xmin ymin xmax ymax]\n"
+        "    [-zfield field_name]\n"
+        "    [-a_srs srs_def] [-spat xmin ymin xmax ymax]\n"
         "    [-l layername]* [-where expression] [-sql select_statement]\n"
         "    [-txe xmin xmax] [-tye ymin ymax] [-outsize xsize ysize]\n"
         "    [-a algorithm[:parameter1=value1]*]"
@@ -335,14 +335,33 @@ static CPLErr ParseAlgorithmAndOptions( const char *pszAlgoritm,
 
 static void ProcessLayer( OGRLayerH hSrcLayer, GDALDatasetH hDstDS,
                           GUInt32 nXSize, GUInt32 nYSize, int nBand,
-                          int bIsXExtentSet, int bIsYExtentSet,
-                          double dfXMin, double dfXMax,
-                          double dfYMin, double dfYMax,
+                          int& bIsXExtentSet, int& bIsYExtentSet,
+                          double& dfXMin, double& dfXMax,
+                          double& dfYMin, double& dfYMax,
+                          const char *pszBurnAttribute,
                           GDALDataType eType,
                           GDALGridAlgorithm eAlgorithm, void *pOptions,
                           int bQuiet, GDALProgressFunc pfnProgress )
 
 {
+/* -------------------------------------------------------------------- */
+/*      Get field index, and check.                                     */
+/* -------------------------------------------------------------------- */
+    int iBurnField = -1;
+
+    if ( pszBurnAttribute )
+    {
+        iBurnField = OGR_FD_GetFieldIndex( OGR_L_GetLayerDefn( hSrcLayer ),
+                                           pszBurnAttribute );
+        if( iBurnField == -1 )
+        {
+            printf( "Failed to find field %s on layer %s, skipping.\n",
+                    pszBurnAttribute, 
+                    OGR_FD_GetName( OGR_L_GetLayerDefn( hSrcLayer ) ) );
+            return;
+        }
+    }
+
 /* -------------------------------------------------------------------- */
 /*      Collect the geometries from this layer, and build list of       */
 /*      values to be interpolated.                                      */
@@ -359,16 +378,27 @@ static void ProcessLayer( OGRLayerH hSrcLayer, GDALDatasetH hDstDS,
         hGeom = OGR_F_GetGeometryRef( hFeat );
 
         // FIXME: handle collections
-        if ( OGR_G_GetGeometryType( hGeom ) == wkbPoint
-             || OGR_G_GetGeometryType( hGeom ) == wkbPoint25D )
+        if ( hGeom != NULL &&
+             (OGR_G_GetGeometryType( hGeom ) == wkbPoint
+              || OGR_G_GetGeometryType( hGeom ) == wkbPoint25D) )
         {
             adfX.push_back( OGR_G_GetX( hGeom, 0 ) );
             adfY.push_back( OGR_G_GetY( hGeom, 0 ) );
-            adfZ.push_back( OGR_G_GetZ( hGeom, 0 ) );
+            if ( iBurnField < 0 )
+                adfZ.push_back( OGR_G_GetZ( hGeom, 0 ) );
+            else
+                adfZ.push_back( OGR_F_GetFieldAsDouble( hFeat, iBurnField ) );
         }
 
         
         OGR_F_Destroy( hFeat );
+    }
+
+    if (adfX.size() == 0)
+    {
+        printf( "No point geometry found on layer %s, skipping.\n",
+                OGR_FD_GetName( OGR_L_GetLayerDefn( hSrcLayer ) ) );
+        return;
     }
 
 /* -------------------------------------------------------------------- */
@@ -379,12 +409,14 @@ static void ProcessLayer( OGRLayerH hSrcLayer, GDALDatasetH hDstDS,
     {
         dfXMin = *std::min_element(adfX.begin(), adfX.end());
         dfXMax = *std::max_element(adfX.begin(), adfX.end());
+        bIsXExtentSet = TRUE;
     }
 
     if ( !bIsYExtentSet )
     {
         dfYMin = *std::min_element(adfY.begin(), adfY.end());
         dfYMax = *std::max_element(adfY.begin(), adfY.end());
+        bIsYExtentSet = TRUE;
     }
 
 /* -------------------------------------------------------------------- */
@@ -438,18 +470,26 @@ static void ProcessLayer( OGRLayerH hSrcLayer, GDALDatasetH hDstDS,
                                           (double)++nBlock / nBlockCount,
                                           pfnProgress, NULL );
 
+            int nXRequest = nBlockXSize;
+            if (nXOffset + nXRequest > nXSize)
+                nXRequest = nXSize - nXOffset;
+
+            int nYRequest = nBlockYSize;
+            if (nYOffset + nYRequest > nYSize)
+                nYRequest = nYSize - nYOffset;
+
             GDALGridCreate( eAlgorithm, pOptions,
                             adfX.size(), &(adfX[0]), &(adfY[0]), &(adfZ[0]),
                             dfXMin + dfDeltaX * nXOffset,
-                            dfXMin + dfDeltaX * (nXOffset + nBlockXSize),
+                            dfXMin + dfDeltaX * (nXOffset + nXRequest),
                             dfYMin + dfDeltaY * nYOffset,
-                            dfYMin + dfDeltaY * (nYOffset + nBlockYSize),
-                            nBlockXSize, nBlockYSize, eType, pData,
+                            dfYMin + dfDeltaY * (nYOffset + nYRequest),
+                            nXRequest, nYRequest, eType, pData,
                             GDALScaledProgress, pScaledProgress );
 
             GDALRasterIO( hBand, GF_Write, nXOffset, nYOffset,
-                          nBlockXSize, nBlockYSize, pData,
-                          nBlockXSize, nBlockYSize, eType, 0, 0 );
+                          nXRequest, nYRequest, pData,
+                          nXRequest, nYRequest, eType, 0, 0 );
 
             GDALDestroyScaledProgress( pScaledProgress );
         }
@@ -467,19 +507,29 @@ int main( int argc, char ** argv )
     GDALDriverH     hDriver;
     const char      *pszSource=NULL, *pszDest=NULL, *pszFormat = "GTiff";
     char            **papszLayers = NULL;
+    const char      *pszBurnAttribute = NULL;
     const char      *pszWHERE = NULL, *pszSQL = NULL;
     GDALDataType    eOutputType = GDT_Float64;
     char            **papszCreateOptions = NULL;
     GUInt32         nXSize = 0, nYSize = 0;
     double          dfXMin = 0.0, dfXMax = 0.0, dfYMin = 0.0, dfYMax = 0.0;
     int             bIsXExtentSet = FALSE, bIsYExtentSet = FALSE;
-    GDALGridAlgorithm eAlgorithm;
+    GDALGridAlgorithm eAlgorithm = GGA_InverseDistanceToAPower;
     void            *pOptions = NULL;
     char            *pszOutputSRS = NULL;
     int             bQuiet = FALSE;
     GDALProgressFunc pfnProgress = GDALTermProgress;
     int             i;
     OGRGeometryH    hSpatialFilter = NULL;
+
+    /* Check that we are running against at least GDAL 1.5 */
+    /* Note to developers : if we use newer API, please change the requirement */
+    if (atoi(GDALVersionInfo("VERSION_NUM")) < 1500)
+    {
+        fprintf(stderr, "At least, GDAL >= 1.5.0 is required for this version of %s, "
+                "which was compiled against GDAL %s\n", argv[0], GDAL_RELEASE_NAME);
+        exit(1);
+    }
 
     GDALAllRegister();
     OGRRegisterAll();
@@ -493,7 +543,13 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
     for( i = 1; i < argc; i++ )
     {
-        if( EQUAL(argv[i],"-of") && i < argc-1 )
+        if( EQUAL(argv[i], "--utility_version") )
+        {
+            printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
+                   argv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            return 0;
+        }
+        else if( EQUAL(argv[i],"-of") && i < argc-1 )
         {
             pszFormat = argv[++i];
         }
@@ -551,6 +607,11 @@ int main( int argc, char ** argv )
         {
             papszCreateOptions = CSLAddString( papszCreateOptions, argv[++i] );
         }   
+
+        else if( EQUAL(argv[i],"-zfield") && i < argc-1 )
+        {
+            pszBurnAttribute = argv[++i];
+        }
 
         else if( EQUAL(argv[i],"-where") && i < argc-1 )
         {
@@ -741,8 +802,9 @@ int main( int argc, char ** argv )
             // Custom layer will be rasterized in the first band.
             ProcessLayer( hLayer, hDstDS, nXSize, nYSize, 1,
                           bIsXExtentSet, bIsYExtentSet,
-                          dfXMin, dfXMax, dfYMin, dfYMax, eOutputType,
-                          eAlgorithm, pOptions, bQuiet, pfnProgress );
+                          dfXMin, dfXMax, dfYMin, dfYMax, pszBurnAttribute,
+                          eOutputType, eAlgorithm, pOptions,
+                          bQuiet, pfnProgress );
         }
     }
 
@@ -779,8 +841,9 @@ int main( int argc, char ** argv )
         ProcessLayer( hLayer, hDstDS, nXSize, nYSize,
                       i + 1 + nBands - nLayerCount,
                       bIsXExtentSet, bIsYExtentSet,
-                      dfXMin, dfXMax, dfYMin, dfYMax, eOutputType,
-                      eAlgorithm, pOptions, bQuiet, pfnProgress );
+                      dfXMin, dfXMax, dfYMin, dfYMax, pszBurnAttribute,
+                      eOutputType, eAlgorithm, pOptions,
+                      bQuiet, pfnProgress );
     }
 
 /* -------------------------------------------------------------------- */
@@ -807,6 +870,7 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
 /*      Cleanup                                                         */
 /* -------------------------------------------------------------------- */
+    CSLDestroy( papszCreateOptions );
     CPLFree( pOptions );
     OGR_DS_Destroy( hSrcDS );
     GDALClose( hDstDS );

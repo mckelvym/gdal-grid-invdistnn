@@ -94,7 +94,7 @@ OGRGeometry::~OGRGeometry()
  * @param pszPrefix the prefix to put on each line of output.
  */
 
-void OGRGeometry::dumpReadable( FILE * fp, const char * pszPrefix ) const
+void OGRGeometry::dumpReadable( FILE * fp, const char * pszPrefix, char** papszOptions ) const
 
 {
     char        *pszWkt = NULL;
@@ -105,10 +105,84 @@ void OGRGeometry::dumpReadable( FILE * fp, const char * pszPrefix ) const
     if( fp == NULL )
         fp = stdout;
 
-    if( exportToWkt( &pszWkt ) == OGRERR_NONE )
+    const char* pszDisplayGeometry =
+                CSLFetchNameValue(papszOptions, "DISPLAY_GEOMETRY");
+    if (pszDisplayGeometry != NULL && EQUAL(pszDisplayGeometry, "SUMMARY"))
     {
-        fprintf( fp, "%s%s\n", pszPrefix, pszWkt );
-        CPLFree( pszWkt );
+        OGRLineString *poLine;
+        OGRPolygon *poPoly;
+        OGRLinearRing *poRing;
+        OGRGeometryCollection *poColl;
+        fprintf( fp, "%s%s : ", pszPrefix, getGeometryName() );
+        switch( getGeometryType() )
+        {
+            case wkbUnknown:
+            case wkbNone:
+                break;
+            case wkbPoint:
+            case wkbPoint25D:
+                break;
+            case wkbLineString:
+            case wkbLineString25D:
+                poLine = (OGRLineString*)this;
+                fprintf( fp, "%d points\n", poLine->getNumPoints() );
+                break;
+            case wkbPolygon:
+            case wkbPolygon25D:
+            {
+                int ir;
+                int nRings;
+                poPoly = (OGRPolygon*)this;
+                poRing = poPoly->getExteriorRing();
+                nRings = poPoly->getNumInteriorRings();
+                fprintf( fp, "%d points", poRing->getNumPoints() );
+                if (nRings)
+                {
+                    fprintf( fp, ", %d inner rings (", nRings);
+                    for( ir = 0; ir < nRings; ir++)
+                    {
+                        if (ir)
+                            fprintf( fp, ", ");
+                        fprintf( fp, "%d points",
+                                 poPoly->getInteriorRing(ir)->getNumPoints() );
+                    }
+                    fprintf( fp, ")");
+                }
+                fprintf( fp, "\n");
+                break;
+            }
+            case wkbMultiPoint:
+            case wkbMultiPoint25D:
+            case wkbMultiLineString:
+            case wkbMultiLineString25D:
+            case wkbMultiPolygon:
+            case wkbMultiPolygon25D:
+            case wkbGeometryCollection:
+            case wkbGeometryCollection25D:
+            {
+                int ig;
+                poColl = (OGRGeometryCollection*)this;
+                fprintf( fp, "%d geometries:\n", poColl->getNumGeometries() );
+                for ( ig = 0; ig < poColl->getNumGeometries(); ig++)
+                {
+                    OGRGeometry * poChild = (OGRGeometry*)poColl->getGeometryRef(ig);
+                    fprintf( fp, "%s", pszPrefix);
+                    poChild->dumpReadable( fp, pszPrefix, papszOptions );
+                }
+                break;
+            }
+            case wkbLinearRing:
+                break;
+        }
+    }
+    else if (pszDisplayGeometry == NULL || CSLTestBoolean(pszDisplayGeometry) ||
+             EQUAL(pszDisplayGeometry, "WKT"))
+    {
+        if( exportToWkt( &pszWkt ) == OGRERR_NONE )
+        {
+            fprintf( fp, "%s%s\n", pszPrefix, pszWkt );
+            CPLFree( pszWkt );
+        }
     }
 }
 
@@ -464,6 +538,54 @@ OGRErr OGR_G_Transform( OGRGeometryH hGeom,
  *
  * @return 0 for points, 1 for lines and 2 for surfaces.
  */
+
+
+/************************************************************************/
+/*                  OGRGeometry::segmentize()                           */
+/************************************************************************/
+/**
+ *
+ * Modify the geometry such it has no segment longer then the given distance.
+ * Interpolated points will have Z and M values (if needed) set to 0.
+ * Distance computation is performed in 2d only
+ *
+ * This function is the same as the C function OGR_G_Segmentize()
+ *
+ * @param hGeom handle on the geometry to segmentize
+ * @param dfMaxLength the maximum distance between 2 points after segmentization
+ */
+
+void OGRGeometry::segmentize( double dfMaxLength )
+{
+    /* Do nothing */
+}
+
+/************************************************************************/
+/*                         OGR_G_Segmentize()                           */
+/************************************************************************/
+
+/**
+ *
+ * Modify the geometry such it has no segment longer then the given distance.
+ * Interpolated points will have Z and M values (if needed) set to 0.
+ * Distance computation is performed in 2d only
+ *
+ * This function is the same as the CPP method OGRGeometry::segmentize().
+ *
+ * @param hGeom handle on the geometry to segmentize
+ * @param dfMaxLength the maximum distance between 2 points after segmentization
+ */
+
+void   CPL_DLL OGR_G_Segmentize(OGRGeometryH hGeom, double dfMaxLength )
+{
+    if (dfMaxLength <= 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "dfMaxLength must be strictly positive");
+        return;
+    }
+    ((OGRGeometry *) hGeom)->segmentize( dfMaxLength );
+}
 
 /************************************************************************/
 /*                         OGR_G_GetDimension()                         */
@@ -1330,6 +1452,71 @@ const char *OGRGeometryTypeToName( OGRwkbGeometryType eType )
           return szWorkName;
       }
     }
+}
+
+/************************************************************************/
+/*                       OGRMergeGeometryTypes()                        */
+/************************************************************************/
+
+/**
+ * Find common geometry type.
+ *
+ * Given two geometry types, find the most specific common
+ * type.  Normally used repeatedly with the geometries in a
+ * layer to try and establish the most specific geometry type
+ * that can be reported for the layer.
+ *
+ * NOTE: wkbUnknown is the "worst case" indicating a mixture of
+ * geometry types with nothing in common but the base geometry
+ * type.  wkbNone should be used to indicate that no geometries
+ * have been encountered yet, and means the first geometry
+ * encounted will establish the preliminary type.
+ * 
+ * @param eMain the first input geometry type.
+ * @param eExtra the second input geometry type.
+ *
+ * @return the merged geometry type.
+ */
+
+OGRwkbGeometryType 
+OGRMergeGeometryTypes( OGRwkbGeometryType eMain,
+                       OGRwkbGeometryType eExtra )
+
+{
+    int n25DFlag = 0;
+    OGRwkbGeometryType eFMain = wkbFlatten(eMain);
+    OGRwkbGeometryType eFExtra = wkbFlatten(eExtra);
+        
+    if( eFMain != eMain || eFExtra != eExtra )
+        n25DFlag = wkb25DBit;
+
+    if( eFMain == wkbUnknown || eFExtra == wkbUnknown )
+        return (OGRwkbGeometryType) (((int) wkbUnknown) | n25DFlag);
+
+    if( eFMain == wkbNone )
+        return eExtra;
+
+    if( eFExtra == wkbNone )
+        return eMain;
+
+    if( eFMain == eFExtra )
+        return (OGRwkbGeometryType) (((int) eFMain) | n25DFlag);
+
+    // Both are geometry collections.
+    if( (eFMain == wkbGeometryCollection
+         || eFMain == wkbMultiPoint
+         || eFMain == wkbMultiLineString
+         || eFMain == wkbMultiPolygon)
+        && (eFExtra == wkbGeometryCollection
+            || eFExtra == wkbMultiPoint
+            || eFExtra == wkbMultiLineString
+            || eFMain == wkbMultiPolygon) )
+    {
+        return (OGRwkbGeometryType) (((int) wkbGeometryCollection) | n25DFlag);
+    }
+
+    // Nothing apparently in common.
+    return (OGRwkbGeometryType) (((int) wkbUnknown) | n25DFlag);
 }
 
 /**

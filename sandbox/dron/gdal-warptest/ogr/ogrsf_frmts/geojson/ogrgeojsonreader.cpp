@@ -116,6 +116,8 @@ OGRGeoJSONLayer* OGRGeoJSONReader::ReadLayer( const char* pszName,
     {
         CPLError( CE_Failure, CPLE_AppDefined,
             "Layer schema generation failed." );
+
+        delete poLayer_;
         return NULL;
     }
 
@@ -153,6 +155,7 @@ OGRGeoJSONLayer* OGRGeoJSONReader::ReadLayer( const char* pszName,
         {
             CPLDebug( "GeoJSON",
                       "Translation of single feature failed." );
+
             delete poLayer_;
             return NULL;
         }
@@ -168,7 +171,11 @@ OGRGeoJSONLayer* OGRGeoJSONReader::ReadLayer( const char* pszName,
     }
     else
     {
-        CPLAssert( !"SHOULD NEVER GET HERE" );
+        CPLError( CE_Failure, CPLE_AppDefined,
+            "Unrecognized GeoJSON structure." );
+
+        delete poLayer_;
+        return NULL;
     }
 
 /* -------------------------------------------------------------------- */
@@ -365,6 +372,9 @@ bool OGRGeoJSONReader::GenerateFeatureDefn( json_object* poObj )
     if( NULL != poObjProps )
     {
         json_object_iter it;
+        it.key = NULL;
+        it.val = NULL;
+        it.entry = NULL;
         json_object_object_foreachC( poObjProps, it )
         {
             if( -1 == poDefn->GetFieldIndex( it.key ) )
@@ -484,6 +494,9 @@ OGRFeature* OGRGeoJSONReader::ReadFeature( json_object* poObj )
         int nField = -1;
         OGRFieldDefn* poFieldDefn = NULL;
         json_object_iter it;
+        it.key = NULL;
+        it.val = NULL;
+        it.entry = NULL;
         json_object_object_foreachC( poObjProps, it )
         {
             nField = poFeature->GetFieldIndex(it.key);
@@ -540,6 +553,9 @@ OGRFeature* OGRGeoJSONReader::ReadFeature( json_object* poObj )
     json_object* poTmp = poObj;
 
     json_object_iter it;
+    it.key = NULL;
+    it.val = NULL;
+    it.entry = NULL;    
     json_object_object_foreachC(poTmp, it)
     {
         if( EQUAL( it.key, "geometry" ) ) {
@@ -628,6 +644,9 @@ json_object* OGRGeoJSONFindMemberByName( json_object* poObj,
     json_object* poTmp = poObj;
 
     json_object_iter it;
+    it.key = NULL;
+    it.val = NULL;
+    it.entry = NULL;
     if( NULL != json_object_get_object(poTmp) )
     {
         CPLAssert( NULL != json_object_get_object(poTmp)->head );
@@ -1203,3 +1222,4 @@ OGRGeometryH OGR_G_CreateGeometryFromJson( const char* pszJson )
     /* Translation failed */
     return NULL;
 }
+

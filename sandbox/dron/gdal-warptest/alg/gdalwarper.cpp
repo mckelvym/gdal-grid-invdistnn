@@ -30,6 +30,7 @@
 #include "gdalwarper.h"
 #include "cpl_string.h"
 #include "cpl_minixml.h"
+#include "ogr_api.h"
 
 CPL_CVSID("$Id$");
 
@@ -489,6 +490,8 @@ GDALWarpSrcAlphaMasker( void *pMaskFuncArg, int nBandCount, GDALDataType eType,
     CPLErr eErr;
     GDALRasterBandH hAlphaBand = GDALGetRasterBand( psWO->hSrcDS, 
                                                     psWO->nSrcAlphaBand );
+    if (hAlphaBand == NULL)
+        return CE_Failure;
 
     eErr = GDALRasterIO( hAlphaBand, GF_Read, nXOff, nYOff, nXSize, nYSize, 
                          pafMask, nXSize, nYSize, GDT_Float32, 0, 0 );
@@ -546,6 +549,8 @@ GDALWarpDstAlphaMasker( void *pMaskFuncArg, int nBandCount, GDALDataType eType,
 
     GDALRasterBandH hAlphaBand = 
         GDALGetRasterBand( psWO->hDstDS, psWO->nDstAlphaBand );
+    if (hAlphaBand == NULL)
+        return CE_Failure;
 
 /* -------------------------------------------------------------------- */
 /*      Read alpha case.						*/
@@ -588,10 +593,22 @@ GDALWarpDstAlphaMasker( void *pMaskFuncArg, int nBandCount, GDALDataType eType,
         for( iPixel = nXSize * nYSize - 1; iPixel >= 0; iPixel-- )
             pafMask[iPixel] = (int) (pafMask[iPixel] * 255.1);
         
-        // Read data.
+        // Write data.
+
+        /* The VRT warper will pass destination sizes that may exceed */
+        /* the size of the raster for the partial blocks at the right */
+        /* and bottom of the band. So let's adjust the size */
+        int nDstXSize = nXSize;
+        if (nXOff + nXSize > GDALGetRasterXSize(hAlphaBand))
+            nDstXSize = GDALGetRasterXSize(hAlphaBand) - nXOff;
+        int nDstYSize = nYSize;
+        if (nYOff + nYSize > GDALGetRasterYSize(hAlphaBand))
+            nDstYSize = GDALGetRasterYSize(hAlphaBand) - nYOff;
+
         eErr = GDALRasterIO( hAlphaBand, GF_Write, 
-                             nXOff, nYOff, nXSize, nYSize, 
-                             pafMask, nXSize, nYSize, GDT_Float32, 0, 0 );
+                             nXOff, nYOff, nDstXSize, nDstYSize, 
+                             pafMask, nDstXSize, nDstYSize, GDT_Float32,
+                             0, sizeof(float) * nXSize );
         return eErr;
     }
 }
@@ -694,6 +711,9 @@ void CPL_STDCALL GDALDestroyWarpOptions( GDALWarpOptions *psOptions )
     CPLFree( psOptions->papfnSrcPerBandValidityMaskFunc );
     CPLFree( psOptions->papSrcPerBandValidityMaskFuncArg );
 
+    if( psOptions->hCutline != NULL )
+        OGR_G_DestroyGeometry( (OGRGeometryH) psOptions->hCutline );
+
     CPLFree( psOptions );
 }
 
@@ -730,6 +750,11 @@ GDALCloneWarpOptions( const GDALWarpOptions *psSrcOptions )
     COPY_MEM( padfDstNoDataImag, double, psSrcOptions->nBandCount );
     COPY_MEM( papfnSrcPerBandValidityMaskFunc, GDALMaskFunc, 
               psSrcOptions->nBandCount );
+
+    if( psSrcOptions->hCutline != NULL )
+        psDstOptions->hCutline = 
+            OGR_G_Clone( (OGRGeometryH) psSrcOptions->hCutline );
+    psDstOptions->dfCutlineBlendDist = psSrcOptions->dfCutlineBlendDist;
 
     return psDstOptions;
 }
@@ -804,6 +829,8 @@ GDALSerializeWarpOptions( const GDALWarpOptions *psWO )
         CPLCreateXMLNode( 
             CPLCreateXMLNode( psOption, CXT_Attribute, "name" ),
             CXT_Text, pszName );
+
+        CPLFree(pszName);
     }
 
 /* -------------------------------------------------------------------- */
@@ -898,6 +925,25 @@ GDALSerializeWarpOptions( const GDALWarpOptions *psWO )
         CPLCreateXMLElementAndValue( 
             psTree, "DstAlphaBand", 
             CPLString().Printf( "%d", psWO->nDstAlphaBand ) );
+
+/* -------------------------------------------------------------------- */
+/*      Cutline.                                                        */
+/* -------------------------------------------------------------------- */
+    if( psWO->hCutline != NULL )
+    {
+        char *pszWKT = NULL;
+        if( OGR_G_ExportToWkt( (OGRGeometryH) psWO->hCutline, &pszWKT )
+            == OGRERR_NONE )
+        {
+            CPLCreateXMLElementAndValue( psTree, "Cutline", pszWKT );
+            CPLFree( pszWKT );
+        }
+    }
+
+    if( psWO->dfCutlineBlendDist != 0.0 )
+        CPLCreateXMLElementAndValue( 
+            psTree, "CutlineBlendDist", 
+            CPLString().Printf( "%.5g", psWO->dfCutlineBlendDist ) );
 
     return psTree;
 }
@@ -1114,6 +1160,19 @@ GDALWarpOptions * CPL_STDCALL GDALDeserializeWarpOptions( CPLXMLNode *psTree )
         atoi( CPLGetXMLValue( psTree, "DstAlphaBand", "0" ) );
 
 /* -------------------------------------------------------------------- */
+/*      Cutline.                                                        */
+/* -------------------------------------------------------------------- */
+    const char *pszWKT = CPLGetXMLValue( psTree, "Cutline", NULL );
+    if( pszWKT )
+    {
+        OGR_G_CreateFromWkt( (char **) &pszWKT, NULL, 
+                             (OGRGeometryH *) (&psWO->hCutline) );
+    }
+
+    psWO->dfCutlineBlendDist =
+        atof( CPLGetXMLValue( psTree, "CutlineBlendDist", "0" ) );
+
+/* -------------------------------------------------------------------- */
 /*      Transformation.                                                 */
 /* -------------------------------------------------------------------- */
     CPLXMLNode *psTransformer = CPLGetXMLNode( psTree, "Transformer" );
@@ -1130,6 +1189,11 @@ GDALWarpOptions * CPL_STDCALL GDALDeserializeWarpOptions( CPLXMLNode *psTree )
 /* -------------------------------------------------------------------- */
     if( CPLGetLastErrorNo() != CE_None )
     {
+        if ( psWO->pTransformerArg )
+        {
+            GDALDestroyTransformer( psWO->pTransformerArg );
+            psWO->pTransformerArg = NULL;
+        }
         GDALDestroyWarpOptions( psWO );
         return NULL;
     }

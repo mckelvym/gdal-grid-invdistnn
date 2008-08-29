@@ -372,6 +372,8 @@ OGRErr OGRSpatialReference::importFromPanorama( long iProjSys, long iDatum,
                                                 double *padfPrjParams )
 
 {
+    Clear();
+
 /* -------------------------------------------------------------------- */
 /*      Use safe defaults if projection parameters are not supplied.    */
 /* -------------------------------------------------------------------- */
@@ -570,7 +572,7 @@ OGRErr OGRSpatialReference::importFromPanorama( long iProjSys, long iDatum,
         else
         {
             CPLError( CE_Warning, CPLE_AppDefined,
-                      "Wrong datum code %d. Supported datums are 1--%d only.\n"
+                      "Wrong datum code %d. Supported datums are 1--%ld only.\n"
                       "Setting WGS84 as a fallback.",
                       (int) iDatum, NUMBER_OF_DATUMS - 1 );
             SetWellKnownGeogCS( "WGS84" );

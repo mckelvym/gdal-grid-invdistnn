@@ -156,9 +156,34 @@ void    CPLErrorV(CPLErr eErrClass, int err_no, const char *fmt, va_list args )
         wrk_args = args;
 #endif
 
-        while( ((nPR = vsnprintf( psCtx->szLastErrMsg, 
-                                 psCtx->nLastErrMsgMax, fmt, wrk_args )) == -1
-                || nPR >= psCtx->nLastErrMsgMax-1)
+/* -------------------------------------------------------------------- */
+/*      If CPL_ACCUM_ERROR_MSG=ON and the active error handler          */
+/*      is CPLQuietErrorHandler, accumulate the error messages          */
+/* -------------------------------------------------------------------- */
+        int nPreviousSize = 0;
+        if ( psCtx->psHandlerStack != NULL &&
+             psCtx->psHandlerStack->pfnHandler == CPLQuietErrorHandler &&
+             EQUAL(CPLGetConfigOption( "CPL_ACCUM_ERROR_MSG", "" ), "ON"))
+        {
+            nPreviousSize = strlen(psCtx->szLastErrMsg);
+            if (nPreviousSize)
+            {
+                if (nPreviousSize + 1 + 1 >= psCtx->nLastErrMsgMax)
+                {
+                    psCtx->nLastErrMsgMax *= 3;
+                    psCtx = (CPLErrorContext *) 
+                        CPLRealloc(psCtx, sizeof(CPLErrorContext) - DEFAULT_LAST_ERR_MSG_SIZE + psCtx->nLastErrMsgMax + 1);
+                    CPLSetTLS( CTLS_ERRORCONTEXT, psCtx, TRUE );
+                }
+                psCtx->szLastErrMsg[nPreviousSize] = '\n';
+                psCtx->szLastErrMsg[nPreviousSize+1] = '0';
+                nPreviousSize ++;
+            }
+        }
+
+        while( ((nPR = vsnprintf( psCtx->szLastErrMsg+nPreviousSize, 
+                                 psCtx->nLastErrMsgMax-nPreviousSize, fmt, wrk_args )) == -1
+                || nPR >= psCtx->nLastErrMsgMax-nPreviousSize-1)
                && psCtx->nLastErrMsgMax < 1000000 )
         {
 #ifdef va_copy
@@ -415,8 +440,6 @@ const char* CPL_STDCALL CPLGetLastErrorMsg()
 /*                       CPLDefaultErrorHandler()                       */
 /************************************************************************/
 
-#define MAX_NUMBER_OF_ERRORS_REPORTED       1000
-
 void CPL_STDCALL CPLDefaultErrorHandler( CPLErr eErrClass, int nError, 
                              const char * pszErrorMsg )
 
@@ -424,11 +447,18 @@ void CPL_STDCALL CPLDefaultErrorHandler( CPLErr eErrClass, int nError,
     static int       bLogInit = FALSE;
     static FILE *    fpLog = stderr;
     static int       nCount = 0;
+    static int       nMaxErrors = -1;
 
     if (eErrClass != CE_Debug)
     {
+        if( nMaxErrors == -1 )
+        {
+            nMaxErrors = 
+                atoi(CPLGetConfigOption( "CPL_MAX_ERROR_REPORTS", "1000" ));
+        }
+
         nCount++;
-        if (nCount > MAX_NUMBER_OF_ERRORS_REPORTED)
+        if (nCount > nMaxErrors && nMaxErrors > 0 )
             return;
     }
 
@@ -452,10 +482,14 @@ void CPL_STDCALL CPLDefaultErrorHandler( CPLErr eErrClass, int nError,
     else
         fprintf( fpLog, "ERROR %d: %s\n", nError, pszErrorMsg );
 
-    if (eErrClass != CE_Debug && nCount == MAX_NUMBER_OF_ERRORS_REPORTED)
+    if (eErrClass != CE_Debug 
+        && nMaxErrors > 0 
+        && nCount == nMaxErrors )
     {
-        fprintf( fpLog, "More than %d errors or warnings have been reported. "
-                        "No more will be reported from now.\n", MAX_NUMBER_OF_ERRORS_REPORTED );
+        fprintf( fpLog, 
+                 "More than %d errors or warnings have been reported. "
+                 "No more will be reported from now.\n", 
+                 nMaxErrors );
     }
 
     fflush( fpLog );
@@ -504,7 +538,8 @@ void CPL_STDCALL CPLLoggingErrorHandler( CPLErr eErrClass, int nError,
             char      path[5000];
             int       i = 0;
 
-            strcpy( path, cpl_log );
+            strncpy( path, cpl_log, sizeof(path) - 10 );
+            path[sizeof(path)-1] = '\0';
 
             while( (fpLog = fopen( path, "rt" )) != NULL ) 
             {

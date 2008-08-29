@@ -4,7 +4,7 @@
 
 /*! \mainpage GDAL - Geospatial Data Abstraction Library
 
-<center><b>Select language</b>: [English]<a href="index_ru.html">[Russian]</a><a href="index_br.html">[Portuguese]</a></center>
+<center><b>Select language</b>: [English]<a href="index_ru.html">[Russian]</a><a href="index_br.html">[Portuguese]</a><a href="http://softlibre.gloobe.org/doku.php?id=gdal_ogr:couteau_suisse:start">[French/Francais]</a></center>
 
 \htmlonly<img src="gdalicon.png" alt="GDAL">\endhtmlonly \latexonly GDAL \endlatexonly
 is a translator library for raster geospatial data formats
@@ -16,8 +16,8 @@ Geospatial Foundation</a>.  As a library, it presents a
 to the calling application for all supported formats.  It also comes with a variety
 of useful \link gdal_utilities.html commandline utilities\endlink
 for data translation and processing.  The 
-<a href="http://trac.osgeo.org/gdal/wiki/Release/1.5.1-News">NEWS</a> 
-page describes the March 2008 GDAL/OGR 1.5.1 release.
+<a href="http://trac.osgeo.org/gdal/wiki/Release/1.5.2-News">NEWS</a> 
+page describes the June 2008 GDAL/OGR 1.5.2 release.
 
 The related <a href="ogr">OGR</a> library (which lives within the GDAL source tree) 
 provides a similar capability for simple features vector data.
@@ -76,11 +76,11 @@ around them.
 \section index_maillist Mailing List
 
 A gdal-announce mailing list <a href="http://lists.osgeo.org/mailman/listinfo/gdal-announce/">subscription</a> is a low volume way of keeping track of major
-developments with the GDAL project.
+developments with the GDAL/OGR project.
 
 The <a href="mailto:gdal-dev@lists.osgeo.org">gdal-dev@lists.osgeo.org</a>
-mailing list can be used for discussion of development and user issues relatedt
-o GDAL and related technologies.  Subscriptions can be done, and archives 
+mailing list can be used for discussion of development and user issues related
+to GDAL and related technologies.  Subscriptions can be done, and archives 
 reviewed <a href="http://lists.osgeo.org/mailman/listinfo/gdal-dev/">on 
 the web</a>.  The mailing list is also available in read-only format by NNTP at
 <a href="news://news.gmane.org/gmane.comp.gis.gdal.devel">news://news.gmane.org/gmane.comp.gis.gdal.devel</a>

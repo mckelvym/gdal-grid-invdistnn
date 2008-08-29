@@ -300,15 +300,16 @@ HFAInfo_t *HFAGetDependent( HFAInfo_t *psBase, const char *pszFilename )
 /* -------------------------------------------------------------------- */
     char	*pszDependent;
     FILE	*fp;
+    const char* pszMode = psBase->eAccess == HFA_Update ? "r+b" : "rb";
 
     pszDependent = CPLStrdup(
         CPLFormFilename( psBase->pszPath, pszFilename, NULL ) );
 
-    fp = VSIFOpenL( pszDependent, "rb" );
+    fp = VSIFOpenL( pszDependent, pszMode );
     if( fp != NULL )
     {
         VSIFCloseL( fp );
-        psBase->psDependent = HFAOpen( pszDependent, "rb" );
+        psBase->psDependent = HFAOpen( pszDependent, pszMode );
     }
 
     CPLFree( pszDependent );
@@ -2031,11 +2032,8 @@ HFACreateLayer( HFAHandle psInfo, HFAEntry *poParent,
             HFAStandard( 4, &nValue );
             memcpy( pabyData + nOffset + 6, &nValue, 4 );
 
-            /* logValid (true/false) */
-            if( bCreateCompressed )
-                nValue16 = 0;
-            else
-                nValue16 = 1;
+            /* logValid (false) */
+            nValue16 = 0;
             HFAStandard( 2, &nValue16 );
             memcpy( pabyData + nOffset + 10, &nValue16, 2 );
 

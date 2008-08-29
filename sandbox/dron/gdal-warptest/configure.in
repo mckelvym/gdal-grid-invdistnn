@@ -698,6 +698,7 @@ dnl ---------------------------------------------------------------------------
 dnl Select a libgeotiff library to use.
 dnl ---------------------------------------------------------------------------
 
+GEOTIFF_INCLUDE=
 AC_ARG_WITH(geotiff,[  --with-geotiff=ARG    Libgeotiff library to use (ARG=internal, yes or path)],,)
 
 if test "$with_geotiff" = "yes" -o "$with_geotiff" = "" ; then
@@ -711,10 +712,21 @@ if test "$with_geotiff" = "yes" -o "$with_geotiff" = "" ; then
   fi
 
   if test "$GEOTIFF_SETTING" = "external" ; then   
+
+    dnl Now search for headers
+    if test -r /usr/include/geotiff.h ; then
+      GEOTIFF_INCLUDE=
+    elif test -r /usr/include/geotiff/geotiff.h ; then
+      GEOTIFF_INCLUDE="-I/usr/include/geotiff"
+    fi
+
     LIBS="-lgeotiff $LIBS"
     echo "using pre-installed libgeotiff."
+
   else
+
     echo "using internal GeoTIFF code."
+
   fi
 
 elif test "$with_geotiff" = "internal" ; then
@@ -749,6 +761,7 @@ else
 fi
 
 AC_SUBST(GEOTIFF_SETTING,$GEOTIFF_SETTING)
+AC_SUBST(GEOTIFF_INCLUDE,$GEOTIFF_INCLUDE)
 
 dnl ---------------------------------------------------------------------------
 dnl Select a JPEG Library to use, or disable driver.
@@ -1022,7 +1035,7 @@ dnl Not found... again, with -lsz.
 
   else
 
-    if x"$with_hdf4" != x"" ; then
+    if test x"$with_hdf4" != x"" ; then
       AC_MSG_ERROR([HDF4 support requested with arg "$with_hdf4", but neither hdf4 nor mfhdf lib found])
     else
       LIBS="$ORIG_LIBS"
@@ -1082,8 +1095,8 @@ else
 
   AC_CHECK_LIB(hdf5,H5Fopen,HDF5_LIB_NAME="-lhdf5 ",HDF5_LIB_NAME=missing,-lhdf5)
 
-  if test "$HDF_LIB_NAME" = "missing" ; then
-    AC_MSG_ERROR([HDF4 support requested with arg $with_hdf4, but neither hdf4 nor mfhdf lib found])
+  if test "$HDF5_LIB_NAME" = "missing" ; then
+    AC_MSG_ERROR([HDF5 support requested with arg $with_hdf5, but no hdf5 lib found])
   fi
 
   LIBS="-L$HDF5_LIB_DIR $HDF5_LIB_NAME $ORIG_LIBS"
@@ -1254,6 +1267,7 @@ dnl ---------------------------------------------------------------------------
 dnl Select MrSID library or disable driver.
 dnl ---------------------------------------------------------------------------
 MRSID_FLAGS=
+HAVE_MRSID=no
 
 AC_ARG_WITH(mrsid,[  --with-mrsid[=ARG]      Include MrSID support (ARG=path to MrSID DSDK or no)],,)
 
@@ -1267,12 +1281,32 @@ if test "x$with_mrsid" = "xno"  -o "x$with_mrsid" = "x" ; then
 
 else
 
-  AC_MSG_CHECKING([for lt_base.h in $with_mrsid/include/support])
-  if test -r "$with_mrsid/include/support/lt_base.h" ; then
-    AC_MSG_RESULT([found MrSID DSDK version 4.x or newer.])
+  MRSID_BASE="$with_mrsid/include"
 
+  AC_MSG_CHECKING([for lt_base.h in $MRSID_BASE/support])
+  if test -r "$MRSID_BASE/support/lt_base.h" ; then
+
+    AC_MSG_RESULT([found MrSID DSDK version 4.x or newer.])
     HAVE_MRSID=yes
-    MRSID_INCLUDE="-I$with_mrsid/include/base -I$with_mrsid/include/metadata -I$with_mrsid/include/mrsid_readers -I$with_mrsid/include/j2k_readers -I$with_mrsid/include/support"
+    MRSID_INCLUDE="-I$MRSID_BASE/base -I$MRSID_BASE/metadata -I$MRSID_BASE/mrsid_readers -I$MRSID_BASE/j2k_readers -I$MRSID_BASE/support"
+
+  else
+
+    AC_MSG_RESULT([not found.])
+
+    AC_MSG_CHECKING([for lt_base.h in $MRSID_BASE])
+    if test -r "$MRSID_BASE/lt_base.h" ; then
+
+      AC_MSG_RESULT([found MrSID DSDK version 7.x or newer.]);
+      HAVE_MRSID=yes
+      MRSID_INCLUDE="-I$MRSID_BASE"
+
+    fi
+
+  fi
+
+  if test $HAVE_MRSID = yes ; then
+
     MRSID_LIBS="-lltidsdk -lpthread"
 
     AC_MSG_CHECKING([for MG3ImageWriter.h in $with_mrsid/include/mrsid_writers])
@@ -1294,17 +1328,23 @@ else
       AC_MSG_ERROR([MrSID JPEG2000 support requested, but this is incompatible with use of standalone Kakadu])
     fi
 
-    if test "x$with_jp2mrsid" = "x" -a "$HAVE_KAKADU" = "no" \
-            -a -r $with_mrsid/3rd-party/lib/Release/libltikdu.a ; then 
-      with_jp2mrsid=yes
-    fi
-    if test "x$with_jp2mrsid" = "xyes" \
-            -a ! -r $with_mrsid/3rd-party/lib/Release/libltikdu.a ; then 
-      AC_MSG_ERROR([MrSID JPEG2000 support requested, but libltikdu.a not found.])
+    MRSID_KAKADU_LIB=no
+    if test "$HAVE_KAKADU" = "no" ; then
+      if test x"$with_jp2mrsid" = x"" -o x"$with_jp2mrsid" = x"yes" ; then
+        if test -r $with_mrsid/3rd-party/lib/Release/libltikdu.a ; then 
+          with_jp2mrsid=yes
+          MRSID_KAKADU_LIB=-lltikdu
+        elif test -r $with_mrsid/3rd-party/lib/Release/liblt_kakadu.a ; then 
+          with_jp2mrsid=yes
+          MRSID_KAKADU_LIB=-llt_kakadu
+        else
+          AC_MSG_ERROR([MrSID JPEG2000 support requested, but libltikdu.a not found.])
+        fi
+      fi
     fi
 
     if test "x$with_jp2mrsid" = "xyes" ; then
-      MRSID_LIBS="$MRSID_LIBS -lltikdu"
+      MRSID_LIBS="$MRSID_LIBS $MRSID_KAKADU_LIB"
       MRSID_FLAGS="-DMRSID_J2K $MRSID_FLAGS"
       AC_MSG_RESULT([enabled])
     else
@@ -1333,35 +1373,82 @@ if test "$HAVE_MRSID" != "no" ; then
   OPT_GDAL_FORMATS="mrsid $OPT_GDAL_FORMATS"
 fi
 
+
+dnl ---------------------------------------------------------------------------
+dnl Enable MSG format if EUMETSAT Wavelet Transform Software
+dnl available in the local tree
 dnl ---------------------------------------------------------------------------
 
-AC_ARG_WITH(bsb,[  --without-bsb         Disable BSB format (legal issues pending)],,)
+AC_ARG_WITH([msg],
+	    AS_HELP_STRING([--with-msg[=ARG]],
+	       [Enable MSG driver (ARG=yes or no)]),,)
 
+HAVE_MSG=no
+HAVE_EUMETSATWT=no
+
+if test "x$with_msg" = "xyes" ; then 
+    AC_MSG_CHECKING([for EUMETSAT Wavelet Transformation Software])
+
+    if test -d "frmts/msg/PublicDecompWT" -a \
+        -f "frmts/msg/PublicDecompWT/COMP/Inc/CImage.h"; then
+        HAVE_EUMETSATWT=yes
+    else
+        HAVE_EUMETSATWT=no
+    fi
+    AC_MSG_RESULT([$HAVE_EUMETSATWT])
+fi
+
+AC_MSG_CHECKING([for MSG])
+
+if test "x$with_msg" = "xyes" -o "x$with_msg" = "x" \
+    -a "x$HAVE_EUMETSATWT" = "xyes"; then 
+    OPT_GDAL_FORMATS="msg $OPT_GDAL_FORMATS"
+    HAVE_MSG=yes
+    AC_MSG_RESULT([enabled])
+else
+    HAVE_MSG=no
+    AC_MSG_RESULT([not requested])
+fi
+
+
+dnl ---------------------------------------------------------------------------
+dnl Check for BSB in the local tree.
+dnl ---------------------------------------------------------------------------
+
+AC_ARG_WITH([bsb],
+	    AS_HELP_STRING([--without-bsb],
+	       [Disable BSB driver (legal issues pending]),,)
+
+AC_MSG_CHECKING([for BSB])
 if test "$with_bsb" = yes -o x"$with_bsb" = x ; then
-  echo checking for BSB ... enabled
-  OPT_GDAL_FORMATS="bsb $OPT_GDAL_FORMATS"
+    OPT_GDAL_FORMATS="bsb $OPT_GDAL_FORMATS"
+    AC_MSG_RESULT([enabled])
 else
-  echo checking for BSB ... disabled by user
+    AC_MSG_RESULT([disabled by user])
 fi
 
 dnl ---------------------------------------------------------------------------
-dnl Check for grib in the local tree.
+dnl Check for GRIB in the local tree.
 dnl ---------------------------------------------------------------------------
 
-AC_ARG_WITH(grib,[  --without-grib        Disable GRIB format],,)
+AC_ARG_WITH([grib],
+	    AS_HELP_STRING([--without-grib],
+	       [Disable GRIB driver]),,)
 
+AC_MSG_CHECKING([for GRIB])
 if test "$with_grib" = yes -o x"$with_grib" = x ; then
-  echo checking for GRIB ... enabled
-  OPT_GDAL_FORMATS="grib $OPT_GDAL_FORMATS"
-  HAVE_GRIB=yes
+    OPT_GDAL_FORMATS="grib $OPT_GDAL_FORMATS"
+    HAVE_GRIB=yes
+    AC_MSG_RESULT([enabled])
 else
-  echo checking for GRIB ... disabled by user
-  HAVE_GRIB=no
+    HAVE_GRIB=no
+    AC_MSG_RESULT([disabled by user])
 fi
+
 
 dnl ---------------------------------------------------------------------------
 
-AC_SUBST(OPT_GDAL_FORMATS,$OPT_GDAL_FORMATS)
+AC_SUBST([OPT_GDAL_FORMATS], [$OPT_GDAL_FORMATS])
 
 dnl ---------------------------------------------------------------------------
 
@@ -2215,6 +2302,7 @@ else
 fi
 LOC_MSG([  ECW support:               ${ECW_SETTING}])
 LOC_MSG([  MrSID support:             ${HAVE_MRSID}])
+LOC_MSG([  MSG support:               ${HAVE_MSG}])
 LOC_MSG([  GRIB support:              ${HAVE_GRIB}])
 LOC_MSG([  cURL support (wms/wcs/...):${CURL_SETTING}])
 LOC_MSG([  PostgreSQL support:        ${HAVE_PG}])

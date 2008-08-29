@@ -38,6 +38,13 @@ CPL_C_START
 void    GDALRegister_L1B(void);
 CPL_C_END
 
+enum {                  // File formats
+    L1B_NONE,           // Not a L1B format
+    L1B_NOAA9,          // NOAA-9/14
+    L1B_NOAA15,         // NOAA-15/METOP-2
+    L1B_NOAA15_NOHDR    // NOAA-15/METOP-2 without ARS header
+};
+
 enum {          // Spacecrafts:
     TIROSN,     // TIROS-N
     NOAA6,      // NOAA-6(A)
@@ -78,6 +85,7 @@ enum {          // Receiving stations names:
     WE,         // Western Europe CDA, Lannion, France
     SO,         // SOCC (Satellite Operations Control Center), Suitland, Maryland, USA
     WI,         // Wallops Island, Virginia, USA
+    SV,         // Svalbard, Norway
     UNKNOWN_STATION
 };
 
@@ -90,13 +98,14 @@ enum {          // Data processing centers:
 };
 
 enum {          // AVHRR Earth location indication
-        ASCEND,
-        DESCEND
+    ASCEND,
+    DESCEND
 };
 
 /************************************************************************/
 /*                      AVHRR band widths                               */
 /************************************************************************/
+
 static const char *apszBandDesc[] =
 {
     // NOAA-7 -- METOP-2 channels
@@ -112,10 +121,46 @@ static const char *apszBandDesc[] =
     "AVHRR Channel 3B: 3.55  micrometers -- 3.93 micrometers"
     };
 
-#define TBM_HEADER_SIZE 122
+/************************************************************************/
+/*      L1B file format related constants                               */
+/************************************************************************/
+
+#define L1B_DATASET_NAME_SIZE       42  // Length of the string containing
+                                        // dataset name
+#define L1B_NOAA9_HEADER_SIZE       122 // Terabit memory (TBM) header length
+#define L1B_NOAA9_HDR_NAME_OFF      30  // Dataset name offset
+#define L1B_NOAA9_HDR_SRC_OFF       70  // Receiving station name offset
+#define L1B_NOAA9_HDR_CHAN_OFF      97  // Selected channels map offset
+#define L1B_NOAA9_HDR_CHAN_SIZE     20  // Length of selected channels map
+#define L1B_NOAA9_HDR_WORD_OFF      117 // Sensor data word size offset
+
+#define L1B_NOAA15_HEADER_SIZE      512 // Archive Retrieval System (ARS)
+                                        // header
+#define L1B_NOAA15_HDR_CHAN_OFF     97  // Selected channels map offset
+#define L1B_NOAA15_HDR_CHAN_SIZE    20  // Length of selected channels map
+#define L1B_NOAA15_HDR_WORD_OFF     117 // Sensor data word size offset
+
+#define L1B_NOAA9_HDR_REC_SIZE      146 // Length of header record
+                                        // filled with the data
+#define L1B_NOAA9_HDR_REC_ID_OFF    0   // Spacecraft ID offset
+#define L1B_NOAA9_HDR_REC_PROD_OFF  1   // Data type offset
+#define L1B_NOAA9_HDR_REC_DSTAT_OFF 34  // DACS status offset
+
+#define L1B_NOAA15_HDR_REC_SIZE     992 // Length of header record
+                                        // filled with the data
+#define L1B_NOAA15_HDR_REC_SITE_OFF 0   // Dataset creation site ID offset
+#define L1B_NOAA15_HDR_REC_NAME_OFF 22  // Dataset name
+#define L1B_NOAA15_HDR_REC_ID_OFF   72  // Spacecraft ID offset
+#define L1B_NOAA15_HDR_REC_PROD_OFF 76  // Data type offset
+#define L1B_NOAA15_HDR_REC_STAT_OFF 116 // Instrument status offset
+#define L1B_NOAA15_HDR_REC_SRC_OFF  154 // Receiving station name offset
 
 #define DESIRED_GCPS_PER_LINE 11
 #define DESIRED_LINES_OF_GCPS 20
+
+// Fixed values used to scale GCPs coordinates in AVHRR records
+#define L1B_NOAA9_GCP_SCALE     128.0
+#define L1B_NOAA15_GCP_SCALE    10000.0
 
 /************************************************************************/
 /* ==================================================================== */
@@ -176,6 +221,7 @@ class L1BDataset : public GDALPamDataset
     int         nGCPsPerLine;
     int         eLocationIndicator, iGCPStart, iGCPStep;
 
+    int         eL1BFormat;
     int         nBufferSize;
     int         eSpacecraftID;
     int         eProductType;   // LAC, GAC, HRPT, FRAC
@@ -184,22 +230,27 @@ class L1BDataset : public GDALPamDataset
     int         nRecordDataEnd;
     int         nDataStartOffset;
     int         nRecordSize;
-    GUInt16     iInstrumentStatus;
-    GUInt32     iChannels;
+    GUInt32     iInstrumentStatus;
+    GUInt32     iChannelsMask;
 
     char        *pszGCPProjection;
 
     FILE        *fp;
 
+    int         bFetchGeolocation;
+    int         bGuessDataFormat;
+
     void        ProcessRecordHeaders();
-    void        FetchNOAA9GCPs(GDAL_GCP *pasGCPList, GInt16 *piRecordHeader, int iLine);
-    void        FetchNOAA15GCPs(GDAL_GCP *pasGCPList, GInt32 *piRecordHeader, int iLine);
-    void        FetchNOAA9TimeCode(TimeCode *psTime, GByte *piRecordHeader, int *iLocInd);
-    void        FetchNOAA15TimeCode(TimeCode *psTime, GUInt16 *piRecordHeader, int *intLocInd);
-    void        ProcessDatasetHeader();
+    void        FetchGCPs( GDAL_GCP *, GByte *, int );
+    void        FetchNOAA9TimeCode(TimeCode *, GByte *, int *);
+    void        FetchNOAA15TimeCode(TimeCode *, GUInt16 *, int *);
+    CPLErr      ProcessDatasetHeader();
+    int         ComputeFileOffsets();
     
+    static int  DetectFormat( GDALOpenInfo *poOpenInfo );
+
   public:
-                L1BDataset();
+                L1BDataset( int );
                 ~L1BDataset();
     
     virtual int GetGCPCount();
@@ -250,25 +301,25 @@ L1BRasterBand::L1BRasterBand( L1BDataset *poDS, int nBand )
 /************************************************************************/
 
 CPLErr L1BRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
-                                      void * pImage )
+                                  void * pImage )
 {
     L1BDataset  *poGDS = (L1BDataset *) poDS;
-    GUInt32     iword, jword;
-    GUInt16     *iScan = NULL;          // Unpacked 16-bit scanline buffer
-    int         iDataOffset, i, j;
-            
+
 /* -------------------------------------------------------------------- */
 /*      Seek to data.                                                   */
 /* -------------------------------------------------------------------- */
-    iDataOffset = (poGDS->eLocationIndicator == DESCEND)?
-            poGDS->nDataStartOffset + nBlockYOff * poGDS->nRecordSize:
-            poGDS->nDataStartOffset +
-            (poGDS->GetRasterYSize() - nBlockYOff - 1) * poGDS->nRecordSize;
-    VSIFSeekL(poGDS->fp, iDataOffset, SEEK_SET);
+    int iDataOffset = (poGDS->eLocationIndicator == DESCEND) ?
+        poGDS->nDataStartOffset + nBlockYOff * poGDS->nRecordSize :
+        poGDS->nDataStartOffset +
+            (nRasterYSize - nBlockYOff - 1) * poGDS->nRecordSize;
+    VSIFSeekL( poGDS->fp, iDataOffset, SEEK_SET );
 
 /* -------------------------------------------------------------------- */
 /*      Read data into the buffer.                                      */
 /* -------------------------------------------------------------------- */
+    GUInt16     *iScan = NULL;          // Unpacked 16-bit scanline buffer
+    int         i, j;
+
     switch (poGDS->iDataFormat)
     {
         case PACKED10BIT:
@@ -282,15 +333,13 @@ CPLErr L1BRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                 for(i = poGDS->nRecordDataStart / (int)sizeof(iRawScan[0]);
                     i < poGDS->nRecordDataEnd / (int)sizeof(iRawScan[0]); i++)
                 {
-                    iword = iRawScan[i];
-#ifdef CPL_LSB
-                    CPL_SWAP32PTR(&iword);
-#endif
-                    jword = iword & 0x3FF00000;
-                    iScan[j++] = (GUInt16) (jword >> 20);
-                    jword = iword & 0x000FFC00;
-                    iScan[j++] = (GUInt16) (jword >> 10);
-                    iScan[j++] = (GUInt16) (iword & 0x000003FF);
+                    GUInt32 iWord1 = CPL_MSBWORD32( iRawScan[i] );
+                    GUInt32 iWord2 = iWord1 & 0x3FF00000;
+
+                    iScan[j++] = (GUInt16) (iWord2 >> 20);
+                    iWord2 = iWord1 & 0x000FFC00;
+                    iScan[j++] = (GUInt16) (iWord2 >> 10);
+                    iScan[j++] = (GUInt16) (iWord1 & 0x000003FF);
                 }
                 CPLFree(iRawScan);
             }
@@ -305,11 +354,8 @@ CPLErr L1BRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                                              * poGDS->nBands * sizeof(GUInt16));
                 for (i = 0; i < poGDS->GetRasterXSize() * poGDS->nBands; i++)
                 {
-                    iScan[i] = iRawScan[poGDS->nRecordDataStart
-                        / (int)sizeof(iRawScan[0]) + i];
-#ifdef CPL_LSB
-                    CPL_SWAP16PTR(&iScan[i]);
-#endif
+                    iScan[i] = CPL_MSBWORD16( iRawScan[poGDS->nRecordDataStart
+                        / (int)sizeof(iRawScan[0]) + i] );
                 }
                 CPLFree(iRawScan);
             }
@@ -334,17 +380,21 @@ CPLErr L1BRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     
     int nBlockSize = nBlockXSize * nBlockYSize;
     if (poGDS->eLocationIndicator == DESCEND)
+    {
         for( i = 0, j = 0; i < nBlockSize; i++ )
         {
             ((GUInt16 *) pImage)[i] = iScan[j + nBand - 1];
             j += poGDS->nBands;
         }
+    }
     else
+    {
         for ( i = nBlockSize - 1, j = 0; i >= 0; i-- )
         {
             ((GUInt16 *) pImage)[i] = iScan[j + nBand - 1];
             j += poGDS->nBands;
         }
+    }
     
     CPLFree(iScan);
     return CE_None;
@@ -354,17 +404,20 @@ CPLErr L1BRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 /*                           L1BDataset()                               */
 /************************************************************************/
 
-L1BDataset::L1BDataset()
+L1BDataset::L1BDataset( int eL1BFormat )
 
 {
+    this->eL1BFormat = eL1BFormat;
     fp = NULL;
     nGCPCount = 0;
     pasGCPList = NULL;
     pszGCPProjection = CPLStrdup( "GEOGCS[\"WGS 72\",DATUM[\"WGS_1972\",SPHEROID[\"WGS 72\",6378135,298.26,AUTHORITY[\"EPSG\",7043]],TOWGS84[0,0,4.5,0,0,0.554,0.2263],AUTHORITY[\"EPSG\",6322]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",8901]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",9108]],AXIS[\"Lat\",\"NORTH\"],AXIS[\"Long\",\"EAST\"],AUTHORITY[\"EPSG\",4322]]" );
     nBands = 0;
     eLocationIndicator = DESCEND; // XXX: should be initialised
-    iChannels = 0;
+    iChannelsMask = 0;
     iInstrumentStatus = 0;
+    bFetchGeolocation = FALSE;
+    bGuessDataFormat = FALSE;
 }
 
 /************************************************************************/
@@ -424,7 +477,7 @@ const GDAL_GCP *L1BDataset::GetGCPs()
 /************************************************************************/
 
 void L1BDataset::FetchNOAA9TimeCode( TimeCode *psTime, GByte *piRecordHeader,
-                                     int *iLocInd )
+                                     int *peLocationIndicator )
 {
     GUInt32 lTemp;
 
@@ -437,7 +490,11 @@ void L1BDataset::FetchNOAA9TimeCode( TimeCode *psTime, GByte *piRecordHeader,
         | ((GUInt32)piRecordHeader[5] << 16)
         | ((GUInt32)piRecordHeader[6] << 8)
         | (GUInt32)piRecordHeader[7] );
-    *iLocInd = ((piRecordHeader[8] & 0x02) == 0) ? ASCEND : DESCEND;
+    if ( peLocationIndicator )
+    {
+        *peLocationIndicator =
+            ((piRecordHeader[8] & 0x02) == 0) ? ASCEND : DESCEND;
+    }
 }
 
 /************************************************************************/
@@ -445,7 +502,8 @@ void L1BDataset::FetchNOAA9TimeCode( TimeCode *psTime, GByte *piRecordHeader,
 /************************************************************************/
 
 void L1BDataset::FetchNOAA15TimeCode( TimeCode *psTime,
-                                      GUInt16 *piRecordHeader, int *iLocInd )
+                                      GUInt16 *piRecordHeader,
+                                      int *peLocationIndicator )
 {
 #ifdef CPL_LSB
     GUInt16 iTemp;
@@ -458,106 +516,90 @@ void L1BDataset::FetchNOAA15TimeCode( TimeCode *psTime,
     lTemp = (GUInt32)CPL_SWAP16(piRecordHeader[4]) << 16 |
         (GUInt32)CPL_SWAP16(piRecordHeader[5]);
     psTime->SetMillisecond(lTemp);
-    *iLocInd = ((CPL_SWAP16(piRecordHeader[6]) & 0x8000) == 0)?ASCEND:DESCEND; // FIXME: hemisphere
+    if ( peLocationIndicator )
+    {
+        // FIXME: hemisphere
+        *peLocationIndicator =
+            ((CPL_SWAP16(piRecordHeader[6]) & 0x8000) == 0) ? ASCEND : DESCEND;
+    }
 #else
     psTime->SetYear(piRecordHeader[1]);
     psTime->SetDay(piRecordHeader[2]);
-    psTime->SetMillisecond((GUInt32)piRecordHeader[4] << 16 | (GUInt32)piRecordHeader[5]);
-    *iLocInd = ((piRecordHeader[6] & 0x8000) == 0)?ASCEND:DESCEND;
-#endif
-}
-
-/************************************************************************/
-/* Fetch the GCPs from the individual scanlines (NOAA9-NOAA14 version)  */
-/************************************************************************/
-
-void L1BDataset::FetchNOAA9GCPs( GDAL_GCP *pasGCPList,
-                                 GInt16 *piRecordHeader, int iLine )
-{
-    int         nGoodGCPs, iGCPPos, j;
-    double      dfPixel;
-    
-    nGoodGCPs = (*((GByte *)piRecordHeader + iGCPCodeOffset) <= nGCPsPerLine) ?
-            *((GByte *)piRecordHeader + iGCPCodeOffset) : nGCPsPerLine;
-
-#ifdef DEBUG
-    CPLDebug( "L1B", "iGCPCodeOffset=%d, nGCPsPerLine=%d, nGoodGCPs=%d",
-              iGCPCodeOffset, nGCPsPerLine, nGoodGCPs );
-#endif
-
-    // GCPs are located at center of pixel, so we will add a half pixel offset
-    dfPixel = (eLocationIndicator == DESCEND) ?
-        iGCPStart + 0.5 : (GetRasterXSize() - (iGCPStart + 0.5));
-    j = iGCPOffset / (int)sizeof(piRecordHeader[0]);
-    iGCPPos = iGCPOffset / (int)sizeof(piRecordHeader[0]) + 2 * nGoodGCPs;
-    while ( j < iGCPPos )
+    psTime->SetMillisecond( (GUInt32)piRecordHeader[4] << 16
+                            | (GUInt32)piRecordHeader[5] );
+    if ( peLocationIndicator )
     {
-        GInt16  nRawY = piRecordHeader[j++];
-        GInt16  nRawX = piRecordHeader[j++];
-
-#ifdef CPL_LSB
-        CPL_SWAP16PTR( &nRawX );
-        CPL_SWAP16PTR( &nRawY );
-#endif
-        pasGCPList[nGCPCount].dfGCPY = nRawY / 128.0;
-        pasGCPList[nGCPCount].dfGCPX = nRawX / 128.0;
-
-        if (pasGCPList[nGCPCount].dfGCPX < -180
-            || pasGCPList[nGCPCount].dfGCPX > 180
-            || pasGCPList[nGCPCount].dfGCPY < -90
-            || pasGCPList[nGCPCount].dfGCPY > 90)
-            continue;
-
-        pasGCPList[nGCPCount].dfGCPZ = 0.0;
-        pasGCPList[nGCPCount].dfGCPPixel = dfPixel;
-        dfPixel += (eLocationIndicator == DESCEND) ? iGCPStep : -iGCPStep;
-        pasGCPList[nGCPCount].dfGCPLine =
-            (double)((eLocationIndicator == DESCEND) ?
-            iLine : GetRasterYSize() - iLine - 1) + 0.5;
-        nGCPCount++;
+        *peLocationIndicator =
+            ((piRecordHeader[6] & 0x8000) == 0) ? ASCEND : DESCEND;
     }
+#endif
 }
 
 /************************************************************************/
-/* Fetch the GCPs from the individual scanlines (NOAA15-METOP2 version) */
+/*      Fetch GCPs from the individual scanlines                        */
 /************************************************************************/
 
-void L1BDataset::FetchNOAA15GCPs( GDAL_GCP *pasGCPList,
-                                  GInt32 *piRecordHeader, int iLine)
+void L1BDataset::FetchGCPs( GDAL_GCP *pasGCPList,
+                            GByte *pabyRecordHeader, int iLine )
 {
-    int         j, iGCPPos;
-    double      dfPixel;
+    // LAC and HRPT GCPs are tied to the center of pixel,
+    // GAC ones are slightly displaced.
+    double  dfDelta = (eProductType == GAC) ? 0.9 : 0.5;
+    double  dfPixel = (eLocationIndicator == DESCEND) ?
+        iGCPStart + dfDelta : (nRasterXSize - (iGCPStart + dfDelta));
 
-    // GCPs are located at center of pixel, so we will add a half pixel offset
-    dfPixel = (eLocationIndicator == DESCEND) ?
-        iGCPStart + 0.5 : (GetRasterXSize() - (iGCPStart + 0.5));
-    j = iGCPOffset / (int)sizeof(piRecordHeader[0]);
-    iGCPPos = iGCPOffset / (int)sizeof(piRecordHeader[0]) + 2 * nGCPsPerLine;
-    while ( j < iGCPPos )
+    int     nGCPs;
+    if ( eSpacecraftID <= NOAA14 )
     {
-        GInt32  nRawY = piRecordHeader[j++];
-        GInt32  nRawX = piRecordHeader[j++];
-
-#ifdef CPL_LSB
-        CPL_SWAP32PTR( &nRawX );
-        CPL_SWAP32PTR( &nRawY );
+        // NOAA9-NOAA14 records have an indicator of number of working GCPs.
+        // Number of good GCPs may be smaller than the total amount of points.
+        nGCPs = (*(pabyRecordHeader + iGCPCodeOffset) < nGCPsPerLine) ?
+            *(pabyRecordHeader + iGCPCodeOffset) : nGCPsPerLine;
+#ifdef DEBUG
+        CPLDebug( "L1B", "iGCPCodeOffset=%d, nGCPsPerLine=%d, nGoodGCPs=%d",
+                  iGCPCodeOffset, nGCPsPerLine, nGCPs );
 #endif
-        pasGCPList[nGCPCount].dfGCPY = nRawY / 10000.0;
-        pasGCPList[nGCPCount].dfGCPX = nRawX / 10000.0;
+    }
+    else
+        nGCPs = nGCPsPerLine;
+
+    pabyRecordHeader += iGCPOffset;
+
+    while ( nGCPs-- )
+    {
+        if ( eSpacecraftID <= NOAA14 )
+        {
+            GInt16  nRawY = CPL_MSBWORD16( *(GInt16*)pabyRecordHeader );
+            pabyRecordHeader += sizeof(GInt16);
+            GInt16  nRawX = CPL_MSBWORD16( *(GInt16*)pabyRecordHeader );
+            pabyRecordHeader += sizeof(GInt16);
+
+            pasGCPList[nGCPCount].dfGCPY = nRawY / L1B_NOAA9_GCP_SCALE;
+            pasGCPList[nGCPCount].dfGCPX = nRawX / L1B_NOAA9_GCP_SCALE;
+        }
+        else
+        {
+            GInt32  nRawY = CPL_MSBWORD32( *(GInt32*)pabyRecordHeader );
+            pabyRecordHeader += sizeof(GInt32);
+            GInt32  nRawX = CPL_MSBWORD32( *(GInt32*)pabyRecordHeader );
+            pabyRecordHeader += sizeof(GInt32);
+
+            pasGCPList[nGCPCount].dfGCPY = nRawY / L1B_NOAA15_GCP_SCALE;
+            pasGCPList[nGCPCount].dfGCPX = nRawX / L1B_NOAA15_GCP_SCALE;
+        }
 
         if ( pasGCPList[nGCPCount].dfGCPX < -180
              || pasGCPList[nGCPCount].dfGCPX > 180
              || pasGCPList[nGCPCount].dfGCPY < -90
              || pasGCPList[nGCPCount].dfGCPY > 90 )
-        {
             continue;
-        }
+
         pasGCPList[nGCPCount].dfGCPZ = 0.0;
         pasGCPList[nGCPCount].dfGCPPixel = dfPixel;
         dfPixel += (eLocationIndicator == DESCEND) ? iGCPStep : -iGCPStep;
         pasGCPList[nGCPCount].dfGCPLine =
-            (double)((eLocationIndicator == DESCEND) ?
-            iLine : GetRasterYSize() - iLine - 1) + 0.5;
+            (double)( (eLocationIndicator == DESCEND) ?
+                iLine : nRasterYSize - iLine - 1 ) + 0.5;
         nGCPCount++;
     }
 }
@@ -568,25 +610,30 @@ void L1BDataset::FetchNOAA15GCPs( GDAL_GCP *pasGCPList,
 
 void L1BDataset::ProcessRecordHeaders()
 {
-    int         iLine, iLocInd;
-    void        *piRecordHeader;
+    void    *pRecordHeader = CPLMalloc( nRecordDataStart );
 
-    piRecordHeader = CPLMalloc(nRecordDataStart);
     VSIFSeekL(fp, nDataStartOffset, SEEK_SET);
-    VSIFReadL(piRecordHeader, 1, nRecordDataStart, fp);
+    VSIFReadL(pRecordHeader, 1, nRecordDataStart, fp);
 
     if (eSpacecraftID <= NOAA14)
-        FetchNOAA9TimeCode(&sStartTime, (GByte *) piRecordHeader, &iLocInd);
+    {
+        FetchNOAA9TimeCode( &sStartTime, (GByte *) pRecordHeader,
+                            &eLocationIndicator );
+    }
     else
-        FetchNOAA15TimeCode(&sStartTime, (GUInt16 *) piRecordHeader, &iLocInd);
-    eLocationIndicator = iLocInd;
-    VSIFSeekL( fp, nDataStartOffset + (GetRasterYSize() - 1) * nRecordSize,
+    {
+        FetchNOAA15TimeCode( &sStartTime, (GUInt16 *) pRecordHeader,
+                             &eLocationIndicator );
+    }
+
+    VSIFSeekL( fp, nDataStartOffset + (nRasterYSize - 1) * nRecordSize,
               SEEK_SET);
-    VSIFReadL( piRecordHeader, 1, nRecordDataStart, fp );
+    VSIFReadL( pRecordHeader, 1, nRecordDataStart, fp );
+
     if (eSpacecraftID <= NOAA14)
-        FetchNOAA9TimeCode(&sStopTime, (GByte *) piRecordHeader, &iLocInd);
+        FetchNOAA9TimeCode( &sStopTime, (GByte *) pRecordHeader, NULL );
     else
-        FetchNOAA15TimeCode(&sStopTime, (GUInt16 *) piRecordHeader, &iLocInd);
+        FetchNOAA15TimeCode( &sStopTime, (GUInt16 *) pRecordHeader, NULL );
 
 /* -------------------------------------------------------------------- */
 /*      Pick a skip factor so that we will get roughly 20 lines         */
@@ -594,7 +641,7 @@ void L1BDataset::ProcessRecordHeaders()
 /*      but the longest swaths.                                         */
 /* -------------------------------------------------------------------- */
     int nTargetLines = DESIRED_LINES_OF_GCPS;
-    int nLineSkip = GetRasterYSize() / (nTargetLines-1);
+    int nLineSkip = nRasterYSize / ( nTargetLines - 1 );
     
 /* -------------------------------------------------------------------- */
 /*      Initialize the GCP list.                                        */
@@ -613,19 +660,17 @@ void L1BDataset::ProcessRecordHeaders()
     for( iStep = 0; iStep < nTargetLines; iStep++ )
     {
         int nOrigGCPs = nGCPCount;
+        int iLine;
 
         if( iStep == nTargetLines - 1 )
-            iLine = GetRasterYSize() - 1;
+            iLine = nRasterXSize - 1;
         else
             iLine = nLineSkip * iStep;
 
         VSIFSeekL( fp, nDataStartOffset + iLine * nRecordSize, SEEK_SET );
-        VSIFReadL( piRecordHeader, 1, nRecordDataStart, fp );
+        VSIFReadL( pRecordHeader, 1, nRecordDataStart, fp );
 
-        if ( eSpacecraftID <= NOAA14 )
-            FetchNOAA9GCPs( pasGCPList, (GInt16 *)piRecordHeader, iLine );
-        else
-            FetchNOAA15GCPs( pasGCPList, (GInt32 *)piRecordHeader, iLine );
+        FetchGCPs( pasGCPList, (GByte *)pRecordHeader, iLine );
 
 /* -------------------------------------------------------------------- */
 /*      We don't really want too many GCPs per line.  Downsample to     */
@@ -634,15 +679,18 @@ void L1BDataset::ProcessRecordHeaders()
         int iGCP;
         int nGCPsOnThisLine = nGCPCount - nOrigGCPs;
         int nDesiredGCPsPerLine = MIN(DESIRED_GCPS_PER_LINE,nGCPsOnThisLine);
-        int nGCPStep = (nGCPsOnThisLine - 1) / (nDesiredGCPsPerLine-1);
+        int nGCPStep = ( nDesiredGCPsPerLine > 1 ) ?
+            ( nGCPsOnThisLine - 1 ) / ( nDesiredGCPsPerLine-1 ) : 1;
+        int iSrcGCP = nOrigGCPs;
+        int iDstGCP = nOrigGCPs;
 
         if( nGCPStep == 0 )
             nGCPStep = 1;
 
         for( iGCP = 0; iGCP < nDesiredGCPsPerLine; iGCP++ )
         {
-            int iSrcGCP = nOrigGCPs + iGCP * nGCPStep;
-            int iDstGCP = nOrigGCPs + iGCP;
+            iSrcGCP += iGCP * nGCPStep;
+            iDstGCP += iGCP;
 
             pasGCPList[iDstGCP].dfGCPX = pasGCPList[iSrcGCP].dfGCPX;
             pasGCPList[iDstGCP].dfGCPY = pasGCPList[iSrcGCP].dfGCPY;
@@ -659,27 +707,874 @@ void L1BDataset::ProcessRecordHeaders()
                         pasGCPList + nGCPCount );
     }
 
-    CPLFree( piRecordHeader );
+    CPLFree( pRecordHeader );
+
+/* -------------------------------------------------------------------- */
+/*      Set fetched information as metadata records                     */
+/* -------------------------------------------------------------------- */
+    // Time of first scanline
+    SetMetadataItem( "START",  sStartTime.PrintTime() );
+    // Time of last scanline
+    SetMetadataItem( "STOP",  sStopTime.PrintTime() );
+    // AVHRR Earth location indication
+
+    switch( eLocationIndicator )
+    {
+        case ASCEND:
+            SetMetadataItem( "LOCATION", "Ascending" );
+            break;
+        case DESCEND:
+        default:
+            SetMetadataItem( "LOCATION", "Descending" );
+            break;
+    }
+
 }
 
 /************************************************************************/
 /*                      ProcessDatasetHeader()                          */
 /************************************************************************/
 
-void L1BDataset::ProcessDatasetHeader()
+CPLErr L1BDataset::ProcessDatasetHeader()
 {
-    GUInt16 *piHeader;
-    piHeader = (GUInt16 *)CPLMalloc(nDataStartOffset);
-    VSIFSeekL( fp, 0, SEEK_SET );
-    VSIFReadL( piHeader, 1, nDataStartOffset, fp );
-    if (eSpacecraftID > NOAA14)
+    char    szDatasetName[L1B_DATASET_NAME_SIZE + 1];
+
+    if ( eL1BFormat == L1B_NOAA9 )
     {
-        iInstrumentStatus = (piHeader + 512)[58];
-#ifdef CPL_LSB
-        CPL_SWAP16PTR(&iInstrumentStatus);
+        GByte   abyTBMHeader[L1B_NOAA9_HEADER_SIZE];
+
+        if ( VSIFSeekL( fp, 0, SEEK_SET ) < 0
+             || VSIFReadL( abyTBMHeader, 1, L1B_NOAA9_HEADER_SIZE,
+                           fp ) < L1B_NOAA9_HEADER_SIZE )
+        {
+            CPLDebug( "L1B", "Can't read NOAA-9/14 TBM header." );
+            return CE_Failure;
+        }
+
+        // Fetch dataset name. NOAA-9/14 datasets contain the names in TBM
+        // header only, so read it there.
+        memcpy( szDatasetName, abyTBMHeader + L1B_NOAA9_HDR_NAME_OFF,
+                L1B_DATASET_NAME_SIZE );
+        szDatasetName[L1B_DATASET_NAME_SIZE] = '\0';
+
+        // Determine processing center where the dataset was created
+        if ( EQUALN((const char *)abyTBMHeader
+                    + L1B_NOAA9_HDR_NAME_OFF, "CMS", 3) )
+             eProcCenter = CMS;
+        else if ( EQUALN((const char *)abyTBMHeader
+                         + L1B_NOAA9_HDR_NAME_OFF, "DSS", 3) )
+             eProcCenter = DSS;
+        else if ( EQUALN((const char *)abyTBMHeader
+                         + L1B_NOAA9_HDR_NAME_OFF, "NSS", 3) )
+             eProcCenter = NSS;
+        else if ( EQUALN((const char *)abyTBMHeader
+                         + L1B_NOAA9_HDR_NAME_OFF, "UKM", 3) )
+             eProcCenter = UKM;
+        else
+             eProcCenter = UNKNOWN_CENTER;
+
+        // Determine number of bands
+        int     i;
+        for ( i = 0; i < L1B_NOAA9_HDR_CHAN_SIZE; i++ )
+        {
+            if ( abyTBMHeader[L1B_NOAA9_HDR_CHAN_OFF + i] == 1
+                 || abyTBMHeader[L1B_NOAA9_HDR_CHAN_OFF + i] == 'Y' )
+            {
+                nBands++;
+                iChannelsMask |= (1 << i);
+            }
+        }
+        if ( nBands == 0 || nBands > 5 )
+        {
+            nBands = 5;
+            iChannelsMask = 0x1F;
+        }
+
+        // Determine data format (10-bit packed or 8/16-bit unpacked)
+        if ( EQUALN((const char *)abyTBMHeader + L1B_NOAA9_HDR_WORD_OFF,
+                    "10", 2) )
+            iDataFormat = PACKED10BIT;
+        else if ( EQUALN((const char *)abyTBMHeader + L1B_NOAA9_HDR_WORD_OFF,
+                         "16", 2) )
+            iDataFormat = UNPACKED16BIT;
+        else if ( EQUALN((const char *)abyTBMHeader + L1B_NOAA9_HDR_WORD_OFF,
+                         "08", 2) )
+            iDataFormat = UNPACKED8BIT;
+        else if ( EQUALN((const char *)abyTBMHeader + L1B_NOAA9_HDR_WORD_OFF,
+                         "  ", 2)
+                  || abyTBMHeader[L1B_NOAA9_HDR_WORD_OFF] == '\0' )
+            /* Empty string can be found in the following samples : 
+                http://www2.ncdc.noaa.gov/docs/podug/data/avhrr/franh.1b (10 bit)
+                http://www2.ncdc.noaa.gov/docs/podug/data/avhrr/frang.1b (10 bit)
+                http://www2.ncdc.noaa.gov/docs/podug/data/avhrr/calfilel.1b (16 bit)
+                http://www2.ncdc.noaa.gov/docs/podug/data/avhrr/rapnzg.1b (16 bit)
+                ftp://ftp.sat.dundee.ac.uk/misc/testdata/noaa12/hrptnoaa1b.dat (10 bit)
+            */
+            bGuessDataFormat = TRUE;
+        else
+        {
+#ifdef DEBUG
+            CPLDebug( "L1B", "Unknown data format \"%.2s\".",
+                      abyTBMHeader + L1B_NOAA9_HDR_WORD_OFF );
 #endif
+            return CE_Failure;
+        }
+
+        // Now read the dataset header record
+        GByte   abyRecHeader[L1B_NOAA9_HDR_REC_SIZE];
+        if ( VSIFSeekL( fp, L1B_NOAA9_HEADER_SIZE, SEEK_SET ) < 0
+             || VSIFReadL( abyRecHeader, 1, L1B_NOAA9_HDR_REC_SIZE,
+                           fp ) < L1B_NOAA9_HDR_REC_SIZE )
+        {
+            CPLDebug( "L1B", "Can't read NOAA-9/14 record header." );
+            return CE_Failure;
+        }
+
+        // Determine the spacecraft name
+        switch ( abyRecHeader[L1B_NOAA9_HDR_REC_ID_OFF] )
+        {
+            /* FIXME: use time code to determine TIROS-N, because the SatID
+             * identical to NOAA-11
+             * case 1:
+                eSpacecraftID = TIROSN;
+                break;
+            case 2:
+                eSpacecraftID = NOAA6;
+                break;*/
+            case 4:
+                eSpacecraftID = NOAA7;
+                break;
+            case 6:
+                eSpacecraftID = NOAA8;
+                break;
+            case 7:
+                eSpacecraftID = NOAA9;
+                break;
+            case 8:
+                eSpacecraftID = NOAA10;
+                break;
+            case 1:
+                eSpacecraftID = NOAA11;
+                break;
+            case 5:
+                eSpacecraftID = NOAA12;
+                break;
+            case 2:
+                eSpacecraftID = NOAA13;
+                break;
+            case 3:
+                eSpacecraftID = NOAA14;
+                break;
+            default:
+#ifdef DEBUG
+                CPLDebug( "L1B", "Unknown spacecraft ID \"%d\".",
+                          abyRecHeader[L1B_NOAA9_HDR_REC_ID_OFF] );
+#endif
+                return CE_Failure;
+        }
+
+        // Determine the product data type
+        int iWord = abyRecHeader[L1B_NOAA9_HDR_REC_PROD_OFF] >> 4;
+        switch ( iWord )
+        {
+            case 1:
+                eProductType = LAC;
+                break;
+            case 2:
+                eProductType = GAC;
+                break;
+            case 3:
+                eProductType = HRPT;
+                break;
+            default:
+#ifdef DEBUG
+                CPLDebug( "L1B", "Unknown product type \"%d\".", iWord );
+#endif
+                return CE_Failure;
+        }
+
+        // Determine receiving station name
+        iWord = ( abyRecHeader[L1B_NOAA9_HDR_REC_DSTAT_OFF] & 0x60 ) >> 5;
+        switch( iWord )
+        {
+            case 1:
+                eSource = GC;
+                break;
+            case 2:
+                eSource = WI;
+                break;
+            case 3:
+                eSource = SO;
+                break;
+            default:
+                eSource = UNKNOWN_STATION;
+                break;
+        }
     }
-    CPLFree( piHeader );
+
+    else if ( eL1BFormat == L1B_NOAA15 || eL1BFormat == L1B_NOAA15_NOHDR )
+    {
+        if ( eL1BFormat == L1B_NOAA15 )
+        {
+            GByte   abyARSHeader[L1B_NOAA15_HEADER_SIZE];
+
+            if ( VSIFSeekL( fp, 0, SEEK_SET ) < 0
+                 || VSIFReadL( abyARSHeader, 1, L1B_NOAA15_HEADER_SIZE,
+                               fp ) < L1B_NOAA15_HEADER_SIZE )
+            {
+                CPLDebug( "L1B", "Can't read NOAA-15 ARS header." );
+                return CE_Failure;
+            }
+
+            // Determine number of bands
+            int     i;
+            for ( i = 0; i < L1B_NOAA15_HDR_CHAN_SIZE; i++ )
+            {
+                if ( abyARSHeader[L1B_NOAA15_HDR_CHAN_OFF + i] == 1
+                     || abyARSHeader[L1B_NOAA15_HDR_CHAN_OFF + i] == 'Y' )
+                {
+                    nBands++;
+                    iChannelsMask |= (1 << i);
+                }
+            }
+            if ( nBands == 0 || nBands > 5 )
+            {
+                nBands = 5;
+                iChannelsMask = 0x1F;
+            }
+
+            // Determine data format (10-bit packed or 8/16-bit unpacked)
+            if ( EQUALN((const char *)abyARSHeader + L1B_NOAA15_HDR_WORD_OFF,
+                        "10", 2) )
+                iDataFormat = PACKED10BIT;
+            else if ( EQUALN((const char *)abyARSHeader + L1B_NOAA15_HDR_WORD_OFF,
+                             "16", 2) )
+                iDataFormat = UNPACKED16BIT;
+            else if ( EQUALN((const char *)abyARSHeader + L1B_NOAA15_HDR_WORD_OFF,
+                             "08", 2) )
+                iDataFormat = UNPACKED8BIT;
+            else
+            {
+#ifdef DEBUG
+                CPLDebug( "L1B", "Unknown data format \"%.2s\".",
+                          abyARSHeader + L1B_NOAA9_HDR_WORD_OFF );
+#endif
+                return CE_Failure;
+            }
+        }
+        else
+        {
+            nBands = 5;
+            iChannelsMask = 0x1F;
+            iDataFormat = PACKED10BIT;
+        }
+
+        // Now read the dataset header record
+        GByte   abyRecHeader[L1B_NOAA15_HDR_REC_SIZE];
+        if ( VSIFSeekL( fp,
+                        (eL1BFormat == L1B_NOAA15) ? L1B_NOAA15_HEADER_SIZE : 0,
+                        SEEK_SET ) < 0
+             || VSIFReadL( abyRecHeader, 1, L1B_NOAA15_HDR_REC_SIZE,
+                           fp ) < L1B_NOAA15_HDR_REC_SIZE )
+        {
+            CPLDebug( "L1B", "Can't read NOAA-9/14 record header." );
+            return CE_Failure;
+        }
+
+        // Fetch dataset name
+        memcpy( szDatasetName, abyRecHeader + L1B_NOAA15_HDR_REC_NAME_OFF,
+                L1B_DATASET_NAME_SIZE );
+        szDatasetName[L1B_DATASET_NAME_SIZE] = '\0';
+
+        // Determine processing center where the dataset was created
+        if ( EQUALN((const char *)abyRecHeader
+                    + L1B_NOAA15_HDR_REC_SITE_OFF, "CMS", 3) )
+             eProcCenter = CMS;
+        else if ( EQUALN((const char *)abyRecHeader
+                         + L1B_NOAA15_HDR_REC_SITE_OFF, "DSS", 3) )
+             eProcCenter = DSS;
+        else if ( EQUALN((const char *)abyRecHeader
+                         + L1B_NOAA15_HDR_REC_SITE_OFF, "NSS", 3) )
+             eProcCenter = NSS;
+        else if ( EQUALN((const char *)abyRecHeader
+                         + L1B_NOAA15_HDR_REC_SITE_OFF, "UKM", 3) )
+             eProcCenter = UKM;
+        else
+             eProcCenter = UNKNOWN_CENTER;
+
+        // Determine the spacecraft name
+        int iWord = CPL_MSBWORD16( *(GUInt16 *)
+            (abyRecHeader + L1B_NOAA15_HDR_REC_ID_OFF) );
+        switch ( iWord )
+        {
+            case 2:
+                eSpacecraftID = NOAA16;
+                break;
+            case 4:
+                eSpacecraftID = NOAA15;
+                break;
+            case 6:
+                eSpacecraftID = NOAA17;
+                break;
+            case 7:
+                eSpacecraftID = NOAA18;
+                break;
+            /* FIXME: find appropriate samples and test these two cases:
+             * case 8:
+                eSpacecraftID = NOAA-N';
+                break;
+            case 11:
+                eSpacecraftID = METOP-1;
+                break;*/
+            case 12:
+            case 14:    // METOP simulator (code used in AAPP format)
+                eSpacecraftID = METOP2;
+                break;
+            default:
+#ifdef DEBUG
+                CPLDebug( "L1B", "Unknown spacecraft ID \"%d\".", iWord );
+#endif
+                return CE_Failure;
+        }
+
+        // Determine the product data type
+        iWord = CPL_MSBWORD16( *(GUInt16 *)
+            (abyRecHeader + L1B_NOAA15_HDR_REC_PROD_OFF) );
+        switch ( iWord )
+        {
+            case 1:
+                eProductType = LAC;
+                break;
+            case 2:
+                eProductType = GAC;
+                break;
+            case 3:
+                eProductType = HRPT;
+                break;
+            case 4:     // XXX: documentation specifies the code '4'
+            case 13:    // for FRAC but real datasets contain '13 here.'
+                eProductType = FRAC;
+                break;
+            default:
+#ifdef DEBUG
+                CPLDebug( "L1B", "Unknown product type \"%d\".", iWord );
+#endif
+                return CE_Failure;
+        }
+
+        // Fetch hinstrument status. Helps to determine whether we have
+        // 3A or 3B channel in the dataset.
+        iInstrumentStatus = CPL_MSBWORD32( *(GUInt32 *)
+            (abyRecHeader + L1B_NOAA15_HDR_REC_STAT_OFF) );
+
+        // Determine receiving station name
+        iWord = CPL_MSBWORD16( *(GUInt16 *)
+            (abyRecHeader + L1B_NOAA15_HDR_REC_SRC_OFF) );
+        switch( iWord )
+        {
+            case 1:
+                eSource = GC;
+                break;
+            case 2:
+                eSource = WI;
+                break;
+            case 3:
+                eSource = SO;
+                break;
+            case 4:
+                eSource = SV;
+                break;
+            case 5:
+                eSource = MO;
+                break;
+            default:
+                eSource = UNKNOWN_STATION;
+                break;
+        }
+    }
+    else
+        return CE_Failure;
+
+/* -------------------------------------------------------------------- */
+/*      Set fetched information as metadata records                     */
+/* -------------------------------------------------------------------- */
+    const char *pszText;
+
+    SetMetadataItem( "DATASET_NAME",  szDatasetName );
+
+    switch( eSpacecraftID )
+    {
+        case TIROSN:
+            pszText = "TIROS-N";
+            break;
+        case NOAA6:
+            pszText = "NOAA-6(A)";
+            break;
+        case NOAAB:
+            pszText = "NOAA-B";
+            break;
+        case NOAA7:
+            pszText = "NOAA-7(C)";
+            break;
+        case NOAA8:
+            pszText = "NOAA-8(E)";
+            break;
+        case NOAA9:
+            pszText = "NOAA-9(F)";
+            break;
+        case NOAA10:
+            pszText = "NOAA-10(G)";
+            break;
+        case NOAA11:
+            pszText = "NOAA-11(H)";
+            break;
+        case NOAA12:
+            pszText = "NOAA-12(D)";
+            break;
+        case NOAA13:
+            pszText = "NOAA-13(I)";
+            break;
+        case NOAA14:
+            pszText = "NOAA-14(J)";
+            break;
+        case NOAA15:
+            pszText = "NOAA-15(K)";
+            break;
+        case NOAA16:
+            pszText = "NOAA-16(L)";
+            break;
+        case NOAA17:
+            pszText = "NOAA-17(M)";
+            break;
+        case NOAA18:
+            pszText = "NOAA-18(N)";
+            break;
+        case METOP2:
+            pszText = "METOP-2(A)";
+            break;
+        default:
+            pszText = "Unknown";
+            break;
+    }
+    SetMetadataItem( "SATELLITE",  pszText );
+
+    switch( eProductType )
+    {
+        case LAC:
+            pszText = "AVHRR LAC";
+            break;
+        case HRPT:
+            pszText = "AVHRR HRPT";
+            break;
+        case GAC:
+            pszText = "AVHRR GAC";
+            break;
+        case FRAC:
+            pszText = "AVHRR FRAC";
+            break;
+        default:
+            pszText = "Unknown";
+            break;
+    }
+    SetMetadataItem( "DATA_TYPE",  pszText );
+
+    // Get revolution number as string, we don't need this value for processing
+    char    szRevolution[6];
+    memcpy( szRevolution, szDatasetName + 32, 5 );
+    szRevolution[5] = '\0';
+    SetMetadataItem( "REVOLUTION",  szRevolution );
+
+    switch( eSource )
+    {
+        case DU:
+            pszText = "Dundee, Scotland, UK";
+            break;
+        case GC:
+            pszText = "Fairbanks, Alaska, USA (formerly Gilmore Creek)";
+            break;
+        case HO:
+            pszText = "Honolulu, Hawaii, USA";
+            break;
+        case MO:
+            pszText = "Monterey, California, USA";
+            break;
+        case WE:
+            pszText = "Western Europe CDA, Lannion, France";
+            break;
+        case SO:
+            pszText = "SOCC (Satellite Operations Control Center), Suitland, Maryland, USA";
+            break;
+        case WI:
+            pszText = "Wallops Island, Virginia, USA";
+            break;
+        default:
+            pszText = "Unknown receiving station";
+            break;
+    }
+    SetMetadataItem( "SOURCE",  pszText );
+
+    switch( eProcCenter )
+    {
+        case CMS:
+            pszText = "Centre de Meteorologie Spatiale - Lannion, France";
+            break;
+        case DSS:
+            pszText = "Dundee Satellite Receiving Station - Dundee, Scotland, UK";
+            break;
+        case NSS:
+            pszText = "NOAA/NESDIS - Suitland, Maryland, USA";
+            break;
+        case UKM:
+            pszText = "United Kingdom Meteorological Office - Bracknell, England, UK";
+            break;
+        default:
+            pszText = "Unknown processing center";
+            break;
+    }
+    SetMetadataItem( "PROCESSING_CENTER",  pszText );
+    
+    return CE_None;
+}
+
+/************************************************************************/
+/*                        ComputeFileOffsets()                          */
+/************************************************************************/
+
+int L1BDataset::ComputeFileOffsets()
+{
+    switch( eProductType )
+    {
+        case HRPT:
+        case LAC:
+        case FRAC:
+            nRasterXSize = 2048;
+            nBufferSize = 20484;
+            iGCPStart = 25;
+            iGCPStep = 40;
+            nGCPsPerLine = 51;
+            if ( eL1BFormat == L1B_NOAA9 )
+            {
+                if (iDataFormat == PACKED10BIT)
+                {
+                    nRecordSize = 14800;
+                    nRecordDataEnd = 14104;
+                }
+                else if (iDataFormat == UNPACKED16BIT)
+                {
+                    switch(nBands)
+                    {
+                        case 1:
+                        nRecordSize = 4544;
+                        nRecordDataEnd = 4544;
+                        break;
+                        case 2:
+                        nRecordSize = 8640;
+                        nRecordDataEnd = 8640;
+                        break;
+                        case 3:
+                        nRecordSize = 12736;
+                        nRecordDataEnd = 12736;
+                        break;
+                        case 4:
+                        nRecordSize = 16832;
+                        nRecordDataEnd = 16832;
+                        break;
+                        case 5:
+                        nRecordSize = 20928;
+                        nRecordDataEnd = 20928;
+                        break;
+                    }
+                }
+                else // UNPACKED8BIT
+                {
+                    switch(nBands)
+                    {
+                        case 1:
+                        nRecordSize = 2496;
+                        nRecordDataEnd = 2496;
+                        break;
+                        case 2:
+                        nRecordSize = 4544;
+                        nRecordDataEnd = 4544;
+                        break;
+                        case 3:
+                        nRecordSize = 6592;
+                        nRecordDataEnd = 6592;
+                        break;
+                        case 4:
+                        nRecordSize = 8640;
+                        nRecordDataEnd = 8640;
+                        break;
+                        case 5:
+                        nRecordSize = 10688;
+                        nRecordDataEnd = 10688;
+                        break;
+                    }
+                }
+                nDataStartOffset = nRecordSize + L1B_NOAA9_HEADER_SIZE;
+                nRecordDataStart = 448;
+                iGCPCodeOffset = 52;
+                iGCPOffset = 104;
+            }
+
+            else if ( eL1BFormat == L1B_NOAA15
+                      || eL1BFormat == L1B_NOAA15_NOHDR )
+            {
+                if (iDataFormat == PACKED10BIT)
+                {
+                    nRecordSize = 15872;
+                    nRecordDataEnd = 14920;
+                }
+                else if (iDataFormat == UNPACKED16BIT)
+                {
+                    switch(nBands)
+                    {
+                        case 1:
+                        nRecordSize = 6144;
+                        nRecordDataEnd = 5360;
+                        break;
+                        case 2:
+                        nRecordSize = 10240;
+                        nRecordDataEnd = 9456;
+                        break;
+                        case 3:
+                        nRecordSize = 14336;
+                        nRecordDataEnd = 13552;
+                        break;
+                        case 4:
+                        nRecordSize = 18432;
+                        nRecordDataEnd = 17648;
+                        break;
+                        case 5:
+                        nRecordSize = 22528;
+                        nRecordDataEnd = 21744;
+                        break;
+                    }
+                }
+                else // UNPACKED8BIT
+                {
+                    switch(nBands)
+                    {
+                        case 1:
+                        nRecordSize = 4096;
+                        nRecordDataEnd = 3312;
+                        break;
+                        case 2:
+                        nRecordSize = 6144;
+                        nRecordDataEnd = 5360;
+                        break;
+                        case 3:
+                        nRecordSize = 8192;
+                        nRecordDataEnd = 7408;
+                        break;
+                        case 4:
+                        nRecordSize = 10240;
+                        nRecordDataEnd = 9456;
+                        break;
+                        case 5:
+                        nRecordSize = 12288;
+                        nRecordDataEnd = 11504;
+                        break;
+                    }
+                }
+                nDataStartOffset = ( eL1BFormat == L1B_NOAA15_NOHDR ) ?
+                    nRecordDataEnd : nRecordSize + L1B_NOAA15_HEADER_SIZE;
+                nRecordDataStart = 1264;
+                iGCPCodeOffset = 0; // XXX: not exist for NOAA15?
+                iGCPOffset = 640;
+            }
+            else
+                return 0;
+            break;
+
+        case GAC:
+            nRasterXSize = 409;
+            nBufferSize = 4092;
+            iGCPStart = 5; // FIXME: depends of scan direction
+            iGCPStep = 8;
+            nGCPsPerLine = 51;
+            if (  eL1BFormat == L1B_NOAA9 )
+            {
+                if (iDataFormat == PACKED10BIT)
+                {
+                    nRecordSize = 3220;
+                    nRecordDataEnd = 3176;
+                }
+                else if (iDataFormat == UNPACKED16BIT)
+                    switch(nBands)
+                    {
+                        case 1:
+                        nRecordSize = 1268;
+                        nRecordDataEnd = 1266;
+                        break;
+                        case 2:
+                        nRecordSize = 2084;
+                        nRecordDataEnd = 2084;
+                        break;
+                        case 3:
+                        nRecordSize = 2904;
+                        nRecordDataEnd = 2902;
+                        break;
+                        case 4:
+                        nRecordSize = 3720;
+                        nRecordDataEnd = 3720;
+                        break;
+                        case 5:
+                        nRecordSize = 4540;
+                        nRecordDataEnd = 4538;
+                        break;
+                    }
+                else // UNPACKED8BIT
+                {
+                    switch(nBands)
+                    {
+                        case 1:
+                        nRecordSize = 860;
+                        nRecordDataEnd = 858;
+                        break;
+                        case 2:
+                        nRecordSize = 1268;
+                        nRecordDataEnd = 1266;
+                        break;
+                        case 3:
+                        nRecordSize = 1676;
+                        nRecordDataEnd = 1676;
+                        break;
+                        case 4:
+                        nRecordSize = 2084;
+                        nRecordDataEnd = 2084;
+                        break;
+                        case 5:
+                        nRecordSize = 2496;
+                        nRecordDataEnd = 2494;
+                        break;
+                    }
+                }
+                nDataStartOffset = nRecordSize * 2 + L1B_NOAA9_HEADER_SIZE;
+                nRecordDataStart = 448;
+                iGCPCodeOffset = 52;
+                iGCPOffset = 104;
+            }
+
+            else if ( eL1BFormat == L1B_NOAA15
+                      || eL1BFormat == L1B_NOAA15_NOHDR )
+            {
+                if (iDataFormat == PACKED10BIT)
+                {
+                    nRecordSize = 4608;
+                    nRecordDataEnd = 3992;
+                }
+                else if (iDataFormat == UNPACKED16BIT)
+                {
+                    switch(nBands)
+                    {
+                        case 1:
+                        nRecordSize = 2360;
+                        nRecordDataEnd = 2082;
+                        break;
+                        case 2:
+                        nRecordSize = 3176;
+                        nRecordDataEnd = 2900;
+                        break;
+                        case 3:
+                        nRecordSize = 3992;
+                        nRecordDataEnd = 3718;
+                        break;
+                        case 4:
+                        nRecordSize = 4816;
+                        nRecordDataEnd = 4536;
+                        break;
+                        case 5:
+                        nRecordSize = 5632;
+                        nRecordDataEnd = 5354;
+                        break;
+                    }
+                }
+                else // UNPACKED8BIT
+                {
+                    switch(nBands)
+                    {
+                        case 1:
+                        nRecordSize = 1952;
+                        nRecordDataEnd = 1673;
+                        break;
+                        case 2:
+                        nRecordSize = 2360;
+                        nRecordDataEnd = 2082;
+                        break;
+                        case 3:
+                        nRecordSize = 2768;
+                        nRecordDataEnd = 2491;
+                        break;
+                        case 4:
+                        nRecordSize = 3176;
+                        nRecordDataEnd = 2900;
+                        break;
+                        case 5:
+                        nRecordSize = 3584;
+                        nRecordDataEnd = 3309;
+                        break;
+                    }
+                }
+                nDataStartOffset = ( eL1BFormat == L1B_NOAA15_NOHDR ) ?
+                    nRecordDataEnd : nRecordSize + L1B_NOAA15_HEADER_SIZE;
+                nRecordDataStart = 1264;
+                iGCPCodeOffset = 0; // XXX: not exist for NOAA15?
+                iGCPOffset = 640;
+            }
+            else
+                return 0;
+        break;
+        default:
+            return 0;
+    }
+
+    return 1;
+}
+
+/************************************************************************/
+/*                           DetectFormat()                             */
+/************************************************************************/
+
+int L1BDataset::DetectFormat( GDALOpenInfo *poOpenInfo )
+
+{
+    GByte* pabyHeader = poOpenInfo->pabyHeader;
+    if (pabyHeader == NULL || poOpenInfo->nHeaderBytes < L1B_NOAA9_HEADER_SIZE)
+        return L1B_NONE;
+
+    // We will try the NOAA-15 and later formats first
+    if ( poOpenInfo->nHeaderBytes > L1B_NOAA15_HEADER_SIZE + 61
+         && *(pabyHeader + L1B_NOAA15_HEADER_SIZE + 25) == '.'
+         && *(pabyHeader + L1B_NOAA15_HEADER_SIZE + 30) == '.'
+         && *(pabyHeader + L1B_NOAA15_HEADER_SIZE + 33) == '.'
+         && *(pabyHeader + L1B_NOAA15_HEADER_SIZE + 40) == '.'
+         && *(pabyHeader + L1B_NOAA15_HEADER_SIZE + 46) == '.'
+         && *(pabyHeader + L1B_NOAA15_HEADER_SIZE + 52) == '.'
+         && *(pabyHeader + L1B_NOAA15_HEADER_SIZE + 61) == '.' )
+        return L1B_NOAA15;
+
+    // Next try the NOAA-9/14 formats
+    if ( *(pabyHeader + 8 + 25) == '.'
+         && *(pabyHeader + 8 + 30) == '.'
+         && *(pabyHeader + 8 + 33) == '.'
+         && *(pabyHeader + 8 + 40) == '.'
+         && *(pabyHeader + 8 + 46) == '.'
+         && *(pabyHeader + 8 + 52) == '.'
+         && *(pabyHeader + 8 + 61) == '.' )
+        return L1B_NOAA9;
+
+    // Finally try the AAPP formats 
+    if ( *(pabyHeader + 25) == '.'
+         && *(pabyHeader + 30) == '.'
+         && *(pabyHeader + 33) == '.'
+         && *(pabyHeader + 40) == '.'
+         && *(pabyHeader + 46) == '.'
+         && *(pabyHeader + 52) == '.'
+         && *(pabyHeader + 61) == '.' )
+        return L1B_NOAA15_NOHDR;
+
+    return L1B_NONE;
 }
 
 /************************************************************************/
@@ -692,14 +1587,7 @@ int L1BDataset::Identify( GDALOpenInfo *poOpenInfo )
     if( poOpenInfo->fp == NULL )
         return FALSE;
 
-    // XXX: Signature is not very good
-    if( !EQUALN((const char *) poOpenInfo->pabyHeader + 33, ".", 1) ||
-        !EQUALN((const char *) poOpenInfo->pabyHeader + 38, ".", 1) || 
-        !EQUALN((const char *) poOpenInfo->pabyHeader + 41, ".", 1) || 
-        !EQUALN((const char *) poOpenInfo->pabyHeader + 48, ".", 1) || 
-        !EQUALN((const char *) poOpenInfo->pabyHeader + 54, ".", 1) ||
-        !EQUALN((const char *) poOpenInfo->pabyHeader + 60, ".", 1) ||
-        !EQUALN((const char *) poOpenInfo->pabyHeader + 69, ".", 1) )
+    if ( DetectFormat(poOpenInfo) == L1B_NONE )
         return FALSE;
 
     return TRUE;
@@ -712,8 +1600,15 @@ int L1BDataset::Identify( GDALOpenInfo *poOpenInfo )
 GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
 
 {
-    if ( !Identify(poOpenInfo) )
+    int     eL1BFormat = DetectFormat( poOpenInfo );
+    if ( eL1BFormat == L1B_NONE )
         return NULL;
+
+#if 0
+    Geolocation
+    if ( EQUAL( poOpenInfo->pszFilename, "L1BGCPS:" ) )
+        bFetchGeolocation = TRUE;
+#endif
 
 /* -------------------------------------------------------------------- */
 /*      Create a corresponding GDALDataset.                             */
@@ -722,7 +1617,7 @@ GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
     VSIStatBuf  sStat;
     const char  *pszFilename = poOpenInfo->pszFilename;
 
-    poDS = new L1BDataset();
+    poDS = new L1BDataset( eL1BFormat );
 
     poDS->fp = VSIFOpenL( poOpenInfo->pszFilename, "rb" );
     if ( !poDS->fp )
@@ -734,434 +1629,91 @@ GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Read the header.                                                */
 /* -------------------------------------------------------------------- */
-    GByte       pabyTBMHeader[TBM_HEADER_SIZE];
-    int         i;
-
-    if ( VSIFSeekL( poDS->fp, 0, SEEK_SET ) < 0
-         || VSIFReadL( pabyTBMHeader, 1, TBM_HEADER_SIZE, poDS->fp ) < TBM_HEADER_SIZE )
+    if ( poDS->ProcessDatasetHeader() != CE_None )
     {
-        CPLDebug( "L1B", "Can't read TBM header." );
+        CPLDebug( "L1B", "Error reading L1B record header." );
         goto bad;
     }
 
-    // Determine processing center where the dataset was created
-    if ( EQUALN((const char *) pabyTBMHeader + 30, "CMS", 3) )
-         poDS->eProcCenter = CMS;
-    else if ( EQUALN((const char *) pabyTBMHeader + 30, "DSS", 3) )
-         poDS->eProcCenter = DSS;
-    else if ( EQUALN((const char *) pabyTBMHeader + 30, "NSS", 3) )
-         poDS->eProcCenter = NSS;
-    else if ( EQUALN((const char *) pabyTBMHeader + 30, "UKM", 3) )
-         poDS->eProcCenter = UKM;
-    else
-         poDS->eProcCenter = UNKNOWN_CENTER;
-    
-    // Determine spacecraft type
-    if ( EQUALN((const char *)pabyTBMHeader + 39, "NA", 2) )
-         poDS->eSpacecraftID = NOAA6;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NB", 2) )
-         poDS->eSpacecraftID = NOAAB;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NC", 2) )
-         poDS->eSpacecraftID = NOAA7;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NE", 2) )
-         poDS->eSpacecraftID = NOAA8;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NF", 2) )
-         poDS->eSpacecraftID = NOAA9;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NG", 2) )
-         poDS->eSpacecraftID = NOAA10;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NH", 2) )
-         poDS->eSpacecraftID = NOAA11;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "ND", 2) )
-         poDS->eSpacecraftID = NOAA12;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NI", 2) )
-         poDS->eSpacecraftID = NOAA13;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NJ", 2) )
-         poDS->eSpacecraftID = NOAA14;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NK", 2) )
-         poDS->eSpacecraftID = NOAA15;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NL", 2) )
-         poDS->eSpacecraftID = NOAA16;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NM", 2) )
-         poDS->eSpacecraftID = NOAA17;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "NN", 2) )
-         poDS->eSpacecraftID = NOAA18;
-    else if ( EQUALN((const char *)pabyTBMHeader + 39, "M2", 2) )
-         poDS->eSpacecraftID = METOP2;
-    else
-    {
-#ifdef DEBUG
-        CPLDebug( "L1B", "Unknown spacecraft type \"%.2s\".",
-                  pabyTBMHeader + 39 );
-#endif
-         goto bad;
-    }
-           
-    // Determine product type
-    if ( EQUALN((const char *)pabyTBMHeader + 34, "HRPT", 4) )
-         poDS->eProductType = HRPT;
-    else if ( EQUALN((const char *)pabyTBMHeader + 34, "LHRR", 4) )
-         poDS->eProductType = LAC;
-    else if ( EQUALN((const char *)pabyTBMHeader + 34, "GHRR", 4) )
-         poDS->eProductType = GAC;
-    else if ( EQUALN((const char *)pabyTBMHeader + 34, "FRAC", 4) )
-         poDS->eProductType = FRAC;
-    else
-    {
-#ifdef DEBUG
-        CPLDebug( "L1B", "Unknown product type \"%.4s\".",
-                  pabyTBMHeader + 34 );
-#endif
-         goto bad;
-    }
+    CPLStat(pszFilename, &sStat);
 
-    // Get revolution number as string, we don't need this value for processing
-    memcpy(poDS->pszRevolution, pabyTBMHeader + 62, 5);
-    poDS->pszRevolution[5] = '\0';
-
-    // Get receiving station name
-    if ( EQUALN((const char *)pabyTBMHeader + 70, "DU", 2) )
-         poDS->eSource = DU;
-    else if ( EQUALN((const char *)pabyTBMHeader + 70, "GC", 2) )
-         poDS->eSource = GC;
-    else if ( EQUALN((const char *)pabyTBMHeader + 70, "HO", 2) )
-         poDS->eSource = HO;
-    else if ( EQUALN((const char *)pabyTBMHeader + 70, "MO", 2) )
-         poDS->eSource = MO;
-    else if ( EQUALN((const char *)pabyTBMHeader + 70, "WE", 2) )
-         poDS->eSource = WE;
-    else if ( EQUALN((const char *)pabyTBMHeader + 70, "SO", 2) )
-         poDS->eSource = SO;
-    else if ( EQUALN((const char *)pabyTBMHeader + 70, "WI", 2) )
-         poDS->eSource = WI;
-    else
-         poDS->eSource = UNKNOWN_STATION;
-
-    // Determine number of bands
-    for ( i = 97; i < 117; i++ )
+    if ( poDS->bGuessDataFormat )
     {
-        if (pabyTBMHeader[i] == 1 || pabyTBMHeader[i] == 'Y')
+        int nTempYSize;
+        GUInt16 nScanlineNumber;
+        int j;
+
+        /* If the data format is unspecified, try each one of the 3 known data formats */
+        /* It is considered valid when the spacing between the first 5 scanline numbers */
+        /* is a constant */
+
+        for(j=0;j<3;j++)
         {
-            poDS->nBands++;
-            poDS->iChannels |= (1 << (i - 97));
+            poDS->iDataFormat = PACKED10BIT + j;
+            if (!poDS->ComputeFileOffsets())
+                goto bad;
+
+            nTempYSize = (sStat.st_size - poDS->nDataStartOffset) / poDS->nRecordSize;
+            if (nTempYSize < 5)
+                continue;
+
+            int nLastScanlineNumber = 0;
+            int nDiffLine = 0;
+            int i;
+            for (i=0;i<5;i++)
+            {
+                nScanlineNumber = 0;
+
+                VSIFSeekL(poDS->fp, poDS->nDataStartOffset + i * poDS->nRecordSize, SEEK_SET);
+                VSIFReadL(&nScanlineNumber, 1, 2, poDS->fp);
+#ifdef CPL_LSB
+                CPL_SWAP16PTR( &nScanlineNumber );
+#endif
+                if (i == 1)
+                {
+                    nDiffLine = nScanlineNumber - nLastScanlineNumber;
+                    if (nDiffLine == 0)
+                        break;
+                }
+                else if (i > 1)
+                {
+                    if (nDiffLine != nScanlineNumber - nLastScanlineNumber)
+                        break;
+                }
+
+                nLastScanlineNumber = nScanlineNumber;
+            }
+
+            if (i == 5)
+            {
+                CPLDebug("L1B", "Guessed data format : %s",
+                         (poDS->iDataFormat == PACKED10BIT) ? "10" :
+                         (poDS->iDataFormat == UNPACKED8BIT) ? "08" : "16");
+                break;
+            }
+        }
+
+        if (j == 3)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Could not guess data format of L1B product");
+            goto bad;
         }
     }
-    if (poDS->nBands == 0 || poDS->nBands > 5)
-    {
-        poDS->nBands = 5;
-        poDS->iChannels = 0x1F;
-    }
-
-    // Determine data format (10-bit packed or 8/16-bit unpacked)
-    if ( EQUALN((const char *)pabyTBMHeader + 117, "10", 2) ||
-         EQUALN((const char *)pabyTBMHeader + 117, "  ", 2) )
-        poDS->iDataFormat = PACKED10BIT;
-    else if ( EQUALN((const char *)pabyTBMHeader + 117, "16", 2) )
-        poDS->iDataFormat = UNPACKED16BIT;
-    else if ( EQUALN((const char *)pabyTBMHeader + 117, "08", 2) )
-        poDS->iDataFormat = UNPACKED8BIT;
     else
     {
-#ifdef DEBUG
-        CPLDebug( "L1B", "Unknown data format \"%.2s\".",
-                  pabyTBMHeader + 117 );
-#endif
-        goto bad;
-    }
-
-    switch( poDS->eProductType )
-    {
-        case HRPT:
-        case LAC:
-        case FRAC:
-            poDS->nRasterXSize = 2048;
-            poDS->nBufferSize = 20484;
-            poDS->iGCPStart = 25;
-            poDS->iGCPStep = 40;
-            poDS->nGCPsPerLine = 51;
-            if (poDS->eSpacecraftID <= NOAA14)
-            {
-                if (poDS->iDataFormat == PACKED10BIT)
-                {
-                    poDS->nRecordSize = 14800;
-                    poDS->nRecordDataEnd = 14104;
-                }
-                else if (poDS->iDataFormat == UNPACKED16BIT)
-                {
-                    switch(poDS->nBands)
-                    {
-                        case 1:
-                        poDS->nRecordSize = 4544;
-                        poDS->nRecordDataEnd = 4544;
-                        break;
-                        case 2:
-                        poDS->nRecordSize = 8640;
-                        poDS->nRecordDataEnd = 8640;
-                        break;
-                        case 3:
-                        poDS->nRecordSize = 12736;
-                        poDS->nRecordDataEnd = 12736;
-                        break;
-                        case 4:
-                        poDS->nRecordSize = 16832;
-                        poDS->nRecordDataEnd = 16832;
-                        break;
-                        case 5:
-                        poDS->nRecordSize = 20928;
-                        poDS->nRecordDataEnd = 20928;
-                        break;
-                    }
-                }
-                else // UNPACKED8BIT
-                {
-                    switch(poDS->nBands)
-                    {
-                        case 1:
-                        poDS->nRecordSize = 2496;
-                        poDS->nRecordDataEnd = 2496;
-                        break;
-                        case 2:
-                        poDS->nRecordSize = 4544;
-                        poDS->nRecordDataEnd = 4544;
-                        break;
-                        case 3:
-                        poDS->nRecordSize = 6592;
-                        poDS->nRecordDataEnd = 6592;
-                        break;
-                        case 4:
-                        poDS->nRecordSize = 8640;
-                        poDS->nRecordDataEnd = 8640;
-                        break;
-                        case 5:
-                        poDS->nRecordSize = 10688;
-                        poDS->nRecordDataEnd = 10688;
-                        break;
-                    }
-                }
-                poDS->nDataStartOffset = poDS->nRecordSize + 122;
-                poDS->nRecordDataStart = 448;
-                poDS->iGCPCodeOffset = 52;
-                poDS->iGCPOffset = 104;
-            }
-            else if ( poDS->eSpacecraftID <= METOP2 )
-            {
-                if (poDS->iDataFormat == PACKED10BIT)
-                {
-                    poDS->nRecordSize = 15872;
-                    poDS->nRecordDataEnd = 14920;
-                }
-                else if (poDS->iDataFormat == UNPACKED16BIT)
-                {
-                    switch(poDS->nBands)
-                    {
-                        case 1:
-                        poDS->nRecordSize = 6144;
-                        poDS->nRecordDataEnd = 5360;
-                        break;
-                        case 2:
-                        poDS->nRecordSize = 10240;
-                        poDS->nRecordDataEnd = 9456;
-                        break;
-                        case 3:
-                        poDS->nRecordSize = 14336;
-                        poDS->nRecordDataEnd = 13552;
-                        break;
-                        case 4:
-                        poDS->nRecordSize = 18432;
-                        poDS->nRecordDataEnd = 17648;
-                        break;
-                        case 5:
-                        poDS->nRecordSize = 22528;
-                        poDS->nRecordDataEnd = 21744;
-                        break;
-                    }
-                }
-                else // UNPACKED8BIT
-                {
-                    switch(poDS->nBands)
-                    {
-                        case 1:
-                        poDS->nRecordSize = 4096;
-                        poDS->nRecordDataEnd = 3312;
-                        break;
-                        case 2:
-                        poDS->nRecordSize = 6144;
-                        poDS->nRecordDataEnd = 5360;
-                        break;
-                        case 3:
-                        poDS->nRecordSize = 8192;
-                        poDS->nRecordDataEnd = 7408;
-                        break;
-                        case 4:
-                        poDS->nRecordSize = 10240;
-                        poDS->nRecordDataEnd = 9456;
-                        break;
-                        case 5:
-                        poDS->nRecordSize = 12288;
-                        poDS->nRecordDataEnd = 11504;
-                        break;
-                    }
-                }
-                poDS->nDataStartOffset = poDS->nRecordSize + 512;
-                poDS->nRecordDataStart = 1264;
-                poDS->iGCPCodeOffset = 0; // XXX: not exist for NOAA15?
-                poDS->iGCPOffset = 640;
-            }
-            else
-                goto bad;
-        break;
-        case GAC:
-            poDS->nRasterXSize = 409;
-            poDS->nBufferSize = 4092;
-            poDS->iGCPStart = 5; // FIXME: depends of scan direction
-            poDS->iGCPStep = 8;
-            poDS->nGCPsPerLine = 51;
-            if (poDS->eSpacecraftID <= NOAA14)
-            {
-                if (poDS->iDataFormat == PACKED10BIT)
-                {
-                    poDS->nRecordSize = 3220;
-                    poDS->nRecordDataEnd = 3176;
-                }
-                else if (poDS->iDataFormat == UNPACKED16BIT)
-                    switch(poDS->nBands)
-                    {
-                        case 1:
-                        poDS->nRecordSize = 1268;
-                        poDS->nRecordDataEnd = 1266;
-                        break;
-                        case 2:
-                        poDS->nRecordSize = 2084;
-                        poDS->nRecordDataEnd = 2084;
-                        break;
-                        case 3:
-                        poDS->nRecordSize = 2904;
-                        poDS->nRecordDataEnd = 2902;
-                        break;
-                        case 4:
-                        poDS->nRecordSize = 3720;
-                        poDS->nRecordDataEnd = 3720;
-                        break;
-                        case 5:
-                        poDS->nRecordSize = 4540;
-                        poDS->nRecordDataEnd = 4538;
-                        break;
-                    }
-                else // UNPACKED8BIT
-                {
-                    switch(poDS->nBands)
-                    {
-                        case 1:
-                        poDS->nRecordSize = 860;
-                        poDS->nRecordDataEnd = 858;
-                        break;
-                        case 2:
-                        poDS->nRecordSize = 1268;
-                        poDS->nRecordDataEnd = 1266;
-                        break;
-                        case 3:
-                        poDS->nRecordSize = 1676;
-                        poDS->nRecordDataEnd = 1676;
-                        break;
-                        case 4:
-                        poDS->nRecordSize = 2084;
-                        poDS->nRecordDataEnd = 2084;
-                        break;
-                        case 5:
-                        poDS->nRecordSize = 2496;
-                        poDS->nRecordDataEnd = 2494;
-                        break;
-                    }
-                }
-                poDS->nDataStartOffset = poDS->nRecordSize * 2 + 122;
-                poDS->nRecordDataStart = 448;
-                poDS->iGCPCodeOffset = 52;
-                poDS->iGCPOffset = 104;
-            }
-            else if ( poDS->eSpacecraftID <= METOP2 )
-            {
-                if (poDS->iDataFormat == PACKED10BIT)
-                {
-                    poDS->nRecordSize = 4608;
-                    poDS->nRecordDataEnd = 3992;
-                }
-                else if (poDS->iDataFormat == UNPACKED16BIT)
-                {
-                    switch(poDS->nBands)
-                    {
-                        case 1:
-                        poDS->nRecordSize = 2360;
-                        poDS->nRecordDataEnd = 2082;
-                        break;
-                        case 2:
-                        poDS->nRecordSize = 3176;
-                        poDS->nRecordDataEnd = 2900;
-                        break;
-                        case 3:
-                        poDS->nRecordSize = 3992;
-                        poDS->nRecordDataEnd = 3718;
-                        break;
-                        case 4:
-                        poDS->nRecordSize = 4816;
-                        poDS->nRecordDataEnd = 4536;
-                        break;
-                        case 5:
-                        poDS->nRecordSize = 5632;
-                        poDS->nRecordDataEnd = 5354;
-                        break;
-                    }
-                }
-                else // UNPACKED8BIT
-                {
-                    switch(poDS->nBands)
-                    {
-                        case 1:
-                        poDS->nRecordSize = 1952;
-                        poDS->nRecordDataEnd = 1673;
-                        break;
-                        case 2:
-                        poDS->nRecordSize = 2360;
-                        poDS->nRecordDataEnd = 2082;
-                        break;
-                        case 3:
-                        poDS->nRecordSize = 2768;
-                        poDS->nRecordDataEnd = 2491;
-                        break;
-                        case 4:
-                        poDS->nRecordSize = 3176;
-                        poDS->nRecordDataEnd = 2900;
-                        break;
-                        case 5:
-                        poDS->nRecordSize = 3584;
-                        poDS->nRecordDataEnd = 3309;
-                        break;
-                    }
-                }
-                poDS->nDataStartOffset = poDS->nRecordSize + 512;
-                poDS->nRecordDataStart = 1264;
-                poDS->iGCPCodeOffset = 0; // XXX: not exist for NOAA15?
-                poDS->iGCPOffset = 640;
-            }
-            else
-                goto bad;
-        break;
-        default:
+        if (!poDS->ComputeFileOffsets())
             goto bad;
     }
+
     // Compute number of lines dinamycally, so we can read partially
     // downloaded files
-    CPLStat(pszFilename, &sStat);
     poDS->nRasterYSize =
         (sStat.st_size - poDS->nDataStartOffset) / poDS->nRecordSize;
 
 /* -------------------------------------------------------------------- */
-/*      Load some info from header.                                     */
-/* -------------------------------------------------------------------- */
-    poDS->ProcessDatasetHeader();
-
-/* -------------------------------------------------------------------- */
 /*      Create band information objects.                                */
 /* -------------------------------------------------------------------- */
-    int iBand;
+    int iBand, i;
     
     for( iBand = 1, i = 0; iBand <= poDS->nBands; iBand++ )
     {
@@ -1170,23 +1722,23 @@ GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
         // Channels descriptions
         if ( poDS->eSpacecraftID >= NOAA6 && poDS->eSpacecraftID <= METOP2 )
         {
-            if ( !(i & 0x01) && poDS->iChannels & 0x01 )
+            if ( !(i & 0x01) && poDS->iChannelsMask & 0x01 )
             {
                 poDS->GetRasterBand(iBand)->SetDescription( apszBandDesc[0] );
                 i |= 0x01;
                 continue;
             }
-            if ( !(i & 0x02) && poDS->iChannels & 0x02 )
+            if ( !(i & 0x02) && poDS->iChannelsMask & 0x02 )
             {
                 poDS->GetRasterBand(iBand)->SetDescription( apszBandDesc[1] );
                 i |= 0x02;
                 continue;
             }
-            if ( !(i & 0x04) && poDS->iChannels & 0x04 )
+            if ( !(i & 0x04) && poDS->iChannelsMask & 0x04 )
             {
                 if ( poDS->eSpacecraftID >= NOAA15
                      && poDS->eSpacecraftID <= METOP2 )
-                    if (poDS->iInstrumentStatus & 0x0400)
+                    if ( poDS->iInstrumentStatus & 0x0400 )
                         poDS->GetRasterBand(iBand)->SetDescription( apszBandDesc[7] );
                     else
                         poDS->GetRasterBand(iBand)->SetDescription( apszBandDesc[6] );
@@ -1195,13 +1747,13 @@ GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
                 i |= 0x04;
                 continue;
             }
-            if ( !(i & 0x08) && poDS->iChannels & 0x08 )
+            if ( !(i & 0x08) && poDS->iChannelsMask & 0x08 )
             {
                 poDS->GetRasterBand(iBand)->SetDescription( apszBandDesc[3] );
                 i |= 0x08;
                 continue;
             }
-            if ( !(i & 0x10) && poDS->iChannels & 0x10 )
+            if ( !(i & 0x10) && poDS->iChannelsMask & 0x10 )
             {
                 if (poDS->eSpacecraftID == NOAA13)              // 5 NOAA-13
                     poDS->GetRasterBand(iBand)->SetDescription( apszBandDesc[5] );
@@ -1220,12 +1772,12 @@ GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Do we have GCPs?                                                */
 /* -------------------------------------------------------------------- */
-    if ( EQUALN((const char *)pabyTBMHeader + 96, "Y", 1) )
+    if ( 1/*EQUALN((const char *)pabyTBMHeader + 96, "Y", 1)*/ )
     {
         poDS->ProcessRecordHeaders();
 
 #if 0
-        Temporarily disabled.
+    Geolocation
         CPLString  osTMP;
 
         poDS->SetMetadataItem( "SRS", poDS->pszGCPProjection, "GEOLOCATION" );
@@ -1239,150 +1791,13 @@ GDALDataset *L1BDataset::Open( GDALOpenInfo * poOpenInfo )
         osTMP.Printf( "%d", (poDS->eLocationIndicator == DESCEND) ?
             poDS->iGCPStart : (poDS->nRasterXSize - poDS->iGCPStart) );
         poDS->SetMetadataItem( "PIXEL_OFFSET", osTMP, "GEOLOCATION" );
-        osTMP.Printf( "%d", (poDS->eLocationIndicator == DESCEND) ? poDS->iGCPStep : -poDS->iGCPStep );
+        osTMP.Printf( "%d", (poDS->eLocationIndicator == DESCEND) ?
+                      poDS->iGCPStep : -poDS->iGCPStep );
         poDS->SetMetadataItem( "PIXEL_STEP", osTMP, "GEOLOCATION" );
 
         poDS->SetMetadataItem( "LINE_OFFSET", "0", "GEOLOCATION" );
         poDS->SetMetadataItem( "LINE_STEP", "1", "GEOLOCATION" );
-#endif        
-    }
-
-/* -------------------------------------------------------------------- */
-/*      Get and set other important information as metadata             */
-/* -------------------------------------------------------------------- */
-    const char *pszText;
-    switch( poDS->eSpacecraftID )
-    {
-        case TIROSN:
-            pszText = "TIROS-N";
-        break;
-        case NOAA6:
-            pszText = "NOAA-6(A)";
-        break;
-        case NOAAB:
-            pszText = "NOAA-B";
-        break;
-        case NOAA7:
-            pszText = "NOAA-7(C)";
-        break;
-        case NOAA8:
-            pszText = "NOAA-8(E)";
-        break;
-        case NOAA9:
-            pszText = "NOAA-9(F)";
-        break;
-        case NOAA10:
-            pszText = "NOAA-10(G)";
-        break;
-        case NOAA11:
-            pszText = "NOAA-11(H)";
-        break;
-        case NOAA12:
-            pszText = "NOAA-12(D)";
-        break;
-        case NOAA13:
-            pszText = "NOAA-13(I)";
-        break;
-        case NOAA14:
-            pszText = "NOAA-14(J)";
-        break;
-        case NOAA15:
-            pszText = "NOAA-15(K)";
-        break;
-        case NOAA16:
-            pszText = "NOAA-16(L)";
-        break;
-        case NOAA17:
-            pszText = "NOAA-17(M)";
-        break;
-        case NOAA18:
-            pszText = "NOAA-18(N)";
-        break;
-        case METOP2:
-            pszText = "METOP-2(A)";
-        break;
-        default:
-            pszText = "Unknown";
-    }
-    poDS->SetMetadataItem( "SATELLITE",  pszText );
-    switch( poDS->eProductType )
-    {
-        case LAC:
-            pszText = "AVHRR LAC";
-        break;
-        case HRPT:
-            pszText = "AVHRR HRPT";
-        break;
-        case GAC:
-            pszText = "AVHRR GAC";
-        break;
-        case FRAC:
-            pszText = "AVHRR FRAC";
-        break;
-        default:
-            pszText = "Unknown";
-    }
-    poDS->SetMetadataItem( "DATA_TYPE",  pszText );
-    poDS->SetMetadataItem( "REVOLUTION",  poDS->pszRevolution );
-    switch( poDS->eSource )
-    {
-        case DU:
-            pszText = "Dundee, Scotland, UK";
-        break;
-        case GC:
-            pszText = "Fairbanks, Alaska, USA (formerly Gilmore Creek)";
-        break;
-        case HO:
-            pszText = "Honolulu, Hawaii, USA";
-        break;
-        case MO:
-            pszText = "Monterey, California, USA";
-        break;
-        case WE:
-            pszText = "Western Europe CDA, Lannion, France";
-        break;
-        case SO:
-            pszText = "SOCC (Satellite Operations Control Center), Suitland, Maryland, USA";
-        break;
-        case WI:
-            pszText = "Wallops Island, Virginia, USA";
-        break;
-        default:
-            pszText = "Unknown receiving station";
-    }
-    poDS->SetMetadataItem( "SOURCE",  pszText );
-    switch( poDS->eProcCenter )
-    {
-        case CMS:
-            pszText = "Centre de Meteorologie Spatiale - Lannion, France";
-        break;
-        case DSS:
-            pszText = "Dundee Satellite Receiving Station - Dundee, Scotland, UK";
-        break;
-        case NSS:
-            pszText = "NOAA/NESDIS - Suitland, Maryland, USA";
-        break;
-        case UKM:
-            pszText = "United Kingdom Meteorological Office - Bracknell, England, UK";
-        break;
-        default:
-            pszText = "Unknown processing center";
-    }
-    poDS->SetMetadataItem( "PROCESSING_CENTER",  pszText );
-    // Time of first scanline
-    poDS->SetMetadataItem( "START",  poDS->sStartTime.PrintTime() );
-    // Time of last scanline
-    poDS->SetMetadataItem( "STOP",  poDS->sStopTime.PrintTime() );
-    // AVHRR Earth location indication
-    switch(poDS->eLocationIndicator)
-    {
-        case ASCEND:
-            poDS->SetMetadataItem( "LOCATION", "Ascending" );
-            break;
-        case DESCEND:
-        default:
-            poDS->SetMetadataItem( "LOCATION", "Descending" );
-            break;
+#endif
     }
 
 /* -------------------------------------------------------------------- */

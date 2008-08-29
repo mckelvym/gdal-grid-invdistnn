@@ -30,6 +30,7 @@
 #include "gdalwarper.h"
 #include "cpl_string.h"
 #include "cpl_multiproc.h"
+#include "ogr_api.h"
 
 CPL_CVSID("$Id$");
 
@@ -508,6 +509,31 @@ CPLErr GDALWarpOperation::Initialize( const GDALWarpOptions *psNewOptions )
                                       "REPORT_TIMINGS", FALSE );
 
 /* -------------------------------------------------------------------- */
+/*      Support creating cutline from text warpoption.                  */
+/* -------------------------------------------------------------------- */
+    const char *pszCutlineWKT = 
+        CSLFetchNameValue( psOptions->papszWarpOptions, "CUTLINE" );
+        
+    if( pszCutlineWKT )
+    {
+        if( OGR_G_CreateFromWkt( (char **) &pszCutlineWKT, NULL, 
+                                 (OGRGeometryH *) &(psOptions->hCutline) )
+            != OGRERR_NONE )
+        {
+            eErr = CE_Failure;
+            CPLError( CE_Failure, CPLE_AppDefined,
+                      "Failed to parse CUTLINE geometry wkt." );
+        }
+        else
+        {
+            const char *pszBD = CSLFetchNameValue( psOptions->papszWarpOptions,
+                                                   "CUTLINE_BLEND_DIST" );
+            if( pszBD )
+                psOptions->dfCutlineBlendDist = atof(pszBD);
+        }
+    }
+
+/* -------------------------------------------------------------------- */
 /*      If the options don't validate, then wipe them.                  */
 /* -------------------------------------------------------------------- */
     if( !ValidateOptions() )
@@ -746,6 +772,7 @@ CPLErr GDALWarpOperation::ChunkAndWarpMulti(
                                             hThread2Mutex, NULL, NULL };
     int iChunk;
     double dfPixelsProcessed=0.0, dfTotalPixels = nDstXSize*(double)nDstYSize;
+    CPLErr eErr = CE_None;
 
     for( iChunk = 0; iChunk < nChunkListCount+1; iChunk++ )
     {
@@ -799,16 +826,29 @@ CPLErr GDALWarpOperation::ChunkAndWarpMulti(
 
             CPLDebug( "GDAL", "Finished chunk %d.", iChunk-1 );
 
-            CPLErr eErr = (CPLErr) (long) papThreadDataList[iThread*3+2];
+            eErr = (CPLErr) (long) papThreadDataList[iThread*3+2];
 
             if( eErr != CE_None )
-                return eErr;
-        }            
+                break;
+        }
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*      Wait for all threads to complete.                               */
+    /* -------------------------------------------------------------------- */
+    int iThread;
+    for(iThread = 0; iThread < 2; iThread ++)
+    {
+        while( papThreadDataList[iThread*3+1] != NULL )
+        {
+            if( CPLAcquireMutex( papThreadDataList[iThread*3+0], 1.0 ) )
+                CPLReleaseMutex( papThreadDataList[iThread*3+0] );
+        }
     }
 
     WipeChunkList();
 
-    return CE_None;
+    return eErr;
 }
 
 /************************************************************************/
@@ -1343,7 +1383,7 @@ CPLErr GDALWarpOperation::WarpRegionToBuffer(
     {
         CPLAssert( oWK.pafDstDensity == NULL );
 
-        eErr = CreateKernelMask( &oWK, i, "UnifiedSrcDensity" );
+        eErr = CreateKernelMask( &oWK, 0, "UnifiedSrcDensity" );
         
         if( eErr == CE_None )
             eErr = 
@@ -1354,6 +1394,35 @@ CPLErr GDALWarpOperation::WarpRegionToBuffer(
                                         oWK.nSrcXSize, oWK.nSrcYSize,
                                         oWK.papabySrcImage,
                                         TRUE, oWK.pafUnifiedSrcDensity );
+    }
+    
+/* -------------------------------------------------------------------- */
+/*      Generate a source density mask if we have a source cutline.     */
+/* -------------------------------------------------------------------- */
+    if( eErr == CE_None && psOptions->hCutline != NULL )
+    {
+        if( oWK.pafUnifiedSrcDensity == NULL )
+        {
+            int j = oWK.nSrcXSize * oWK.nSrcYSize;
+
+            eErr = CreateKernelMask( &oWK, 0, "UnifiedSrcDensity" );
+
+            if( eErr == CE_None )
+            {
+                for( j = oWK.nSrcXSize * oWK.nSrcYSize - 1; j >= 0; j-- )
+                    oWK.pafUnifiedSrcDensity[j] = 1.0;
+            }
+        }
+        
+        if( eErr == CE_None )
+            eErr = 
+                GDALWarpCutlineMasker( psOptions, 
+                                       psOptions->nBandCount, 
+                                       psOptions->eWorkingDataType,
+                                       oWK.nSrcXOff, oWK.nSrcYOff, 
+                                       oWK.nSrcXSize, oWK.nSrcYSize,
+                                       oWK.papabySrcImage,
+                                       TRUE, oWK.pafUnifiedSrcDensity );
     }
     
 /* -------------------------------------------------------------------- */
@@ -1877,6 +1946,9 @@ CPLErr GDALWarpOperation::ComputeSourceWindow(int nDstXOff, int nDstYOff,
         nResWinSize = 1;
     
     if( psOptions->eResampleAlg == GRA_Cubic )
+        nResWinSize = 2;
+
+    if( psOptions->eResampleAlg == GRA_CubicSpline )
         nResWinSize = 2;
 
 /* -------------------------------------------------------------------- */

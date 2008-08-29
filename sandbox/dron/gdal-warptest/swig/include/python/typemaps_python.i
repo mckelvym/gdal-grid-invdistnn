@@ -106,7 +106,7 @@
     resultobj = 0;
   }
   if (resultobj == 0) {
-    resultobj = PyInt_FromLong( 0 );
+    resultobj = PyInt_FromLong( $1 );
   }
 }
 
@@ -538,7 +538,7 @@ OPTIONAL_POD(int,i);
  */
 
 
-%typemap(in) (tostring argin) (PyObject *str)
+%typemap(in) (tostring argin) (PyObject * str=0)
 {
   /* %typemap(in) (tostring argin) */
   str = PyObject_Str( $input );
@@ -833,4 +833,84 @@ CHECK_NOT_UNDEF(OGRFeatureShadow, feature, feature)
 		$1 = PyLong_AsUnsignedLong($input);
 	}
 
+}
+
+
+%define OBJECT_LIST_INPUT(type)
+%typemap(in, numinputs=1) (int object_list_count, type **poObjects)
+{
+  /*  OBJECT_LIST_INPUT %typemap(in) (int itemcount, type *optional_##type)*/
+  if ( $input == Py_None ) {
+    PyErr_SetString( PyExc_TypeError, "Input must be a list, not None" );
+    SWIG_fail;
+  }
+
+  if ( !PySequence_Check($input) ) {
+    PyErr_SetString(PyExc_TypeError, "not a sequence");
+    SWIG_fail;
+  }
+  $1 = PySequence_Size($input);
+  $2 = (type**) CPLMalloc($1*sizeof(type*));
+  
+  for( int i = 0; i<$1; i++ ) {
+
+      PyObject *o = PySequence_GetItem($input,i);
+      PySwigObject *sobj = SWIG_Python_GetSwigThis(o);
+      type* rawobjectpointer = NULL;
+      if (sobj) {
+          Py_DECREF(sobj);
+      } else {
+          SWIG_fail;
+      }
+      rawobjectpointer = (type*) sobj->ptr;
+      /* FIXME remove this when Frank confirms this typemap works */
+      int v = GDALGetRasterBandXSize(rawobjectpointer);
+      $2[i] = rawobjectpointer;
+
+  }
+}
+
+%typemap(freearg)  (int object_list_count, type **poObjects)
+{
+  /* OBJECT_LIST_INPUT %typemap(freearg) (int object_list_count, type **poObjects)*/
+  if ( $2 ) {
+      for (int i = 0; i< $1; i++) {
+          CPLFree($2[i]);
+      }
+  }
+  CPLFree( $2 );
+}
+%enddef
+
+OBJECT_LIST_INPUT(GDALRasterBandShadow);
+
+%typemap(in, numinputs=1) (int nBuckets, int* panHistogram)
+{
+  /* %typemap(in) int nBuckets, int* panHistogram -> list hobujunk*/
+  $2 = (int *) CPLCalloc(sizeof(int),$1);
+}
+
+%typemap(freearg)  (int nBuckets, int* panHistogram)
+{
+  /* %typemap(freearg) (int nBuckets, int* panHistogram)*/
+  if ( $2 ) {
+    CPLFree( $2 );
+  }
+}
+
+%typemap(argout) (int nBuckets, int* panHistogram)
+{
+  /* %typemap(out) int nBuckets, int* panHistogram -> list hobujunk*/
+  int *integerarray = $2;
+  if ( integerarray == NULL ) {
+    $result = Py_None;
+    Py_INCREF( $result );
+  }
+  else {
+    $result = PyList_New( $1 );
+    for ( int i = 0; i < $1; ++i ) {
+      PyObject *o =  PyInt_FromLong( integerarray[i] );
+      PyList_SetItem($result, i, o );
+    }
+  }
 }

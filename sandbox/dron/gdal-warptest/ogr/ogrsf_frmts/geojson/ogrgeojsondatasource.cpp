@@ -122,6 +122,9 @@ int OGRGeoJSONDataSource::Open( const char* pszName )
     if( NULL == poLayer )
     {
         Clear();
+        
+        CPLError( CE_Failure, CPLE_OpenFailed, 
+                  "Failed to read GeoJSON data" );
         return FALSE;
     }
 
@@ -229,6 +232,8 @@ int OGRGeoJSONDataSource::TestCapability( const char* pszCap )
 
 int OGRGeoJSONDataSource::Create( const char* pszName, char** papszOptions )
 {
+    UNREFERENCED_PARAM(papszOptions);
+
     CPLAssert( NULL == fpOut_ );
 
 /* -------------------------------------------------------------------- */
@@ -479,3 +484,4 @@ OGRGeoJSONLayer* OGRGeoJSONDataSource::LoadLayer()
 
     return poLayer;
 }
+

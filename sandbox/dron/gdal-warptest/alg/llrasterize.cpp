@@ -27,17 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-/*
- * NOTE: This code was originally adapted from the gdImageFilledPolygon() 
- * function in libgd.  
- * 
- * http://www.boutell.com/gd/
- *
- * It was later adapted for direct inclusion in GDAL and relicensed under
- * the GDAL MIT/X license (pulled from the OpenEV distribution). 
- */
-
 #include "gdal_alg.h"
+#include "gdal_alg_priv.h"
 
 static int llCompareInt(const void *a, const void *b)
 {
@@ -75,6 +66,16 @@ static int llCompareInt(const void *a, const void *b)
 /*         case, due to numerical inaccuracies, it's hard to predict    */
 /*         if the pixel will be considered inside or outside the shape. */
 /************************************************************************/
+
+/*
+ * NOTE: This code was originally adapted from the gdImageFilledPolygon() 
+ * function in libgd.  
+ * 
+ * http://www.boutell.com/gd/
+ *
+ * It was later adapted for direct inclusion in GDAL and relicensed under
+ * the GDAL MIT/X license (pulled from the OpenEV distribution). 
+ */
 
 void GDALdllImageFilledPolygon(int nRasterXSize, int nRasterYSize, 
                                int nPartCount, int *panPartSize,
@@ -236,7 +237,6 @@ No known bug
             if( polyInts[i] <= maxx && polyInts[i+1] > minx )
             {
                 pfnScanlineFunc( pCBData, y, polyInts[i], polyInts[i+1] - 1 );
-                
 	    }
             
         }
@@ -245,5 +245,114 @@ No known bug
     free( polyInts );
 }
 
+/************************************************************************/
+/*                         GDALdllImagePoint()                          */
+/************************************************************************/
 
+void GDALdllImagePoint( int nRasterXSize, int nRasterYSize, 
+                        int nPartCount, int *panPartSize,
+                        double *padfX, double *padfY,
+                        llPointFunc pfnPointFunc, void *pCBData )
+{
+    int     i;
+ 
+    for ( i = 0; i < nPartCount; i++ )
+    {
+        int nX = (int)floor( padfX[i] + 0.5 );
+        int nY = (int)floor( padfY[i] + 0.5 );
+
+        if ( 0 <= nX && nX < nRasterXSize && 0 <= nY && nY < nRasterYSize )
+            pfnPointFunc( pCBData, nY, nX );
+    }
+}
+
+/************************************************************************/
+/*                         GDALdllImageLine()                           */
+/************************************************************************/
+
+void GDALdllImageLine( int nRasterXSize, int nRasterYSize, 
+                       int nPartCount, int *panPartSize,
+                       double *padfX, double *padfY,
+                       llPointFunc pfnPointFunc, void *pCBData )
+{
+    int     i, n;
+
+    if (!nPartCount) {
+        return;
+    }
+
+    for ( i = 0, n = 0; i < nPartCount; i++, n += panPartSize[i] )
+    {
+        int j;
+
+        for ( j = 1; j < panPartSize[i]; j++ )
+        {
+/* -------------------------------------------------------------------- */
+/*      Draw the line segment.                                          */
+/*      This is a straightforward Bresenham's algorithm handling        */
+/*      all slopes and directions.                                      */
+/*      TODO: line clipping prior to drawing; some optimisations are    */
+/*      certainly possible here.                                        */
+/* -------------------------------------------------------------------- */
+            int iX = (int)floor( padfX[n + j - 1] + 0.5 );
+            int iY = (int)floor( padfY[n + j - 1] + 0.5 );
+
+            int iX1 = (int)floor( padfX[n + j] + 0.5 );
+            int iY1 = (int)floor( padfY[n + j] + 0.5 );
+
+            int nDeltaX = ABS( iX1 - iX );
+            int nDeltaY = ABS( iY1 - iY );
+
+            // Step direction depends on line direction.
+            int nXStep = ( iX > iX1 ) ? -1 : 1;
+            int nYStep = ( iY > iY1 ) ? -1 : 1;
+
+            // Determine the line slope.
+            if ( nDeltaX >= nDeltaY )
+            {           
+                int nXError = nDeltaY << 1;
+                int nYError = nXError - (nDeltaX << 1);
+                int nError = nXError - nDeltaX;
+
+                while ( nDeltaX-- >= 0 )
+                {
+                    if ( 0 <= iX && iX < nRasterXSize
+                         && 0 <= iY && iY < nRasterYSize )
+                        pfnPointFunc( pCBData, iY, iX );
+
+                    iX += nXStep;
+                    if ( nError > 0 )
+                    { 
+                        iY += nYStep;
+                        nError += nYError;
+                    }
+                    else
+                        nError += nXError;
+                }		
+            }
+            else
+            {
+                int nXError = nDeltaX << 1;
+                int nYError = nXError - (nDeltaY << 1);
+                int nError = nXError - nDeltaY;
+
+                while ( nDeltaY-- >= 0 )
+                {
+                    if ( 0 <= iX && iX < nRasterXSize
+                         && 0 <= iY && iY < nRasterYSize )
+                        pfnPointFunc( pCBData, iY, iX );
+
+                    iY += nYStep;
+                    if ( nError > 0 )
+                    { 
+                        iX += nXStep;
+                        nError += nYError;
+                    }
+                    else
+                        nError += nXError;
+                }
+            }
+        }
+    }
+}
 

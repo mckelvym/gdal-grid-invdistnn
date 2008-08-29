@@ -40,6 +40,8 @@ class GDALDataset;
 class GDALRasterBand;
 class GDALDriver;
 class GDALRasterAttributeTable;
+class GDALProxyDataset;
+class GDALProxyRasterBand;
 
 /* -------------------------------------------------------------------- */
 /*      Pull in the public declarations.  This gets the C apis, and     */
@@ -196,6 +198,7 @@ class CPL_DLL GDALDataset : public GDALMajorObject
     friend GDALDatasetH CPL_STDCALL GDALOpenShared( const char *, GDALAccess);
     friend class GDALDriver;
     friend class GDALDefaultOverviews;
+    friend class GDALProxyDataset;
 
   protected:
     GDALDriver  *poDriver;
@@ -408,6 +411,7 @@ class CPL_DLL GDALRasterBand : public GDALMajorObject
 
     friend class GDALDataset;
     friend class GDALRasterBlock;
+    friend class GDALProxyRasterBand;
 
   protected:
     virtual CPLErr IReadBlock( int, int, void * ) = 0;
@@ -549,6 +553,22 @@ class CPL_DLL GDALNoDataMaskBand : public GDALRasterBand
   public:
                 GDALNoDataMaskBand( GDALRasterBand * );
     virtual     ~GDALNoDataMaskBand();
+};
+
+/* ******************************************************************** */
+/*                  GDALNoDataValuesMaskBand                            */
+/* ******************************************************************** */
+
+class CPL_DLL GDALNoDataValuesMaskBand : public GDALRasterBand
+{
+    double      *padfNodataValues;
+
+  protected:
+    virtual CPLErr IReadBlock( int, int, void * );
+
+  public:
+                GDALNoDataValuesMaskBand( GDALDataset * );
+    virtual     ~GDALNoDataValuesMaskBand();
 };
 
 /* ******************************************************************** */
@@ -699,6 +719,14 @@ class CPL_DLL GDALDriverManager : public GDALMajorObject
     void        SetHome( const char * );
 };
 
+/* Not a public symbol for the moment */
+CPLErr 
+GDALRegenerateOverviewsMultiBand(int nBands, GDALRasterBand** papoSrcBands,
+                                 int nOverviews,
+                                 GDALRasterBand*** papapoOverviewBands,
+                                 const char * pszResampling, 
+                                 GDALProgressFunc pfnProgress, void * pProgressData );
+
 CPL_C_START
 GDALDriverManager CPL_DLL * GetGDALDriverManager( void );
 CPL_C_END
@@ -737,14 +765,12 @@ GDALDefaultBuildOverviews( GDALDataset *hSrcDS, const char * pszBasename,
                            GDALProgressFunc pfnProgress, void * pProgressData);
                            
 
-CPLErr CPL_DLL 
-GDALRegenerateOverviews( GDALRasterBand *, int, GDALRasterBand **,
-                         const char *, GDALProgressFunc, void * );
 
 int CPL_DLL GDALOvLevelAdjust( int nOvLevel, int nXSize );
 
 GDALDataset CPL_DLL *
-GDALFindAssociatedAuxFile( const char *pszBasefile, GDALAccess eAccess );
+GDALFindAssociatedAuxFile( const char *pszBasefile, GDALAccess eAccess,
+                           GDALDataset *poDependentDS );
 
 /* ==================================================================== */
 /*      Misc functions.                                                 */

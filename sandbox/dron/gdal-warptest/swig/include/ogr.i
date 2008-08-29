@@ -119,6 +119,18 @@ using namespace std;
 #include "cpl_string.h"
 #include "ogr_srs_api.h"
 
+#ifdef DEBUG 
+typedef struct OGRSpatialReferenceHS OSRSpatialReferenceShadow;
+typedef struct OGRDriverHS OGRDriverShadow;
+typedef struct OGRDataSourceHS OGRDataSourceShadow;
+typedef struct OGRLayerHS OGRLayerShadow;
+typedef struct OGRFeatureHS OGRFeatureShadow;
+typedef struct OGRFeatureDefnHS OGRFeatureDefnShadow;
+typedef struct OGRGeometryHS OGRGeometryShadow;
+typedef struct OGRCoordinateTransformationHS OSRCoordinateTransformationShadow;
+typedef struct OGRCoordinateTransformationHS OGRCoordinateTransformationShadow;
+typedef struct OGRFieldDefnHS OGRFieldDefnShadow;
+#else
 typedef void OSRSpatialReferenceShadow;
 typedef void OGRDriverShadow;
 typedef void OGRDataSourceShadow;
@@ -128,6 +140,8 @@ typedef void OGRFeatureDefnShadow;
 typedef void OGRGeometryShadow;
 typedef void OSRCoordinateTransformationShadow;
 typedef void OGRFieldDefnShadow;
+#endif
+
 %}
 
 #ifndef SWIGCSHARP
@@ -310,7 +324,7 @@ public:
   }
 
   bool TestCapability (const char *cap) {
-    return OGR_Dr_TestCapability(self, cap);
+    return (OGR_Dr_TestCapability(self, cap) > 0);
   }
   
   const char * GetName() {
@@ -405,7 +419,7 @@ public:
   }
 
   bool TestCapability(const char * cap) {
-    return OGR_DS_TestCapability(self, cap);
+    return (OGR_DS_TestCapability(self, cap) > 0);
   }
 
 
@@ -532,7 +546,7 @@ public:
 #endif
 
   bool TestCapability(const char* cap) {
-    return OGR_L_TestCapability(self, cap);
+    return (OGR_L_TestCapability(self, cap) > 0);
   }
   
   %feature( "kwargs" ) CreateField;
@@ -614,7 +628,7 @@ public:
   }
   
   bool Equal(OGRFeatureShadow *feature) {
-    return OGR_F_Equal(self, feature);
+    return (OGR_F_Equal(self, feature) > 0);
   }
   
   int GetFieldCount() {
@@ -714,7 +728,7 @@ public:
   
   /* ---- IsFieldSet --------------------------- */
   bool IsFieldSet(int id) {
-    return OGR_F_IsFieldSet(self, id);
+    return (OGR_F_IsFieldSet(self, id) > 0);
   }
 
   bool IsFieldSet(const char* name) {
@@ -722,8 +736,8 @@ public:
       if (i == -1)
 	  CPLError(CE_Failure, 1, "No such field: '%s'", name);
       else
-	  return OGR_F_IsFieldSet(self, i);
-      return (bool)0;
+	  return (OGR_F_IsFieldSet(self, i) > 0);
+      return false;
   }
   /* ------------------------------------------- */  
       
@@ -1024,7 +1038,7 @@ public:
 %inline %{
   OGRGeometryShadow* CreateGeometryFromWkb( int len, char *bin_string, 
                                             OSRSpatialReferenceShadow *reference=NULL ) {
-    void *geom;
+    OGRGeometryShadow *geom;
     OGRErr err = OGR_G_CreateFromWkb( (unsigned char *) bin_string,
                                       reference,
                                       &geom,
@@ -1050,7 +1064,7 @@ public:
 %inline {
 OGRGeometryShadow* CreateGeometryFromWkb(int nLen, unsigned char *pBuf, 
                                             OSRSpatialReferenceShadow *reference=NULL ) {
-    void *geom;
+    OGRGeometryShadow *geom;
     OGRErr err = OGR_G_CreateFromWkb((unsigned char*) pBuf, reference, &geom, nLen);
     if (err != 0 ) {
        CPLError(CE_Failure, err, "%s", OGRErrMessages(err));
@@ -1067,7 +1081,7 @@ OGRGeometryShadow* CreateGeometryFromWkb(int nLen, unsigned char *pBuf,
 %inline %{
   OGRGeometryShadow* CreateGeometryFromWkt( char **val, 
                                       OSRSpatialReferenceShadow *reference=NULL ) {
-    void *geom;
+    OGRGeometryShadow *geom;
     OGRErr err = OGR_G_CreateFromWkt(val,
                                       reference,
                                       &geom);
@@ -1097,6 +1111,30 @@ OGRGeometryShadow* CreateGeometryFromWkb(int nLen, unsigned char *pBuf,
     return geom;
   }
  
+%}
+
+%newobject BuildPolygonFromEdges;
+%feature( "kwargs" ) BuildPolygonFromEdges;
+%inline %{
+  OGRGeometryShadow* BuildPolygonFromEdges( OGRGeometryShadow*  hLineCollection,  
+                                            int bBestEffort = 0, 
+                                            int bAutoClose = 0, 
+                                            double dfTolerance=0) {
+  
+  OGRGeometryH hPolygon = NULL;
+  
+  OGRErr eErr;
+
+  hPolygon = OGRBuildPolygonFromEdges( hLineCollection, bBestEffort, 
+                                       bAutoClose, dfTolerance, &eErr );
+
+  if (eErr != OGRERR_NONE ) {
+    CPLError(CE_Failure, eErr, "%s", OGRErrMessages(eErr));
+    return NULL;
+  }
+
+  return hPolygon;
+  }
 %}
 
 /************************************************************************/
@@ -1298,51 +1336,51 @@ public:
   }
 
   bool IsEmpty () {
-    return OGR_G_IsEmpty(self);
+    return (OGR_G_IsEmpty(self) > 0);
   }  
   
   bool IsValid () {
-    return OGR_G_IsValid(self);
+    return (OGR_G_IsValid(self) > 0);
   }  
   
   bool IsSimple () {
-    return OGR_G_IsSimple(self);
+    return (OGR_G_IsSimple(self) > 0);
   }  
   
   bool IsRing () {
-    return OGR_G_IsRing(self);
+    return (OGR_G_IsRing(self) > 0);
   }  
   
   bool Intersect (OGRGeometryShadow* other) {
-    return OGR_G_Intersect(self, other);
+    return (OGR_G_Intersect(self, other) > 0);
   }
 
   bool Equal (OGRGeometryShadow* other) {
-    return OGR_G_Equal(self, other);
+    return (OGR_G_Equal(self, other) > 0);
   }
   
   bool Disjoint(OGRGeometryShadow* other) {
-    return OGR_G_Disjoint(self, other);
+    return (OGR_G_Disjoint(self, other) > 0);
   }
 
   bool Touches (OGRGeometryShadow* other) {
-    return OGR_G_Touches(self, other);
+    return (OGR_G_Touches(self, other) > 0);
   }
 
   bool Crosses (OGRGeometryShadow* other) {
-    return OGR_G_Crosses(self, other);
+    return (OGR_G_Crosses(self, other) > 0);
   }
 
   bool Within (OGRGeometryShadow* other) {
-    return OGR_G_Within(self, other);
+    return (OGR_G_Within(self, other) > 0);
   }
 
   bool Contains (OGRGeometryShadow* other) {
-    return OGR_G_Contains(self, other);
+    return (OGR_G_Contains(self, other) > 0);
   }
   
   bool Overlaps (OGRGeometryShadow* other) {
-    return OGR_G_Overlaps(self, other);
+    return (OGR_G_Overlaps(self, other) > 0);
   }
 
   OGRErr TransformTo(OSRSpatialReferenceShadow* reference) {

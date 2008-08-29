@@ -161,7 +161,8 @@ public:
   const char *GetGCPProjection() {
     return GDALGetGCPProjection( self );
   }
-
+  
+#ifndef SWIGCSHARP
   void GetGCPs( int *nGCPs, GDAL_GCP const **pGCPs ) {
     *nGCPs = GDALGetGCPCount( self );
     *pGCPs = GDALGetGCPs( self );
@@ -170,6 +171,7 @@ public:
   CPLErr SetGCPs( int nGCPs, GDAL_GCP const *pGCPs, const char *pszGCPProjection ) {
     return GDALSetGCPs( self, nGCPs, pGCPs, pszGCPProjection );
   }
+#endif
 
   void FlushCache() {
     GDALFlushCache( self );
@@ -184,6 +186,12 @@ public:
   CPLErr CreateMaskBand( int nFlags ) {
       return GDALCreateDatasetMaskBand( self, nFlags );
   }
+
+%apply (char **options) {char **};
+  char **GetFileList() {
+    return GDALGetFileList( self );
+  }
+%clear char **;
 
 #ifndef SWIGCSHARP
 %feature("kwargs") WriteRaster;

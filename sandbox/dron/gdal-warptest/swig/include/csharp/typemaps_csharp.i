@@ -74,46 +74,32 @@ OGRErrMessages( int rc ) {
   $1 = ($1_ltype)$input;
 }
 
-%typemap(in) (char **ignorechange) ( char *val )
-{
-  /* %typemap(in) (char **ignorechange) */
-	/*TODO*/
-	$1 = $null;
-}
-
-
 /* GDAL Typemaps */
 
-%typemap(out) IF_FALSE_RETURN_NONE
-{
-  /* %typemap(out) IF_FALSE_RETURN_NONE */
-
-}
-%typemap(ret) IF_FALSE_RETURN_NONE
-{
- /* %typemap(ret) IF_FALSE_RETURN_NONE */
-
+%typemap(out) IF_FALSE_RETURN_NONE %{ $result = $1; %}
+%typemap(ctype) IF_FALSE_RETURN_NONE "int"
+%typemap(imtype) IF_FALSE_RETURN_NONE "int"
+%typemap(cstype) IF_FALSE_RETURN_NONE "int"
+%typemap(csout, excode=SWIGEXCODE) IF_FALSE_RETURN_NONE {
+    int res = $imcall;$excode
+    return res;
 }
 
-%typemap(out) IF_ERROR_RETURN_NONE
-{
-  /* %typemap(out) IF_ERROR_RETURN_NONE */
-}
+%typemap(out) IF_ERROR_RETURN_NONE %{ $result = $1; %}
 
-%define OPTIONAL_POD(type,argstring)
-%typemap(in) (type *optional_##type) ( type val )
+%define OPTIONAL_POD(CTYPE, CSTYPE)
+%typemap(imtype) (CTYPE *optional_##CTYPE) "IntPtr"
+%typemap(cstype) (CTYPE *optional_##CTYPE) "ref CSTYPE"
+%typemap(csin) (CTYPE *optional_##CTYPE) "(IntPtr)$csinput"
+ 
+%typemap(in) (CTYPE *optional_##CTYPE)
 {
-  /* %typemap(in) (type *optional_##type) */
+  /* %typemap(in) (type *optional_##CTYPE) */
   $1 = ($1_type)$input;
-}
-%typemap(typecheck,precedence=0) (type *optional_##type)
-{
-  /* %typemap(typecheck,precedence=0) (type *optionalInt) */
-
 }
 %enddef
 
-OPTIONAL_POD(int,i);
+OPTIONAL_POD(int, int);
 
 /*
  * Typemap for GIntBig (int64)
@@ -156,11 +142,11 @@ OPTIONAL_POD(int,i);
  * Typemap for char** options
  */
 
-%typemap(imtype, out="IntPtr") char **options, char **dict "IntPtr[]"
-%typemap(cstype) char **options, char **dict %{string[]%}
-%typemap(in) char **options, char **dict %{ $1 = ($1_ltype)$input; %}
-%typemap(out) char **options, char **dict %{ $result = $1; %}
-%typemap(csin) char **options, char **dict "($csinput != null)? new $modulePINVOKE.StringListMarshal($csinput)._ar : null"
+%typemap(imtype, out="IntPtr") char **options, char **dict, char **CSL "IntPtr[]"
+%typemap(cstype) char **options, char **dict, char **CSL %{string[]%}
+%typemap(in) char **options, char **dict, char **CSL %{ $1 = ($1_ltype)$input; %}
+%typemap(out) char **options, char **dict, char **CSL %{ $result = $1; %}
+%typemap(csin) char **options, char **dict, char **CSL "($csinput != null)? new $modulePINVOKE.StringListMarshal($csinput)._ar : null"
 %typemap(csout, excode=SWIGEXCODE) char**options, char **dict {
         /* %typemap(csout) char**options */
         IntPtr cPtr = $imcall;
@@ -181,10 +167,26 @@ OPTIONAL_POD(int,i);
         return ret;
 }
  
-%typemap(freearg) char **options
-{
-  /* %typemap(freearg) char **options */
-  //CSLDestroy( $1 );
+%typemap(csout, excode=SWIGEXCODE) char** CSL {
+        /* %typemap(csout) char** CSL */
+        IntPtr cPtr = $imcall;
+        IntPtr objPtr;
+        int count = 0;
+        if (cPtr != IntPtr.Zero) {
+            while (Marshal.ReadIntPtr(cPtr, count*IntPtr.Size) != IntPtr.Zero)
+                ++count;
+        }
+        string[] ret = new string[count];
+        if (count > 0) {       
+	        for(int cx = 0; cx < count; cx++) {
+                objPtr = System.Runtime.InteropServices.Marshal.ReadIntPtr(cPtr, cx * System.Runtime.InteropServices.Marshal.SizeOf(typeof(IntPtr)));
+                ret[cx]= (objPtr == IntPtr.Zero) ? null : System.Runtime.InteropServices.Marshal.PtrToStringAnsi(objPtr);
+            }
+        }
+        if (cPtr != IntPtr.Zero)
+            $modulePINVOKE.StringListDestroy(cPtr);
+        $excode
+        return ret;
 }
 
 /*
@@ -208,9 +210,27 @@ OPTIONAL_POD(int,i);
 		free(*$1);
   *$1 = temp_string;
 }
-%typemap(freearg) (char **argout), (char **username), (char **usrname), (char **type)
+
+/*
+ * Typemap for char **ignorechange. 
+ */
+ 
+%typemap(imtype) (char **ignorechange) "ref string"
+%typemap(cstype) (char **ignorechange) "ref string"
+%typemap(csin) (char** ignorechange) "ref $csinput"
+  
+%typemap(in, noblock="1") (char **ignorechange)
 {
-  /* %typemap(freearg) (char **argout) */
+  /* %typemap(in) (char **ignorechange) */
+    $*1_type savearg = *(($1_type)$input); 
+	$1 = ($1_ltype)$input;
+}
+%typemap(argout, noblock="1") (char **ignorechange)
+{
+  /* %typemap(argout) (char **ignorechange) */
+  if ((*$1 - savearg) > 0)
+     memmove(savearg, *$1, strlen(*$1)+1);
+  *$1 = savearg;
 }
 
 /*
@@ -286,6 +306,8 @@ OPTIONAL_POD(int,i);
   $1 = ($1_ltype)$input;
 }
 
+%apply (double inout[ANY]) {double *pList};
+
 /*
  * Typemap for int inout[ANY]. 
  */
@@ -300,10 +322,7 @@ OPTIONAL_POD(int,i);
   $1 = ($1_ltype)$input;
 }
 
-%typemap(argout) (double inout[ANY])
-{
-  /* %typemap(argout) (double inout[ANY]) */
-}
+%apply (int inout[ANY]) {int *pList};
 
 /*
  * Typemap for double *defaultval. 
@@ -347,6 +366,41 @@ OPTIONAL_POD(int,i);
   $1 = ($1_ltype)$input;
 }
 
+%apply (int *hasval) {int *nLen};
+%apply (int *hasval) {int *pnBytes};
+
+/*
+ * Typemap for int **array_argout. 
+ */
+
+%typemap(imtype) (int **array_argout)  "out int[]"
+%typemap(cstype) (int **array_argout) "out int[]"
+%typemap(csin) (int **array_argout)  "out $csinput"
+
+%typemap(in) (int **array_argout)
+{
+  /* %typemap(in) (int **array_argout) */
+  $1 = ($1_ltype)$input;
+}
+
+%apply (int **array_argout) {int **pList};
+
+/*
+ * Typemap for double **array_argout. 
+ */
+
+%typemap(imtype) (double **array_argout)  "out double[]"
+%typemap(cstype) (double **array_argout) "out double[]"
+%typemap(csin) (double **array_argout)  "out $csinput"
+
+%typemap(in) (double **array_argout)
+{
+  /* %typemap(in) (double **array_argout) */
+  $1 = ($1_ltype)$input;
+}
+
+%apply (double **array_argout) {double **pList};
+
 /******************************************************************************
  * GDAL raster R/W support                                                    *
  *****************************************************************************/
@@ -361,3 +415,11 @@ OPTIONAL_POD(int,i);
       return ret;
 }
 
+%apply (void *buffer_ptr) {GByte*};
+
+%csmethodmodifiers StringListDestroy "internal";
+%inline %{
+    void StringListDestroy(void *buffer_ptr) {
+       CSLDestroy((char**)buffer_ptr);
+    }
+%}

@@ -85,7 +85,6 @@
 #  endif
 #endif
 
-
 #include "cpl_config.h"
 
 /* ==================================================================== */
@@ -233,6 +232,13 @@ typedef unsigned long    GUIntBig;
 #  define FORCE_CDECL  __cdecl
 #else
 #  define FORCE_CDECL 
+#endif
+
+/* TODO : support for other compilers needed */
+#if defined(__GNUC__)
+#define CPL_INLINE inline
+#else
+#define CPL_INLINE
 #endif
 
 #ifndef NULL
@@ -434,8 +440,17 @@ char * strdup (char *instr);
 
 /** Return a Int32 from the 4 bytes ordered in LSB order at address x */
 #define CPL_LSBINT32PTR(x)    ((*(GByte*)(x)) | ((*(GByte*)((x)+1)) << 8) | \
-                              ((*(GByte*)((x)+2)) << 16) | ((*(GByte*)((x)+1)) << 24))
+                              ((*(GByte*)((x)+2)) << 16) | ((*(GByte*)((x)+3)) << 24))
 
+
+/* Utility macro to explicitly mark intentionally unreferenced parameters. */
+#ifndef UNREFERENCED_PARAM 
+#  ifdef UNREFERENCED_PARAMETER /* May be defined by Windows API */
+#    define UNREFERENCED_PARAM(param) UNREFERENCED_PARAMETER(param)
+#  else
+#    define UNREFERENCED_PARAM(param) ((void)param)
+#  endif /* UNREFERENCED_PARAMETER */
+#endif /* UNREFERENCED_PARAM */
 
 /***********************************************************************
  * Define CPL_CVSID() macro.  It can be disabled during a build by

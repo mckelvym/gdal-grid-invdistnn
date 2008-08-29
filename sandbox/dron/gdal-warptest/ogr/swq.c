@@ -173,6 +173,8 @@ static char *swq_token( const char *expression, char **next, int *is_literal )
                 expression++;
             else if( *expression == '\\' && expression[1] == '\'' )
                 expression++;
+            else if( *expression == '\'' && expression[1] == '\'' )
+                expression++;
             else if( *expression == '"' )
             {
                 expression++;
@@ -1123,6 +1125,12 @@ const char *swq_select_preparse( const char *select_statement,
 #define MAX_COLUMNS 250
 
     *select_info_ret = NULL;
+
+    if (select_statement == NULL || select_statement[0] == '\0')
+    {
+        strcpy( swq_get_errbuf(), "Empty SQL request string" );
+        return swq_get_errbuf();
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Get first token. Ensure it is SELECT.                           */

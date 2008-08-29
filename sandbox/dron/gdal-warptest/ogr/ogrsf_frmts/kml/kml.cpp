@@ -146,6 +146,7 @@ void KML::checkValidity()
     XML_Parser oParser = XML_ParserCreate(NULL);
     XML_SetUserData(oParser, this);
     XML_SetElementHandler(oParser, startElementValidate, NULL);
+    int nCount = 0;
 
     /* Parses the file until we find the first element */
     do
@@ -172,7 +173,10 @@ void KML::checkValidity()
             return;
         }
 
-    } while (!nDone && nLen > 0 && validity == KML_VALIDITY_UNKNOWN);
+        nCount ++;
+        /* After reading 50 * BUFSIZE bytes, and not finding whether the file */
+        /* is KML or not, we give up and fail silently */
+    } while (!nDone && nLen > 0 && validity == KML_VALIDITY_UNKNOWN && nCount < 50);
 
     XML_ParserFree(oParser);
     VSIRewindL(pKMLFile_);
@@ -238,14 +242,15 @@ void XMLCALL KML::startElementValidate(void* pUserData, const char* pszName, con
         // Check all Attributes
         for (i = 0; ppszAttr[i]; i += 2)
         {
-            // Find the namespace
+            // Find the namespace and determine the KML version
             if(strcmp(ppszAttr[i], "xmlns") == 0)
             {
-                // Is it KML 2.1?
-                if(strcmp(ppszAttr[i + 1], "http://earth.google.com/kml/2.2") == 0)
+                // Is it KML 2.2?
+                if((strcmp(ppszAttr[i + 1], "http://earth.google.com/kml/2.2") == 0) || 
+				   (strcmp(ppszAttr[i + 1], "http://www.opengis.net/kml/2.2") == 0))
                 {
                     ((KML *)pUserData)->validity = KML_VALIDITY_VALID;
-                    ((KML *)pUserData)->sVersion_ = "2.2 (beta)";
+                    ((KML *)pUserData)->sVersion_ = "2.2";
                 }
                 else if(strcmp(ppszAttr[i + 1], "http://earth.google.com/kml/2.1") == 0)
                 {

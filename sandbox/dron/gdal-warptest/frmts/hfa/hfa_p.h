@@ -141,6 +141,7 @@ class HFABand
     CPLErr	LoadExternalBlockInfo();
     
     void ReAllocBlock( int iBlock, int nSize );
+    void NullBlock( void * );
 
   public:
     		HFABand( HFAInfo_t *, HFAEntry * );
@@ -285,6 +286,8 @@ class HFAField
     char	**papszEnumNames; /* normally NULL if not an enum */
 
     char	*pszFieldName;
+
+    char        szNumberString[28]; /* buffer used to return an int as a string */
 
     		HFAField();
                 ~HFAField();

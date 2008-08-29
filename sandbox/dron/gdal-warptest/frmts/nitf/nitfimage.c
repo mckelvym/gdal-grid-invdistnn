@@ -547,7 +547,8 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     if( psImage->chIMODE == 'S' )
     {
         psImage->nPixelOffset = psImage->nWordSize;
-        psImage->nLineOffset = psImage->nBlockWidth * psImage->nPixelOffset;
+        psImage->nLineOffset = 
+            ((GIntBig) psImage->nBlockWidth * psImage->nBitsPerSample) / 8;
         psImage->nBlockOffset = psImage->nLineOffset * psImage->nBlockHeight;
         psImage->nBandOffset = psImage->nBlockOffset * psImage->nBlocksPerRow 
             * psImage->nBlocksPerColumn;
@@ -555,28 +556,32 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     else if( psImage->chIMODE == 'P' )
     {
         psImage->nPixelOffset = psImage->nWordSize * psImage->nBands;
-        psImage->nLineOffset = psImage->nBlockWidth * psImage->nPixelOffset;
+        psImage->nLineOffset = 
+            ((GIntBig) psImage->nBlockWidth * psImage->nBitsPerSample * psImage->nBands) / 8;
         psImage->nBandOffset = psImage->nWordSize;
         psImage->nBlockOffset = psImage->nLineOffset * psImage->nBlockHeight;
     }
     else if( psImage->chIMODE == 'R' )
     {
         psImage->nPixelOffset = psImage->nWordSize;
-        psImage->nBandOffset = psImage->nBlockWidth * psImage->nPixelOffset;
+        psImage->nBandOffset = 
+            ((GIntBig) psImage->nBlockWidth * psImage->nBitsPerSample) / 8;
         psImage->nLineOffset = psImage->nBandOffset * psImage->nBands;
         psImage->nBlockOffset = psImage->nLineOffset * psImage->nBlockHeight;
     }
     else if( psImage->chIMODE == 'B' )
     {
         psImage->nPixelOffset = psImage->nWordSize;
-        psImage->nLineOffset = psImage->nBlockWidth * psImage->nPixelOffset;
+        psImage->nLineOffset = 
+            ((GIntBig) psImage->nBlockWidth * psImage->nBitsPerSample) / 8;
         psImage->nBandOffset = psImage->nBlockHeight * psImage->nLineOffset;
         psImage->nBlockOffset = psImage->nBandOffset * psImage->nBands;
     }
     else
     {
         psImage->nPixelOffset = psImage->nWordSize;
-        psImage->nLineOffset = psImage->nBlockWidth * psImage->nPixelOffset;
+        psImage->nLineOffset = 
+            ((GIntBig) psImage->nBlockWidth * psImage->nBitsPerSample) / 8;
         psImage->nBandOffset = psImage->nBlockHeight * psImage->nLineOffset;
         psImage->nBlockOffset = psImage->nBandOffset * psImage->nBands;
     }
@@ -1054,15 +1059,20 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
 /* -------------------------------------------------------------------- */
 /*      Figure out how big the working buffer will need to be.          */
 /* -------------------------------------------------------------------- */
-    nWrkBufSize = psImage->nLineOffset * (psImage->nBlockHeight-1)
-        + psImage->nPixelOffset * (psImage->nBlockWidth-1)
-        + psImage->nWordSize;
+    if( psImage->nBitsPerSample != psImage->nWordSize * 8 )
+        nWrkBufSize = psImage->nLineOffset * (psImage->nBlockHeight-1)
+            + (psImage->nBitsPerSample * (psImage->nBlockWidth) + 7) / 8;
+    else
+        nWrkBufSize = psImage->nLineOffset * (psImage->nBlockHeight-1)
+            + psImage->nPixelOffset * (psImage->nBlockWidth - 1)
+            + psImage->nWordSize;
 
 /* -------------------------------------------------------------------- */
 /*      Can we do a direct read into our buffer?                        */
 /* -------------------------------------------------------------------- */
     if( psImage->nWordSize == psImage->nPixelOffset
-        && psImage->nWordSize * psImage->nBlockWidth == psImage->nLineOffset 
+        && (psImage->nBitsPerSample * psImage->nBlockWidth + 7) / 8
+           == psImage->nLineOffset 
         && psImage->szIC[0] != 'C' && psImage->szIC[0] != 'M'
         && psImage->chIMODE != 'P' )
     {
@@ -1080,9 +1090,10 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
         else
         {
 #ifdef CPL_LSB
-            NITFSwapWords( pData, psImage->nWordSize, 
-                           psImage->nBlockWidth * psImage->nBlockHeight, 
-                           psImage->nWordSize );
+            if( psImage->nWordSize * 8 == psImage->nBitsPerSample )
+                NITFSwapWords( pData, psImage->nWordSize, 
+                               psImage->nBlockWidth * psImage->nBlockHeight, 
+                               psImage->nWordSize );
 #endif
 
             return BLKREAD_OK;
@@ -1161,7 +1172,8 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
         {
             CPLError( CE_Failure, CPLE_FileIO, 
                       "Unable to read %d byte block from %d.", 
-                      sizeof(abyVQCoded), psImage->panBlockStart[iFullBlock] );
+                      (int) sizeof(abyVQCoded), 
+                      psImage->panBlockStart[iFullBlock] );
             return BLKREAD_FAIL;
         }
         
@@ -1629,15 +1641,15 @@ int NITFWriteIGEOLO( NITFImage *psImage, char chICORDS,
         return FALSE;
     }
 
-    if( chICORDS != 'G' && chICORDS != 'N' && chICORDS != 'S' )
+    if( chICORDS != 'G' && chICORDS != 'N' && chICORDS != 'S' && chICORDS != 'D')
     {
         CPLError( CE_Failure, CPLE_NotSupported, 
-                  "Currently NITFWriteIGEOLO() only supports writing ICORDS=G, N and S corners." );
+                  "Invalid ICOORDS value (%c) for NITFWriteIGEOLO().", chICORDS );
         return FALSE;
     }
 
 /* -------------------------------------------------------------------- */
-/*      Format geographic coordinates.                                  */
+/*      Format geographic coordinates in DMS                            */
 /* -------------------------------------------------------------------- */
     if( chICORDS == 'G' )
     {
@@ -1659,6 +1671,26 @@ int NITFWriteIGEOLO( NITFImage *psImage, char chICORDS,
         NITFEncodeDMSLoc( szIGEOLO + 37, dfLRX, "Long" );
         NITFEncodeDMSLoc( szIGEOLO + 45, dfLLY, "Lat" );
         NITFEncodeDMSLoc( szIGEOLO + 52, dfLLX, "Long" );
+    }
+/* -------------------------------------------------------------------- */
+/*      Format geographic coordinates in decimal degrees                */
+/* -------------------------------------------------------------------- */
+    else if( chICORDS == 'D' )
+    {
+        if( fabs(dfULX) > 180 || fabs(dfURX) > 180 
+            || fabs(dfLRX) > 180 || fabs(dfLLX) > 180 
+            || fabs(dfULY) >  90 || fabs(dfURY) >  90
+            || fabs(dfLRY) >  90 || fabs(dfLLY) >  90 )
+        {
+            CPLError( CE_Failure, CPLE_AppDefined, 
+                      "Attempt to write geographic bound outside of legal range." );
+            return FALSE;
+        }
+
+        sprintf(szIGEOLO + 0, "%+#07.3f%+#08.3f", dfULY, dfULX);
+        sprintf(szIGEOLO + 15, "%+#07.3f%+#08.3f", dfURY, dfURX);
+        sprintf(szIGEOLO + 30, "%+#07.3f%+#08.3f", dfLRY, dfLRX);
+        sprintf(szIGEOLO + 45, "%+#07.3f%+#08.3f", dfLLY, dfLLX);
     }
 
 /* -------------------------------------------------------------------- */

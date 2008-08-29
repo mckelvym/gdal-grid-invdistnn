@@ -528,7 +528,7 @@ CPLErr MEMDataset::AddBand( GDALDataType eType, char **papszOptions )
     {
 
         pData = (GByte *) 
-            CPLCalloc(nPixelSize, GetRasterXSize() * GetRasterYSize() );
+            VSICalloc(nPixelSize * GetRasterXSize(), GetRasterYSize() );
 
         if( pData == NULL )
         {
@@ -610,14 +610,32 @@ GDALDataset *MEMDataset::Open( GDALOpenInfo * poOpenInfo )
     }
 
 /* -------------------------------------------------------------------- */
-/*      Create the new GTiffDataset object.                             */
+/*      Create the new MEMDataset object.                               */
 /* -------------------------------------------------------------------- */
     MEMDataset *poDS;
 
     poDS = new MEMDataset();
 
     poDS->nRasterXSize = atoi(CSLFetchNameValue(papszOptions,"PIXELS"));
+    if (poDS->nRasterXSize <= 0)
+    {
+        CPLError( CE_Failure, CPLE_AppDefined, 
+                  "Invalid value : PIXELS=%s.", CSLFetchNameValue(papszOptions,"PIXELS"));
+
+        CSLDestroy( papszOptions );
+        delete poDS;
+        return NULL;
+    }
     poDS->nRasterYSize = atoi(CSLFetchNameValue(papszOptions,"LINES"));
+    if (poDS->nRasterYSize <= 0)
+    {
+        CPLError( CE_Failure, CPLE_AppDefined, 
+                  "Invalid value : LINES=%s.", CSLFetchNameValue(papszOptions,"LINES"));
+
+        CSLDestroy( papszOptions );
+        delete poDS;
+        return NULL;
+    }
 
     poDS->eAccess = GA_Update;
 
@@ -635,7 +653,18 @@ GDALDataset *MEMDataset::Open( GDALOpenInfo * poOpenInfo )
     if( pszOption == NULL )
         nBands = 1;
     else
+    {
         nBands = atoi(pszOption);
+        if (nBands > 10000)
+        {
+            CPLError( CE_Failure, CPLE_AppDefined, 
+                    "Invalid value : BANDS=%s.", CSLFetchNameValue(papszOptions,"BANDS"));
+
+            CSLDestroy( papszOptions );
+            delete poDS;
+            return NULL;
+        }
+    }
 
     pszOption = CSLFetchNameValue(papszOptions,"DATATYPE");
     if( pszOption == NULL )
@@ -664,6 +693,7 @@ GDALDataset *MEMDataset::Open( GDALOpenInfo * poOpenInfo )
                 CPLError( CE_Failure, CPLE_AppDefined,
                           "DATATYPE=%s not recognised.", 
                           pszOption );
+                CSLDestroy( papszOptions );
                 delete poDS;
                 return NULL;
             }
@@ -742,6 +772,7 @@ GDALDataset *MEMDataset::Create( const char * pszFilename,
                     VSIFree( papBandData[iBand] );
             }
 
+            CPLFree( papBandData );
             CPLError( CE_Failure, CPLE_OutOfMemory,
                       "Unable to create band arrays ... out of memory." );
             return NULL;
@@ -778,6 +809,26 @@ GDALDataset *MEMDataset::Create( const char * pszFilename,
 }
 
 /************************************************************************/
+/*                     MEMDatasetIdentify()                             */
+/************************************************************************/
+
+static int MEMDatasetIdentify( GDALOpenInfo * poOpenInfo )
+{
+    return (strncmp(poOpenInfo->pszFilename, "MEM:::", 6) == 0 &&
+            poOpenInfo->fp == NULL);
+}
+
+/************************************************************************/
+/*                       MEMDatasetDelete()                             */
+/************************************************************************/
+
+static CPLErr MEMDatasetDelete(const char* fileName)
+{
+    /* Null implementation, so that people can Delete("MEM:::") */
+    return CE_None;
+}
+
+/************************************************************************/
 /*                          GDALRegister_MEM()                          */
 /************************************************************************/
 
@@ -797,7 +848,9 @@ void GDALRegister_MEM()
                                    "Byte Int16 UInt16 Int32 UInt32 Float32 Float64 CInt16 CInt32 CFloat32 CFloat64" );
 
         poDriver->pfnOpen = MEMDataset::Open;
+        poDriver->pfnIdentify = MEMDatasetIdentify;
         poDriver->pfnCreate = MEMDataset::Create;
+        poDriver->pfnDelete = MEMDatasetDelete;
 
         GetGDALDriverManager()->RegisterDriver( poDriver );
     }

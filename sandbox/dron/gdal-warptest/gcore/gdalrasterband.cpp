@@ -931,13 +931,15 @@ CPLErr GDALRasterBand::FlushBlock( int nXBlockOff, int nYBlockOff )
 /* -------------------------------------------------------------------- */
 /*      Is the target block dirty?  If so we need to write it.          */
 /* -------------------------------------------------------------------- */
+    CPLErr eErr = CE_None;
+
     if( poBlock == NULL )
         return CE_None;
 
     poBlock->Detach();
 
     if( poBlock->GetDirty() )
-        poBlock->Write();
+        eErr = poBlock->Write();
 
 /* -------------------------------------------------------------------- */
 /*      Deallocate the block;                                           */
@@ -945,7 +947,7 @@ CPLErr GDALRasterBand::FlushBlock( int nXBlockOff, int nYBlockOff )
     poBlock->DropLock();
     delete poBlock;
 
-    return( CE_None );
+    return eErr;
 }
 
 /************************************************************************/
@@ -1975,8 +1977,8 @@ GDALGetRasterSampleOverview( GDALRasterBandH hBand, int nDesiredSamples )
  * GDALDataset::BuildOverviews().  That makes this method pretty useless
  * from a practical point of view. 
  *
- * @param pszResampling one of "NEAREST", "AVERAGE" or "MODE" controlling
- * the downsampling method applied.
+ * @param pszResampling one of "NEAREST", "AVERAGE", or "AVERAGE_MAGPHASE" 
+ * controlling the downsampling method applied.
  * @param nOverviews number of overviews to build. 
  * @param panOverviewList the list of overview decimation factors to build. 
  * @param pfnProgress a function to call to report progress, or NULL.
@@ -2429,162 +2431,154 @@ CPLErr GDALRasterBand::GetHistogram( double dfMin, double dfMax,
                                      void *pProgressData )
 
 {
-    CPLAssert( pfnProgress != NULL );
+    if( pfnProgress == NULL )
+        pfnProgress = GDALDummyProgress;
 
 /* -------------------------------------------------------------------- */
 /*      If we have overviews, use them for the histogram.               */
 /* -------------------------------------------------------------------- */
-    if( bApproxOK && GetOverviewCount() > 0 )
+    if( bApproxOK && GetOverviewCount() > 0 && !HasArbitraryOverviews() )
     {
-        double dfBestPixels = GetXSize() * GetYSize();
-        GDALRasterBand *poBestOverview = NULL;
+        // FIXME: should we use the most reduced overview here or use some
+        // minimum number of samples like GDALRasterBand::ComputeStatistics()
+        // does?
+        GDALRasterBand *poBestOverview = GetRasterSampleOverview( 0 );
         
-        for( int i = 0; i < GetOverviewCount(); i++ )
+        if( poBestOverview != this )
         {
-            GDALRasterBand *poOverview = GetOverview(i);
-            double         dfPixels;
-
-            dfPixels = poOverview->GetXSize() * poOverview->GetYSize();
-            if( dfPixels < dfBestPixels )
-            {
-                dfBestPixels = dfPixels;
-                poBestOverview = poOverview;
-            }
-            
-            if( poBestOverview != NULL )
-                return poBestOverview->
-                    GetHistogram( dfMin, dfMax, nBuckets, panHistogram, 
-                                  bIncludeOutOfRange, bApproxOK, 
-                                  pfnProgress, pProgressData );
+            return poBestOverview->GetHistogram( dfMin, dfMax, nBuckets,
+                                                 panHistogram,
+                                                 bIncludeOutOfRange, bApproxOK,
+                                                 pfnProgress, pProgressData );
         }
     }
 
 /* -------------------------------------------------------------------- */
-/*      Figure out the ratio of blocks we will read to get an           */
+/*      Read actual data and build histogram.                           */
+/* -------------------------------------------------------------------- */
+    double      dfScale = nBuckets / (dfMax - dfMin);
+
+    if( !pfnProgress( 0.0, "Compute Histogram", pProgressData ) )
+    {
+        CPLError( CE_Failure, CPLE_UserInterrupt, "User terminated" );
+        return CE_Failure;
+    }
+
+    dfScale = nBuckets / (dfMax - dfMin);
+    memset( panHistogram, 0, sizeof(int) * nBuckets );
+
+    if ( bApproxOK && HasArbitraryOverviews() )
+    {
+/* -------------------------------------------------------------------- */
+/*      Figure out how much the image should be reduced to get an       */
 /*      approximate value.                                              */
 /* -------------------------------------------------------------------- */
-    int         nSampleRate;
-    double      dfScale;
+        void    *pData;
+        int     nXReduced, nYReduced;
+        double  dfReduction = sqrt(
+            (double)nRasterXSize * nRasterYSize / GDALSTAT_APPROX_NUMSAMPLES );
 
-    if( !InitBlockInfo() )
-        return CE_Failure;
-    
-    if( bApproxOK )
-        nSampleRate = 
-            (int) MAX(1,sqrt((double) nBlocksPerRow * nBlocksPerColumn));
-    else
-        nSampleRate = 1;
-    
-    dfScale = nBuckets / (dfMax - dfMin);
-
-/* -------------------------------------------------------------------- */
-/*      Read the blocks, and add to histogram.                          */
-/* -------------------------------------------------------------------- */
-    memset( panHistogram, 0, sizeof(int) * nBuckets );
-    for( int iSampleBlock = 0; 
-         iSampleBlock < nBlocksPerRow * nBlocksPerColumn;
-         iSampleBlock += nSampleRate )
-    {
-        double dfValue = 0.0, dfReal, dfImag;
-        int  iXBlock, iYBlock, nXCheck, nYCheck;
-        GDALRasterBlock *poBlock;
-
-        if( !pfnProgress(iSampleBlock/((double)nBlocksPerRow*nBlocksPerColumn),
-                         NULL, pProgressData ) )
-            return CE_Failure;
-
-        iYBlock = iSampleBlock / nBlocksPerRow;
-        iXBlock = iSampleBlock - nBlocksPerRow * iYBlock;
-        
-        poBlock = GetLockedBlockRef( iXBlock, iYBlock );
-        if( poBlock == NULL )
-            return CE_Failure;
-        
-        if( (iXBlock+1) * nBlockXSize > GetXSize() )
-            nXCheck = GetXSize() - iXBlock * nBlockXSize;
-        else
-            nXCheck = nBlockXSize;
-
-        if( (iYBlock+1) * nBlockYSize > GetYSize() )
-            nYCheck = GetYSize() - iYBlock * nBlockYSize;
-        else
-            nYCheck = nBlockYSize;
-
-        /* this is a special case for a common situation */
-        if( poBlock->GetDataType() == GDT_Byte
-            && dfScale == 1.0 && (dfMin >= -0.5 && dfMin <= 0.5)
-            && nYCheck == nBlockYSize && nXCheck == nBlockXSize
-            && nBuckets == 256 )
+        if ( dfReduction > 1.0 )
         {
-            int    nPixels = nXCheck * nYCheck;
-            GByte  *pabyData = (GByte *) poBlock->GetDataRef();
-            
-            for( int i = 0; i < nPixels; i++ )
-                panHistogram[pabyData[i]]++;
+            nXReduced = (int)( nRasterXSize / dfReduction );
+            nYReduced = (int)( nRasterYSize / dfReduction );
 
-            poBlock->DropLock();
-            continue; /* to next sample block */
+            // Catch the case of huge resizing ratios here
+            if ( nXReduced == 0 )
+                nXReduced = 1;
+            if ( nYReduced == 0 )
+                nYReduced = 1;
+        }
+        else
+        {
+            nXReduced = nRasterXSize;
+            nYReduced = nRasterYSize;
         }
 
-        /* this isn't the fastest way to do this, but is easier for now */
-        for( int iY = 0; iY < nYCheck; iY++ )
-        {
-            for( int iX = 0; iX < nXCheck; iX++ )
-            {
-                int    iOffset = iX + iY * nBlockXSize;
-                int    nIndex;
+        pData =
+            CPLMalloc(GDALGetDataTypeSize(eDataType)/8 * nXReduced * nYReduced);
 
-                switch( poBlock->GetDataType() )
+        IRasterIO( GF_Read, 0, 0, nRasterXSize, nRasterYSize, pData,
+                   nXReduced, nYReduced, eDataType, 0, 0 );
+
+        /* this isn't the fastest way to do this, but is easier for now */
+        for( int iY = 0; iY < nYReduced; iY++ )
+        {
+            for( int iX = 0; iX < nXReduced; iX++ )
+            {
+                int    iOffset = iX + iY * nXReduced;
+                int    nIndex;
+                double dfValue = 0.0;
+
+                switch( eDataType )
                 {
                   case GDT_Byte:
-                    dfValue = ((GByte *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GByte *)pData)[iOffset];
                     break;
-
                   case GDT_UInt16:
-                    dfValue = ((GUInt16 *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GUInt16 *)pData)[iOffset];
                     break;
                   case GDT_Int16:
-                    dfValue = ((GInt16 *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GInt16 *)pData)[iOffset];
                     break;
                   case GDT_UInt32:
-                    dfValue = ((GUInt32 *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GUInt32 *)pData)[iOffset];
                     break;
                   case GDT_Int32:
-                    dfValue = ((GInt32 *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GInt32 *)pData)[iOffset];
                     break;
                   case GDT_Float32:
-                    dfValue = ((float *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((float *)pData)[iOffset];
+                    if (CPLIsNan(dfValue))
+                        continue;
                     break;
                   case GDT_Float64:
-                    dfValue = ((double *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((double *)pData)[iOffset];
+                    if (CPLIsNan(dfValue))
+                        continue;
                     break;
                   case GDT_CInt16:
-                    dfReal = ((GInt16 *) poBlock->GetDataRef())[iOffset*2];
-                    dfImag = ((GInt16 *) poBlock->GetDataRef())[iOffset*2+1];
-                    dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                    {
+                        double dfReal = ((GInt16 *)pData)[iOffset*2];
+                        double dfImag = ((GInt16 *)pData)[iOffset*2+1];
+                        if ( CPLIsNan(dfReal) || CPLIsNan(dfImag) )
+                            continue;
+                        dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                    }
                     break;
                   case GDT_CInt32:
-                    dfReal = ((GInt32 *) poBlock->GetDataRef())[iOffset*2];
-                    dfImag = ((GInt32 *) poBlock->GetDataRef())[iOffset*2+1];
-                    dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                    {
+                        double dfReal = ((GInt32 *)pData)[iOffset*2];
+                        double dfImag = ((GInt32 *)pData)[iOffset*2+1];
+                        if ( CPLIsNan(dfReal) || CPLIsNan(dfImag) )
+                            continue;
+                        dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                    }
                     break;
                   case GDT_CFloat32:
-                    dfReal = ((float *) poBlock->GetDataRef())[iOffset*2];
-                    dfImag = ((float *) poBlock->GetDataRef())[iOffset*2+1];
-                    dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                    {
+                        double dfReal = ((float *)pData)[iOffset*2];
+                        double dfImag = ((float *)pData)[iOffset*2+1];
+                        if ( CPLIsNan(dfReal) || CPLIsNan(dfImag) )
+                            continue;
+                        dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                    }
                     break;
                   case GDT_CFloat64:
-                    dfReal = ((double *) poBlock->GetDataRef())[iOffset*2];
-                    dfImag = ((double *) poBlock->GetDataRef())[iOffset*2+1];
-                    dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                    {
+                        double dfReal = ((double *)pData)[iOffset*2];
+                        double dfImag = ((double *)pData)[iOffset*2+1];
+                        if ( CPLIsNan(dfReal) || CPLIsNan(dfImag) )
+                            continue;
+                        dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                    }
                     break;
                   default:
                     CPLAssert( FALSE );
-                    return CE_Failure;
                 }
-                
-                nIndex = (int) floor((dfValue - dfMin) * dfScale);
 
+                nIndex = (int) floor((dfValue - dfMin) * dfScale);
+                
                 if( nIndex < 0 )
                 {
                     if( bIncludeOutOfRange )
@@ -2600,13 +2594,184 @@ CPLErr GDALRasterBand::GetHistogram( double dfMin, double dfMax,
                     panHistogram[nIndex]++;
                 }
             }
-
         }
 
-        poBlock->DropLock();
+        CPLFree( pData );
     }
 
-    pfnProgress( 1.0, NULL, pProgressData );
+    else    // No arbitrary overviews
+    {
+        int         nSampleRate;
+
+        if( !InitBlockInfo() )
+            return CE_Failure;
+    
+/* -------------------------------------------------------------------- */
+/*      Figure out the ratio of blocks we will read to get an           */
+/*      approximate value.                                              */
+/* -------------------------------------------------------------------- */
+
+        if ( bApproxOK )
+        {
+            nSampleRate = 
+                (int) MAX(1,sqrt((double) nBlocksPerRow * nBlocksPerColumn));
+        }
+        else
+            nSampleRate = 1;
+    
+/* -------------------------------------------------------------------- */
+/*      Read the blocks, and add to histogram.                          */
+/* -------------------------------------------------------------------- */
+        for( int iSampleBlock = 0; 
+             iSampleBlock < nBlocksPerRow * nBlocksPerColumn;
+             iSampleBlock += nSampleRate )
+        {
+            int  iXBlock, iYBlock, nXCheck, nYCheck;
+            GDALRasterBlock *poBlock;
+
+            if( !pfnProgress( iSampleBlock
+                              / ((double)nBlocksPerRow * nBlocksPerColumn),
+                              "Compute Histogram", pProgressData ) )
+                return CE_Failure;
+
+            iYBlock = iSampleBlock / nBlocksPerRow;
+            iXBlock = iSampleBlock - nBlocksPerRow * iYBlock;
+            
+            poBlock = GetLockedBlockRef( iXBlock, iYBlock );
+            if( poBlock == NULL )
+                return CE_Failure;
+            
+            if( (iXBlock+1) * nBlockXSize > GetXSize() )
+                nXCheck = GetXSize() - iXBlock * nBlockXSize;
+            else
+                nXCheck = nBlockXSize;
+
+            if( (iYBlock+1) * nBlockYSize > GetYSize() )
+                nYCheck = GetYSize() - iYBlock * nBlockYSize;
+            else
+                nYCheck = nBlockYSize;
+
+            /* this is a special case for a common situation */
+            if( poBlock->GetDataType() == GDT_Byte
+                && dfScale == 1.0 && (dfMin >= -0.5 && dfMin <= 0.5)
+                && nYCheck == nBlockYSize && nXCheck == nBlockXSize
+                && nBuckets == 256 )
+            {
+                int    nPixels = nXCheck * nYCheck;
+                GByte  *pabyData = (GByte *) poBlock->GetDataRef();
+                
+                for( int i = 0; i < nPixels; i++ )
+                    panHistogram[pabyData[i]]++;
+
+                poBlock->DropLock();
+                continue; /* to next sample block */
+            }
+
+            /* this isn't the fastest way to do this, but is easier for now */
+            for( int iY = 0; iY < nYCheck; iY++ )
+            {
+                for( int iX = 0; iX < nXCheck; iX++ )
+                {
+                    int    iOffset = iX + iY * nBlockXSize;
+                    int    nIndex;
+                    double dfValue = 0.0;
+
+                    switch( poBlock->GetDataType() )
+                    {
+                      case GDT_Byte:
+                        dfValue = ((GByte *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_UInt16:
+                        dfValue = ((GUInt16 *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_Int16:
+                        dfValue = ((GInt16 *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_UInt32:
+                        dfValue = ((GUInt32 *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_Int32:
+                        dfValue = ((GInt32 *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_Float32:
+                        dfValue = ((float *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_Float64:
+                        dfValue = ((double *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_CInt16:
+                        {
+                            double  dfReal =
+                                ((GInt16 *) poBlock->GetDataRef())[iOffset*2];
+                            double  dfImag =
+                                ((GInt16 *) poBlock->GetDataRef())[iOffset*2+1];
+                            if ( CPLIsNan(dfReal) || CPLIsNan(dfImag) )
+                                continue;
+                            dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                        }
+                        break;
+                      case GDT_CInt32:
+                        {
+                            double  dfReal =
+                                ((GInt32 *) poBlock->GetDataRef())[iOffset*2];
+                            double  dfImag =
+                                ((GInt32 *) poBlock->GetDataRef())[iOffset*2+1];
+                            if ( CPLIsNan(dfReal) || CPLIsNan(dfImag) )
+                                continue;
+                            dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                        }
+                        break;
+                      case GDT_CFloat32:
+                        {
+                            double  dfReal =
+                                ((float *) poBlock->GetDataRef())[iOffset*2];
+                            double  dfImag =
+                                ((float *) poBlock->GetDataRef())[iOffset*2+1];
+                            if ( CPLIsNan(dfReal) || CPLIsNan(dfImag) )
+                                continue;
+                            dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                        }
+                        break;
+                      case GDT_CFloat64:
+                        {
+                            double  dfReal =
+                                ((double *) poBlock->GetDataRef())[iOffset*2];
+                            double  dfImag =
+                                ((double *) poBlock->GetDataRef())[iOffset*2+1];
+                            if ( CPLIsNan(dfReal) || CPLIsNan(dfImag) )
+                                continue;
+                            dfValue = sqrt( dfReal * dfReal + dfImag * dfImag );
+                        }
+                        break;
+                      default:
+                        CPLAssert( FALSE );
+                        return CE_Failure;
+                    }
+                    
+                    nIndex = (int) floor((dfValue - dfMin) * dfScale);
+
+                    if( nIndex < 0 )
+                    {
+                        if( bIncludeOutOfRange )
+                            panHistogram[0]++;
+                    }
+                    else if( nIndex >= nBuckets )
+                    {
+                        if( bIncludeOutOfRange )
+                            panHistogram[nBuckets-1]++;
+                    }
+                    else
+                    {
+                        panHistogram[nIndex]++;
+                    }
+                }
+            }
+
+            poBlock->DropLock();
+        }
+    }
+
+    pfnProgress( 1.0, "Compute Histogram", pProgressData );
 
     return CE_None;
 }
@@ -2973,9 +3138,9 @@ GDALRasterBand::ComputeStatistics( int bApproxOK,
         pfnProgress = GDALDummyProgress;
 
 /* -------------------------------------------------------------------- */
-/*      If we have overview bands, use them for min/max.                */
+/*      If we have overview bands, use them for statistics.             */
 /* -------------------------------------------------------------------- */
-    if( bApproxOK && !HasArbitraryOverviews() )
+    if( bApproxOK && GetOverviewCount() > 0 && !HasArbitraryOverviews() )
     {
         GDALRasterBand *poBand;
 
@@ -2996,14 +3161,11 @@ GDALRasterBand::ComputeStatistics( int bApproxOK,
     double      dfNoDataValue, dfSum = 0.0, dfSum2 = 0.0;
     GIntBig     nSampleCount = 0;
 
-    if( !pfnProgress( 0.0, NULL, pProgressData ) )
+    if( !pfnProgress( 0.0, "Compute Statistics", pProgressData ) )
     {
         CPLError( CE_Failure, CPLE_UserInterrupt, "User terminated" );
         return CE_Failure;
     }
-
-    if( !InitBlockInfo() )
-        return CE_Failure;
 
     dfNoDataValue = GetNoDataValue( &bGotNoDataValue );
 
@@ -3084,9 +3246,13 @@ GDALRasterBand::ComputeStatistics( int bApproxOK,
                     break;
                   case GDT_CFloat32:
                     dfValue = ((float *)pData)[iOffset*2];
+                    if( CPLIsNan(dfValue) )
+                        continue;
                     break;
                   case GDT_CFloat64:
                     dfValue = ((double *)pData)[iOffset*2];
+                    if( CPLIsNan(dfValue) )
+                        continue;
                     break;
                   default:
                     CPLAssert( FALSE );
@@ -3118,8 +3284,11 @@ GDALRasterBand::ComputeStatistics( int bApproxOK,
 
     else    // No arbitrary overviews
     {
-        int         nSampleRate;
+        int     nSampleRate;
         
+        if( !InitBlockInfo() )
+            return CE_Failure;
+
 /* -------------------------------------------------------------------- */
 /*      Figure out the ratio of blocks we will read to get an           */
 /*      approximate value.                                              */
@@ -3199,9 +3368,13 @@ GDALRasterBand::ComputeStatistics( int bApproxOK,
                         break;
                       case GDT_CFloat32:
                         dfValue = ((float *)poBlock->GetDataRef())[iOffset*2];
+                        if( CPLIsNan(dfValue) )
+                            continue;
                         break;
                       case GDT_CFloat64:
                         dfValue = ((double *)poBlock->GetDataRef())[iOffset*2];
+                        if( CPLIsNan(dfValue) )
+                            continue;
                         break;
                       default:
                         CPLAssert( FALSE );
@@ -3389,9 +3562,8 @@ CPLErr CPL_STDCALL GDALSetRasterStatistics(
 CPLErr GDALRasterBand::ComputeRasterMinMax( int bApproxOK,
                                             double adfMinMax[2] )
 {
-    double dfMin = 0.0;
-    double dfMax = 0.0;
-    GDALRasterBand *poBand = NULL;
+    double  dfMin = 0.0;
+    double  dfMax = 0.0;
 
 /* -------------------------------------------------------------------- */
 /*      Does the driver already know the min/max?                       */
@@ -3414,105 +3586,106 @@ CPLErr GDALRasterBand::ComputeRasterMinMax( int bApproxOK,
 /* -------------------------------------------------------------------- */
 /*      If we have overview bands, use them for min/max.                */
 /* -------------------------------------------------------------------- */
-    if( bApproxOK )
+    if ( bApproxOK && GetOverviewCount() > 0 && !HasArbitraryOverviews() )
+    {
+        GDALRasterBand *poBand;
+
         poBand = GetRasterSampleOverview( GDALSTAT_APPROX_NUMSAMPLES );
-    else 
-        poBand = this;
+
+        if ( poBand != this )
+            return poBand->ComputeRasterMinMax( FALSE, adfMinMax );
+    }
     
 /* -------------------------------------------------------------------- */
-/*      Figure out the ratio of blocks we will read to get an           */
+/*      Read actual data and compute minimum and maximum.               */
+/* -------------------------------------------------------------------- */
+    int     bGotNoDataValue, bFirstValue = TRUE;
+    double  dfNoDataValue;
+
+    dfNoDataValue = GetNoDataValue( &bGotNoDataValue );
+
+    if ( bApproxOK && HasArbitraryOverviews() )
+    {
+/* -------------------------------------------------------------------- */
+/*      Figure out how much the image should be reduced to get an       */
 /*      approximate value.                                              */
 /* -------------------------------------------------------------------- */
-    int         nBlockXSize, nBlockYSize;
-    int         nBlocksPerRow, nBlocksPerColumn;
-    int         nSampleRate;
-    int         bGotNoDataValue, bFirstValue = TRUE;
-    double      dfNoDataValue;
+        void    *pData;
+        int     nXReduced, nYReduced;
+        double  dfReduction = sqrt(
+            (double)nRasterXSize * nRasterYSize / GDALSTAT_APPROX_NUMSAMPLES );
 
-    dfNoDataValue = poBand->GetNoDataValue( &bGotNoDataValue );
+        if ( dfReduction > 1.0 )
+        {
+            nXReduced = (int)( nRasterXSize / dfReduction );
+            nYReduced = (int)( nRasterYSize / dfReduction );
 
-    poBand->GetBlockSize( &nBlockXSize, &nBlockYSize );
-    nBlocksPerRow = (poBand->GetXSize() + nBlockXSize - 1) / nBlockXSize;
-    nBlocksPerColumn = (poBand->GetYSize() + nBlockYSize - 1) / nBlockYSize;
-
-    if( bApproxOK )
-        nSampleRate = 
-            (int) MAX(1,sqrt((double) nBlocksPerRow * nBlocksPerColumn));
-    else
-        nSampleRate = 1;
-    
-    for( int iSampleBlock = 0; 
-         iSampleBlock < nBlocksPerRow * nBlocksPerColumn;
-         iSampleBlock += nSampleRate )
-    {
-        double dfValue = 0.0;
-        int  iXBlock, iYBlock, nXCheck, nYCheck;
-        GDALRasterBlock *poBlock;
-
-        iYBlock = iSampleBlock / nBlocksPerRow;
-        iXBlock = iSampleBlock - nBlocksPerRow * iYBlock;
-        
-        poBlock = poBand->GetLockedBlockRef( iXBlock, iYBlock );
-        if( poBlock == NULL )
-            continue;
-        
-        if( (iXBlock+1) * nBlockXSize > poBand->GetXSize() )
-            nXCheck = poBand->GetXSize() - iXBlock * nBlockXSize;
+            // Catch the case of huge resizing ratios here
+            if ( nXReduced == 0 )
+                nXReduced = 1;
+            if ( nYReduced == 0 )
+                nYReduced = 1;
+        }
         else
-            nXCheck = nBlockXSize;
+        {
+            nXReduced = nRasterXSize;
+            nYReduced = nRasterYSize;
+        }
 
-        if( (iYBlock+1) * nBlockYSize > poBand->GetYSize() )
-            nYCheck = poBand->GetYSize() - iYBlock * nBlockYSize;
-        else
-            nYCheck = nBlockYSize;
+        pData =
+            CPLMalloc(GDALGetDataTypeSize(eDataType)/8 * nXReduced * nYReduced);
+
+        IRasterIO( GF_Read, 0, 0, nRasterXSize, nRasterYSize, pData,
+                   nXReduced, nYReduced, eDataType, 0, 0 );
 
         /* this isn't the fastest way to do this, but is easier for now */
-        for( int iY = 0; iY < nYCheck; iY++ )
+        for( int iY = 0; iY < nYReduced; iY++ )
         {
-            for( int iX = 0; iX < nXCheck; iX++ )
+            for( int iX = 0; iX < nXReduced; iX++ )
             {
-                int    iOffset = iX + iY * nBlockXSize;
+                int    iOffset = iX + iY * nXReduced;
+                double dfValue = 0.0;
 
-                switch( poBlock->GetDataType() )
+                switch( eDataType )
                 {
                   case GDT_Byte:
-                    dfValue = ((GByte *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GByte *)pData)[iOffset];
                     break;
                   case GDT_UInt16:
-                    dfValue = ((GUInt16 *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GUInt16 *)pData)[iOffset];
                     break;
                   case GDT_Int16:
-                    dfValue = ((GInt16 *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GInt16 *)pData)[iOffset];
                     break;
                   case GDT_UInt32:
-                    dfValue = ((GUInt32 *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GUInt32 *)pData)[iOffset];
                     break;
                   case GDT_Int32:
-                    dfValue = ((GInt32 *) poBlock->GetDataRef())[iOffset];
+                    dfValue = ((GInt32 *)pData)[iOffset];
                     break;
                   case GDT_Float32:
-                    dfValue = ((float *) poBlock->GetDataRef())[iOffset];
-                    if( CPLIsNan(dfValue) )
+                    dfValue = ((float *)pData)[iOffset];
+                    if (CPLIsNan(dfValue))
                         continue;
                     break;
                   case GDT_Float64:
-                    dfValue = ((double *) poBlock->GetDataRef())[iOffset];
-                    if( CPLIsNan(dfValue) )
+                    dfValue = ((double *)pData)[iOffset];
+                    if (CPLIsNan(dfValue))
                         continue;
                     break;
                   case GDT_CInt16:
-                    dfValue = ((GInt16 *) poBlock->GetDataRef())[iOffset*2];
+                    dfValue = ((GInt16 *)pData)[iOffset*2];
                     break;
                   case GDT_CInt32:
-                    dfValue = ((GInt32 *) poBlock->GetDataRef())[iOffset*2];
+                    dfValue = ((GInt32 *)pData)[iOffset*2];
                     break;
                   case GDT_CFloat32:
-                    dfValue = ((float *) poBlock->GetDataRef())[iOffset*2];
+                    dfValue = ((float *)pData)[iOffset*2];
                     if( CPLIsNan(dfValue) )
                         continue;
                     break;
                   case GDT_CFloat64:
-                    dfValue = ((double *) poBlock->GetDataRef())[iOffset*2];
+                    dfValue = ((double *)pData)[iOffset*2];
                     if( CPLIsNan(dfValue) )
                         continue;
                     break;
@@ -3536,7 +3709,125 @@ CPLErr GDALRasterBand::ComputeRasterMinMax( int bApproxOK,
             }
         }
 
-        poBlock->DropLock();
+        CPLFree( pData );
+    }
+
+    else    // No arbitrary overviews
+    {
+        int     nSampleRate;
+
+        if( !InitBlockInfo() )
+            return CE_Failure;
+
+/* -------------------------------------------------------------------- */
+/*      Figure out the ratio of blocks we will read to get an           */
+/*      approximate value.                                              */
+/* -------------------------------------------------------------------- */
+        if ( bApproxOK )
+        {
+            nSampleRate = 
+                (int) MAX(1,sqrt((double) nBlocksPerRow * nBlocksPerColumn));
+        }
+        else
+            nSampleRate = 1;
+        
+        for( int iSampleBlock = 0; 
+             iSampleBlock < nBlocksPerRow * nBlocksPerColumn;
+             iSampleBlock += nSampleRate )
+        {
+            int  iXBlock, iYBlock, nXCheck, nYCheck;
+            GDALRasterBlock *poBlock;
+
+            iYBlock = iSampleBlock / nBlocksPerRow;
+            iXBlock = iSampleBlock - nBlocksPerRow * iYBlock;
+            
+            poBlock = GetLockedBlockRef( iXBlock, iYBlock );
+            if( poBlock == NULL )
+                continue;
+            
+            if( (iXBlock+1) * nBlockXSize > GetXSize() )
+                nXCheck = GetXSize() - iXBlock * nBlockXSize;
+            else
+                nXCheck = nBlockXSize;
+
+            if( (iYBlock+1) * nBlockYSize > GetYSize() )
+                nYCheck = GetYSize() - iYBlock * nBlockYSize;
+            else
+                nYCheck = nBlockYSize;
+
+            /* this isn't the fastest way to do this, but is easier for now */
+            for( int iY = 0; iY < nYCheck; iY++ )
+            {
+                for( int iX = 0; iX < nXCheck; iX++ )
+                {
+                    int    iOffset = iX + iY * nBlockXSize;
+                    double dfValue = 0.0;
+
+                    switch( poBlock->GetDataType() )
+                    {
+                      case GDT_Byte:
+                        dfValue = ((GByte *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_UInt16:
+                        dfValue = ((GUInt16 *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_Int16:
+                        dfValue = ((GInt16 *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_UInt32:
+                        dfValue = ((GUInt32 *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_Int32:
+                        dfValue = ((GInt32 *) poBlock->GetDataRef())[iOffset];
+                        break;
+                      case GDT_Float32:
+                        dfValue = ((float *) poBlock->GetDataRef())[iOffset];
+                        if( CPLIsNan(dfValue) )
+                            continue;
+                        break;
+                      case GDT_Float64:
+                        dfValue = ((double *) poBlock->GetDataRef())[iOffset];
+                        if( CPLIsNan(dfValue) )
+                            continue;
+                        break;
+                      case GDT_CInt16:
+                        dfValue = ((GInt16 *) poBlock->GetDataRef())[iOffset*2];
+                        break;
+                      case GDT_CInt32:
+                        dfValue = ((GInt32 *) poBlock->GetDataRef())[iOffset*2];
+                        break;
+                      case GDT_CFloat32:
+                        dfValue = ((float *) poBlock->GetDataRef())[iOffset*2];
+                        if( CPLIsNan(dfValue) )
+                            continue;
+                        break;
+                      case GDT_CFloat64:
+                        dfValue = ((double *) poBlock->GetDataRef())[iOffset*2];
+                        if( CPLIsNan(dfValue) )
+                            continue;
+                        break;
+                      default:
+                        CPLAssert( FALSE );
+                    }
+                    
+                    if( bGotNoDataValue && dfValue == dfNoDataValue )
+                        continue;
+
+                    if( bFirstValue )
+                    {
+                        dfMin = dfMax = dfValue;
+                        bFirstValue = FALSE;
+                    }
+                    else
+                    {
+                        dfMin = MIN(dfMin,dfValue);
+                        dfMax = MAX(dfMax,dfValue);
+                    }
+                }
+            }
+
+            poBlock->DropLock();
+        }
     }
 
     adfMinMax[0] = dfMin;
@@ -3709,6 +4000,59 @@ GDALRasterBand *GDALRasterBand::GetMaskBand()
         {
             nMaskFlags = poDS->oOvManager.GetMaskFlags( nBand );
             return poMask;
+        }
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Check for NODATA_VALUES metadata.                               */
+/* -------------------------------------------------------------------- */
+    if (poDS != NULL)
+    {
+        const char* pszNoDataValues = poDS->GetMetadataItem("NODATA_VALUES");
+        if (pszNoDataValues != NULL)
+        {
+            char** papszNoDataValues = CSLTokenizeStringComplex(pszNoDataValues, " ", FALSE, FALSE);
+
+            /* Make sure we have as many values as bands */
+            if (CSLCount(papszNoDataValues) == poDS->GetRasterCount() && poDS->GetRasterCount() != 0)
+            {
+                CSLDestroy(papszNoDataValues);
+
+                /* Make sure that all bands have the same data type */
+                /* This is cleraly not a fundamental condition, just a condition to make implementation */
+                /* easier. */
+                int i;
+                GDALDataType eDT = GDT_Unknown;
+                for(i=0;i<poDS->GetRasterCount();i++)
+                {
+                    if (i == 0)
+                        eDT = poDS->GetRasterBand(1)->GetRasterDataType();
+                    else if (eDT != poDS->GetRasterBand(i + 1)->GetRasterDataType())
+                    {
+                        break;
+                    }
+                }
+                if (i == poDS->GetRasterCount())
+                {
+                    nMaskFlags = GMF_NODATA | GMF_PER_DATASET;
+                    poMask = new GDALNoDataValuesMaskBand ( poDS );
+                    bOwnMask = true;
+                    return poMask;
+                }
+                else
+                {
+                    CPLError(CE_Warning, CPLE_AppDefined,
+                            "All bands should have the same type in order the NODATA_VALUES metadata item to be used as a mask.");
+                }
+            }
+            else
+            {
+                CPLError(CE_Warning, CPLE_AppDefined,
+                        "NODATA_VALUES metadata item doesn't have the same number of values as the number of bands.\n"
+                        "Ignoring it for mask.");
+            }
+
+            CSLDestroy(papszNoDataValues);
         }
     }
 

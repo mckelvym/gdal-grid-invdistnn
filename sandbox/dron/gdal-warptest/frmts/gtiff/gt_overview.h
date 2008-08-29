@@ -1,12 +1,13 @@
 /******************************************************************************
- * $Id$
+ * $Id: gt_overview.h 13297 2007-12-09 19:03:50Z rouault $
  *
- * Project:  OpenGIS Simple Features Reference Implementation
- * Purpose:  Conversion between GEOS and OGR geometry formats.
- * Author:   Frank Warmerdam <warmerdam@pobox.com>
+ * Project:  GeoTIFF Driver
+ * Purpose:  Code to build overviews of external databases as a TIFF file. 
+ *           Only used by the GDALDefaultOverviews::BuildOverviews() method.
+ * Author:   Frank Warmerdam, warmerdam@pobox.com
  *
  ******************************************************************************
- * Copyright (c) 2004, Frank Warmerdam <warmerdam@pobox.com>
+ * Copyright (c) 2000, Frank Warmerdam
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,10 +28,24 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "ogr_geos.h"
-#include "ogr_p.h"
-#include "cpl_error.h"
-#include <assert.h>
+#ifndef GT_OVERVIEW_H_INCLUDED
+#define GT_OVERVIEW_H_INCLUDED
 
-CPL_CVSID("$Id$");
+#include "gdal_priv.h"
+#include "tiffio.h"
 
+toff_t GTIFFWriteDirectory(TIFF *hTIFF, int nSubfileType, int nXSize, int nYSize,
+                           int nBitsPerPixel, int nPlanarConfig, int nSamples, 
+                           int nBlockXSize, int nBlockYSize,
+                           int bTiled, int nCompressFlag, int nPhotometric,
+                           int nSampleFormat, 
+                           unsigned short *panRed,
+                           unsigned short *panGreen,
+                           unsigned short *panBlue,
+                           const char *pszMetadata );
+
+void GTIFFBuildOverviewMetadata( const char *pszResampling,
+                                 GDALDataset *poBaseDS, 
+                                 CPLString &osMetadata );
+
+#endif

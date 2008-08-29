@@ -398,8 +398,7 @@ char **VSIUnixStdioFilesystemHandler::ReadDir( const char *pszPath )
 void VSIInstallLargeFileHandler()
 
 {
-    VSIFileManager::InstallHandler( string(""), 
-                                    new VSIUnixStdioFilesystemHandler );
+    VSIFileManager::InstallHandler( "", new VSIUnixStdioFilesystemHandler );
 }
 
 #endif /* ndef WIN32 */

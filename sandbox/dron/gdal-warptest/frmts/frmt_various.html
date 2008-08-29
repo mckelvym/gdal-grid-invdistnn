@@ -30,6 +30,12 @@ ascii grid reading programs.  For force the X pixel size to be used as CELLSIZE
 use the FORCE_CELLSIZE=YES creation option or resample the input to have 
 square pixels.<P>
 
+When writing floating-point values, the driver uses the "%6.20g" format
+pattern as a default. You can consult a <a href="http://en.wikipedia.org/wiki/Printf">
+reference manual</a> for printf to have an idea of the exact behaviour of this ;-).
+You can alternatively specify the number of decimal places with the DECIMAL_PRECISION creation
+option. For example, DECIMAL_PRECISION=3 will output numbers with 3 decimal places.<p>
+
 The <a href="#AIG">AIG</a> driver is also available
 for Arc/Info Binary Grid format.<p>
 
@@ -694,6 +700,12 @@ is the palette of the first tile of the subdataset).
 In situations where it wouldn't give a good result, you can try to set the RPFTOC_FORCE_RGBA
 environment variable to TRUE before opening the subdataset. This will cause the driver to expose
 the subdataset as a RGBA dataset, instead of a paletted one.</p>
+
+<p>It is possible to build external overviews for a subdataset. The overview for the first subdataset
+will be named A.TOC.1.ovr for example, for the second dataset it will be A.TOC.2.ovr, etc.
+Note that you must re-open the subdataset with the same setting of RPFTOC_FORCE_RGBA as the one you
+have used when you have created it. Do not use any method other than NEAREST resampling when building
+overviews on a paletted subdataset (RPFTOC_FORCE_RGBA unset)</p>
 
 <p>A gdalinfo on one of this subdataset will return the various NITF metadata, as well
 as the list of the NITF tiles of the subdataset.</p>

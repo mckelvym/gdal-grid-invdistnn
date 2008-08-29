@@ -132,7 +132,7 @@ docs:
 # Generate translated docs. Should go first, because index.html page should
 # be overwritten with the main one later
 	doxygen -w html html/header.html html/footer.html html/stylesheet.css
-	sed -e 's,iso-8859-1,koi8-r,g' html/header.html > html/header_ru.html
+	sed -e 's,iso-8859-1,utf-8,g' html/header.html > html/header_ru.html
 	cp html/header.html html/header_br.html
 	(cat Doxyfile ; echo "HTML_HEADER=html/header_ru.html"; echo "INPUT=doc/ru"; echo "OUTPUT_LANGUAGE=Russian") | doxygen -
 	(cat Doxyfile ; echo "HTML_HEADER=html/header_br.html"; echo "INPUT=doc/br"; echo "OUTPUT_LANGUAGE=Portuguese") | doxygen -
@@ -140,6 +140,7 @@ docs:
 	doxygen Doxyfile
 	cp data/gdalicon.png html
 	cp doc/images/*.* html
+	cp doc/grid/*.png html
 	cp frmts/*.html frmts/*/frmt_*.html html
 
 man:
@@ -229,9 +230,9 @@ else
 	rm -f $(DESTDIR)$(INST_LIB)/$(GDAL_SLIB_B).$(GDAL_VER)
 	$(INSTALL_LIB) $(GDAL_SLIB) $(DESTDIR)$(INST_LIB)/$(GDAL_SLIB_B).$(GDAL_VER)
 	(cd $(DESTDIR)$(INST_LIB) ; \
-	 ln -s $(GDAL_SLIB_B).$(GDAL_VERSION_MAJOR) $(GDAL_SLIB_B))
-	(cd $(DESTDIR)$(INST_LIB) ; \
 	 ln -s $(GDAL_SLIB_B).$(GDAL_VER) $(GDAL_SLIB_B).$(GDAL_VERSION_MAJOR))
+	(cd $(DESTDIR)$(INST_LIB) ; \
+	 ln -s $(GDAL_SLIB_B).$(GDAL_VERSION_MAJOR) $(GDAL_SLIB_B))
 endif
 
 else

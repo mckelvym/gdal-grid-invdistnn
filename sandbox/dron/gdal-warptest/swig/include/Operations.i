@@ -131,6 +131,71 @@ CPLErr  ReprojectImage ( GDALDatasetShadow *src_ds,
 %} 
 
 /************************************************************************/
+/*                          ComputeProximity()                          */
+/************************************************************************/
+
+%feature( "kwargs" ) ComputeProximity;
+%inline %{
+int  ComputeProximity( GDALRasterBandShadow *srcBand,
+                       GDALRasterBandShadow *proximityBand,
+                       char **options = NULL,
+                       GDALProgressFunc callback=NULL,
+                       void* callback_data=NULL) {
+
+    CPLErrorReset();
+
+    return GDALComputeProximity( srcBand, proximityBand, options,
+                                 callback, callback_data );
+}
+%} 
+
+/************************************************************************/
+/*                        RegenerateOverviews()                         */
+/************************************************************************/
+
+#ifndef SWIGPERL
+%feature( "kwargs" ) RegenerateOverviews;
+#ifndef SWIGCSHARP
+%apply (int object_list_count, GDALRasterBandShadow **poObjects) {(int overviewBandCount, GDALRasterBandShadow **overviewBands)};
+#endif
+%inline %{
+int  RegenerateOverviews( GDALRasterBandShadow *srcBand,
+     			  int overviewBandCount,
+                          GDALRasterBandShadow **overviewBands,
+                          char *resampling = "average",
+                          GDALProgressFunc callback=NULL,
+                          void* callback_data=NULL) {
+
+    CPLErrorReset();
+
+    return GDALRegenerateOverviews( srcBand, overviewBandCount, overviewBands,
+    	   			    resampling, callback, callback_data );
+}
+%}
+#endif
+
+/************************************************************************/
+/*                         RegenerateOverview()                         */
+/************************************************************************/
+
+#ifndef SWIGPERL
+%feature( "kwargs" ) RegenerateOverview;
+%inline %{
+int  RegenerateOverview( GDALRasterBandShadow *srcBand,
+                          GDALRasterBandShadow *overviewBand,
+                          char *resampling,
+                          GDALProgressFunc callback=NULL,
+                          void* callback_data=NULL) {
+
+    CPLErrorReset();
+
+    return GDALRegenerateOverviews( srcBand, 1, &overviewBand,
+    	   			    resampling, callback, callback_data );
+}
+%} 
+#endif
+
+/************************************************************************/
 /*                        AutoCreateWarpedVRT()                         */
 /************************************************************************/
 

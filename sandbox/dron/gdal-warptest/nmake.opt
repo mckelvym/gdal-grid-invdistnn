@@ -77,15 +77,15 @@ JAVA_INCLUDE=-I$(JAVA_HOME)\include -I$(JAVA_HOME)\include\win32
 !IFNDEF OPTFLAGS
 !IF $(MSVC_VER) >= 1400
 !IFNDEF DEBUG
-OPTFLAGS=	/nologo /MD /EHsc /Ox /D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE /DNDEBUG
+OPTFLAGS= /nologo /MD /EHsc /Ox /W3 /D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE /DNDEBUG
 !ELSE
-OPTFLAGS=	/nologo /MD /EHsc /Zi /D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE /Fd$(GDAL_ROOT)\gdal$(VERSION).pdb
+OPTFLAGS= /nologo /MD /EHsc /Zi /W4 /D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE /Fd$(GDAL_ROOT)\gdal$(VERSION).pdb
 !ENDIF
 !ELSE
 !IFNDEF DEBUG
-OPTFLAGS=	/nologo /MD /EHsc /GR /Ox /DNDEBUG
+OPTFLAGS=	/nologo /MD /EHsc /GR /Ox /W3 /DNDEBUG
 !ELSE
-OPTFLAGS=	/nologo /MD /EHsc /GR /Zi /Fd$(GDAL_ROOT)\gdal$(VERSION).pdb
+OPTFLAGS=	/nologo /MD /EHsc /GR /Zi /W4 /Fd$(GDAL_ROOT)\gdal$(VERSION).pdb
 !ENDIF
 !ENDIF  #MSVC_VER
 !ENDIF  # OPTFLAGS
@@ -184,6 +184,9 @@ JPEG_SUPPORTED = 1
 #XERCES_INCLUDE = -I$(XERCES_DIR)/include -I$(XERCES_DIR)/include/xercesc
 #XERCES_LIB = $(XERCES_DIR)/lib/xerces-c_2.lib
 
+# Uncomment if the NAS source is available, and Xerces is available.
+#NAS_ENABLED = YES
+
 # Uncomment the following for Interlis support.  Note that a Xercex 2.x
 # is also required (see above).  Also, Interlis support only works with
 # Visual Studio.NET or newer, not VC6.
@@ -219,7 +222,7 @@ JPEG_SUPPORTED = 1
 #		-I$(MRSID_DIR)\include\j2k_readers
 #MRSID_LIB =	$(MRSID_DIR)\lib\Release_md\lti_dsdk_dll.lib advapi32.lib user32.lib
 # Comment out the following to supress JP2MRSID driver. 
-MRSID_FLAGS =	-DMRSID_J2K
+#MRSID_FLAGS =	-DMRSID_J2K
 # Enable these, if you have the MrSID Encoding SDK and want
 # to create MrSID files
 #MRSID_FLAGS =	-DMRSID_ESDK $(MRSID_FLAGS)
@@ -302,6 +305,10 @@ OCI_INCLUDE =	-I$(ORACLE_HOME)\oci\include
 #CURL_LIB = $(CURL_DIR)/libcurl.lib wsock32.lib wldap32.lib winmm.lib
 #CURL_CFLAGS = -DCURL_STATICLIB
 
+# Uncomment for DODS / OPeNDAP support
+#DODS_DIR = C:\libdap3.6.2
+#DODS_LIB = $(DODSDIR)\lib\libdapMD.lib
+
 # Uncomment for GEOS support
 #GEOS_DIR=C:/warmerda/geos
 #GEOS_CFLAGS = -I$(GEOS_DIR)/capi -I$(GEOS_DIR)/source/headers -DHAVE_GEOS
@@ -328,7 +335,7 @@ ADD_LIBS	=
 GDAL_DLL =	gdal$(VERSION).dll
 
 INC	=	-I$(GDAL_ROOT)\port -I$(GDAL_ROOT)\ogr -I$(GDAL_ROOT)\gcore \
-		-I$(GDAL_ROOT)\alg
+		-I$(GDAL_ROOT)\alg -I$(GDAL_ROOT)\ogr\ogrsf_frmts
 
 !IFDEF MSVC_VLD_DIR
 MSVC_VLD_FLAGS=-DMSVC_USE_VLD -I$(MSVC_VLD_DIR)\include
@@ -420,7 +427,7 @@ EXTERNAL_LIBS =	$(OGDILIB) $(XERCES_LIB) $(EXPAT_LIB) $(OCI_LIB) $(PG_LIB) $(ODB
 		$(FITS_LIB_LINK) $(JPEG_LIB) $(PNG_LIB) $(NETCDF_LIB_LINK) $(PROJ4_LIB) \
 		$(GEOTIFF_LIB) $(TIFF_LIB) $(PROJ_LIBRARY) $(SQLITE_LIB) \
 		$(MYSQL_LIB) $(GEOS_LIB) $(HDF5_LIB_LINK) $(SDE_LIB) $(DWG_LIB) \
-		$(IDB_LIB) $(CURL_LIB) $(ADD_LIBS)
+		$(IDB_LIB) $(CURL_LIB) $(DODS_LIB) $(ADD_LIBS)
 		
 .c.obj:	
 	$(CC) $(CFLAGS) /c $*.c

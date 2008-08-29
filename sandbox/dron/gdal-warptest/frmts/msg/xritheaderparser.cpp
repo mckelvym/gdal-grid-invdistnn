@@ -1,10 +1,8 @@
-// xritheaderparser.cpp: implementation of the XRITHeaderParser class.
-//
-//////////////////////////////////////////////////////////////////////
-
 /******************************************************************************
+ * $Id$
  *
- * Purpose:  Parse the header of the combined XRIT header/data files.
+ * Purpose:  Implementation of XRITHeaderParser class. Parse the header
+ *           of the combined XRIT header/data files.
  * Author:   Bas Retsios, retsios@itc.nl
  *
  ******************************************************************************
@@ -30,6 +28,8 @@
  ******************************************************************************/
 
 #include "xritheaderparser.h"
+#include <cstdlib> // malloc, free
+#include <cstring> // memcpy
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -57,11 +57,11 @@ XRITHeaderParser::XRITHeaderParser(std::ifstream & ifile)
     long totalHeaderLength = parseInt32(&probeBuf[4]);
     if ((totalHeaderLength >= 10) && (totalHeaderLength <= 10000)) // Check for valid header length
     {
-      unsigned char * buf = (unsigned char*)malloc(totalHeaderLength);
-      memcpy(buf, probeBuf, probeSize); // save what we have already read when probing
+      unsigned char * buf = (unsigned char*)std::malloc(totalHeaderLength);
+      std::memcpy(buf, probeBuf, probeSize); // save what we have already read when probing
       ifile.read((char*)buf + probeSize, totalHeaderLength - probeSize); // read the rest of the header section  
       parseHeader(buf, totalHeaderLength);
-      free(buf);
+      std::free(buf);
 
       m_isValid = true;
     }

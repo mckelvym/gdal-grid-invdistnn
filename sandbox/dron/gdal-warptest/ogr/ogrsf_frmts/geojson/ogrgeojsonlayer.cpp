@@ -31,6 +31,11 @@
 #include <jsonc/json.h> // JSON-C
 #include <algorithm> // for_each, find_if
 
+/* Remove annoying warnings Microsoft Visual C++ */
+#if defined(_MSC_VER)
+#  pragma warning(disable:4512)
+#endif
+
 /************************************************************************/
 /*                       STATIC MEMBERS DEFINITION                      */
 /************************************************************************/
@@ -50,6 +55,8 @@ OGRGeoJSONLayer::OGRGeoJSONLayer( const char* pszName,
                                   OGRGeoJSONDataSource* poDS )
     : iterCurrent_( seqFeatures_.end() ), poDS_( poDS ), poFeatureDefn_(new OGRFeatureDefn( pszName ) ), poSRS_( NULL ), nOutCounter_( 0 )
 {
+    UNREFERENCED_PARAM(papszOptions);
+
     CPLAssert( NULL != poDS_ );
     CPLAssert( NULL != poFeatureDefn_ );
     
@@ -155,7 +162,7 @@ void OGRGeoJSONLayer::ResetReading()
 
 bool OGRGeoJSONLayer::EvaluateSpatialFilter( OGRGeometry* poGeometry )
 {
-    return FilterGeometry( poGeometry );
+    return ( FilterGeometry( poGeometry ) == 0 ? false : true );
 }
 
 /*******************************************/
@@ -164,14 +171,16 @@ bool OGRGeoJSONLayer::EvaluateSpatialFilter( OGRGeometry* poGeometry )
 
 struct SpatialFilterPredicate
 {
-    SpatialFilterPredicate(OGRGeoJSONLayer& layer)
+    explicit SpatialFilterPredicate(OGRGeoJSONLayer& layer)
         : layer_(layer)
     {}
     bool operator()( OGRFeature* p )
     {
         return layer_.EvaluateSpatialFilter( p->GetGeometryRef() );
     }
+
 private:
+
     OGRGeoJSONLayer& layer_;
 };
 
@@ -181,15 +190,17 @@ private:
 
 struct AttributeFilterPredicate
 {
-    AttributeFilterPredicate(OGRFeatureQuery& query)
+    explicit AttributeFilterPredicate(OGRFeatureQuery& query)
         : query_(query)
     {}
 
     bool operator()( OGRFeature* p )
     {
-        return query_.Evaluate( p );
+        return ( query_.Evaluate( p ) == 0 ? false : true );
     }
+
 private:
+
     OGRFeatureQuery& query_;
 };
 
@@ -287,6 +298,8 @@ OGRErr OGRGeoJSONLayer::CreateFeature( OGRFeature* poFeature )
 
 OGRErr OGRGeoJSONLayer::CreateField(OGRFieldDefn* poField, int bApproxOK)
 {
+    UNREFERENCED_PARAM(bApproxOK);
+
     for( int i = 0; i < poFeatureDefn_->GetFieldCount(); ++i )
     {
         OGRFieldDefn* poDefn = poFeatureDefn_->GetFieldDefn(i);
@@ -313,6 +326,8 @@ OGRErr OGRGeoJSONLayer::CreateField(OGRFieldDefn* poField, int bApproxOK)
 
 int OGRGeoJSONLayer::TestCapability( const char* pszCap )
 {
+    UNREFERENCED_PARAM(pszCap);
+
     return FALSE;
 }
 

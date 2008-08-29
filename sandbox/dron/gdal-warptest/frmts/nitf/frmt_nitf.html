@@ -76,8 +76,9 @@ documentation</a>
 </li>
 <p>
 
-<li> <b>ICORDS=G/N/S</b>: Set to "G" to ensure that space will be reserved for
-geographic corner coordinates to be set later via SetGeoTransform(), set to "N"
+<li> <b>ICORDS=G/D/N/S</b>: Set to "G" to ensure that space will be reserved for
+geographic corner coordinates (in DMS) to be set later via SetGeoTransform(), set to "D"
+for geographic coordinates in decimal degrees, set to "N"
 for UTM WGS84 projection in Northern hemisphere or to "S" for UTM WGS84 projection in
 southern hemisphere (Only needed for Create() method, not CreateCopy()).
 If you Create() a new NITF file and have specified "N" or "S" for ICORDS,
@@ -95,8 +96,10 @@ Create() method, not CreateCopy()).<p>
 RGB/LUT bands.  A value of 256 assumed if not present. (Only needed for
 Create() method, not CreateCopy()).<p>
 
+<!--
 <li> <b>TFW=YES</b>: Force the generation of an associated ESRI world
 file (.tfw).<p>
+-->
 
 <li> <b>BLOCKXSIZE=n</b>: Set the block width.<p>
 
@@ -106,6 +109,13 @@ file (.tfw).<p>
 exactly the same organization as the NITF_BLOCKA metadata reported when 
 reading an NITF file with BLOCKA TREs then a file will be created with BLOCKA 
 TREs. <p>
+
+<li> <b>TRE=tre-name,tre-contents</b>: One or more TRE creation options may 
+be used provided to write arbitrary user defined TREs to the image header.  The
+tre-name should be at most six characters, nad the tre-contents should be 
+"backslash escaped" if it contains blackslashes or zero bytes.  The argument
+is the same format as returned in the TRE metadata domain when reading.<p>
+
 </ul>
 
 

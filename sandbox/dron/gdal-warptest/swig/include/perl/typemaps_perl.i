@@ -17,8 +17,8 @@
 /*
  * double *val, int*hasval, is a special contrived typemap used for
  * the RasterBand GetNoDataValue, GetMinimum, GetMaximum, GetOffset, GetScale methods.
- * In the python bindings, the variable hasval is tested.  If it is 0 (is, the value
- * is not set in the raster band) then Py_None is returned.  If is is != 0, then
+ * the variable hasval is tested.  If it is false (is, the value
+ * is not set in the raster band) then undef is returned.  If is is != 0, then
  * the value is coerced into a long and returned.
  */
 %typemap(in,numinputs=0) (double *val, int *hasval) ( double tmpval, int tmphasval ) {
@@ -33,6 +33,7 @@
     sv_setnv($result, *$1);
   argvi++;
 }
+
 %typemap(out) GIntBig
 {
   /* %typemap(out) GIntBig */
@@ -88,7 +89,7 @@
 }
 %typemap(out) IF_ERROR_RETURN_NONE
 {
-  /* %typemap(out) IF_ERROR_RETURN_NONE */
+  /* %typemap(out) IF_ERROR_RETURN_NONE (do not return the error code) */
 }
 
 /*
@@ -176,6 +177,30 @@ CreateArrayFromStringArray( char **first ) {
   /* %typemap(argout) (int *nLen, const int **pList) */
   $result = CreateArrayFromIntArray( *($2), *($1) );
   argvi++;
+}
+
+%typemap(in,numinputs=1) (int len, int *output)
+{
+  /* %typemap(in,numinputs=1) (int len, int *output) */
+  $1 = SvIV($input);
+}
+%typemap(check) (int len, int *output)
+{
+  /* %typemap(check) (int len, int *output) */
+  if ($1 < 1) $1 = 1; /* stop idiocy */
+  $2 = (int *)CPLMalloc( $1 * sizeof(int) );
+    
+}
+%typemap(argout,fragment="CreateArrayFromIntArray") (int len, int *output)
+{
+  /* %typemap(argout) (int len, int *output) */
+  $result = CreateArrayFromIntArray( $2, $1 );
+  argvi++;
+}
+%typemap(freearg) (int len, int *output)
+{
+  /* %typemap(freearg) (int len, int *output) */
+  CPLFree($2);
 }
 
 %typemap(in,numinputs=0) (int *nLen, const double **pList) (int nLen, double *pList)

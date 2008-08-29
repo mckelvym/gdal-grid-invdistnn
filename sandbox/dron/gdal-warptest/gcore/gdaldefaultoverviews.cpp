@@ -139,7 +139,8 @@ void GDALDefaultOverviews::Initialize( GDALDataset *poDSIn,
 /* -------------------------------------------------------------------- */
     if( !poODS )
     {
-        poODS = GDALFindAssociatedAuxFile( pszBasename, poDS->GetAccess() );
+        poODS = GDALFindAssociatedAuxFile( pszBasename, poDS->GetAccess(),
+                                           poDS );
 
         if( poODS )
         {
@@ -467,8 +468,9 @@ GDALDefaultOverviews::BuildOverviews(
 
         if( nNewOverviews > 0 )
         {
-            eErr = GDALRegenerateOverviews( poBand, 
-                                            nNewOverviews, papoOverviewBands,
+            eErr = GDALRegenerateOverviews( (GDALRasterBandH) poBand, 
+                                            nNewOverviews, 
+                                            (GDALRasterBandH*)papoOverviewBands,
                                             pszResampling, 
                                             pfnProgress, pProgressData );
         }
@@ -515,9 +517,12 @@ GDALDefaultOverviews::BuildOverviews(
 
             if( poBand != NULL )
                 poOverDS = poBand->GetDataset();
-            
-            poOverDS->oOvManager.poBaseDS = poDS;
-            poOverDS->oOvManager.poDS = poOverDS;
+
+            if (poOverDS != NULL)
+            {
+                poOverDS->oOvManager.poBaseDS = poDS;
+                poOverDS->oOvManager.poDS = poOverDS;
+            }
         }
     }
 

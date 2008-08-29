@@ -47,7 +47,8 @@ static int TranslateLayer( OGRDataSource *poSrcDS,
                            OGRSpatialReference *poSourceSRS,
                            char **papszSelFields,
                            int bAppend, int eGType,
-                           int bOverwrite );
+                           int bOverwrite,
+                           double dfMaxSegmentLength);
 
 static int bSkipFailures = FALSE;
 static int nGroupTransactions = 200;
@@ -79,7 +80,11 @@ int main( int nArgc, char ** papszArgv )
     char        **papszSelFields = NULL;
     const char  *pszSQLStatement = NULL;
     int         eGType = -2;
+    double       dfMaxSegmentLength = 0;
 
+    /* Check strict compilation and runtime library version as we use C++ API */
+    if (! GDAL_CHECK_VERSION(papszArgv[0]))
+        exit(1);
 /* -------------------------------------------------------------------- */
 /*      Register format(s).                                             */
 /* -------------------------------------------------------------------- */
@@ -95,7 +100,13 @@ int main( int nArgc, char ** papszArgv )
 
     for( int iArg = 1; iArg < nArgc; iArg++ )
     {
-        if( EQUAL(papszArgv[iArg],"-f") && iArg < nArgc-1 )
+        if( EQUAL(papszArgv[iArg], "--utility_version") )
+        {
+            printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
+                   papszArgv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            return 0;
+        }
+        else if( EQUAL(papszArgv[iArg],"-f") && iArg < nArgc-1 )
         {
             pszFormat = papszArgv[++iArg];
         }
@@ -114,6 +125,7 @@ int main( int nArgc, char ** papszArgv )
         else if( EQUALN(papszArgv[iArg],"-skip",5) )
         {
             bSkipFailures = TRUE;
+            nGroupTransactions = 1; /* #2409 */
         }
         else if( EQUAL(papszArgv[iArg],"-append") )
         {
@@ -183,7 +195,8 @@ int main( int nArgc, char ** papszArgv )
             }
             iArg++;
         }
-        else if( EQUAL(papszArgv[iArg],"-tg") && iArg < nArgc-1 )
+        else if( (EQUAL(papszArgv[iArg],"-tg") ||
+                  EQUAL(papszArgv[iArg],"-gt")) && iArg < nArgc-1 )
         {
             nGroupTransactions = atoi(papszArgv[++iArg]);
         }
@@ -227,6 +240,10 @@ int main( int nArgc, char ** papszArgv )
             pszSelect = papszArgv[++iArg];
             papszSelFields = CSLTokenizeStringComplex(pszSelect, " ,", 
                                                       FALSE, FALSE );
+        }
+        else if( EQUAL(papszArgv[iArg],"-segmentize") && iArg < nArgc-1 )
+        {
+            dfMaxSegmentLength = atof(papszArgv[++iArg]);
         }
         else if( papszArgv[iArg][0] == '-' )
         {
@@ -390,7 +407,7 @@ int main( int nArgc, char ** papszArgv )
             if( !TranslateLayer( poDS, poResultSet, poODS, papszLCO, 
                                  pszNewLayerName, bTransform, poOutputSRS,
                                  poSourceSRS, papszSelFields, bAppend, eGType,
-                                 bOverwrite ))
+                                 bOverwrite, dfMaxSegmentLength ))
             {
                 CPLError( CE_Failure, CPLE_AppDefined, 
                           "Terminating translation prematurely after failed\n"
@@ -431,7 +448,7 @@ int main( int nArgc, char ** papszArgv )
             if( !TranslateLayer( poDS, poLayer, poODS, papszLCO, 
                                  pszNewLayerName, bTransform, poOutputSRS,
                                  poSourceSRS, papszSelFields, bAppend, eGType,
-                                 bOverwrite ) 
+                                 bOverwrite, dfMaxSegmentLength ) 
                 && !bSkipFailures )
             {
                 CPLError( CE_Failure, CPLE_AppDefined, 
@@ -476,12 +493,13 @@ static void Usage()
 {
     OGRSFDriverRegistrar        *poR = OGRSFDriverRegistrar::GetRegistrar();
 
-    printf( "Usage: ogr2ogr [--help-general] [-skipfailures] [-append] [-update]\n"
+    printf( "Usage: ogr2ogr [--help-general] [-skipfailures] [-append] [-update] [-gt n]\n"
             "               [-select field_list] [-where restricted_where] \n"
             "               [-sql <sql statement>] \n" 
             "               [-spat xmin ymin xmax ymax] [-preserve_fid] [-fid FID]\n"
             "               [-a_srs srs_def] [-t_srs srs_def] [-s_srs srs_def]\n"
             "               [-f format_name] [-overwrite] [[-dsco NAME=VALUE] ...]\n"
+            "               [-segmentize max_dist]\n"
             "               dst_datasource_name src_datasource_name\n"
             "               [-lco NAME=VALUE] [-nln name] [-nlt type] [layer [layer ...]]\n"
             "\n"
@@ -503,7 +521,10 @@ static void Usage()
             " -where restricted_where: Attribute query (like SQL WHERE)\n" 
             " -sql statement: Execute given SQL statement and save result.\n"
             " -skipfailures: skip features or layers that fail to convert\n"
+            " -gt n: group n features per transaction (default 200)\n"
             " -spat xmin ymin xmax ymax: spatial query extents\n"
+            " -segmentize max_dist: maximum distance between 2 nodes.\n"
+            "                       Used to create intermediate points\n"
             " -dsco NAME=VALUE: Dataset creation option (format specific)\n"
             " -lco  NAME=VALUE: Layer creation option (format specific)\n"
             " -nln name: Assign an alternate name to the new layer\n"
@@ -536,7 +557,8 @@ static int TranslateLayer( OGRDataSource *poSrcDS,
                            OGRSpatialReference *poOutputSRS,
                            OGRSpatialReference *poSourceSRS,
                            char **papszSelFields,
-                           int bAppend, int eGType, int bOverwrite )
+                           int bAppend, int eGType, int bOverwrite,
+                           double dfMaxSegmentLength)
 
 {
     OGRLayer    *poDstLayer;
@@ -766,7 +788,10 @@ static int TranslateLayer( OGRDataSource *poSrcDS,
 
         if( bPreserveFID )
             poDstFeature->SetFID( poFeature->GetFID() );
-        
+
+        if (poDstFeature->GetGeometryRef() != NULL && dfMaxSegmentLength > 0)
+            poDstFeature->GetGeometryRef()->segmentize(dfMaxSegmentLength);
+
         if( poCT && poDstFeature->GetGeometryRef() != NULL )
         {
             eErr = poDstFeature->GetGeometryRef()->transform( poCT );

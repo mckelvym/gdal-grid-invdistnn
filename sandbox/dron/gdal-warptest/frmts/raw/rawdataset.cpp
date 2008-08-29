@@ -41,7 +41,7 @@ RawRasterBand::RawRasterBand( GDALDataset *poDS, int nBand,
                               FILE * fpRaw, vsi_l_offset nImgOffset,
                               int nPixelOffset, int nLineOffset,
                               GDALDataType eDataType, int bNativeOrder,
-                              int bIsVSIL )
+                              int bIsVSIL, int bOwnsFP )
 
 {
     Initialize();
@@ -50,6 +50,7 @@ RawRasterBand::RawRasterBand( GDALDataset *poDS, int nBand,
     this->nBand = nBand;
     this->eDataType = eDataType;
     this->bIsVSIL = bIsVSIL;
+    this->bOwnsFP =bOwnsFP;
 
     this->fpRaw = fpRaw;
     this->nImgOffset = nImgOffset;
@@ -85,7 +86,7 @@ RawRasterBand::RawRasterBand( GDALDataset *poDS, int nBand,
 RawRasterBand::RawRasterBand( FILE * fpRaw, vsi_l_offset nImgOffset,
                               int nPixelOffset, int nLineOffset,
                               GDALDataType eDataType, int bNativeOrder,
-                              int nXSize, int nYSize, int bIsVSIL )
+                              int nXSize, int nYSize, int bIsVSIL, int bOwnsFP )
 
 {
     Initialize();
@@ -94,6 +95,7 @@ RawRasterBand::RawRasterBand( FILE * fpRaw, vsi_l_offset nImgOffset,
     this->nBand = 1;
     this->eDataType = eDataType;
     this->bIsVSIL = bIsVSIL;
+    this->bOwnsFP =bOwnsFP;
 
     this->fpRaw = fpRaw;
     this->nImgOffset = nImgOffset;
@@ -130,9 +132,6 @@ RawRasterBand::RawRasterBand( FILE * fpRaw, vsi_l_offset nImgOffset,
 void RawRasterBand::Initialize()
 
 {
-    dfNoDataValue = 0.0;
-    bNoDataSet = FALSE;
-
     poCT = NULL;
     eInterp = GCI_Undefined;
 
@@ -155,6 +154,14 @@ RawRasterBand::~RawRasterBand()
     CSLDestroy( papszCategoryNames );
 
     FlushCache();
+    
+    if (bOwnsFP)
+    {
+        if ( bIsVSIL )
+            VSIFCloseL( fpRaw );
+        else
+            VSIFClose( fpRaw );
+    }
     
     CPLFree( pLineBuffer );
 }
@@ -881,33 +888,7 @@ size_t RawRasterBand::Write( void *pBuffer, size_t nSize, size_t nCount )
 void RawRasterBand::StoreNoDataValue( double dfValue )
 
 {
-    bNoDataSet = TRUE;
-    dfNoDataValue = dfValue;
-}
-
-/************************************************************************/
-/*                           SetNoDataValue()                           */
-/************************************************************************/
-
-CPLErr RawRasterBand::SetNoDataValue( double dfValue )
-
-{
-    bNoDataSet = TRUE;
-    dfNoDataValue = dfValue;
-    return CE_None;
-}
-
-/************************************************************************/
-/*                           GetNoDataValue()                           */
-/************************************************************************/
-
-double RawRasterBand::GetNoDataValue( int * pbSuccess )
-
-{
-    if( pbSuccess )
-        *pbSuccess = bNoDataSet;
-
-    return dfNoDataValue;
+    SetNoDataValue( dfValue );
 }
 
 /************************************************************************/

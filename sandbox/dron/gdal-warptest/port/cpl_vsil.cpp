@@ -30,6 +30,7 @@
 
 #include "cpl_vsi_virtual.h"
 #include "cpl_string.h"
+#include <string>
 
 CPL_CVSID("$Id$");
 
@@ -515,6 +516,17 @@ int VSIFPrintfL( FILE *fp, const char *pszFormat, ... )
 }
 
 /************************************************************************/
+/*                              VSIFPutcL()                              */
+/************************************************************************/
+
+int VSIFPutcL( int nChar, FILE * fp )
+
+{
+    unsigned char cChar = (unsigned char)nChar;
+    return VSIFWriteL(&cChar, 1, 1, fp);
+}
+
+/************************************************************************/
 /* ==================================================================== */
 /*                           VSIFileManager()                           */
 /* ==================================================================== */
@@ -572,6 +584,8 @@ VSIFileManager *VSIFileManager::Get()
         poManager = new VSIFileManager;
         VSIInstallLargeFileHandler();
         VSIInstallMemFileHandler();
+        VSIInstallGZipFileHandler();
+        VSIInstallZipFileHandler();
     }
     
     return poManager;
@@ -612,7 +626,7 @@ VSIFilesystemHandler *VSIFileManager::GetHandler( const char *pszPath )
 /*                           InstallHandler()                           */
 /************************************************************************/
 
-void VSIFileManager::InstallHandler( std::string osPrefix,
+void VSIFileManager::InstallHandler( const std::string& osPrefix,
                                      VSIFilesystemHandler *poHandler )
 
 {

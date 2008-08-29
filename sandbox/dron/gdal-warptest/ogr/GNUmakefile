@@ -11,6 +11,10 @@ ifeq ($(HAVE_GEOS),yes)
 CPPFLAGS 	:=	-DHAVE_GEOS=1 $(GEOS_CFLAGS) $(CPPFLAGS)
 endif
 
+ifeq ($(OGR_ENABLED),yes)
+CXXFLAGS 	:=	-DHAVE_MITAB $(CXXFLAGS)
+endif
+
 CPPFLAGS	:=	-Iogrsf_frmts -I. $(GDAL_INCLUDE) $(PROJ_INCLUDE) $(PROJ_FLAGS) $(CPPFLAGS)
 
 default:	lib
@@ -26,6 +30,8 @@ very-clean: clean
 	rm -rf html rtf
 
 lib:	sublibs $(OBJ)
+
+$(OBJ): ogr_feature.h ogr_geometry.h
 
 obj:	$(OBJ)
 

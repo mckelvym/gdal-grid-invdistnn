@@ -134,6 +134,52 @@ static void ProcessLayer(
 
 {
 /* -------------------------------------------------------------------- */
+/*      Checkout that SRS are the same.                                 */
+/* -------------------------------------------------------------------- */
+    OGRSpatialReferenceH  hDstSRS = NULL;
+    if( GDALGetProjectionRef( hDstDS ) != NULL )
+    {
+        char *pszProjection;
+
+        pszProjection = (char *) GDALGetProjectionRef( hDstDS );
+
+        hDstSRS = OSRNewSpatialReference(NULL);
+        if( OSRImportFromWkt( hDstSRS, &pszProjection ) != CE_None )
+        {
+            OSRDestroySpatialReference(hDstSRS);
+            hDstSRS = NULL;
+        }
+    }
+
+    OGRSpatialReferenceH hSrcSRS = OGR_L_GetSpatialRef(hSrcLayer);
+    if( hDstSRS != NULL && hSrcSRS != NULL )
+    {
+        if( OSRIsSame(hSrcSRS, hDstSRS) == FALSE )
+        {
+            fprintf(stderr,
+                    "Warning : the output raster dataset and the input vector layer do not have the same SRS. "
+                    "Results will be probably incorrect.\n");
+        }
+    }
+    else if( hDstSRS != NULL && hSrcSRS == NULL )
+    {
+        fprintf(stderr,
+                "Warning : the output raster dataset has a SRS, but the input vector layer not. "
+                "Results will be probably incorrect.\n");
+    }
+    else if( hDstSRS == NULL && hSrcLayer != NULL )
+    {
+        fprintf(stderr,
+                "Warning : the input vector layer has a SRS, but the output raster dataset not. "
+                "Results will be probably incorrect.\n");
+    }
+
+    if( hDstSRS != NULL )
+    {
+        OSRDestroySpatialReference(hDstSRS);
+    }
+
+/* -------------------------------------------------------------------- */
 /*      Get field index, and check.                                     */
 /* -------------------------------------------------------------------- */
     int iBurnField = -1;
@@ -232,6 +278,15 @@ int main( int argc, char ** argv )
     std::vector<int> anBandList;
     std::vector<double> adfBurnValues;
 
+    /* Check that we are running against at least GDAL 1.4 */
+    /* Note to developers : if we use newer API, please change the requirement */
+    if (atoi(GDALVersionInfo("VERSION_NUM")) < 1400)
+    {
+        fprintf(stderr, "At least, GDAL >= 1.4.0 is required for this version of %s, "
+                "which was compiled against GDAL %s\n", argv[0], GDAL_RELEASE_NAME);
+        exit(1);
+    }
+
     GDALAllRegister();
     OGRRegisterAll();
 
@@ -244,7 +299,13 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
     for( i = 1; i < argc; i++ )
     {
-        if( EQUAL(argv[i],"-a") && i < argc-1 )
+        if( EQUAL(argv[i], "--utility_version") )
+        {
+            printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
+                   argv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            return 0;
+        }
+        else if( EQUAL(argv[i],"-a") && i < argc-1 )
         {
             pszBurnAttribute = argv[++i];
         }

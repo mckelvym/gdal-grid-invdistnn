@@ -2585,6 +2585,18 @@ using namespace std;
 #include "cpl_string.h"
 #include "ogr_srs_api.h"
 
+#ifdef DEBUG 
+typedef struct OGRSpatialReferenceHS OSRSpatialReferenceShadow;
+typedef struct OGRDriverHS OGRDriverShadow;
+typedef struct OGRDataSourceHS OGRDataSourceShadow;
+typedef struct OGRLayerHS OGRLayerShadow;
+typedef struct OGRFeatureHS OGRFeatureShadow;
+typedef struct OGRFeatureDefnHS OGRFeatureDefnShadow;
+typedef struct OGRGeometryHS OGRGeometryShadow;
+typedef struct OGRCoordinateTransformationHS OSRCoordinateTransformationShadow;
+typedef struct OGRCoordinateTransformationHS OGRCoordinateTransformationShadow;
+typedef struct OGRFieldDefnHS OGRFieldDefnShadow;
+#else
 typedef void OSRSpatialReferenceShadow;
 typedef void OGRDriverShadow;
 typedef void OGRDataSourceShadow;
@@ -2594,6 +2606,8 @@ typedef void OGRFeatureDefnShadow;
 typedef void OGRGeometryShadow;
 typedef void OSRCoordinateTransformationShadow;
 typedef void OGRFieldDefnShadow;
+#endif
+
 
 
   #define SWIG_From_long   PyInt_FromLong 
@@ -2883,7 +2897,7 @@ SWIGINTERN int OGRDriverShadow_DeleteDataSource(OGRDriverShadow *self,char const
     return OGR_Dr_DeleteDataSource( self, name );
   }
 SWIGINTERN bool OGRDriverShadow_TestCapability(OGRDriverShadow *self,char const *cap){
-    return OGR_Dr_TestCapability(self, cap);
+    return (OGR_Dr_TestCapability(self, cap) > 0);
   }
 
 SWIGINTERNINLINE PyObject*
@@ -2969,7 +2983,7 @@ SWIGINTERN OGRLayerShadow *OGRDataSourceShadow_GetLayerByName(OGRDataSourceShado
     return layer;
   }
 SWIGINTERN bool OGRDataSourceShadow_TestCapability(OGRDataSourceShadow *self,char const *cap){
-    return OGR_DS_TestCapability(self, cap);
+    return (OGR_DS_TestCapability(self, cap) > 0);
   }
 SWIGINTERN OGRLayerShadow *OGRDataSourceShadow_ExecuteSQL(OGRDataSourceShadow *self,char const *statement,OGRGeometryShadow *spatialFilter=NULL,char const *dialect=""){
     OGRLayerShadow* layer = (OGRLayerShadow*) OGR_DS_ExecuteSQL((OGRDataSourceShadow*)self,
@@ -3054,7 +3068,7 @@ SWIGINTERN OGRErr OGRLayerShadow_GetExtent(OGRLayerShadow *self,double argout[4]
     return OGR_L_GetExtent(self, (OGREnvelope*)argout, force);
   }
 SWIGINTERN bool OGRLayerShadow_TestCapability(OGRLayerShadow *self,char const *cap){
-    return OGR_L_TestCapability(self, cap);
+    return (OGR_L_TestCapability(self, cap) > 0);
   }
 SWIGINTERN OGRErr OGRLayerShadow_CreateField(OGRLayerShadow *self,OGRFieldDefnShadow *field_def,int approx_ok=1){
     return OGR_L_CreateField(self, field_def, approx_ok);
@@ -3099,7 +3113,7 @@ SWIGINTERN OGRFeatureShadow *OGRFeatureShadow_Clone(OGRFeatureShadow *self){
     return (OGRFeatureShadow*) OGR_F_Clone(self);
   }
 SWIGINTERN bool OGRFeatureShadow_Equal(OGRFeatureShadow *self,OGRFeatureShadow *feature){
-    return OGR_F_Equal(self, feature);
+    return (OGR_F_Equal(self, feature) > 0);
   }
 SWIGINTERN int OGRFeatureShadow_GetFieldCount(OGRFeatureShadow *self){
     return OGR_F_GetFieldCount(self);
@@ -3166,15 +3180,15 @@ SWIGINTERN void OGRFeatureShadow_GetFieldAsStringList(OGRFeatureShadow *self,int
       *pList = OGR_F_GetFieldAsStringList(self, id);
   }
 SWIGINTERN bool OGRFeatureShadow_IsFieldSet__SWIG_0(OGRFeatureShadow *self,int id){
-    return OGR_F_IsFieldSet(self, id);
+    return (OGR_F_IsFieldSet(self, id) > 0);
   }
 SWIGINTERN bool OGRFeatureShadow_IsFieldSet__SWIG_1(OGRFeatureShadow *self,char const *name){
       int i = OGR_F_GetFieldIndex(self, name);
       if (i == -1)
 	  CPLError(CE_Failure, 1, "No such field: '%s'", name);
       else
-	  return OGR_F_IsFieldSet(self, i);
-      return (bool)0;
+	  return (OGR_F_IsFieldSet(self, i) > 0);
+      return false;
   }
 SWIGINTERN int OGRFeatureShadow_GetFieldIndex(OGRFeatureShadow *self,char const *name){
       return OGR_F_GetFieldIndex(self, name);
@@ -3351,7 +3365,7 @@ SWIGINTERN char const *OGRFieldDefnShadow_GetFieldTypeName(OGRFieldDefnShadow *s
 
   OGRGeometryShadow* CreateGeometryFromWkb( int len, char *bin_string, 
                                             OSRSpatialReferenceShadow *reference=NULL ) {
-    void *geom;
+    OGRGeometryShadow *geom;
     OGRErr err = OGR_G_CreateFromWkb( (unsigned char *) bin_string,
                                       reference,
                                       &geom,
@@ -3367,7 +3381,7 @@ SWIGINTERN char const *OGRFieldDefnShadow_GetFieldTypeName(OGRFieldDefnShadow *s
 
   OGRGeometryShadow* CreateGeometryFromWkt( char **val, 
                                       OSRSpatialReferenceShadow *reference=NULL ) {
-    void *geom;
+    OGRGeometryShadow *geom;
     OGRErr err = OGR_G_CreateFromWkt(val,
                                       reference,
                                       &geom);
@@ -3392,6 +3406,27 @@ SWIGINTERN char const *OGRFieldDefnShadow_GetFieldTypeName(OGRFieldDefnShadow *s
     return geom;
   }
  
+
+
+  OGRGeometryShadow* BuildPolygonFromEdges( OGRGeometryShadow*  hLineCollection,  
+                                            int bBestEffort = 0, 
+                                            int bAutoClose = 0, 
+                                            double dfTolerance=0) {
+  
+  OGRGeometryH hPolygon = NULL;
+  
+  OGRErr eErr;
+
+  hPolygon = OGRBuildPolygonFromEdges( hLineCollection, bBestEffort, 
+                                       bAutoClose, dfTolerance, &eErr );
+
+  if (eErr != OGRERR_NONE ) {
+    CPLError(CE_Failure, eErr, "%s", OGRErrMessages(eErr));
+    return NULL;
+  }
+
+  return hPolygon;
+  }
 
 SWIGINTERN void delete_OGRGeometryShadow(OGRGeometryShadow *self){
     OGR_G_DestroyGeometry( self );
@@ -3511,40 +3546,40 @@ SWIGINTERN void OGRGeometryShadow_Empty(OGRGeometryShadow *self){
     OGR_G_Empty(self);
   }
 SWIGINTERN bool OGRGeometryShadow_IsEmpty(OGRGeometryShadow *self){
-    return OGR_G_IsEmpty(self);
+    return (OGR_G_IsEmpty(self) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_IsValid(OGRGeometryShadow *self){
-    return OGR_G_IsValid(self);
+    return (OGR_G_IsValid(self) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_IsSimple(OGRGeometryShadow *self){
-    return OGR_G_IsSimple(self);
+    return (OGR_G_IsSimple(self) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_IsRing(OGRGeometryShadow *self){
-    return OGR_G_IsRing(self);
+    return (OGR_G_IsRing(self) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_Intersect(OGRGeometryShadow *self,OGRGeometryShadow *other){
-    return OGR_G_Intersect(self, other);
+    return (OGR_G_Intersect(self, other) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_Equal(OGRGeometryShadow *self,OGRGeometryShadow *other){
-    return OGR_G_Equal(self, other);
+    return (OGR_G_Equal(self, other) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_Disjoint(OGRGeometryShadow *self,OGRGeometryShadow *other){
-    return OGR_G_Disjoint(self, other);
+    return (OGR_G_Disjoint(self, other) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_Touches(OGRGeometryShadow *self,OGRGeometryShadow *other){
-    return OGR_G_Touches(self, other);
+    return (OGR_G_Touches(self, other) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_Crosses(OGRGeometryShadow *self,OGRGeometryShadow *other){
-    return OGR_G_Crosses(self, other);
+    return (OGR_G_Crosses(self, other) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_Within(OGRGeometryShadow *self,OGRGeometryShadow *other){
-    return OGR_G_Within(self, other);
+    return (OGR_G_Within(self, other) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_Contains(OGRGeometryShadow *self,OGRGeometryShadow *other){
-    return OGR_G_Contains(self, other);
+    return (OGR_G_Contains(self, other) > 0);
   }
 SWIGINTERN bool OGRGeometryShadow_Overlaps(OGRGeometryShadow *self,OGRGeometryShadow *other){
-    return OGR_G_Overlaps(self, other);
+    return (OGR_G_Overlaps(self, other) > 0);
   }
 SWIGINTERN OGRErr OGRGeometryShadow_TransformTo(OGRGeometryShadow *self,OSRSpatialReferenceShadow *reference){
     return OGR_G_TransformTo(self, reference);
@@ -3616,6 +3651,9 @@ char const *OGRDataSourceShadow_name_get( OGRDataSourceShadow *h ) {
     OGRDataSourceShadow* ds = (OGRDataSourceShadow*)OGROpen(filename,update,NULL);
     if( CPLGetLastErrorType() == CE_Failure && ds != NULL )
     {
+        CPLDebug( "SWIG", 
+		  "OGROpen() succeeded, but an error is posted, so we destroy"
+		  " the datasource and fail at swig level." );
         OGRReleaseDataSource(ds);
         ds = NULL;
     }
@@ -4294,7 +4332,7 @@ SWIGINTERN PyObject *_wrap_DataSource_DeleteLayer(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4936,7 +4974,7 @@ SWIGINTERN PyObject *_wrap_Layer_SetAttributeFilter(PyObject *SWIGUNUSEDPARM(sel
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5180,7 +5218,7 @@ SWIGINTERN PyObject *_wrap_Layer_SetNextByIndex(PyObject *SWIGUNUSEDPARM(self), 
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5235,7 +5273,7 @@ SWIGINTERN PyObject *_wrap_Layer_SetFeature(PyObject *SWIGUNUSEDPARM(self), PyOb
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5290,7 +5328,7 @@ SWIGINTERN PyObject *_wrap_Layer_CreateFeature(PyObject *SWIGUNUSEDPARM(self), P
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5345,7 +5383,7 @@ SWIGINTERN PyObject *_wrap_Layer_DeleteFeature(PyObject *SWIGUNUSEDPARM(self), P
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5391,7 +5429,7 @@ SWIGINTERN PyObject *_wrap_Layer_SyncToDisk(PyObject *SWIGUNUSEDPARM(self), PyOb
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5536,7 +5574,7 @@ SWIGINTERN PyObject *_wrap_Layer_GetExtent(PyObject *SWIGUNUSEDPARM(self), PyObj
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5647,7 +5685,7 @@ SWIGINTERN PyObject *_wrap_Layer_CreateField(PyObject *SWIGUNUSEDPARM(self), PyO
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5693,7 +5731,7 @@ SWIGINTERN PyObject *_wrap_Layer_StartTransaction(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5739,7 +5777,7 @@ SWIGINTERN PyObject *_wrap_Layer_CommitTransaction(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5785,7 +5823,7 @@ SWIGINTERN PyObject *_wrap_Layer_RollbackTransaction(PyObject *SWIGUNUSEDPARM(se
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6002,7 +6040,7 @@ SWIGINTERN PyObject *_wrap_Feature_SetGeometry(PyObject *SWIGUNUSEDPARM(self), P
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6055,7 +6093,7 @@ SWIGINTERN PyObject *_wrap_Feature_SetGeometryDirectly(PyObject *SWIGUNUSEDPARM(
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7208,7 +7246,7 @@ SWIGINTERN PyObject *_wrap_Feature_SetFID(PyObject *SWIGUNUSEDPARM(self), PyObje
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7379,7 +7417,7 @@ SWIGINTERN PyObject *_wrap_Feature_SetField__SWIG_0(PyObject *SWIGUNUSEDPARM(sel
   int res1 = 0 ;
   int val2 ;
   int ecode2 = 0 ;
-  PyObject *str3 ;
+  PyObject *str3 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
@@ -7439,7 +7477,7 @@ SWIGINTERN PyObject *_wrap_Feature_SetField__SWIG_1(PyObject *SWIGUNUSEDPARM(sel
   int res2 ;
   char *buf2 = 0 ;
   int alloc2 = 0 ;
-  PyObject *str3 ;
+  PyObject *str3 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
@@ -8371,7 +8409,7 @@ SWIGINTERN PyObject *_wrap_Feature_SetFrom(PyObject *SWIGUNUSEDPARM(self), PyObj
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9587,6 +9625,72 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_BuildPolygonFromEdges(PyObject *SWIGUNUSEDPARM(self), PyObject *args, PyObject *kwargs) {
+  PyObject *resultobj = 0;
+  OGRGeometryShadow *arg1 = (OGRGeometryShadow *) 0 ;
+  int arg2 = (int) 0 ;
+  int arg3 = (int) 0 ;
+  double arg4 = (double) 0 ;
+  OGRGeometryShadow *result = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
+  double val4 ;
+  int ecode4 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  PyObject * obj3 = 0 ;
+  char *  kwnames[] = {
+    (char *) "hLineCollection",(char *) "bBestEffort",(char *) "bAutoClose",(char *) "dfTolerance", NULL 
+  };
+  
+  if (!PyArg_ParseTupleAndKeywords(args,kwargs,(char *)"O|OOO:BuildPolygonFromEdges",kwnames,&obj0,&obj1,&obj2,&obj3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_OGRGeometryShadow, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "BuildPolygonFromEdges" "', argument " "1"" of type '" "OGRGeometryShadow *""'"); 
+  }
+  arg1 = reinterpret_cast< OGRGeometryShadow * >(argp1);
+  if (obj1) {
+    ecode2 = SWIG_AsVal_int(obj1, &val2);
+    if (!SWIG_IsOK(ecode2)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "BuildPolygonFromEdges" "', argument " "2"" of type '" "int""'");
+    } 
+    arg2 = static_cast< int >(val2);
+  }
+  if (obj2) {
+    ecode3 = SWIG_AsVal_int(obj2, &val3);
+    if (!SWIG_IsOK(ecode3)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "BuildPolygonFromEdges" "', argument " "3"" of type '" "int""'");
+    } 
+    arg3 = static_cast< int >(val3);
+  }
+  if (obj3) {
+    ecode4 = SWIG_AsVal_double(obj3, &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "BuildPolygonFromEdges" "', argument " "4"" of type '" "double""'");
+    } 
+    arg4 = static_cast< double >(val4);
+  }
+  {
+    result = (OGRGeometryShadow *)BuildPolygonFromEdges(arg1,arg2,arg3,arg4);
+    if ( bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_OGRGeometryShadow, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_delete_Geometry(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   OGRGeometryShadow *arg1 = (OGRGeometryShadow *) 0 ;
@@ -9751,7 +9855,7 @@ SWIGINTERN PyObject *_wrap_Geometry_ExportToWkt(PyObject *SWIGUNUSEDPARM(self), 
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9836,7 +9940,7 @@ SWIGINTERN PyObject *_wrap_Geometry_ExportToWkb(PyObject *SWIGUNUSEDPARM(self), 
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10107,7 +10211,7 @@ SWIGINTERN PyObject *_wrap_Geometry_AddGeometryDirectly(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10162,7 +10266,7 @@ SWIGINTERN PyObject *_wrap_Geometry_AddGeometry(PyObject *SWIGUNUSEDPARM(self), 
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -11568,7 +11672,7 @@ SWIGINTERN PyObject *_wrap_Geometry_TransformTo(PyObject *SWIGUNUSEDPARM(self), 
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -11623,7 +11727,7 @@ SWIGINTERN PyObject *_wrap_Geometry_Transform(PyObject *SWIGUNUSEDPARM(self), Py
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -12042,7 +12146,7 @@ SWIGINTERN PyObject *_wrap_SetGenerate_DB2_V72_BYTE_ORDER(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -12374,6 +12478,7 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"CreateGeometryFromWkt", (PyCFunction) _wrap_CreateGeometryFromWkt, METH_VARARGS | METH_KEYWORDS, NULL},
 	 { (char *)"CreateGeometryFromGML", _wrap_CreateGeometryFromGML, METH_VARARGS, NULL},
 	 { (char *)"CreateGeometryFromJson", _wrap_CreateGeometryFromJson, METH_VARARGS, NULL},
+	 { (char *)"BuildPolygonFromEdges", (PyCFunction) _wrap_BuildPolygonFromEdges, METH_VARARGS | METH_KEYWORDS, NULL},
 	 { (char *)"delete_Geometry", _wrap_delete_Geometry, METH_VARARGS, NULL},
 	 { (char *)"new_Geometry", (PyCFunction) _wrap_new_Geometry, METH_VARARGS | METH_KEYWORDS, NULL},
 	 { (char *)"Geometry_ExportToWkt", _wrap_Geometry_ExportToWkt, METH_VARARGS, NULL},

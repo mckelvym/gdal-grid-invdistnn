@@ -192,7 +192,12 @@ GDALDataset *PDSDataset::Open( GDALOpenInfo * poOpenInfo )
 
     poDS = new PDSDataset();
 
-    if( ! poDS->oKeywords.Ingest( fpQube, 0 ) )
+    const char* pszPDSVersionID = strstr((const char *)poOpenInfo->pabyHeader,"PDS_VERSION_ID");
+    int nOffset = 0;
+    if (pszPDSVersionID)
+        nOffset = pszPDSVersionID - (const char *)poOpenInfo->pabyHeader;
+
+    if( ! poDS->oKeywords.Ingest( fpQube, nOffset ) )
     {
         delete poDS;
         return NULL;
@@ -322,6 +327,8 @@ GDALDataset *PDSDataset::Open( GDALOpenInfo * poOpenInfo )
     
     /***********   Grab Qube record bytes  **********/
     record_bytes = atoi(poDS->GetKeyword("IMAGE.RECORD_BYTES"));
+    if (record_bytes == 0)
+        record_bytes = atoi(poDS->GetKeyword("RECORD_BYTES"));
 
     if (nQube > 0)
         nSkipBytes = (nQube - 1) * record_bytes;     
@@ -366,6 +373,7 @@ GDALDataset *PDSDataset::Open( GDALOpenInfo * poOpenInfo )
     if( (EQUAL(value,"LSB_INTEGER")) || 
         (EQUAL(value,"LSB")) || // just incase
         (EQUAL(value,"LSB_UNSIGNED_INTEGER")) || 
+        (EQUAL(value,"LSB_SIGNED_INTEGER")) || 
         (EQUAL(value,"UNSIGNED_INTEGER")) || 
         (EQUAL(value,"VAX_REAL")) || 
         (EQUAL(value,"VAX_INTEGER")) || 
@@ -695,7 +703,7 @@ GDALDataset *PDSDataset::Open( GDALOpenInfo * poOpenInfo )
                                TRUE );
 
         if( bNoDataSet )
-            poBand->StoreNoDataValue( dfNoData );
+            poBand->SetNoDataValue( dfNoData );
 
         poDS->SetBand( i+1, poBand );
 

@@ -30,6 +30,8 @@
 #include "ogr_xplane_apt_reader.h"
 #include "ogr_xplane_geo_utils.h"
 
+CPL_CVSID("$Id$");
+
 /************************************************************************/
 /*                   OGRXPlaneCreateAptFileReader                       */
 /************************************************************************/
@@ -418,7 +420,7 @@ void    OGRXPlaneAptReader::ParseRunwayTaxiwayV810Record()
         int abReil[2];
 
         int num1 = atoi(pszRwyNum);
-        int num2 = (num1 < 18) ? num1 + 18 : num1 - 18;
+        int num2 = (num1 > 18) ? num1 - 18 : num1 + 18;
         if (pszRwyNum[2] == '0' || pszRwyNum[2] == 'x')
         {
             aosRwyNum[0].Printf("%02d", num1);
@@ -876,7 +878,7 @@ int OGRXPlaneAptReader::ParsePolygonalGeometry(OGRGeometry** ppoGeom)
 
     while((pszLine = CPLReadLine(fp)) != NULL)
     {
-        int nType;
+        int nType = -1;
         papszTokens = CSLTokenizeString(pszLine);
         nTokens = CSLCount(papszTokens);
 
@@ -1156,7 +1158,7 @@ int OGRXPlaneAptReader::ParseLinearGeometry(OGRMultiLineString& multilinestring,
 
     while((pszLine = CPLReadLine(fp)) != NULL)
     {
-        int nType;
+        int nType = -1;
         papszTokens = CSLTokenizeString(pszLine);
         nTokens = CSLCount(papszTokens);
 

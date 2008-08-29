@@ -1149,7 +1149,7 @@ CPLErr GDALPamDataset::TryLoadAux()
 /*      Try to open .aux file.                                          */
 /* -------------------------------------------------------------------- */
     GDALDataset *poAuxDS = GDALFindAssociatedAuxFile( pszPhysicalFile, 
-                                                      GA_ReadOnly );
+                                                      GA_ReadOnly, this );
 
     if( poAuxDS == NULL )
         return CE_None;
@@ -1243,6 +1243,12 @@ CPLErr GDALPamDataset::TryLoadAux()
         // RAT 
         if( poAuxBand->GetDefaultRAT() != NULL )
             poBand->SetDefaultRAT( poAuxBand->GetDefaultRAT() );
+
+        // NoData
+        int bSuccess = FALSE;
+        double dfNoDataValue = poAuxBand->GetNoDataValue( &bSuccess );
+        if( bSuccess )
+            poBand->SetNoDataValue( dfNoDataValue );
     }
 
     GDALClose( poAuxDS );

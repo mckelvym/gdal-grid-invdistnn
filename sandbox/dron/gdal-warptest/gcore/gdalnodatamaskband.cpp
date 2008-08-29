@@ -1,5 +1,5 @@
 /******************************************************************************
- * $Id: gdalrasterband.cpp 11880 2007-08-13 15:02:33Z mloskot $
+ * $Id$
  *
  * Project:  GDAL Core
  * Purpose:  Implementation of GDALNoDataMaskBand, a class implementing all
@@ -29,6 +29,8 @@
  ****************************************************************************/
 
 #include "gdal_priv.h"
+
+CPL_CVSID("$Id$");
 
 /************************************************************************/
 /*                        GDALNoDataMaskBand()                          */
@@ -79,10 +81,13 @@ CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
         break;
 
       case GDT_UInt16:
-      case GDT_Int16:
-      case GDT_Int32:
       case GDT_UInt32:
         eWrkDT = GDT_UInt32;
+        break;
+
+      case GDT_Int16:
+      case GDT_Int32:
+        eWrkDT = GDT_Int32;
         break;
 
       case GDT_Float32:
@@ -115,7 +120,26 @@ CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
         return CE_Failure;
     }
 
-    eErr = poParent->ReadBlock( nXBlockOff, nYBlockOff, pabySrc );
+
+    int nXSizeRequest = nBlockXSize;
+    if (nXBlockOff * nBlockXSize + nBlockXSize > nRasterXSize)
+        nXSizeRequest = nRasterXSize - nXBlockOff * nBlockXSize;
+    int nYSizeRequest = nBlockYSize;
+    if (nYBlockOff * nBlockYSize + nBlockYSize > nRasterYSize)
+        nYSizeRequest = nRasterYSize - nYBlockOff * nBlockYSize;
+
+    if (nXSizeRequest != nBlockXSize || nYSizeRequest != nBlockYSize)
+    {
+        /* memset the whole buffer to avoid Valgrind warnings in case we can't */
+        /* fetch a full block */
+        memset(pabySrc, 0, GDALGetDataTypeSize(eWrkDT)/8 * nBlockXSize * nBlockYSize );
+    }
+
+    eErr = poParent->RasterIO( GF_Read,
+                               nXBlockOff * nBlockXSize, nYBlockOff * nBlockYSize,
+                               nXSizeRequest, nYSizeRequest,
+                               pabySrc, nXSizeRequest, nYSizeRequest,
+                               eWrkDT, 0, nBlockXSize * (GDALGetDataTypeSize(eWrkDT)/8) );
     if( eErr != CE_None )
         return eErr;
 
@@ -146,6 +170,20 @@ CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
           for( i = nBlockXSize * nBlockYSize - 1; i >= 0; i-- )
           {
               if( ((GUInt32 *)pabySrc)[i] == nNoData )
+                  ((GByte *) pImage)[i] = 0;
+              else
+                  ((GByte *) pImage)[i] = 255;
+          }
+      }
+      break;
+
+      case GDT_Int32:
+      {
+          GInt32 nNoData = (GInt32) dfNoDataValue;
+
+          for( i = nBlockXSize * nBlockYSize - 1; i >= 0; i-- )
+          {
+              if( ((GInt32 *)pabySrc)[i] == nNoData )
                   ((GByte *) pImage)[i] = 0;
               else
                   ((GByte *) pImage)[i] = 255;

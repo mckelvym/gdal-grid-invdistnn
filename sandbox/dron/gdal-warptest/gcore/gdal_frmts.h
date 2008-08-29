@@ -67,6 +67,7 @@ void CPL_DLL GDALRegister_Envisat(void);
 void CPL_DLL GDALRegister_FITS(void);
 void CPL_DLL GDALRegister_ECW(void);
 void CPL_DLL GDALRegister_JP2ECW(void);
+void CPL_DLL GDALRegister_ECW_JP2ECW();
 void CPL_DLL GDALRegister_FujiBAS(void);
 void CPL_DLL GDALRegister_FIT(void);
 void CPL_DLL GDALRegister_VRT(void);
@@ -100,6 +101,7 @@ void CPL_DLL GDALRegister_RMF(void);
 void CPL_DLL GDALRegister_HDF5(void);
 void CPL_DLL GDALRegister_HDF5Image(void);
 void CPL_DLL GDALRegister_MSGN(void);
+void CPL_DLL GDALRegister_MSG(void);
 void CPL_DLL GDALRegister_RIK(void);
 void CPL_DLL GDALRegister_Leveller(void);
 void CPL_DLL GDALRegister_SGI(void);
@@ -129,6 +131,8 @@ void CPL_DLL GDALRegister_ADRG(void);
 void CPL_DLL GDALRegister_COASP(void);
 void CPL_DLL GDALRegister_BLX(void);
 void CPL_DLL GDALRegister_LCP(void);
+void CPL_DLL GDALRegister_PGCHIP(void);
+void CPL_DLL GDALRegister_TMS(void);
 CPL_C_END
 
 #endif /* ndef GDAL_FRMTS_H_INCLUDED */

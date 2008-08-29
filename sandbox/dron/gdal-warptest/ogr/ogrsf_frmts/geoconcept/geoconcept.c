@@ -288,6 +288,12 @@ static long GCIOAPI_CALL _read_GCIO (
       *result= (char)c;
       result++;
       nread++;
+      if (nread == kCacheSize_GCIO)
+      {
+        CPLError( CE_Failure, CPLE_OutOfMemory,
+                  "Too many characters at line %lu.\n", GetGCCurrentLinenum_GCIO(hGXT));
+        return EOF;
+      }
     }/* switch */
   }/* while */
   *result= '\0';
@@ -4912,7 +4918,7 @@ static int GCIOAPI_CALL _writeLine_GCIO (
                                            FILE* h,
                                            const char* quotes,
                                            char delim,
-                                           OGRGeometryH* poArc,
+                                           OGRGeometryH poArc,
                                            GCTypeKind knd,
                                            GCDim dim,
                                            int fmt,
@@ -4999,14 +5005,14 @@ static int GCIOAPI_CALL _writePolygon_GCIO (
                                              FILE* h,
                                              const char* quotes,
                                              char delim,
-                                             OGRGeometryH* poPoly,
+                                             OGRGeometryH poPoly,
                                              GCDim dim,
                                              int fmt,
                                              GCExtent* e
                                            )
 {
   int iR, nR;
-  OGRGeometryH* poRing;
+  OGRGeometryH poRing;
   /*
    * X<>Y[<>Z]{Single Polygon{<>NrPolys=j[<>X<>Y[<>Z]<>Single Polygon]j}}
    * with :

@@ -49,7 +49,7 @@ GDALInfoReportCorner( GDALDatasetH hDataset,
 void Usage()
 
 {
-    printf( "Usage: gdalinfo [--help-general] [-mm] [-stats] [-nogcp] [-nomd]\n"
+    printf( "Usage: gdalinfo [--help-general] [-mm] [-stats] [-hist] [-nogcp] [-nomd]\n"
             "                [-noct] [-checksum] [-mdd domain]* datasetname\n" );
     exit( 1 );
 }
@@ -71,10 +71,20 @@ int main( int argc, char ** argv )
     int                 bShowGCPs = TRUE, bShowMetadata = TRUE ;
     int                 bStats = FALSE, bApproxStats = TRUE, iMDD;
     int                 bShowColorTable = TRUE, bComputeChecksum = FALSE;
+    int                 bReportHistograms = FALSE;
     const char          *pszFilename = NULL;
     char              **papszExtraMDDomains = NULL, **papszFileList;
     const char  *pszProjection = NULL;
     OGRCoordinateTransformationH hTransform = NULL;
+
+    /* Check that we are running against at least GDAL 1.5 */
+    /* Note to developers : if we use newer API, please change the requirement */
+    if (atoi(GDALVersionInfo("VERSION_NUM")) < 1500)
+    {
+        fprintf(stderr, "At least, GDAL >= 1.5.0 is required for this version of %s, "
+                "which was compiled against GDAL %s\n", argv[0], GDAL_RELEASE_NAME);
+        exit(1);
+    }
 
     GDALAllRegister();
 
@@ -87,8 +97,16 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
     for( i = 1; i < argc; i++ )
     {
-        if( EQUAL(argv[i], "-mm") )
+        if( EQUAL(argv[i], "--utility_version") )
+        {
+            printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
+                   argv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            return 0;
+        }
+        else if( EQUAL(argv[i], "-mm") )
             bComputeMinMax = TRUE;
+        else if( EQUAL(argv[i], "-hist") )
+            bReportHistograms = TRUE;
         else if( EQUAL(argv[i], "-stats") )
         {
             bStats = TRUE;
@@ -432,6 +450,26 @@ int main( int argc, char ** argv )
                     dfMin, dfMax, dfMean, dfStdDev );
         }
 
+        if( bReportHistograms )
+        {
+            int nBucketCount, *panHistogram = NULL;
+
+            eErr = GDALGetDefaultHistogram( hBand, &dfMin, &dfMax, 
+                                            &nBucketCount, &panHistogram, 
+                                            TRUE, GDALTermProgress, NULL );
+            if( eErr == CE_None )
+            {
+                int iBucket;
+
+                printf( "  %d buckets from %g to %g:\n  ",
+                        nBucketCount, dfMin, dfMax );
+                for( iBucket = 0; iBucket < nBucketCount; iBucket++ )
+                    printf( "%d ", panHistogram[iBucket] );
+                printf( "\n" );
+                CPLFree( panHistogram );
+            }
+        }
+
         if ( bComputeChecksum)
         {
             printf( "  Checksum=%d\n",
@@ -474,6 +512,27 @@ int main( int argc, char ** argv )
                     printf( "*" );
             }
             printf( "\n" );
+
+            if ( bComputeChecksum)
+            {
+                printf( "  Overviews checksum: " );
+                for( iOverview = 0; 
+                    iOverview < GDALGetOverviewCount(hBand);
+                    iOverview++ )
+                {
+                    GDALRasterBandH	hOverview;
+
+                    if( iOverview != 0 )
+                        printf( ", " );
+
+                    hOverview = GDALGetOverview( hBand, iOverview );
+                    printf( "%d",
+                            GDALChecksumImage(hOverview, 0, 0,
+                                      GDALGetRasterBandXSize(hOverview),
+                                      GDALGetRasterBandYSize(hOverview)));
+                }
+                printf( "\n" );
+            }
         }
 
         if( GDALHasArbitraryOverviews( hBand ) )
@@ -484,6 +543,8 @@ int main( int argc, char ** argv )
         nMaskFlags = GDALGetMaskFlags( hBand );
         if( (nMaskFlags & (GMF_NODATA|GMF_ALL_VALID)) == 0 )
         {
+            GDALRasterBandH hMaskBand = GDALGetMaskBand(hBand) ;
+
             printf( "  Mask Flags: " );
             if( nMaskFlags & GMF_PER_DATASET )
                 printf( "PER_DATASET " );
@@ -494,6 +555,29 @@ int main( int argc, char ** argv )
             if( nMaskFlags & GMF_ALL_VALID )
                 printf( "ALL_VALID " );
             printf( "\n" );
+
+            if( hMaskBand != NULL &&
+                GDALGetOverviewCount(hMaskBand) > 0 )
+            {
+                int		iOverview;
+
+                printf( "  Overviews of mask band: " );
+                for( iOverview = 0; 
+                     iOverview < GDALGetOverviewCount(hMaskBand);
+                     iOverview++ )
+                {
+                    GDALRasterBandH	hOverview;
+
+                    if( iOverview != 0 )
+                        printf( ", " );
+
+                    hOverview = GDALGetOverview( hMaskBand, iOverview );
+                    printf( "%dx%d", 
+                            GDALGetRasterBandXSize( hOverview ),
+                            GDALGetRasterBandYSize( hOverview ) );
+                }
+                printf( "\n" );
+            }
         }
 
         if( strlen(GDALGetRasterUnitType(hBand)) > 0 )
@@ -564,7 +648,7 @@ int main( int argc, char ** argv )
             }
         }
 
-        if( GDALGetDefaultRAT( hBand ) != NULL )
+        if( bShowMetadata && GDALGetDefaultRAT( hBand ) != NULL )
         {
             GDALRasterAttributeTableH hRAT = GDALGetDefaultRAT( hBand );
             

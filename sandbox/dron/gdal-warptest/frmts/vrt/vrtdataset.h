@@ -131,6 +131,8 @@ class CPL_DLL VRTWarpedDataset : public VRTDataset
     int               nBlockYSize;
     GDALWarpOperation *poWarper;
 
+    friend class VRTWarpedRasterBand;
+
 public:
     int               nOverviewCount;
     VRTWarpedDataset  **papoOverviews;
@@ -281,7 +283,8 @@ class CPL_DLL VRTSourcedRasterBand : public VRTRasterBand
                                      int nDstXSize=-1, int nDstYSize=-1,
                                      double dfScaleOff=0.0, 
                                      double dfScaleRatio=1.0,
-                                     double dfNoDataValue = VRT_NODATA_UNSET);
+                                     double dfNoDataValue = VRT_NODATA_UNSET,
+                                     int nColorTableComponent = 0);
 
     CPLErr         AddFuncSource( VRTImageReadFunc pfnReadFunc, void *hCBData,
                                   double dfNoDataValue = VRT_NODATA_UNSET );
@@ -305,6 +308,7 @@ class CPL_DLL VRTWarpedRasterBand : public VRTRasterBand
     virtual CPLXMLNode *   SerializeToXML( const char *pszVRTPath );
 
     virtual CPLErr IReadBlock( int, int, void * );
+    virtual CPLErr IWriteBlock( int, int, void * );
 
     virtual int GetOverviewCount();
     virtual GDALRasterBand *GetOverview(int);
@@ -491,6 +495,7 @@ public:
     double         *padfLUTInputs;
     double         *padfLUTOutputs;
     int            nLUTItemCount;
+    int            nColorTableComponent;
 };
 
 /************************************************************************/

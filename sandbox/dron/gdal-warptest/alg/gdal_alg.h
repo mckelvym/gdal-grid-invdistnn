@@ -62,6 +62,22 @@ int CPL_DLL CPL_STDCALL GDALDitherRGB2PCT( GDALRasterBandH hRed,
 int CPL_DLL CPL_STDCALL GDALChecksumImage( GDALRasterBandH hBand, 
                                int nXOff, int nYOff, int nXSize, int nYSize );
                                
+CPLErr CPL_DLL CPL_STDCALL 
+GDALComputeProximity( GDALRasterBandH hSrcBand, 
+                      GDALRasterBandH hProximityBand,
+                      char **papszOptions,
+                      GDALProgressFunc pfnProgress, 
+                      void * pProgressArg );
+
+CPLErr CPL_DLL CPL_STDCALL
+GDALFillNodata( GDALRasterBandH hTargetBand, 
+                GDALRasterBandH hMaskBand,
+                double dfMaxSearchDist, 
+                int bConicSearch, 
+                int nSmoothingIterations,
+                char **papszOptions,
+                GDALProgressFunc pfnProgress, 
+                void * pProgressArg );
 
 /*
  * Warp Related.
@@ -241,20 +257,9 @@ GDALContourGenerate( GDALRasterBandH hBand,
                             void *hLayer, int iIDField, int iElevField,
                             GDALProgressFunc pfnProgress, void *pProgressArg );
 
-/* -------------------------------------------------------------------- */
-/*      Low level rasterizer API.                                       */
-/* -------------------------------------------------------------------- */
-typedef void (*llScanlineFunc)( void *pCBData, int nY, int nXStart, int nXEnd);
-
-
-void GDALdllImageFilledPolygon(int nRasterXSize, int nRasterYSize, 
-                               int nPartCount, int *panPartSize, 
-                               double *padfX, double *padfY,
-                               llScanlineFunc pfnScanlineFunc, void *pCBData );
-
-/* -------------------------------------------------------------------- */
-/*      High level API - GvShapes burned into GDAL raster.              */
-/* -------------------------------------------------------------------- */
+/************************************************************************/
+/*      Rasterizer API - geometries burned into GDAL raster.            */
+/************************************************************************/
 
 CPLErr CPL_DLL 
 GDALRasterizeGeometries( GDALDatasetH hDS, 
@@ -266,6 +271,16 @@ GDALRasterizeGeometries( GDALDatasetH hDS,
                          char **papszOptions,
                          GDALProgressFunc pfnProgress, 
                          void * pProgressArg );
+CPLErr CPL_DLL
+GDALRasterizeLayers( GDALDatasetH hDS, 
+                     int nBandCount, int *panBandList,
+                     int nLayerCount, OGRLayerH *pahLayers,
+                     GDALTransformerFunc pfnTransformer, 
+                     void *pTransformArg, 
+                     double *padfLayerBurnValues,
+                     char **papszOptions,
+                     GDALProgressFunc pfnProgress, 
+                     void *pProgressArg );
 
 /************************************************************************/
 /*  Gridding interface.                                                 */

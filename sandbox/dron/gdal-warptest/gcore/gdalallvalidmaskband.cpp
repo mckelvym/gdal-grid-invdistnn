@@ -1,5 +1,5 @@
 /******************************************************************************
- * $Id: gdalrasterband.cpp 11880 2007-08-13 15:02:33Z mloskot $
+ * $Id$
  *
  * Project:  GDAL Core
  * Purpose:  Implementation of GDALAllValidMaskBand, a class implementing all
@@ -29,6 +29,8 @@
  ****************************************************************************/
 
 #include "gdal_priv.h"
+
+CPL_CVSID("$Id$");
 
 /************************************************************************/
 /*                        GDALAllValidMaskBand()                        */

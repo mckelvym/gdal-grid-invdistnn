@@ -39,7 +39,7 @@ CPL_CVSID("$Id$");
 static GDALDatasetH 
 GDALWarpCreateOutput( char **papszSrcFiles, const char *pszFilename, 
                       const char *pszFormat, char **papszTO,
-                      char **papszCreateOptions, GDALDataType eDT );
+                      char ***ppapszCreateOptions, GDALDataType eDT );
 
 static double	       dfMinX=0.0, dfMinY=0.0, dfMaxX=0.0, dfMaxY=0.0;
 static double	       dfXRes=0.0, dfYRes=0.0;
@@ -124,6 +124,15 @@ int main( int argc, char ** argv )
     int                 bMulti = FALSE;
     char                **papszTO = NULL;
 
+    /* Check that we are running against at least GDAL 1.6 */
+    /* Note to developers : if we use newer API, please change the requirement */
+    if (atoi(GDALVersionInfo("VERSION_NUM")) < 1600)
+    {
+        fprintf(stderr, "At least, GDAL >= 1.6.0 is required for this version of %s, "
+                "which was compiled against GDAL %s\n", argv[0], GDAL_RELEASE_NAME);
+        exit(1);
+    }
+
     GDALAllRegister();
     argc = GDALGeneralCmdLineProcessor( argc, &argv, 0 );
     if( argc < 1 )
@@ -134,7 +143,13 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
     for( i = 1; i < argc; i++ )
     {
-        if( EQUAL(argv[i],"-co") && i < argc-1 )
+        if( EQUAL(argv[i], "--utility_version") )
+        {
+            printf("%s was compiled against GDAL %s and is running against GDAL %s\n",
+                   argv[0], GDAL_RELEASE_NAME, GDALVersionInfo("RELEASE_NAME"));
+            return 0;
+        }
+        else if( EQUAL(argv[i],"-co") && i < argc-1 )
         {
             papszCreateOptions = CSLAddString( papszCreateOptions, argv[++i] );
             bCreateOutput = TRUE;
@@ -184,7 +199,7 @@ int main( int argc, char ** argv )
         }
         else if( EQUAL(argv[i],"-tps") )
         {
-            papszTO = CSLSetNameValue( papszTO, "METHOD", "TPS" );
+            papszTO = CSLSetNameValue( papszTO, "METHOD", "GCP_TPS" );
         }
         else if( EQUAL(argv[i],"-rpc") )
         {
@@ -365,7 +380,7 @@ int main( int argc, char ** argv )
     if( hDstDS == NULL )
     {
         hDstDS = GDALWarpCreateOutput( papszSrcFiles, pszDstFilename,pszFormat,
-                                       papszTO, papszCreateOptions, 
+                                       papszTO, &papszCreateOptions, 
                                        eOutputType );
         bCreateOutput = TRUE;
 
@@ -645,8 +660,23 @@ int main( int argc, char ** argv )
 
             GDALClose( hDstDS );
             GDALClose( hSrcDS );
-        
+
+            /* The warped VRT will clean itself the transformer used */
+            /* So we have only to destroy the hGenImgProjArg if we */
+            /* have wrapped it inside the hApproxArg */
+            if (pfnTransformer == GDALApproxTransform)
+            {
+                if( hGenImgProjArg != NULL )
+                    GDALDestroyGenImgProjTransformer( hGenImgProjArg );
+            }
+
+            GDALDestroyWarpOptions( psWO );
+
+            CPLFree( pszDstFilename );
             CSLDestroy( argv );
+            CSLDestroy( papszSrcFiles );
+            CSLDestroy( papszWarpOptions );
+            CSLDestroy( papszTO );
     
             GDALDumpOpenDatasets( stderr );
         
@@ -714,7 +744,7 @@ int main( int argc, char ** argv )
 static GDALDatasetH 
 GDALWarpCreateOutput( char **papszSrcFiles, const char *pszFilename, 
                       const char *pszFormat, char **papszTO, 
-                      char **papszCreateOptions, GDALDataType eDT )
+                      char ***ppapszCreateOptions, GDALDataType eDT )
 
 
 {
@@ -755,15 +785,13 @@ GDALWarpCreateOutput( char **papszSrcFiles, const char *pszFilename,
         exit( 1 );
     }
 
-    GDALValidateCreationOptions(hDriver, papszCreateOptions);
-
 /* -------------------------------------------------------------------- */
 /*      For virtual output files, we have to set a special subclass     */
 /*      of dataset to create.                                           */
 /* -------------------------------------------------------------------- */
     if( bVRT )
-        papszCreateOptions = 
-            CSLSetNameValue( papszCreateOptions, "SUBCLASS", 
+        *ppapszCreateOptions = 
+            CSLSetNameValue( *ppapszCreateOptions, "SUBCLASS", 
                              "VRTWarpedDataset" );
 
 /* -------------------------------------------------------------------- */
@@ -1033,7 +1061,7 @@ GDALWarpCreateOutput( char **papszSrcFiles, const char *pszFilename,
         printf( "Creating output file that is %dP x %dL.\n", nPixels, nLines );
 
     hDstDS = GDALCreate( hDriver, pszFilename, nPixels, nLines, 
-                         nDstBandCount, eDT, papszCreateOptions );
+                         nDstBandCount, eDT, *ppapszCreateOptions );
     
     if( hDstDS == NULL )
     {

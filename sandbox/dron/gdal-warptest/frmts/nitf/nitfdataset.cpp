@@ -189,6 +189,8 @@ NITFRasterBand::NITFRasterBand( NITFDataset *poDS, int nBand )
         eDataType = GDT_Int16;
     else if( psImage->nBitsPerSample == 16 )
         eDataType = GDT_UInt16;
+    else if( psImage->nBitsPerSample == 12 )
+        eDataType = GDT_UInt16;
     else if( psImage->nBitsPerSample == 32 
              && EQUAL(psImage->szPVType,"SI") )
         eDataType = GDT_Int32;
@@ -281,6 +283,8 @@ NITFRasterBand::NITFRasterBand( NITFDataset *poDS, int nBand )
 
     if( psImage->nBitsPerSample == 1 )
         SetMetadataItem( "NBITS", "1", "IMAGE_STRUCTURE" );
+    if( psImage->nBitsPerSample == 12 )
+        SetMetadataItem( "NBITS", "12", "IMAGE_STRUCTURE" );
 }
 
 /************************************************************************/
@@ -356,6 +360,39 @@ CPLErr NITFRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         
         return CE_None;
     }
+
+/* -------------------------------------------------------------------- */
+/*      if data type is 12 bit, we expand to 16bit.                     */
+/* -------------------------------------------------------------------- */
+    if( nBlockResult == BLKREAD_OK && psImage->nBitsPerSample == 12 )
+    {
+        int nPixelCount = psImage->nBlockWidth * psImage->nBlockHeight;
+        int i;
+        GByte *pabyImage = (GByte *) pImage;
+        GUInt16 *panImage = (GUInt16 *) pImage;
+
+        for( i = nPixelCount-1; i >= 0; i-- )
+        {
+            if( i % 2 == 0 )
+            {
+                int iOffset = i*3 / 2;
+
+                panImage[i] = pabyImage[iOffset] 
+                    + (pabyImage[iOffset+1] & 0xf0) * 16;
+            }
+            else
+            {
+                int iOffset = i*3 / 2;
+
+                panImage[i] = (pabyImage[iOffset] & 0x0f) * 16
+                    + (pabyImage[iOffset+1] & 0xf0) / 16
+                    + (pabyImage[iOffset+1] & 0x0f) * 256;
+            }
+        }
+        
+        return CE_None;
+    }
+
 
 /* -------------------------------------------------------------------- */
 /*      Return result.                                                  */
@@ -1017,6 +1054,7 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
     if( psImage != NULL 
         && psImage->nBitsPerSample != 1
+        && psImage->nBitsPerSample != 12
         && (psImage->nBitsPerSample < 8 || psImage->nBitsPerSample % 8 != 0) )
     {
         CPLError( CE_Warning, CPLE_AppDefined, 
@@ -2852,6 +2890,21 @@ NITFDataset::NITFCreateCopy(
     }
 
 /* -------------------------------------------------------------------- */
+/*      Copy TRE definitions as creation options.                       */
+/* -------------------------------------------------------------------- */
+    papszSrcMD = poSrcDS->GetMetadata( "TRE" );
+
+    for( iMD = 0; papszSrcMD && papszSrcMD[iMD]; iMD++ )
+    {
+        CPLString osTRE;
+
+        osTRE = "TRE=";
+        osTRE += papszSrcMD[iMD];
+
+        papszFullOptions = CSLAddString( papszFullOptions, osTRE );
+    }
+
+/* -------------------------------------------------------------------- */
 /*      Set if we can set IREP.                                         */
 /* -------------------------------------------------------------------- */
     if( CSLFetchNameValue(papszFullOptions,"IREP") == NULL )
@@ -3387,6 +3440,79 @@ NITFWriteJPEGImage( GDALDataset *poSrcDS, FILE *fp, int nStartOffset,
 /*                          GDALRegister_NITF()                         */
 /************************************************************************/
 
+typedef struct
+{
+    int         nMaxLen;
+    const char* pszName;
+} NITFFieldDescription;
+
+/* Keep in sync with NITFCreate */
+static const NITFFieldDescription asFieldDescription [] =
+{
+    { 2, "CLEVEL" } ,
+    { 10, "OSTAID" } ,
+    { 14, "FDT" } ,
+    { 80, "FTITLE" } ,
+    { 1, "FSCLAS" } ,
+    { 2, "FSCLSY" } ,
+    { 11, "FSCODE" } ,
+    { 2, "FSCTLH" } ,
+    { 20, "FSREL" } ,
+    { 2, "FSDCTP" } ,
+    { 8, "FSDCDT" } ,
+    { 4, "FSDCXM" } ,
+    { 1, "FSDG" } ,
+    { 8, "FSDGDT" } ,
+    { 43, "FSCLTX" } ,
+    { 1, "FSCATP" } ,
+    { 40, "FSCAUT" } ,
+    { 1, "FSCRSN" } ,
+    { 8, "FSSRDT" } ,
+    { 15, "FSCTLN" } ,
+    { 5, "FSCOP" } ,
+    { 5, "FSCPYS" } ,
+    { 24, "ONAME" } ,
+    { 18, "OPHONE" } ,
+    { 10, "IID1" } ,
+    { 14, "IDATIM" } ,
+    { 17, "TGTID" } ,
+    { 80, "IID2" } ,
+    {  1, "ISCLAS" } ,
+    {  2, "ISCLSY" } ,
+    { 11, "ISCODE" } ,
+    {  2, "ISCTLH" } ,
+    { 20, "ISREL" } ,
+    {  2, "ISDCTP" } ,
+    {  8, "ISDCDT" } ,
+    {  4, "ISDCXM" } ,
+    {  1, "ISDG" } ,
+    {  8, "ISDGDT" } ,
+    { 43, "ISCLTX" } ,
+    {  1, "ISCATP" } ,
+    { 40, "ISCAUT" } ,
+    {  1, "ISCRSN" } ,
+    {  8, "ISSRDT" } ,
+    { 15, "ISCTLN" } ,
+    { 42, "ISORCE" } ,
+    {  8, "ICAT" } ,
+    {  2, "ABPP" } ,
+    {  1, "PJUST" } ,
+};
+
+/* Keep in sync with NITFWriteBLOCKA */
+static const char *apszFieldsBLOCKA[] = { 
+        "BLOCK_INSTANCE", "0", "2",
+        "N_GRAY",         "2", "5",
+        "L_LINES",        "7", "5",
+        "LAYOVER_ANGLE",  "12", "3",
+        "SHADOW_ANGLE",   "15", "3",
+        "BLANKS",         "18", "16",
+        "FRLC_LOC",       "34", "21",
+        "LRLC_LOC",       "55", "21",
+        "LRFC_LOC",       "76", "21",
+        "FRFC_LOC",       "97", "21",
+        NULL,             NULL, NULL };
+
 void GDALRegister_NITF()
 
 {
@@ -3394,6 +3520,68 @@ void GDALRegister_NITF()
 
     if( GDALGetDriverByName( "NITF" ) == NULL )
     {
+        unsigned int i;
+        CPLString osCreationOptions;
+
+        osCreationOptions =
+"<CreationOptionList>"
+"   <Option name='IC' type='string-select' default='NC' description='Compression mode. NC=no compression. C3=JPEG compression. C8=JP2 compression through the JP2ECW driver'>"
+"       <Value>NC</Value>"
+#ifdef JPEG_SUPPORTED
+"       <Value>C3</Value>"
+#endif
+"       <Value>C8</Value>"
+"   </Option>"
+#ifdef JPEG_SUPPORTED
+"   <Option name='QUALITY' type='int' description='JPEG quality 10-100' default='75'/>"
+"   <Option name='PROGRESSIVE' type='boolean' description='JPEG progressive mode'/>"
+#endif
+"   <Option name='TARGET' type='float' description='For JP2 only. Compression Percentage'/>"
+"   <Option name='PROFILE' type='string-select' description='For JP2 only.'>"
+"       <Value>BASELINE_0</Value>"
+"       <Value>BASELINE_1</Value>"
+"       <Value>BASELINE_2</Value>"
+"       <Value>NPJE</Value>"
+"       <Value>EPJE</Value>"
+"   </Option>"
+"   <Option name='ICORDS' type='string-select' description='To ensure that space will be reserved for geographic corner coordinates in DMS (G), in decimal degrees (D), UTM North (N) or UTM South'>"
+"       <Value>G</Value>"
+"       <Value>D</Value>"
+"       <Value>N</Value>"
+"       <Value>S</Value>"
+"   </Option>"
+"   <Option name='FHDR' type='string-select' description='File version' default='NITF02.10'>"
+"       <Value>NITF02.10</Value>"
+"       <Value>NSIF01.00</Value>"
+"   </Option>"
+"   <Option name='IREP' type='string' description='Set to RGB/LUT to reserve space for a color table for each output band. (Only needed for Create() method, not CreateCopy())'/>"
+"   <Option name='LUT_SIZE' type='integer' description='Set to control the size of pseudocolor tables for RGB/LUT bands' default='256'/>"
+"   <Option name='BLOCKXSIZE' type='int' description='Set the block width'/>"
+"   <Option name='BLOCKYSIZE' type='int' description='Set the block height'/>"
+"   <Option name='BLOCKSIZE' type='int' description='Set the block with and height. Overridden by BLOCKXSIZE and BLOCKYSIZE'/>";
+
+        for(i=0;i<sizeof(asFieldDescription) / sizeof(asFieldDescription[0]); i++)
+        {
+            char szFieldDescription[128];
+            sprintf(szFieldDescription, "   <Option name='%s' type='string' maxsize='%d'/>",
+                    asFieldDescription[i].pszName, asFieldDescription[i].nMaxLen);
+            osCreationOptions += szFieldDescription;
+        }
+
+        osCreationOptions +=
+"   <Option name='TRE' type='string' description='Under the format TRE=tre-name,tre-contents'/>"
+"   <Option name='BLOCKA_BLOCK_COUNT' type='int'/>";
+
+        for(i=0; apszFieldsBLOCKA[i] != NULL; i+=3)
+        {
+            char szFieldDescription[128];
+            sprintf(szFieldDescription, "   <Option name='BLOCKA_%s_*' type='string' maxsize='%d'/>",
+                    apszFieldsBLOCKA[i], atoi(apszFieldsBLOCKA[i+2]));
+            osCreationOptions += szFieldDescription;
+        }
+
+        osCreationOptions += "</CreationOptionList>";
+
         poDriver = new GDALDriver();
         
         poDriver->SetDescription( "NITF" );
@@ -3410,6 +3598,7 @@ void GDALRegister_NITF()
         poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, 
                                    "Byte UInt16 Int16 UInt32 Int32 Float32" );
 
+        poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST, osCreationOptions);
         poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
 
         GetGDALDriverManager()->RegisterDriver( poDriver );

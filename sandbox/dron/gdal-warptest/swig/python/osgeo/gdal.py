@@ -578,6 +578,10 @@ class Dataset(MajorObject):
         """CreateMaskBand(self, int nFlags) -> CPLErr"""
         return _gdal.Dataset_CreateMaskBand(*args)
 
+    def GetFileList(*args):
+        """GetFileList(self) -> char"""
+        return _gdal.Dataset_GetFileList(*args)
+
     def WriteRaster(*args, **kwargs):
         """
         WriteRaster(self, int xoff, int yoff, int xsize, int ysize, int buf_len, 
@@ -794,13 +798,13 @@ class Band(MajorObject):
         """CreateMaskBand(self, int nFlags) -> CPLErr"""
         return _gdal.Band_CreateMaskBand(*args)
 
-    def GetHistogram(*args):
+    def GetHistogram(*args, **kwargs):
         """
-        GetHistogram(self, double dfMin=-0.5, double dfMax=255.5, int nBuckets=255, 
+        GetHistogram(self, double dfMin=-0.5, double dfMax=255.5, int nBuckets=256, 
             int bIncludeOutOfRange=0, int bApproxOk=1, 
             GDALProgressFunc callback=None, void callback_data=None) -> CPLErr
         """
-        return _gdal.Band_GetHistogram(*args)
+        return _gdal.Band_GetHistogram(*args, **kwargs)
 
     def ReadAsArray(self, xoff=0, yoff=0, win_xsize=None, win_ysize=None,
                     buf_xsize=None, buf_ysize=None, buf_obj=None):
@@ -963,6 +967,9 @@ TermProgress = _gdal.TermProgress
 ComputeMedianCutPCT = _gdal.ComputeMedianCutPCT
 DitherRGB2PCT = _gdal.DitherRGB2PCT
 ReprojectImage = _gdal.ReprojectImage
+ComputeProximity = _gdal.ComputeProximity
+RegenerateOverviews = _gdal.RegenerateOverviews
+RegenerateOverview = _gdal.RegenerateOverview
 AutoCreateWarpedVRT = _gdal.AutoCreateWarpedVRT
 class Transformer(_object):
     """Proxy of C++ Transformer class"""

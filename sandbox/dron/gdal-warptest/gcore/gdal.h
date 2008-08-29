@@ -197,6 +197,7 @@ int          CPL_DLL CPL_STDCALL GDALDumpOpenDatasets( FILE * );
 GDALDriverH CPL_DLL CPL_STDCALL GDALGetDriverByName( const char * );
 int CPL_DLL         CPL_STDCALL GDALGetDriverCount( void );
 GDALDriverH CPL_DLL CPL_STDCALL GDALGetDriver( int );
+void        CPL_DLL CPL_STDCALL GDALDestroyDriver( GDALDriverH );
 int         CPL_DLL CPL_STDCALL GDALRegisterDriver( GDALDriverH );
 void        CPL_DLL CPL_STDCALL GDALDeregisterDriver( GDALDriverH );
 void        CPL_DLL CPL_STDCALL GDALDestroyDriverManager( void );
@@ -322,11 +323,17 @@ int CPL_DLL CPL_STDCALL GDALGetAccess( GDALDatasetH hDS );
 void CPL_DLL CPL_STDCALL GDALFlushCache( GDALDatasetH hDS );
 
 CPLErr CPL_DLL CPL_STDCALL 
-              GDALCreateDatasetMaskBand( GDALDatasetH hBand, int nFlags );
+              GDALCreateDatasetMaskBand( GDALDatasetH hDS, int nFlags );
 
 CPLErr CPL_DLL CPL_STDCALL GDALDatasetCopyWholeRaster(
     GDALDatasetH hSrcDS, GDALDatasetH hDstDS, char **papszOptions, 
     GDALProgressFunc pfnProgress, void *pProgressData );
+
+CPLErr CPL_DLL 
+GDALRegenerateOverviews( GDALRasterBandH hSrcBand, 
+                         int nOverviewCount, GDALRasterBandH *pahOverviewBands,
+                         const char *pszResampling, 
+                         GDALProgressFunc pfnProgress, void *pProgressData );
 
 /* ==================================================================== */
 /*      GDALRasterBand ... one band/channel in a dataset.               */
@@ -510,7 +517,12 @@ const char CPL_DLL * CPL_STDCALL GDALDecToDMS( double, const char *, int );
 double CPL_DLL CPL_STDCALL GDALPackedDMSToDec( double );
 double CPL_DLL CPL_STDCALL GDALDecToPackedDMS( double );
 
+/* Note to developers : please keep this section in sync with ogr_core.h */
+
+#ifndef GDAL_VERSION_INFO_DEFINED
+#define GDAL_VERSION_INFO_DEFINED
 const char CPL_DLL * CPL_STDCALL GDALVersionInfo( const char * );
+#endif
 
 #ifndef GDAL_CHECK_VERSION
 

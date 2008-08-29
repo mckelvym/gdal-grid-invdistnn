@@ -2615,8 +2615,14 @@ using namespace std;
 
 #include "ogr_srs_api.h"
 
+#ifdef DEBUG
+typedef struct OGRSpatialReferenceHS OSRSpatialReferenceShadow;
+typedef struct OGRCoordinateTransformationHS OSRCoordinateTransformationShadow;
+typedef struct OGRCoordinateTransformationHS OGRCoordinateTransformationShadow;
+#else
 typedef void OSRSpatialReferenceShadow;
 typedef void OSRCoordinateTransformationShadow;
+#endif
 
 
 
@@ -3422,7 +3428,7 @@ SWIGINTERN PyObject *_wrap_GetWellKnownGeogCSAsWKT(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -3499,7 +3505,7 @@ SWIGINTERN PyObject *_wrap_GetUserInputAsWKT(PyObject *SWIGUNUSEDPARM(self), PyO
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -3849,7 +3855,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetAuthority(PyObject *SWIGUNUSEDPAR
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -3972,7 +3978,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetAttrValue(PyObject *SWIGUNUSEDPAR
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4040,7 +4046,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetAngularUnits(PyObject *SWIGUNUSED
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4137,7 +4143,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetLinearUnits(PyObject *SWIGUNUSEDP
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4204,7 +4210,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetLinearUnitsAndUpdateParameters(Py
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4415,7 +4421,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetUTM(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4505,7 +4511,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetStatePlane(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4552,7 +4558,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_AutoIdentifyEPSG(PyObject *SWIGUNUSE
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4609,7 +4615,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetProjection(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4676,7 +4682,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetProjParm(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4796,7 +4802,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetNormProjParm(PyObject *SWIGUNUSED
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -4953,7 +4959,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetACEA(PyObject *SWIGUNUSEDPARM(sel
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5038,7 +5044,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetAE(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5123,7 +5129,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetBonne(PyObject *SWIGUNUSEDPARM(se
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5208,7 +5214,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetCEA(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5293,7 +5299,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetCS(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5396,7 +5402,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetEC(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5472,7 +5478,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetEckertIV(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5548,7 +5554,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetEckertVI(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5633,7 +5639,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetEquirectangular(PyObject *SWIGUNU
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5727,7 +5733,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetEquirectangular2(PyObject *SWIGUN
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5821,7 +5827,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetGaussLabordeReunion(PyObject *SWI
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5897,7 +5903,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetGS(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -5973,7 +5979,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetGH(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6058,7 +6064,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetGEOS(PyObject *SWIGUNUSEDPARM(sel
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6143,7 +6149,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetGnomonic(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6255,7 +6261,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetHOM(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6376,7 +6382,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetHOM2PNO(PyObject *SWIGUNUSEDPARM(
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6488,7 +6494,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetKrovak(PyObject *SWIGUNUSEDPARM(s
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6573,7 +6579,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetLAEA(PyObject *SWIGUNUSEDPARM(sel
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6676,7 +6682,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetLCC(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6770,7 +6776,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetLCC1SP(PyObject *SWIGUNUSEDPARM(s
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6873,7 +6879,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetLCCB(PyObject *SWIGUNUSEDPARM(sel
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -6958,7 +6964,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetMC(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7052,7 +7058,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetMercator(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7128,7 +7134,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetMollweide(PyObject *SWIGUNUSEDPAR
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7213,7 +7219,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetNZMG(PyObject *SWIGUNUSEDPARM(sel
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7307,7 +7313,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetOS(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7392,7 +7398,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetOrthographic(PyObject *SWIGUNUSED
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7477,7 +7483,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetPolyconic(PyObject *SWIGUNUSEDPAR
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7571,7 +7577,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetPS(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7647,7 +7653,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetRobinson(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7723,7 +7729,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetSinusoidal(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7817,7 +7823,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetStereographic(PyObject *SWIGUNUSE
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7902,7 +7908,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetSOC(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -7996,7 +8002,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetTM(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8101,7 +8107,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetTMVariant(PyObject *SWIGUNUSEDPAR
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8187,7 +8193,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetTMG(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8281,7 +8287,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetTMSO(PyObject *SWIGUNUSEDPARM(sel
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8357,7 +8363,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetVDG(PyObject *SWIGUNUSEDPARM(self
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8414,7 +8420,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetWellKnownGeogCS(PyObject *SWIGUNU
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8472,7 +8478,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetFromUserInput(PyObject *SWIGUNUSE
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8528,7 +8534,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_CopyGeogCSFrom(PyObject *SWIGUNUSEDP
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8645,7 +8651,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetTOWGS84(PyObject *SWIGUNUSEDPARM(
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8702,7 +8708,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_GetTOWGS84(PyObject *SWIGUNUSEDPARM(
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8759,7 +8765,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetLocalCS(PyObject *SWIGUNUSEDPARM(
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8905,7 +8911,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetGeogCS(PyObject *SWIGUNUSEDPARM(s
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -8969,7 +8975,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_SetProjCS(PyObject *SWIGUNUSEDPARM(s
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9024,7 +9030,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ImportFromWkt(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9081,7 +9087,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ImportFromProj4(PyObject *SWIGUNUSED
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9139,7 +9145,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ImportFromUrl(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9210,7 +9216,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ImportFromESRI(PyObject *SWIGUNUSEDP
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9269,7 +9275,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ImportFromEPSG(PyObject *SWIGUNUSEDP
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9363,7 +9369,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ImportFromPCI(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9466,7 +9472,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ImportFromUSGS(PyObject *SWIGUNUSEDP
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9523,7 +9529,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ImportFromXML(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9593,7 +9599,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ExportToWkt(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9678,7 +9684,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ExportToPrettyWkt(PyObject *SWIGUNUS
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9752,7 +9758,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ExportToProj4(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9864,7 +9870,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ExportToPCI(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -9969,7 +9975,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ExportToUSGS(PyObject *SWIGUNUSEDPAR
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10055,7 +10061,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_ExportToXML(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10137,7 +10143,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_Validate(PyObject *SWIGUNUSEDPARM(se
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10183,7 +10189,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_StripCTParms(PyObject *SWIGUNUSEDPAR
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10229,7 +10235,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_FixupOrdering(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10275,7 +10281,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_Fixup(PyObject *SWIGUNUSEDPARM(self)
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10321,7 +10327,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_MorphToESRI(PyObject *SWIGUNUSEDPARM
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;
@@ -10367,7 +10373,7 @@ SWIGINTERN PyObject *_wrap_SpatialReference_MorphFromESRI(PyObject *SWIGUNUSEDPA
       resultobj = 0;
     }
     if (resultobj == 0) {
-      resultobj = PyInt_FromLong( 0 );
+      resultobj = PyInt_FromLong( result );
     }
   }
   return resultobj;

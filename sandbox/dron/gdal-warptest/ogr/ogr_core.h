@@ -172,6 +172,8 @@ typedef enum
 #define ogrZMarker 0x21125711
 
 const char CPL_DLL * OGRGeometryTypeToName( OGRwkbGeometryType eType );
+OGRwkbGeometryType CPL_DLL OGRMergeGeometryTypes( OGRwkbGeometryType eMain,
+                                                  OGRwkbGeometryType eExtra );
 
 typedef enum 
 {
@@ -388,7 +390,8 @@ typedef enum ogr_style_tool_param_symbol_id
     OGRSTSymbolOffset   = 8,
     OGRSTSymbolPriority = 9,
     OGRSTSymbolFontName = 10,
-    OGRSTSymbolLast     = 11
+    OGRSTSymbolOColor   = 11,
+    OGRSTSymbolLast     = 12
               
 } OGRSTSymbolParam;
 
@@ -417,13 +420,21 @@ typedef enum ogr_style_tool_param_label_id
     OGRSTLabelAdjHor    = 17,
     OGRSTLabelAdjVert   = 18,
     OGRSTLabelHColor    = 19,
-    OGRSTLabelLast      = 20
+    OGRSTLabelOColor    = 20,
+    OGRSTLabelLast      = 21
               
 } OGRSTLabelParam;
 
 /* ------------------------------------------------------------------- */
 /*                        Version checking                             */
 /* -------------------------------------------------------------------- */
+
+/* Note to developers : please keep this section in sync with gdal.h */
+
+#ifndef GDAL_VERSION_INFO_DEFINED
+#define GDAL_VERSION_INFO_DEFINED
+const char CPL_DLL * CPL_STDCALL GDALVersionInfo( const char * );
+#endif
 
 #ifndef GDAL_CHECK_VERSION
 
