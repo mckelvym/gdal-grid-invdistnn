@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>OWMT - Running Task Queue</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head>
+
+<body bgcolor="grey">
+
+<h1>OWMT - Running Task Queue</h1>
+
+@@ERROR@@
+
+<a href="@@URL:showqueue@@">Refresh Queue</a>
+
+<br>
+
+<a href="@@URL:tasklist@@">Return To Predefined Tasks</a>
+
+
+
+<h1>Pending Task(s)</h1>
+
+<table border="4">
+        <tr>
+          <th>Name</th>
+          <th>Action</th>
+          <th>Source Table</th>
+        </tr>
+
+@@PENDING_TASKS@@
+
+</table>
+
+<h1>Active Task(s)</h1>
+
+<table border="4">
+        <tr>
+          <th>Name</th>
+          <th>Action</th>
+          <th>Source Table</th>
+          <th>Completion</th>
+          <th>Report</th>
+        </tr>
+
+@@ACTIVE_TASKS@@        
+
+</table>
+
+<h1>Completed Task(s)</h1>
+
+<table border="4">
+        <tr>
+          <th>Name</th>
+          <th>Source Table</th>
+          <th>Report</th>
+        </tr>
+        
+@@COMPLETED_TASKS@@
+
+</table>
+</body>
+</html>
+
+        
+
+
