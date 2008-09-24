@@ -147,8 +147,13 @@ def oci_login( form ):
     else:
         OCI_Connect = ''
 
+    wrk_connect = OCI_Connect
+    if wrk_connect == '(default)':
+        oci_info = get_oci_connect_info()
+        wrk_connect = oci_info[4]
+        
     try:
-        oci_ds = ogr.Open( OCI_Connect )
+        oci_ds = ogr.Open( wrk_connect )
     except:
         return 0
 
@@ -196,9 +201,9 @@ def form_prepare( operation ):
 
     global OCI_Connect
 
-    if OCI_Connect != '':
-        form += '<input name="OCI_Connect" type="hidden" value="%s">' \
-              % OCI_Connect
+#    if OCI_Connect != '':
+#        form += '<input name="OCI_Connect" type="hidden" value="%s">' \
+#              % OCI_Connect
 
     return form
         
@@ -253,10 +258,44 @@ def sub_template( template, segment_dict ):
 
     return ''.join(template_chunks)
 
+# *****************************************************************************
 
-        
+def get_oci_connect_info():
 
+#    full_path = os.environ['OWMT_HOME'] + '/oci_connect.txt'
+    full_path = '/tmp/oci_connect.txt'
+
+    try:
+        return open(full_path).readlines()
+    except:
+        return ('','','', '', '')
+
+# *****************************************************************************
+
+def set_oci_connect_info( userid, password, dbinstance, table_list ):
+
+#    full_path = os.environ['OWMT_HOME'] + '/oci_connect.txt'
+    full_path = '/tmp/oci_connect.txt'
+
+    connect = 'OCI:'
+    if userid != '':
+        connect += userid
+
+        if password != '':
+            connect += '/' + password
+
+        connect += '@'
+
+    connect += dbinstance
+    if table_list != '':
+        connect += ':' + table_list
+
+    text = '%s\n%s\n%s\n%s\n%s\n' \
+           % (userid,password,dbinstance,table_list,connect)
+
+    open(full_path,'w').write(text)
+
+    return
     
 
-    
 

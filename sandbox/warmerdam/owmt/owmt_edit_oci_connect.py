@@ -1,7 +1,7 @@
 #******************************************************************************
 # 
 #  Project:  OGR Web Migration Tool
-#  Purpose:  Implementation of dialog to enter information for new tasks.
+#  Purpose:  Implementation of dialog to enter Oracle connect info.
 #  Author:   Frank Warmerdam, warmerdam@pobox.com
 # 
 #******************************************************************************
@@ -35,61 +35,45 @@ from osgeo import gdal, ogr
 import owmt
 
 # *****************************************************************************
-#		owmt_createtask.execute() 
+#		owmt_edit_oci_connect.execute() 
 
-def execute( form, error = None ):
+def execute( form ):
 
+    # We only do this to ensure the PG parms will get passed on.
+    # We don't really need access to postgres.
+    
     owmt.pg_login( form )
 
-    if owmt.pg_ds is None:
-        print 'Login to Postgres Database failed!<p>'
-        print 'Connection String: %s<p>' % owmt.pg_connection
-        
-        print 'Error:<br>%s<p>' % gdal.GetLastErrorMsg()
-        return
+    # Are we processing an OCI info update?  If so, apply it.
+    if form.has_key('OCI_Instance') and form.has_key('OCI_Userid'):
 
-    template = owmt.get_template('owmt_createtask.html')
+        try:
+            password = form['OCI_Password'].value
+        except:
+            password = ''
+        try:
+            table_list = form['OCI_Tables'].value
+        except:
+            table_list = ''
+            
+        owmt.set_oci_connect_info( form['OCI_Userid'].value,
+                                   password,
+                                   form['OCI_Instance'].value,
+                                   table_list )
+
+    # Now fetch the current values and show them - ready for editing.
+    
+    template = owmt.get_template('owmt_edit_oci_connect.html')
+
     sub_dict = {}
 
-    sub_dict['ERROR'] = ''
-    if error is not None:
-        sub_dict['ERROR'] = error + '<hr>'
+    userid,password,dbinstance,table_list,connect = owmt.get_oci_connect_info()
+
+    sub_dict['OCI_INSTANCE'] = dbinstance
+    sub_dict['OCI_USERID'] = userid
+    sub_dict['OCI_PASSWORD'] = password
+    sub_dict['OCI_TABLES'] = table_list
     
-    if form.has_key('OCI_Connect'):
-        OCI_Connect = form['OCI_Connect'].value
-    else:
-        OCI_Connect = '(default)'
-
-    # The first form just hold OCI connect info, and a submit results
-    # in regenerating the list of tables in the database.
-    sub_dict['OCI_CONNECT'] = OCI_Connect
-    
-    # Try to connect to the indicated database.
-    if not owmt.oci_login( form ) and OCI_Connect != '':
-        sub_dict['ERROR'] = """
-        Login to Oracle Database failed!<p>
-        Connection String: %s<p>
-        Error:<br>%s<p><hr>""" % (owmt.OCI_Connect,gdal.GetLastErrorMsg())
-
-        
-    # The second form lets us select tables to migrate.
-
-    sub_dict['TABLE_LIST'] = ''
-
-    if owmt.oci_ds is not None:
-
-        table_list = ''
-        for i in range(owmt.oci_ds.GetLayerCount()):
-            name = owmt.oci_ds.GetLayer(i).GetLayerDefn().GetName()
-
-            table_list += """
-<tr>
-  <td><input type="checkbox" name="layer_%d"></td>
-  <td>%s</td>
-</tr>""" % (i,name)
-
-        sub_dict['TABLE_LIST'] = table_list
-
     print owmt.sub_template( template, sub_dict )
-    
+
     

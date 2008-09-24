@@ -81,6 +81,10 @@ elif op == 'delete_task':
     import owmt_delete_task
     owmt_delete_task.execute( form )
 
+elif op == 'edit_oci_connect':
+    import owmt_edit_oci_connect
+    owmt_edit_oci_connect.execute( form )
+
 else:
     print '<h1>Error</h1>'
     print
