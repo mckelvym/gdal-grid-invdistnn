@@ -56,6 +56,9 @@ def execute( form, error = None ):
 
     rs = owmt.pg_ds.ExecuteSQL( 'select * from owmt_tasks' )
 
+    if rs is None:
+        rs = []
+
     task_list = ''
     
     for row in rs:

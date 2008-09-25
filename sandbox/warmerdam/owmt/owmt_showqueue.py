@@ -64,6 +64,9 @@ def execute( form, error = None ):
            INNER JOIN owmt_tasks
            ON owmt_task_queue.task_id = owmt_tasks.id""" )
 
+    if rs is None:
+        rs = []
+
     ###########################################################################
 
     sub_dict = {}
@@ -95,8 +98,8 @@ def execute( form, error = None ):
     ###########################################################################
 
     active_tasks = ''
-    
-    rs.ResetReading()
+    if len(rs) > 0:
+        rs.ResetReading()
     for row in rs:
         if row.status >= 0 and row.status <= 100:
             
@@ -119,7 +122,8 @@ def execute( form, error = None ):
     
     completed_tasks = ''
     
-    rs.ResetReading()
+    if len(rs) > 0:
+        rs.ResetReading()
     for row in rs:
         if row.status > 100:
             completed_tasks += """
@@ -130,7 +134,9 @@ def execute( form, error = None ):
               </tr>""" % (row.name, row.src_table, row.report)
 
     sub_dict['COMPLETED_TASKS'] = completed_tasks
-    owmt.pg_ds.ReleaseResultSet( rs )
+
+    if len(rs) > 0:
+        owmt.pg_ds.ReleaseResultSet( rs )
 
     ###########################################################################
     

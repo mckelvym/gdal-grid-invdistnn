@@ -113,6 +113,8 @@ def pg_setup_skeleton():
 
     global pg_ds
 
+    gdal.PushErrorHandler('CPLQuietErrorHandler')
+
     pg_ds.ExecuteSQL( """
 
     CREATE TABLE owmt_tasks (
@@ -133,6 +135,8 @@ def pg_setup_skeleton():
       status           INTEGER, 
       report           VARCHAR
       )""" )
+
+    gdal.PopErrorHandler()
 
 # *****************************************************************************
 
@@ -186,7 +190,7 @@ def form_emit( operation ):
 def form_prepare( operation ):
     
     form = """
-<form action="/cgi-bin/owmt.cgi" method='get'>
+<form action="/cgi-bin/owmt_cgi.py" method="post">
 <input name="op" type="hidden" value="%s">
 """ % operation
 
@@ -214,7 +218,7 @@ def url_prepare( operation ):
     """Prepare an url suitable for a link href with the PG connect info
     endcoded as parameters."""
 
-    url = '/cgi-bin/owmt.cgi?op=%s' % operation
+    url = '/cgi-bin/owmt_cgi.py?op=%s' % operation
 
     if PG_Database != '':
 
@@ -263,7 +267,7 @@ def sub_template( template, segment_dict ):
 def get_oci_connect_info():
 
 #    full_path = os.environ['OWMT_HOME'] + '/oci_connect.txt'
-    full_path = '/tmp/oci_connect.txt'
+    full_path = '/osgeo4w/tmp/oci_connect.txt'
 
     try:
         return open(full_path).readlines()
@@ -275,7 +279,7 @@ def get_oci_connect_info():
 def set_oci_connect_info( userid, password, dbinstance, table_list ):
 
 #    full_path = os.environ['OWMT_HOME'] + '/oci_connect.txt'
-    full_path = '/tmp/oci_connect.txt'
+    full_path = '/osgeo4w/tmp/oci_connect.txt'
 
     connect = 'OCI:'
     if userid != '':

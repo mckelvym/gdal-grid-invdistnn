@@ -14,10 +14,10 @@
 @@FORM:createtask@@
 
 Oracle Connect:
-<input type="text" size="45" name="OCI_Connect" value="@@OCI_CONNECT@@"><p>
+<input type="text" size="45" name="OCI_Connect" value="@@OCI_CONNECT@@"
+       style="background-color:#a59999"><p>
     <input type="submit" value="Fetch Tables">
 </form>
-<p>
 
 @@FORM:edit_oci_connect@@ 
 <input type="submit" value="Update Oracle Connect Default">
@@ -25,13 +25,15 @@ Oracle Connect:
 
 @@FORM:submittask@@
 
+<input type="hidden" name="OCI_Connect" value="@@OCI_CONNECT@@">
+
 <table>
 
 @@TABLE_LIST@@
 
 </table>
 
-Task Name: <input name="task" type="text" value="" size="45"><p>
+Task Name: <input name="task" type="text" value="" size="45" style="background-color:#a59999"><p>
 <input type="submit" value="Create Task">
 </form>
 

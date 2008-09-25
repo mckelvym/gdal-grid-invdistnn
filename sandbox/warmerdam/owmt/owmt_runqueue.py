@@ -31,6 +31,12 @@
 import sys
 import os
 
+sys.stdout = open('/osgeo4w/tmp/runqueue.log','w')
+sys.stderr = sys.stdout
+
+print 'Starting runqueue...'
+sys.stdout.flush()
+
 sys.path.append( os.environ['OWMT_HOME'] )
 
 import owmt
@@ -158,7 +164,8 @@ def execute_queue_task( queue_id, task_id ):
     owmt.oci_ds = ogr.Open( owmt.OCI_Connect, update=0 )
 
     if owmt.oci_ds is None:
-        post_report( 'Failed to open Oracle database: %s' % owmt.OCI_Connect )
+        post_report( queue_id, 
+                     'Failed to open Oracle database: %s' % owmt.OCI_Connect )
         return 0
 
     # split the table lists so we can operate on pairs.
@@ -233,7 +240,11 @@ while 1:
            WHERE owner_pid = -1 and status = -1
            LIMIT 1""" )
 
-    row = rs.GetNextFeature()
+    if rs is not None:
+        row = rs.GetNextFeature()
+    else:
+        row = None
+
     if row is not None:
         queue_id = row.id
         task_id = row.task_id

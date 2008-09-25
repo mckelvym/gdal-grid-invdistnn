@@ -81,11 +81,11 @@ def execute( form ):
         """SELECT task_id from owmt_task_queue
            WHERE owner_pid != -1 AND status < 101""" )
 
-    if q_lyr.GetFeatureCount() == 0:
+    if q_lyr is None or q_lyr.GetFeatureCount() == 0:
         worker_active = 0
+	owmt.pg_ds.ReleaseResultSet( q_lyr )
     else:
         worker_active = 1
-    owmt.pg_ds.ReleaseResultSet( q_lyr )
 
     if not worker_active:
         launch_worker( form )
@@ -99,9 +99,10 @@ def execute( form ):
 
 def launch_worker( form ):
 
-    python = '/usr/bin/python'
+#    python = '/usr/bin/python'
+    python = '/osgeo4w/bin/python.exe'
 
     runqueue = os.environ['OWMT_HOME'] + '/owmt_runqueue.py'
 
-    os.spawnl( os.P_NOWAIT, python, python, runqueue, owmt.pg_connection )
+    os.spawnl( os.P_NOWAIT, python, python, runqueue, '"'+owmt.pg_connection+'"' )
 
