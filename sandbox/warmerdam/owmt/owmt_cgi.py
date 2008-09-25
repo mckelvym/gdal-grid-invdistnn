@@ -1,3 +1,4 @@
+#!/osgeo4w/bin/python
 #******************************************************************************
 # 
 #  Project:  OGR Web Migration Tool
@@ -33,6 +34,8 @@ import cgi
 
 import cgitb
 cgitb.enable()
+
+os.environ['OWMT_HOME'] = 'C:/osgeo4w/apps/owmt'
 
 sys.path.append( os.environ['OWMT_HOME'] )
 

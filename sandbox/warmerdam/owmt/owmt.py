@@ -29,6 +29,7 @@
 
 import os
 import sys
+import string
 
 sys.path.append( '/home/warmerda/bld/lib/python2.5/site-packages' )
 
@@ -149,13 +150,13 @@ def oci_login( form ):
     if form.has_key('OCI_Connect'):
         OCI_Connect = form['OCI_Connect'].value
     else:
-        OCI_Connect = ''
+        OCI_Connect = '(default)'
 
     wrk_connect = OCI_Connect
     if wrk_connect == '(default)':
         oci_info = get_oci_connect_info()
         wrk_connect = oci_info[4]
-        
+
     try:
         oci_ds = ogr.Open( wrk_connect )
     except:
@@ -202,12 +203,6 @@ def form_prepare( operation ):
 <input name="PG_Database" type="hidden" value="%s">
 <input name="PG_Host" type="hidden" value="%s">
 """ % (PG_Userid,PG_Password,PG_Database,PG_Host)
-
-    global OCI_Connect
-
-#    if OCI_Connect != '':
-#        form += '<input name="OCI_Connect" type="hidden" value="%s">' \
-#              % OCI_Connect
 
     return form
         
@@ -270,7 +265,13 @@ def get_oci_connect_info():
     full_path = '/osgeo4w/tmp/oci_connect.txt'
 
     try:
-        return open(full_path).readlines()
+	lines = open(full_path).readlines()
+
+        return [string.strip(lines[0]),
+                string.strip(lines[1]),
+                string.strip(lines[2]),
+                string.strip(lines[3]),
+                string.strip(lines[4])]
     except:
         return ('','','', '', '')
 
