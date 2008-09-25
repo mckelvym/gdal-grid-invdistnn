@@ -161,7 +161,13 @@ def execute_queue_task( queue_id, task_id ):
 
     # Connect to datasource.
     owmt.OCI_Connect = task_row.oci_connection
-    owmt.oci_ds = ogr.Open( owmt.OCI_Connect, update=0 )
+
+    wrk_connect = owmt.OCI_Connect
+    if wrk_connect == '(default)':
+        oci_info = owmt.get_oci_connect_info()
+        wrk_connect = oci_info[4]
+
+    owmt.oci_ds = ogr.Open( wrk_connect, update=0 )
 
     if owmt.oci_ds is None:
         post_report( queue_id, 
