@@ -1,0 +1,26 @@
+
+EXTRAFLAGS = 	-I$(SDE_INC) \
+		/D_MBCS /DWIN32 /D_WIN32  
+
+OBJ	=	sdedataset.obj sderasterband.obj sdeerror.obj
+
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+default:	$(OBJ)
+	xcopy /D  /Y *.obj ..\o
+
+all:	default 
+
+clean:
+	-del *.obj
+	-del *.exe
+	-del *.pdb
+	-del *.dll
+
+plugin: gdal_SDE.dll
+
+gdal_SDE.dll:	$(OBJ)
+	link /dll /out:gdal_SDE.dll $(OBJ) \
+		../../gdal_i.lib  $(SDE_LIB)
