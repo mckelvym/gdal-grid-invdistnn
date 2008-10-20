@@ -107,6 +107,10 @@ def execute_table_copy( queue_id, src_table, dst_table, options,
 
     # Create the destination table.
     dst_layer = owmt.pg_ds.CreateLayer( dst_table, None, ogr.wkbUnknown )
+    if dst_layer is None:
+        post_report( queue_id, 'failed to create postgres table %s.\n%s' \
+		     % (dst_table,gdal.GetLastErrorMsg()) )
+        return 0
 
     # Create fields.
     src_defn = src_layer.GetLayerDefn()
@@ -143,6 +147,21 @@ def execute_table_copy( queue_id, src_table, dst_table, options,
         dst_feat = None
         src_feat = src_layer.GetNextFeature()
 
+    # Create spatial index.
+    gdal.ErrorReset()
+    owmt.pg_ds.ExecuteSQL( "create index %s_si on %s using gist(wkb_geometry)" \
+       % (dst_table,dst_table) )
+    if gdal.GetLastErrorMsg() != '':
+        post_report( queue_id, 'Failed to create spatial index on %s.\n%s' \
+                     % (dst_table,gdal.GetLastErrorMsg()) )
+        return 0
+
+    owmt.pg_ds.ExecuteSQL( "vacuum analyse %s" % dst_table )
+    if gdal.GetLastErrorMsg() != '':
+        post_report( queue_id, 'Failed to create spatial index on %s.\n%s' \
+                     % (dst_table,gdal.GetLastErrorMsg()) )
+        return 0
+   
     post_progress( queue_id, progress_base + progress_scale )
 
     return 1
