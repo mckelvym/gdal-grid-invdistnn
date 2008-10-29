@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# encoding: utf-8
 #******************************************************************************
 #  $Id$
 # 
@@ -50,7 +49,7 @@ import math
 __version__ = "$Id$"
 
 resampling_list = ('average','near','bilinear','cubic','cubicspline','lanczos','antialias')
-profile_list = ('mercator','geodetic','raster')
+profile_list = ('mercator','geodetic','raster') #,'zoomify')
 webviewer_list = ('all','google','openlayers','none')
 
 # =============================================================================
@@ -398,6 +397,57 @@ class GlobalGeodetic(object):
 		b = self.TileBounds(tx, ty, zoom)
 		return (b[1],b[0],b[3],b[2])
 
+#---------------------
+
+class Zoomify(object):
+	"""
+	Tiles compatible with the Zoomify viewer
+	----------------------------------------
+	"""
+
+	def __init__(self, width, height, tilesize = 256, tileformat='jpg'):
+		"""Initialization of the Zoomify tile tree"""
+		
+		self.tilesize = tilesize
+		self.tileformat = tileformat
+		imagesize = (width, height)
+		tiles = ( math.ceil( width / tilesize ), math.ceil( height / tilesize ) )
+
+		# Size (in tiles) for each tier of pyramid.
+		self.tierSizeInTiles = []
+		self.tierSizeInTiles.push( tiles )
+
+		# Image size in pixels for each pyramid tierself
+		self.tierImageSize = []
+		self.tierImageSize.append( imagesize );
+
+		while (imagesize[0] > tilesize or imageSize[1] > tilesize ):
+			imagesize = (math.floor( imagesize[0] / 2 ), math.floor( imagesize[1] / 2) )
+			tiles = ( math.ceil( imagesize[0] / tilesize ), math.ceil( imagesize[1] / tilesize ) )
+			self.tierSizeInTiles.append( tiles )
+			self.tierImageSize.append( imagesize )
+
+		self.tierSizeInTiles.reverse()
+		self.tierImageSize.reverse()
+	
+		# Depth of the Zoomify pyramid, number of tiers (zoom levels)
+		self.numberOfTiers = len(self.tierSizeInTiles)
+											
+		# Number of tiles up to the given tier of pyramid.
+		self.tileCountUpToTier = []
+		self.tileCountUpToTier[0] = 0
+		for i in range(1, self.numberOfTiers+1):
+			self.tileCountUpToTier.append(
+				self.tierSizeInTiles[i-1][0] * self.tierSizeInTiles[i-1][1] + self.tileCountUpToTier[i-1]
+			)		
+	
+	def tilefilename(self, x, y, z):
+		"""Returns filename for tile with given coordinates"""
+		
+		tileIndex = x + y * self.tierSizeInTiles[z][0] + self.tileCountUpToTier[z]
+		return os.path.join("TileGroup%.0f" % math.floor( tileIndex / 256 ),
+			"%s-%s-%s.%s" % ( z, x, y, self.tileformat))
+
 # =============================================================================
 # =============================================================================
 # =============================================================================
@@ -554,12 +604,21 @@ gdal_vrtmerge.py -o merged.vrt %s""" % " ".join(self.args))
 		elif self.options.resampling == 'lanczos':
 			self.resampling = gdal.GRA_Lanczos
 		
-		# TODO: zoom levels
+		# User specified zoom levels
 		self.tminz = None
 		self.tmaxz = None
+		if self.options.zoom:
+			minmax = self.options.zoom.split('-',1)
+			minmax.extend([''])
+			min, max = minmax[:2]
+			self.tminz = int(min)
+			if max:
+				self.tmaxz = int(max)
+			else:
+				self.tmaxz = min 
 		
 		# KML generation
-		self.kml = True
+		self.kml = self.options.kml
 
 		# Output the results
 
@@ -582,9 +641,8 @@ gdal_vrtmerge.py -o merged.vrt %s""" % " ".join(self.args))
 						help="Resampling method (%s) - default 'average'" % ",".join(resampling_list))
 		p.add_option('-a', '--a_srs', dest="a_srs", metavar="SRS",
 						  help="The spatial reference to assign to the input data")
-		# TODO: self.tminz, self.tmaxz
-		#p.add_option('-z', '--zoom', dest="zoom",
-		#				  help="Zoom levels to render (format:'2-5' or '7').")
+		p.add_option('-z', '--zoom', dest="zoom",
+						  help="Zoom levels to render (format:'2-5' or '10').")
 		# TODO:
 		#p.add_option('-n', '--a_nodata', dest="a_nodata", metavar="NODATA",
 		#				  help="NODATA transparency value to assign to the input data")
@@ -594,8 +652,10 @@ gdal_vrtmerge.py -o merged.vrt %s""" % " ".join(self.args))
 
 		# KML options 
 		g = OptionGroup(p, "KML (Google Earth) options", "Options for generated Google Earth SuperOverlay metadata")
-		g.add_option("-k", "--kml", dest='kml', action="store_true",
-						  help="Generate KML for Google Earth - default for 'geodetic' profile and 'raster' in EPSG:4326")
+		g.add_option("-k", "--force-kml", dest='kml', action="store_true",
+						  help="Generate KML for Google Earth - default for 'geodetic' profile and 'raster' in EPSG:4326. For a dataset with different projection use with caution!")
+		g.add_option("-n", "--no-kml", dest='kml', action="store_false",
+						  help="Avoid automatic generation of KML files for EPSG:4326")
 		g.add_option("-u", "--url", dest='url',
 						  help="URL address where the generated tiles are going to be published")
 		p.add_option_group(g)
@@ -748,11 +808,12 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 		#
 
 		# KML test
-		# TODO: How to implement that people don't want KML!? --kml=yes --kml=no?
+		self.isepsg4326 = False
 		srs4326 = osr.SpatialReference()
 		srs4326.ImportFromEPSG(4326)
 		if self.out_srs and srs4326.ExportToProj4() == self.out_srs.ExportToProj4():
 			self.kml = True
+			self.isepsg4326 = True
 			if self.options.verbose:
 				print "KML autotest OK!"
 
@@ -804,16 +865,6 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 				tminx, tminy = self.mercator.MetersToTile( self.ominx, self.ominy, tz )
 				tmaxx, tmaxy = self.mercator.MetersToTile( self.omaxx, self.omaxy, tz )
 				self.tminmax[tz] = (tminx, tminy, tmaxx, tmaxy)
-
-			# Get the minimal zoom level (map is covered by one tile)
-			# Problem: a small map crossing zero meridian
-			# TODO: Change to the rule: map covers area equivalent to one tile 
-			#if self.tminz == None:
-			#	for tz in range(31, -1, -1):
-			#		tminx, tminy, tmaxx, tmaxy = self.tminmax[tz]
-			#		if (tminx == tmaxx and tminy == tmaxy):
-			#			self.tminz = tz
-			#			break
 						
 			# Get the minimal zoom level (map covers area equivalent to one tile) 
 			if self.tminz == None:
@@ -855,15 +906,6 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 					
 		if self.options.profile == 'raster':
 			
-			# Function which generates SWNE in LatLong for given tile
-			if self.kml and self.in_srs_wkt:
-				self.ct = osr.CoordinateTransformation(self.in_srs, srs4326)
-				#(long, lat, height) = self.ct.TransformPoint(X, Y)
-				self.tileswne = lambda x, y, z: (0,0,0,0)
-				# TODO: transformation of coordinates
-			else:
-				self.tileswne = lambda x, y, z: (0,0,0,0)
-
 			log2 = lambda x: math.log10(x) / math.log10(2) # log2 (base 2 logarithm)
 			
 			self.nativezoom = int(max( math.ceil(log2(self.out_ds.RasterXSize/float(self.tilesize))),
@@ -890,17 +932,31 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 				tmaxy = int(math.ceil( self.out_ds.RasterYSize / tsize )) - 1
 				self.tsize[tz] = math.ceil(tsize)
 				self.tminmax[tz] = (tminx, tminy, tmaxx, tmaxy)
+
+			# Function which generates SWNE in LatLong for given tile
+			if self.kml and self.in_srs_wkt:
+				self.ct = osr.CoordinateTransformation(self.in_srs, srs4326)
+
+				def rastertileswne(x,y,z):
+					pixelsizex = (2**(self.tmaxz-z) * self.out_gt[1]) # X-pixel size in level
+					pixelsizey = (2**(self.tmaxz-z) * self.out_gt[1]) # Y-pixel size in level (usually -1*pixelsizex)
+					west = self.out_gt[0] + x*self.tilesize*pixelsizex
+					east = west + self.tilesize*pixelsizex
+					north = self.out_gt[3] - (self.tminmax[z][3]-y)*self.tilesize*pixelsizey
+					south = north - self.tilesize*pixelsizey
+					if not self.isepsg4326:
+						# Transformation to EPSG:4326 (WGS84 datum)
+						west, south = self.ct.TransformPoint(west, south)[:2]
+						east, north = self.ct.TransformPoint(east, north)[:2]
+					return south, west, north, east
+
+				self.tileswne = rastertileswne
+			else:
+				self.tileswne = lambda x, y, z: (0,0,0,0)
 					
 	# -------------------------------------------------------------------------
 	def generate_metadata(self):
 		"""Generation of main metadata files and HTML viewers (metadata related to particular tiles are generated during the tile processing)."""
-
-		# TODO: Generate tilemapresource.xml.
-		#f = open(os.path.join(self.output, 'tilemapresource.xml'), 'w')
-		#f.write( generate_tilemapresource( ... ))
-		#f.close()
-
-		# TODO: Generalize: Not only for Mercator tiles...
 
 		if self.options.profile == 'mercator':
 			
@@ -926,29 +982,45 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 			east, north = self.omaxx, self.omaxy
 			self.swne = (south, west, north, east)
 			
-			# TODO: Generate OpenLayers geodetic
+			# Generate openlayers.html
+			if self.options.webviewer in ('all','openlayers'):
+				f = open(os.path.join(self.output, 'openlayers.html'), 'w')
+				f.write( self.generate_openlayers() )
+				f.close()			
 
 		elif self.options.profile == 'raster':
 			
 			west, south = self.ominx, self.ominy
 			east, north = self.omaxx, self.omaxy
-			# TODO: Convert, this has to be in latlong
+
 			self.swne = (south, west, north, east)
 			
-			# TODO: Generate OpenLayers local/raster
+			# Generate openlayers.html
+			if self.options.webviewer in ('all','openlayers'):
+				f = open(os.path.join(self.output, 'openlayers.html'), 'w')
+				f.write( self.generate_openlayers() )
+				f.close()			
 
-		# TODO: Potential problem for not automatically generated tminz
-		# The root KML should contain links to all tiles in the tminz level
-		children = []
-		xmin, ymin, xmax, ymax = self.tminmax[self.tminz]
-		for x in range(xmin, xmax+1):
-			for y in range(ymin, ymax+1):
-				children.append( [ x, y, self.tminz ] ) 
-		# Generate Root KML
+
+		# Generate tilemapresource.xml.
+		f = open(os.path.join(self.output, 'tilemapresource.xml'), 'w')
+		f.write( self.generate_tilemapresource())
+		f.close()
+
+
 		if self.kml:
-			f = open(os.path.join(self.output, 'doc.kml'), 'w')
-			f.write( self.generate_kml( None, None, None, children) )
-			f.close()
+			# TODO: Maybe problem for not automatically generated tminz
+			# The root KML should contain links to all tiles in the tminz level
+			children = []
+			xmin, ymin, xmax, ymax = self.tminmax[self.tminz]
+			for x in range(xmin, xmax+1):
+				for y in range(ymin, ymax+1):
+					children.append( [ x, y, self.tminz ] ) 
+			# Generate Root KML
+			if self.kml:
+				f = open(os.path.join(self.output, 'doc.kml'), 'w')
+				f.write( self.generate_kml( None, None, None, children) )
+				f.close()
 		
 	# -------------------------------------------------------------------------
 	def generate_base_tiles(self):
@@ -956,9 +1028,6 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 		
 		print "Generating Base Tiles:"
 		
-		# TODO: Support for other then 'mercator' profile
-		
-
 		if self.options.verbose:
 			#mx, my = self.out_gt[0], self.out_gt[3] # OriginX, OriginY
 			#px, py = self.mercator.MetersToPixels( mx, my, self.tmaxz)
@@ -980,6 +1049,7 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 		
 		ds = self.out_ds
 		tilebands = 4
+		querysize = self.querysize
 		
 		#print tminx, tminy, tmaxx, tmaxy
 		tcount = (1+abs(tmaxx-tminx)) * (1+abs(tmaxy-tminy))
@@ -1017,7 +1087,7 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 						print "\tNative Extent (querysize",nativesize,"): ", rb, wb
 
 					# Tile bounds in raster coordinates for ReadRaster query
-					rb, wb = self.geo_query( ds, b[0], b[3], b[2], b[1], querysize=self.querysize)
+					rb, wb = self.geo_query( ds, b[0], b[3], b[2], b[1], querysize=querysize)
 
 					rx, ry, rxsize, rysize = rb
 					wx, wy, wxsize, wysize = wb
@@ -1027,6 +1097,8 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 					tsize = int(self.tsize[tz]) # tilesize in raster coordinates for actual zoom
 					xsize = self.out_ds.RasterXSize # size of the raster in pixels
 					ysize = self.out_ds.RasterYSize
+					if tz >= self.nativezoom:
+						querysize = self.tilesize # int(2**(self.nativezoom-tz) * self.tilesize)
 					
 					rx = (tx) * tsize
 					rxsize = 0
@@ -1057,16 +1129,16 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 				dstile = self.mem_drv.Create('', self.tilesize, self.tilesize, tilebands)
 				data = ds.ReadRaster(rx, ry, rxsize, rysize, wxsize, wysize)
 
-				if self.tilesize == self.querysize or (self.options.profile == 'raster' and tz == self.nativezoom):
+				if self.tilesize == querysize:
 					# Use the ReadRaster result directly in tiles ('nearest neighbour' query)
 					dstile.WriteRaster(wx, wy, wxsize, wysize, data, band_list=range(1,tilebands+1))
 
 					# Note: For source drivers based on WaveLet compression (JPEG2000, ECW, MrSID)
 					# the ReadRaster function returns high-quality raster (not ugly nearest neighbour)
-					# TODO: Use directly 'near' for WaveLet
+					# TODO: Use directly 'near' for WaveLet files
 				else:
 					# Big ReadRaster query in memory scaled to the tilesize - all but 'near' algo
-					dsquery = self.mem_drv.Create('', self.querysize, self.querysize, tilebands)
+					dsquery = self.mem_drv.Create('', querysize, querysize, tilebands)
 					# TODO: fill the null value
 					#for i in range(1, tilebands+1):
 					#	dsquery.GetRasterBand(1).Fill(tilenodata)
@@ -1148,6 +1220,8 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 									tileposy = self.tilesize
 								if tx:
 									tileposx = x % (2*tx) * self.tilesize
+								elif tx==0 and x==1:
+									tileposx = self.tilesize
 								else:
 									tileposx = 0
 								dsquery.WriteRaster( tileposx, tileposy, self.tilesize, self.tilesize,
@@ -1257,37 +1331,47 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 
 	# -------------------------------------------------------------------------
 	def generate_tilemapresource(self):
-	    """
+		"""
 	    Template for tilemapresource.xml. Returns filled string. Expected variables:
 	      title, north, south, east, west, isepsg4326, projection, publishurl,
 	      zoompixels, tilesize, tileformat, profile
-	    """
+		"""
 
-		# TODO: Not finished....!!!
+		args = {}
+		args['title'] = self.options.title
+		args['south'], args['west'], args['north'], args['east'] = self.swne
+		args['tilesize'] = self.tilesize
+		args['tileformat'] = self.tileext
+		args['publishurl'] = self.options.url
+		args['profile'] = self.options.profile
 		
-	    if args['isepsg4326']:
-	        args['srs'] = "EPSG:4326"
-	    else:
-	        args['srs'] = args['projection']
+		if self.options.profile == 'mercator':
+			args['srs'] = "EPSG:900913"
+		elif self.options.profile == 'geodetic':
+			args['srs'] = "EPSG:4326"
+		elif self.options.a_srs:
+			args['srs'] = self.options.a_srs
+		elif self.out_srs:
+			args['srs'] = self.out_srs.ExportToWkt()
+		else:
+			args['srs'] = ""
 
-	    zoompixels = args['zoompixels']
-
-	    s = """<?xml version="1.0" encoding="utf-8"?>
+		s = """<?xml version="1.0" encoding="utf-8"?>
 	<TileMap version="1.0.0" tilemapservice="http://tms.osgeo.org/1.0.0">
 	  <Title>%(title)s</Title>
 	  <Abstract></Abstract>
 	  <SRS>%(srs)s</SRS>
-	  <BoundingBox minx="%(south).20f" miny="%(west).20f" maxx="%(north).20f" maxy="%(east).20f"/>
-	  <Origin x="%(south).20f" y="%(west).20f"/>
+	  <BoundingBox minx="%(south).14f" miny="%(west).14f" maxx="%(north).14f" maxy="%(east).14f"/>
+	  <Origin x="%(south).14f" y="%(west).14f"/>
 	  <TileFormat width="%(tilesize)d" height="%(tilesize)d" mime-type="image/%(tileformat)s" extension="%(tileformat)s"/>
 	  <TileSets profile="%(profile)s">
-	""" % args
-	    for z in range(len(zoompixels)):
-	        s += """    <TileSet href="%s%d" units-per-pixel="%.20f" order="%d"/>\n""" % (args['publishurl'], z, zoompixels[z], z)
-	    s += """  </TileSets>
+""" % args
+		for z in range(self.tminz, self.tmaxz+1):
+			s += """	    <TileSet href="%s%d" units-per-pixel="%.14f" order="%d"/>\n""" % (args['publishurl'], z, (2**(self.nativezoom-z) * self.out_gt[1]), z)
+		s += """	  </TileSets>
 	</TileMap>
 	"""
-	    return s
+		return s
 			
 	# -------------------------------------------------------------------------
 	def generate_kml(self, tx, ty, tz, children = [], **args ):
@@ -1296,11 +1380,13 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 		"""
 		args['tx'], args['ty'], args['tz'] = tx, ty, tz
 		args['tileformat'] = self.tileext
+		if not args.has_key('tilesize'):
+			args['tilesize'] = self.tilesize
 
 		if not args.has_key('minlodpixels'):
-			args['minlodpixels'] = int( self.tilesize / 2 ) # / 2.56) # default 100
+			args['minlodpixels'] = int( args['tilesize'] / 2 ) # / 2.56) # default 128
 		if not args.has_key('maxlodpixels'):
-			args['maxlodpixels'] = -1 # int( self.tilesize * 2 ) # 1.7) # default 435
+			args['maxlodpixels'] = int( args['tilesize'] * 8 ) # -1 # 1.7) # default 2048
 		if children == []:
 			args['maxlodpixels'] = -1
 	
@@ -1337,10 +1423,10 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 	        <maxLodPixels>%(maxlodpixels)d</maxLodPixels>
 	      </Lod>
 	      <LatLonAltBox>
-	        <north>%(north).20f</north>
-	        <south>%(south).20f</south>
-	        <east>%(east).20f</east>
-	        <west>%(west).20f</west>
+	        <north>%(north).14f</north>
+	        <south>%(south).14f</south>
+	        <east>%(east).14f</east>
+	        <west>%(west).14f</west>
 	      </LatLonAltBox>
 	    </Region>
 	    <GroundOverlay>
@@ -1349,10 +1435,10 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 	        <href>%(ty)d.%(tileformat)s</href>
 	      </Icon>
 	      <LatLonBox>
-	        <north>%(north).20f</north>
-	        <south>%(south).20f</south>
-	        <east>%(east).20f</east>
-	        <west>%(west).20f</west>
+	        <north>%(north).14f</north>
+	        <south>%(south).14f</south>
+	        <east>%(east).14f</east>
+	        <west>%(west).14f</west>
 	      </LatLonBox>
 	    </GroundOverlay>
 	""" % args	
@@ -1368,10 +1454,10 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 	          <maxLodPixels>%d</maxLodPixels>
 	        </Lod>
 	        <LatLonAltBox>
-	          <north>%.20f</north>
-	          <south>%.20f</south>
-	          <east>%.20f</east>
-	          <west>%.20f</west>
+	          <north>%.14f</north>
+	          <south>%.14f</south>
+	          <east>%.14f</east>
+	          <west>%.14f</west>
 	        </LatLonAltBox>
 	      </Region>
 	      <Link>
@@ -1670,7 +1756,7 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 			  </head>
 			  <body onload="load()">
 			      <div id="header"><h1>%(title)s</h1></div>
-			      <div id="subheader">Generated by <a href="http://www.maptiler.org/">MapTiler</a>/<a href="http://www.klokan.cz/projects/gdal2tiles/">GDAL2Tiles</a>, Copyright © 2008 <a href="http://www.klokan.cz/">Klokan Petr Pridal</a>,  <a href="http://www.gdal.org/">GDAL</a> &amp; <a href="http://www.osgeo.org/">OSGeo</a> <a href="http://code.google.com/soc/">GSoC</a>
+			      <div id="subheader">Generated by <a href="http://www.maptiler.org/">MapTiler</a>/<a href="http://www.klokan.cz/projects/gdal2tiles/">GDAL2Tiles</a>, Copyright &copy; 2008 <a href="http://www.klokan.cz/">Klokan Petr Pridal</a>,  <a href="http://www.gdal.org/">GDAL</a> &amp; <a href="http://www.osgeo.org/">OSGeo</a> <a href="http://code.google.com/soc/">GSoC</a>
 			<!-- PLEASE, LET THIS NOTE ABOUT AUTHOR AND PROJECT SOMEWHERE ON YOUR WEBSITE, OR AT LEAST IN THE COMMENT IN HTML. THANK YOU -->
 			      </div>
 			       <div id="map"></div>
@@ -1690,9 +1776,6 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 		title, googlemapskey, yahooappid, north, south, east, west, minzoom, maxzoom, tilesize, tileformat, publishurl
 		"""
 
-
-		# TODO: Change for profile: 'geodetic' and 'raster'
-
 		args = {}
 		args['title'] = self.options.title
 		args['googlemapskey'] = self.options.googlekey
@@ -1704,25 +1787,33 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 		args['tileformat'] = self.tileext
 		args['publishurl'] = self.options.url
 		args['copyright'] = self.options.copyright
+		args['rasterzoomlevels'] = self.tmaxz+1
+		args['rastermaxresolution'] = 2**(self.nativezoom) * self.out_gt[1]
 
 		s = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 		<html xmlns="http://www.w3.org/1999/xhtml"
 		  <head>
 		    <title>%(title)s</title>
-		    <style type="text/css">
-		        html, body { width: 100%%; height: 100%%; border: 0; padding:0; margin:0; }
-		        #map { width: 100%%; height: 100%%; }
-		    </style>
-
+		    <meta http-equiv='imagetoolbar' content='no'/>
+		    <style type="text/css"> v\:* {behavior:url(#default#VML);}
+		        html, body { overflow: hidden; padding: 0; height: 100%%; width: 100%%; font-family: 'Lucida Grande',Geneva,Arial,Verdana,sans-serif; }
+		        body { margin: 10px; background: #fff; }
+		        h1 { margin: 0; padding: 6px; border:0; font-size: 20pt; }
+		        #header { height: 43px; padding: 0; background-color: #eee; border: 1px solid #888; }
+		        #subheader { height: 12px; text-align: right; font-size: 10px; color: #555;}
+		        #map { height: 95%%; border: 1px solid #888; }
+		    </style>""" % args
+		
+		if self.options.profile == 'mercator':
+			s += """
 		    <script src='http://dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=6.1'></script>
 		    <script src='http://maps.google.com/maps?file=api&amp;v=2&amp;key=%(googlemapskey)s' type='text/javascript'></script>
-		    <script src="http://api.maps.yahoo.com/ajaxymap?v=3.0&amp;appid=%(yahooappid)s"></script>
+		    <script src="http://api.maps.yahoo.com/ajaxymap?v=3.0&amp;appid=%(yahooappid)s"></script>"""
+
+		s += """
 		    <script src="http://www.openlayers.org/api/2.7/OpenLayers.js" type="text/javascript"></script>
 		    <script type="text/javascript">
-
-		        // make map available for easy debugging
 		        var map;
-
 			    var mapBounds = new OpenLayers.Bounds( %(west)s, %(south)s, %(east)s, %(north)s);
 			    var mapMinZoom = %(minzoom)s;
 			    var mapMaxZoom = %(maxzoom)s;
@@ -1731,152 +1822,244 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 		        OpenLayers.IMAGE_RELOAD_ATTEMPTS = 3;
 		        OpenLayers.Util.onImageLoadErrorColor = "transparent";
 
-		        function init(){
-		            var options = {
-		                controls: [],
-		                projection: new OpenLayers.Projection("EPSG:900913"),
-		                displayProjection: new OpenLayers.Projection("EPSG:4326"),
-		                units: "m",
-		                maxResolution: 156543.0339,
-		                maxExtent: new OpenLayers.Bounds(-20037508, -20037508,
-		                                                 20037508, 20037508.34)
+		        function init(){""" % args
+
+		if self.options.profile == 'mercator':
+			s += """
+	            var options = {
+	                controls: [],
+	                projection: new OpenLayers.Projection("EPSG:900913"),
+	                displayProjection: new OpenLayers.Projection("EPSG:4326"),
+	                units: "m",
+	                maxResolution: 156543.0339,
+	                maxExtent: new OpenLayers.Bounds(-20037508, -20037508, 20037508, 20037508.34)
 		            };
-		            map = new OpenLayers.Map('map', options);
+	            map = new OpenLayers.Map('map', options);
 
-		            // create Google Mercator layers
-		            var gmap = new OpenLayers.Layer.Google(
-		                "Google Streets",
-		                {'sphericalMercator': true}
-		            );
-		            var gsat = new OpenLayers.Layer.Google(
-		                "Google Satellite",
-		                {type: G_SATELLITE_MAP, 'sphericalMercator': true, numZoomLevels: 22}
-		            );
-		            var ghyb = new OpenLayers.Layer.Google(
-		                "Google Hybrid",
-		                {type: G_HYBRID_MAP, 'sphericalMercator': true}
-		            );
-		            var gter = new OpenLayers.Layer.Google(
-		                "Google Terrain",
-		                {type: G_PHYSICAL_MAP, 'sphericalMercator': true}
-		            );
+	            // create Google Mercator layers
+	            var gmap = new OpenLayers.Layer.Google("Google Streets",
+					{ sphericalMercator: true, numZoomLevels: 20} );
+	            var gsat = new OpenLayers.Layer.Google("Google Satellite",
+					{type: G_SATELLITE_MAP, sphericalMercator: true, numZoomLevels: 20} );
+	            var ghyb = new OpenLayers.Layer.Google("Google Hybrid",
+					{type: G_HYBRID_MAP, sphericalMercator: true, numZoomLevels: 20});
+	            var gter = new OpenLayers.Layer.Google("Google Terrain",
+					{type: G_PHYSICAL_MAP, sphericalMercator: true, numZoomLevels: 20 });
 
-		            // create Virtual Earth layers
-		            var veroad = new OpenLayers.Layer.VirtualEarth(
-		                "Virtual Earth Roads",
-		                {'type': VEMapStyle.Road, 'sphericalMercator': true}
-		            );
-		            var veaer = new OpenLayers.Layer.VirtualEarth(
-		                "Virtual Earth Aerial",
-		                {'type': VEMapStyle.Aerial, 'sphericalMercator': true}
-		            );
-		            var vehyb = new OpenLayers.Layer.VirtualEarth(
-		                "Virtual Earth Hybrid",
-		                {'type': VEMapStyle.Hybrid, 'sphericalMercator': true}
-		            );
+	            // create Virtual Earth layers
+				OpenLayers.Layer.VirtualEarth.prototype.MAX_ZOOM_LEVEL=19;
+				OpenLayers.Layer.VirtualEarth.prototype.RESOLUTIONS=OpenLayers.Layer.Google.prototype.RESOLUTIONS
+	            var veroad = new OpenLayers.Layer.VirtualEarth("Virtual Earth Roads",
+					{'type': VEMapStyle.Road, 'sphericalMercator': true, numZoomLevels: 20});
+	            var veaer = new OpenLayers.Layer.VirtualEarth("Virtual Earth Aerial",
+					{'type': VEMapStyle.Aerial, 'sphericalMercator': true, numZoomLevels: 20 });
+	            var vehyb = new OpenLayers.Layer.VirtualEarth("Virtual Earth Hybrid",
+	                {'type': VEMapStyle.Hybrid, 'sphericalMercator': true});
 
-		            // create Yahoo layer
-		            var yahoo = new OpenLayers.Layer.Yahoo(
-		                "Yahoo Street",
-		                {'sphericalMercator': true}
-		            );
-		            var yahoosat = new OpenLayers.Layer.Yahoo(
-		                "Yahoo Satellite",
-		                {'type': YAHOO_MAP_SAT, 'sphericalMercator': true}
-		            );
-		            var yahoohyb = new OpenLayers.Layer.Yahoo(
-		                "Yahoo Hybrid",
-		                {'type': YAHOO_MAP_HYB, 'sphericalMercator': true}
-		            );
+	            // create Yahoo layer
+	            var yahoo = new OpenLayers.Layer.Yahoo("Yahoo Street",
+	                {'sphericalMercator': true});
+	            var yahoosat = new OpenLayers.Layer.Yahoo("Yahoo Satellite",
+	                {'type': YAHOO_MAP_SAT, 'sphericalMercator': true});
+	            var yahoohyb = new OpenLayers.Layer.Yahoo("Yahoo Hybrid",
+	                {'type': YAHOO_MAP_HYB, 'sphericalMercator': true});
 
-		            // create OSM layer
-		            var osm = new OpenLayers.Layer.TMS(
-		                "OpenStreetMap",
-		                "http://tile.openstreetmap.org/",
-		                {
-		                    type: 'png', getURL: osm_getTileURL,
-		                    displayOutsideMaxExtent: true,
-		                    attribution: '<a href="http://www.openstreetmap.org/">OpenStreetMap</a>'
-		                }
-		            );
-		            // create OSM layer
-		            var oam = new OpenLayers.Layer.TMS(
-		                "OpenAerialMap",
-		                "http://tile.openaerialmap.org/tiles/1.0.0/openaerialmap-900913/",
-		                {
-		                    type: 'png', getURL: osm_getTileURL
-		                }
-		            );
+	            // create OSM/OAM layer
+	            var osm = new OpenLayers.Layer.TMS( "OpenStreetMap",
+	                "http://tile.openstreetmap.org/",
+	                { type: 'png', getURL: osm_getTileURL, displayOutsideMaxExtent: true, attribution: '<a href="http://www.openstreetmap.org/">OpenStreetMap</a>'} );
+	            var oam = new OpenLayers.Layer.TMS( "OpenAerialMap",
+	                "http://tile.openaerialmap.org/tiles/1.0.0/openaerialmap-900913/",
+	                { type: 'png', getURL: osm_getTileURL } );
+
+	            // create TMS Overlay layer
+	            var tmsoverlay = new OpenLayers.Layer.TMS( "TMS Overlay", "",
+	                {   // url: '', serviceVersion: '.', layername: '.',
+						type: 'png', getURL: overlay_getTileURL, alpha: true, 
+						isBaseLayer: false
+	                });
+				if (OpenLayers.Util.alphaHack() == false) { tmsoverlay.setOpacity(0.7); }
+
+	            map.addLayers([gmap, gsat, ghyb, gter, veroad, veaer, vehyb,
+	                           yahoo, yahoosat, yahoohyb, osm, oam,
+	                           tmsoverlay]);
+
+	            var switcherControl = new OpenLayers.Control.LayerSwitcher();
+	            map.addControl(switcherControl);
+	            switcherControl.maximizeControl();
+	
+	            map.zoomToExtent( mapBounds.transform(map.displayProjection, map.projection ) );
+			""" % args
+	
+		elif self.options.profile == 'geodetic':
+			s += """
+	            var options = {
+	                controls: [],
+		            projection: new OpenLayers.Projection("EPSG:4326"),
+		            maxResolution: 1.40625/2,
+		            maxExtent: new OpenLayers.Bounds(-180, -90, 180, 90)
+		            };
+	            map = new OpenLayers.Map('map', options);
+
+	            layer = new OpenLayers.Layer.WMS( "Blue Marble",
+	                    "http://labs.metacarta.com/wms-c/Basic.py?", {layers: 'satellite' } );
+	            map.addLayer(layer);
+	            wms = new OpenLayers.Layer.WMS( "VMap0",
+	                    "http://labs.metacarta.com/wms-c/Basic.py?", {layers: 'basic', format: 'image/png' } );
+	            map.addLayer(wms);
+				
+	            var tmsoverlay = new OpenLayers.Layer.TMS( "TMS Overlay", "",
+	                {
+	                    serviceVersion: '.', layername: '.', alpha: true,
+						type: 'png', getURL: overlay_getTileURL,
+						isBaseLayer: false
+	                });
+	            map.addLayer(tmsoverlay);
+				if (OpenLayers.Util.alphaHack() == false) { tmsoverlay.setOpacity(0.7); }
+
+	            var switcherControl = new OpenLayers.Control.LayerSwitcher();
+	            map.addControl(switcherControl);
+	            switcherControl.maximizeControl();
+
+	            map.zoomToExtent( mapBounds );
+			"""
+			
+		elif self.options.profile == 'raster':
+			s += """
+	            var options = {
+	                controls: [],
+		            maxExtent: new OpenLayers.Bounds(  %(west)s, %(south)s, %(east)s, %(north)s ),
+		            maxResolution: %(rastermaxresolution)f,
+		            numZoomLevels: %(rasterzoomlevels)d
+		            };
+	            map = new OpenLayers.Map('map', options);
+	
+		        var layer = new OpenLayers.Layer.TMS( "TMS Layer","",
+		            {  url: '', serviceVersion: '.', layername: '.', alpha: true,
+						type: 'png', getURL: overlay_getTileURL 
+					});
+		        map.addLayer(layer);
+				map.zoomToExtent( mapBounds );	
+		""" % args
 
 
-		            // create TMS Overlay layer
-		            var tmsoverlay = new OpenLayers.Layer.TMS(
-		                "TMS Overlay",
-		                "",
-		                {
-		                    // url: '', serviceVersion: '.', layername: '.',
-							type: 'png', getURL: overlay_getTileURL,
-							isBaseLayer: false, opacity: 0.7
-		                }
-		            );
+		s += """
+	            map.addControl(new OpenLayers.Control.PanZoomBar());
+	            map.addControl(new OpenLayers.Control.MousePosition());
+	            map.addControl(new OpenLayers.Control.MouseDefaults());
+	            map.addControl(new OpenLayers.Control.KeyboardDefaults());
+	        }
+			""" % args
+		
+		if self.options.profile == 'mercator':
+			s += """
+	        function osm_getTileURL(bounds) {
+	            var res = this.map.getResolution();
+	            var x = Math.round((bounds.left - this.maxExtent.left) / (res * this.tileSize.w));
+	            var y = Math.round((this.maxExtent.top - bounds.top) / (res * this.tileSize.h));
+	            var z = this.map.getZoom();
+	            var limit = Math.pow(2, z);
 
-			        function overlay_getTileURL(bounds) {
-			            var res = this.map.getResolution();
-			            var x = Math.round((bounds.left - this.maxExtent.left) / (res * this.tileSize.w));
-			            var y = Math.round((bounds.bottom - this.tileOrigin.lat) / (res * this.tileSize.h));
-			            var z = this.map.getZoom();
-			            if (this.map.baseLayer.name == 'Virtual Earth Roads' || this.map.baseLayer.name == 'Virtual Earth Aerial' || this.map.baseLayer.name == 'Virtual Earth Hybrid') {
-			               z = z + 1;
-			            }
-				    if (mapBounds.intersectsBounds( bounds )) {
-			               //console.log( this.url + z + "/" + x + "/" + y + "." + this.type);
-			               return this.url + z + "/" + x + "/" + y + "." + this.type;
-		                    } else {
-		                       return "http://www.maptiler.org/img/none.png";
-		                    }
-			        }
+	            if (y < 0 || y >= limit) {
+	                return "http://www.maptiler.org/img/none.png";
+	            } else {
+	                x = ((x %% limit) + limit) %% limit;
+	                return this.url + z + "/" + x + "/" + y + "." + this.type;
+	            }
+	        }
+	
+	        function overlay_getTileURL(bounds) {
+	            var res = this.map.getResolution();
+	            var x = Math.round((bounds.left - this.maxExtent.left) / (res * this.tileSize.w));
+	            var y = Math.round((bounds.bottom - this.tileOrigin.lat) / (res * this.tileSize.h));
+	            var z = this.map.getZoom();
+	            if (this.map.baseLayer.name == 'Virtual Earth Roads' || this.map.baseLayer.name == 'Virtual Earth Aerial' || this.map.baseLayer.name == 'Virtual Earth Hybrid') {
+	               z = z + 1;
+	            }
+		        if (mapBounds.intersectsBounds( bounds ) && z >= mapMinZoom && z <= mapMaxZoom ) {
+	               //console.log( this.url + z + "/" + x + "/" + y + "." + this.type);
+	               return this.url + z + "/" + x + "/" + y + "." + this.type;
+                } else {
+                   return "http://www.maptiler.org/img/none.png";
+                }
+	        }		
+			""" % args
+			
+		elif self.options.profile == 'geodetic':
+			s += """
+	        function overlay_getTileURL(bounds) {
+				bounds = this.adjustBounds(bounds);
+	            var res = this.map.getResolution();
+	            var x = Math.round((bounds.left - this.tileOrigin.lon) / (res * this.tileSize.w));
+	            var y = Math.round((bounds.bottom - this.tileOrigin.lat) / (res * this.tileSize.h));
+	            var z = this.map.getZoom();
+				var path = this.serviceVersion + "/" + this.layername + "/" + z + "/" + x + "/" + y + "." + this.type;
+				var url = this.url;
+		        if (mapBounds.intersectsBounds( bounds ) && z >= mapMinZoom && z <= mapMaxZoom) {
+	               // console.log( this.url + z + "/" + x + "/" + y + "." + this.type);
+	               return this.url + z + "/" + x + "/" + y + "." + this.type;
+                } else {
+                   return "http://www.maptiler.org/img/none.png";
+                }
+	        }
+			""" % args
+			
+		elif self.options.profile == 'raster':
+			s += """
+	        function overlay_getTileURL(bounds) {
+	            var res = this.map.getResolution();
+	            var x = Math.round((bounds.left - this.maxExtent.left) / (res * this.tileSize.w));
+	            var y = Math.round((bounds.bottom - this.maxExtent.bottom) / (res * this.tileSize.h));
+	            var z = this.map.getZoom();
+				if (x >= 0 && y >= 0) {
+		            return this.url + z + "/" + x + "/" + y + "." + this.type;				
+				} else {
+	                return "http://www.maptiler.org/img/none.png";
+				}
+			}
+			""" % args
+		
+		s += """
+		   function getWindowHeight() {
+		        if (self.innerHeight) return self.innerHeight;
+		        if (document.documentElement && document.documentElement.clientHeight)
+		            return document.documentElement.clientHeight;
+		        if (document.body) return document.body.clientHeight;
+			        return 0;
+		    }
 
-		            map.addLayers([gmap, gsat, ghyb, gter, veroad, veaer, vehyb,
-		                           yahoo, yahoosat, yahoohyb, osm, oam,
-		                           tmsoverlay]);
+		    function getWindowWidth() {
+			    if (self.innerWidth) return self.innerWidth;
+			    if (document.documentElement && document.documentElement.clientWidth)
+			        return document.documentElement.clientWidth;
+			    if (document.body) return document.body.clientWidth;
+			        return 0;
+		    }
 
-		            var switcherControl = new OpenLayers.Control.LayerSwitcher();
-		            map.addControl(switcherControl);
-		            switcherControl.maximizeControl();
+		    function resize() {  
+			    var map = document.getElementById("map");  
+			    var header = document.getElementById("header");  
+			    var subheader = document.getElementById("subheader");  
+			    map.style.height = (getWindowHeight()-80) + "px";
+			    map.style.width = (getWindowWidth()-20) + "px";
+			    header.style.width = (getWindowWidth()-20) + "px";
+			    subheader.style.width = (getWindowWidth()-20) + "px";
+				if (map.updateSize) { map.updateSize(); };
+		    } 
 
-		            map.addControl(new OpenLayers.Control.PanZoomBar());
-		            map.addControl(new OpenLayers.Control.Permalink());
-		            map.addControl(new OpenLayers.Control.MousePosition());
-		            map.addControl(new OpenLayers.Control.MouseDefaults());
-		            map.addControl(new OpenLayers.Control.KeyboardDefaults());
-
-		            map.zoomToExtent( mapBounds.transform(map.displayProjection, map.projection ) );
-		        }
-
-		        function osm_getTileURL(bounds) {
-		            var res = this.map.getResolution();
-		            var x = Math.round((bounds.left - this.maxExtent.left) / (res * this.tileSize.w));
-		            var y = Math.round((this.maxExtent.top - bounds.top) / (res * this.tileSize.h));
-		            var z = this.map.getZoom();
-		            var limit = Math.pow(2, z);
-
-		            if (y < 0 || y >= limit) {
-		                return OpenLayers.Util.getImagesLocation() + "404.png";
-		            } else {
-		                x = ((x %% limit) + limit) %% limit;
-		                return this.url + z + "/" + x + "/" + y + "." + this.type;
-		            }
-		        }
-
-		        onresize=function(){ map.updateSize(); };
+		    onresize=function(){ resize(); };
 
 		    </script>
 		  </head>
-		  <body onload="init()" onresize="map.updateSize()">
+		  <body onload="init()">
+			<div id="header"><h1>%(title)s</h1></div>
+			<div id="subheader">Generated by <a href="http://www.maptiler.org/">MapTiler</a>/<a href="http://www.klokan.cz/projects/gdal2tiles/">GDAL2Tiles</a>, Copyright &copy; 2008 <a href="http://www.klokan.cz/">Klokan Petr Pridal</a>,  <a href="http://www.gdal.org/">GDAL</a> &amp; <a href="http://www.osgeo.org/">OSGeo</a> <a href="http://code.google.com/soc/">GSoC</a>
+			<!-- PLEASE, LET THIS NOTE ABOUT AUTHOR AND PROJECT SOMEWHERE ON YOUR WEBSITE, OR AT LEAST IN THE COMMENT IN HTML. THANK YOU -->
+			</div>
 		    <div id="map"></div>
+		    <script type="text/javascript" >resize()</script>
 		  </body>
-		</html>
-	""" % args
+		</html>""" % args
 
 		return s
 
@@ -1886,5 +2069,6 @@ gdal_translate -of vrt -expand rgba %s temp.vrt""" % self.input )
 
 if __name__=='__main__':
 	argv = gdal.GeneralCmdLineProcessor( sys.argv )
-	gdal2tiles = GDAL2Tiles( argv[1:] )
-	gdal2tiles.process()
+	if argv:
+		gdal2tiles = GDAL2Tiles( argv[1:] )
+		gdal2tiles.process()
