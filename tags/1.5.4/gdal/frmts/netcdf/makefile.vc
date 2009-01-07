@@ -1,0 +1,20 @@
+
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+OBJ	=	netcdfdataset.obj gmtdataset.obj
+EXTRAFLAGS = 	/I$(NETCDF_INC_DIR)
+
+default:	$(OBJ)
+	xcopy /D  /Y *.obj ..\o
+
+clean:
+	-del *.obj
+
+plugin:	gdal_netCDF.dll
+
+gdal_netCDF.dll: $(OBJ)
+	link /dll /out:$@ $(OBJ) \
+		$(GDALLIB) $(NETCDF_LIB)
+	if exist $@.manifest mt -manifest $@.manifest -outputresource:$@;2

@@ -1,0 +1,20 @@
+GDAL_ROOT	=	..\..
+
+!INCLUDE $(GDAL_ROOT)\nmake.opt
+
+OBJ	=	hdf5dataset.obj  hdf5imagedataset.obj
+
+EXTRAFLAGS = 	-I$(HDF5_DIR)\include -DFRMT_hdf5 -DWIN32 -D_HDF5USEDLL_ 
+
+default:	$(OBJ)
+	xcopy /D  /Y *.obj ..\o
+
+clean:
+	-del *.obj
+
+plugin:	gdal_HDF5.dll
+
+gdal_HDF5.dll: $(OBJ)
+	link /dll /out:gdal_HDF5.dll $(OBJ) \
+		$(GDALLIB) $(HDF5_LIB)
+	if exist gdal_HDF5.dll.manifest mt -manifest gdal_HDF5.dll.manifest -outputresource:gdal_HDF5.dll;2
