@@ -69,16 +69,6 @@ lua: gdalvars
         nmake /f makefile.vc build
         nmake /f makefile.vc install 
 
-delphi: gdalvars
-        cd delphi
-        $(SWIG) -delphi -noproxy -wrapdllname gdal_pas.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o ogr_srs_api_wrapper.cpp ../include/delphi/ogr_srs_api.i 
-        $(SWIG) -delphi -noproxy -wrapdllname gdal_pas.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o ogr_core_wrapper.cpp    ../include/delphi/ogr_core.i 
-        $(SWIG) -delphi -noproxy -wrapdllname gdal_pas.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o ogr_api_wrapper.cpp     ../include/delphi/ogr_api.i 
-        $(SWIG) -delphi -noproxy -wrapdllname gdal_pas.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o gdal_wrapper.cpp        ../include/delphi/gdal.i         
-        $(SWIG) -delphi -noproxy -wrapdllname gdal_pas.dll -dllname $(GDAL_DLL) -I../../port -I../../ogr -I../../gcore -o cpl_wrapper.cpp         ../include/delphi/cpl.i 
-        nmake /f makefile.vc build
-        nmake /f makefile.vc install
-        
 test: gdalvars
 				cd $(GDAL_HOME)\..\gdalautotest
 				$(PYDIR)/python.exe run_all.py
