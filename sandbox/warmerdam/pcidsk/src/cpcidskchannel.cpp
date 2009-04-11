@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Implementation of pthreads based mutex.
+ * Purpose:  Implementation of the CPCIDSKChannel class.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -25,90 +25,68 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "pcidsk.h"
-#include <pthread.h>
+#include "pcidsk_p.h"
+#include <assert.h>
 
+using namespace PCIDSK;
 
 /************************************************************************/
-/*                             PThreadMutex                             */
+/*                           CPCIDSKChannel()                           */
 /************************************************************************/
 
-class PThreadMutex : public PCIDSK::Mutex
+CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header, 
+                                CPCIDSKFile *file )
 
 {
-private:
-    pthread_mutex_t *hMutex;
+    this->file = file;
 
-public:
-    PThreadMutex();
-    ~PThreadMutex();
+    width = file->GetWidth();
+    height = file->GetHeight();
 
-    int Acquire(void);
-    int Release(void);
-};
+    block_width = width;
+    block_height = 1;
 
-/************************************************************************/
-/*                            PThreadMutex()                            */
-/************************************************************************/
-
-PThreadMutex::PThreadMutex()
-
-{
-    hMutex = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-
-#if defined(PTHREAD_MUTEX_RECURSIVE)
-    {
-        pthread_mutexattr_t  attr;
-        pthread_mutexattr_init( &attr );
-        pthread_mutexattr_settype( &attr, PTHREAD_MUTEX_RECURSIVE );
-        pthread_mutex_init( hMutex, &attr );
-    }
-#elif defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP)
-    pthread_mutex_t tmp_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-    *hMutex = tmp_mutex;
-#else
-#error "Recursive mutexes apparently unsupported, configure --without-threads" 
-#endif
+    const char *pixel_type_string = image_header.Get( 160, 8 );
+    
+    if( strcmp(pixel_type_string,"8U      ") == 0 )
+        pixel_type = CHN_8U;
+    else if( strcmp(pixel_type_string,"16S     ") == 0 )
+        pixel_type = CHN_16S;
+    else if( strcmp(pixel_type_string,"16U     ") == 0 )
+        pixel_type = CHN_16U;
+    else if( strcmp(pixel_type_string,"32R     ") == 0 )
+        pixel_type = CHN_32R;
+    else
+        pixel_type = CHN_UNKNOWN; // should we throw an exception?  
 }
 
 /************************************************************************/
-/*                           ~PThreadMutex()                            */
+/*                          ~CPCIDSKChannel()                           */
 /************************************************************************/
 
-PThreadMutex::~PThreadMutex()
+CPCIDSKChannel::~CPCIDSKChannel()
 
 {
-    pthread_mutex_destroy( hMutex );
-    free( hMutex );
+}
+
+
+/************************************************************************/
+/*                          GetOverviewCount()                          */
+/************************************************************************/
+
+int CPCIDSKChannel::GetOverviewCount()
+
+{
+    return 0;
 }
 
 /************************************************************************/
-/*                              Release()                               */
+/*                            GetOverview()                             */
 /************************************************************************/
 
-int PThreadMutex::Release()
+PCIDSKChannel *CPCIDSKChannel::GetOverview( int overview_index )
 
 {
-    pthread_mutex_unlock( hMutex );
-    return 1;
+    return NULL;
 }
 
-/************************************************************************/
-/*                              Acquire()                               */
-/************************************************************************/
-
-int PThreadMutex::Acquire()
-
-{
-    return pthread_mutex_lock( hMutex ) == 0;
-}
-
-/************************************************************************/
-/*                         DefaultCreateMutex()                         */
-/************************************************************************/
-
-PCIDSK::Mutex *PCIDSK::DefaultCreateMutex(void)
-
-{
-    return new PThreadMutex();
-}

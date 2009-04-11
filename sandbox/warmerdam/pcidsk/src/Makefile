@@ -1,7 +1,8 @@
 CXXFLAGS = -g -Wall
 
 OBJ =   pcidskobject.o io_stdio.o pthread_mutex.o pcidskinterfaces.o \
-	pcidskexception.o
+	pcidskexception.o cpcidskfile.o pcidskbuffer.o pcidsk_utils.o \
+	cpcidskchannel.o cbandinterleavedchannel.o 
 
 default:	pcidsk.a
 
@@ -12,7 +13,10 @@ clean:
 	rm -f *.o
 	rm -f *.a
 
-$(OBJ):	pcidsk.h pcidsk_config.h 
+check:	default	
+	(cd ../tests; $(MAKE) check)
+
+$(OBJ):	pcidsk.h pcidsk_p.h pcidsk_config.h 
 
 %.o:	%.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c -o $@ $<

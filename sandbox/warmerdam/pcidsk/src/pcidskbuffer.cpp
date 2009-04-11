@@ -1,6 +1,7 @@
 /******************************************************************************
  *
- * Purpose:  Implementation of pthreads based mutex.
+ * Purpose:  Implementation of the PCIDSKBuffer class.  This class is for
+ *           convenient parsing and formatting of PCIDSK ASCII headers.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -25,90 +26,69 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "pcidsk.h"
-#include <pthread.h>
+#include "pcidsk_p.h"
 
+using namespace PCIDSK;
 
 /************************************************************************/
-/*                             PThreadMutex                             */
+/*                            PCIDSKBuffer()                            */
 /************************************************************************/
 
-class PThreadMutex : public PCIDSK::Mutex
+PCIDSKBuffer::PCIDSKBuffer( int size )
 
 {
-private:
-    pthread_mutex_t *hMutex;
+    buffer_size = size;
+    buffer = (char *) malloc(size+1);
 
-public:
-    PThreadMutex();
-    ~PThreadMutex();
+    if( buffer == NULL )
+        throw PCIDSKException( "Out of memory allocating %d byte PCIDSKBuffer.",
+                               size );
 
-    int Acquire(void);
-    int Release(void);
-};
-
-/************************************************************************/
-/*                            PThreadMutex()                            */
-/************************************************************************/
-
-PThreadMutex::PThreadMutex()
-
-{
-    hMutex = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-
-#if defined(PTHREAD_MUTEX_RECURSIVE)
-    {
-        pthread_mutexattr_t  attr;
-        pthread_mutexattr_init( &attr );
-        pthread_mutexattr_settype( &attr, PTHREAD_MUTEX_RECURSIVE );
-        pthread_mutex_init( hMutex, &attr );
-    }
-#elif defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP)
-    pthread_mutex_t tmp_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-    *hMutex = tmp_mutex;
-#else
-#error "Recursive mutexes apparently unsupported, configure --without-threads" 
-#endif
+    buffer[size] = '\0';
 }
 
 /************************************************************************/
-/*                           ~PThreadMutex()                            */
+/*                           ~PCIDSKBuffer()                            */
 /************************************************************************/
 
-PThreadMutex::~PThreadMutex()
+PCIDSKBuffer::~PCIDSKBuffer()
 
 {
-    pthread_mutex_destroy( hMutex );
-    free( hMutex );
+    free( buffer );
 }
 
 /************************************************************************/
-/*                              Release()                               */
+/*                                Get()                                 */
 /************************************************************************/
 
-int PThreadMutex::Release()
+const char *PCIDSKBuffer::Get( int offset, int size )
 
 {
-    pthread_mutex_unlock( hMutex );
-    return 1;
+    if( offset + size > buffer_size )
+        throw PCIDSKException( "Get() past end of PCIDSKBuffer." );
+
+    work_field.assign( buffer + offset, size );
+
+    return work_field.c_str();
 }
 
 /************************************************************************/
-/*                              Acquire()                               */
+/*                                Put()                                 */
 /************************************************************************/
 
-int PThreadMutex::Acquire()
+void PCIDSKBuffer::Put( const char *value, int offset, int size )
 
 {
-    return pthread_mutex_lock( hMutex ) == 0;
+    if( offset + size > buffer_size )
+        throw PCIDSKException( "Put() past end of PCIDSKBuffer." );
+
+    int v_size = strlen(value);
+    if( v_size > size )
+        v_size = size;
+
+    if( v_size < size )
+        memset( buffer + offset, ' ', size );
+
+    memcpy( buffer + offset, value, v_size );
 }
 
-/************************************************************************/
-/*                         DefaultCreateMutex()                         */
-/************************************************************************/
-
-PCIDSK::Mutex *PCIDSK::DefaultCreateMutex(void)
-
-{
-    return new PThreadMutex();
-}

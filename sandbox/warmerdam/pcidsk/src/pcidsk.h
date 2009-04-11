@@ -69,7 +69,7 @@ public:
 class Mutex
 {
 public:
-    virtual ~Mutex() = 0;
+    virtual ~Mutex() {}
 
     virtual int  Acquire() = 0;
     virtual int  Release() = 0;
@@ -85,14 +85,14 @@ class IOInterfaces
 {
 public:
     virtual ~IOInterfaces() {}
-    virtual void   *Open( const char *filename, const char *access ) = 0;
-    virtual uint64  Seek( void *io_handle, uint64 offset, int whence ) = 0;
-    virtual uint64  Tell( void *io_handle ) = 0;
-    virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_handle ) = 0;
-    virtual uint64  Write( void *buffer, uint64 size, uint64 nmemb, void *io_handle ) = 0;
-    virtual int     Eof( void *io_handle ) = 0;
-    virtual int     Flush( void *io_handle ) = 0;
-    virtual int     Close( void *io_handle ) = 0;
+    virtual void   *Open( const char *filename, const char *access ) const = 0;
+    virtual uint64  Seek( void *io_handle, uint64 offset, int whence ) const = 0;
+    virtual uint64  Tell( void *io_handle ) const = 0;
+    virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_handle ) const = 0;
+    virtual uint64  Write( const void *buffer, uint64 size, uint64 nmemb, void *io_handle ) const = 0;
+    virtual int     Eof( void *io_handle ) const = 0;
+    virtual int     Flush( void *io_handle ) const = 0;
+    virtual int     Close( void *io_handle ) const = 0;
 };
 
 const IOInterfaces PCIDSK_DLL *GetDefaultIOInterfaces();
@@ -102,6 +102,7 @@ const IOInterfaces PCIDSK_DLL *GetDefaultIOInterfaces();
 /************************************************************************/
 class PCIDSK_DLL PCIDSKInterfaces 
 {
+  public:
     PCIDSKInterfaces();
 
     const IOInterfaces 	*io;
@@ -116,9 +117,9 @@ class PCIDSKFile;
 /************************************************************************/
 /*                             PCIDSKObject                             */
 /************************************************************************/
-class PCIDSKObject 
+class PCIDSK_DLL PCIDSKObject 
 {
-private:
+protected:
     PCIDSKFile  *file; // owner
 
 public:
@@ -133,44 +134,51 @@ public:
 /************************************************************************/
 /*                            PCIDSKChannel                             */
 /************************************************************************/
-class PCIDSKChannel : PCIDSKObject
+class PCIDSK_DLL PCIDSKChannel : public PCIDSKObject
 {
+    friend class PCIDSKFile;
+
+protected:
+    virtual ~PCIDSKChannel() {};
+
 public:
-    int       GetBlockWidth();
-    int       GetBlockHeight();
-    int       GetWidth();
-    int       GetHeight();
-    eChanType GetType();
-    int       ReadBlock( int block_index, void *buffer );
-    int       GetOverviewCount();
-    PCIDSKChannel  *GetOverview( int i );
+    virtual int GetBlockWidth() = 0;
+    virtual int GetBlockHeight() = 0;
+    virtual int GetWidth() = 0;
+    virtual int GetHeight() = 0;
+    virtual eChanType GetType() = 0;
+    virtual int ReadBlock( int block_index, void *buffer ) = 0;
+    virtual int WriteBlock( int block_index, void *buffer ) = 0;
+    virtual int GetOverviewCount() = 0;
+    virtual PCIDSKChannel *GetOverview( int i ) = 0;
 };
 
 /************************************************************************/
 /*                              PCIDSKFile                              */
 /************************************************************************/
-class PCIDSKFile : PCIDSKObject
+class PCIDSK_DLL PCIDSKFile : PCIDSKObject
 {
-private:
-    PCIDSKInterfaces interfaces;
-    
-    void         *io_handle;
-
 public:
+    virtual ~PCIDSKFile() {};
 
-    PCIDSKChannel  *GetBand( int band );
-    PCIDSKObject   *GetSegment( int iSegment );
-    std::vector<PCIDSKObject *> GetObjects();
+    virtual PCIDSKInterfaces *GetInterfaces() = 0;
 
-    int       GetWidth();
-    int       GetHeight();
-    int       GetChannels();
+    virtual PCIDSKChannel  *GetChannel( int band ) = 0;
+    virtual PCIDSKObject   *GetSegment( int segment ) = 0;
+    virtual std::vector<PCIDSKObject *> GetObjects() = 0;
+
+    virtual int GetWidth() const = 0;
+    virtual int GetHeight() const = 0;
+    virtual int GetChannels() const = 0;
     
-    void     *GetIOHandle();
-
-    static PCIDSKFile *PCIDSKOpen( const char *filename, const char *access,  
-                                   const PCIDSKInterfaces *interfaces );
+    virtual void WriteToFile( const void *buffer, uint64 offset, uint64 size)=0;
+    virtual void ReadFromFile( void *buffer, uint64 offset, uint64 size ) = 0;
 };
+
+PCIDSKFile PCIDSK_DLL *Open( const char *filename, const char *access,  
+                             const PCIDSKInterfaces *interfaces );
+
+int PCIDSK_DLL DataTypeSize( eChanType );
 
 }; // end of PCIDSK namespace
 

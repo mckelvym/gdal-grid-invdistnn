@@ -27,26 +27,29 @@
 
 #include "pcidsk.h"
 #include <stdio.h>
+#include <errno.h>
 
 using namespace PCIDSK;
 
 class StdioIOInterface : public IOInterfaces
 {
-    virtual void   *Open( const char *filename, const char *access );
-    virtual uint64  Seek( void *io_handle, uint64 offset, int whence );
-    virtual uint64  Tell( void *io_handle );
-    virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_handle );
-    virtual uint64  Write( void *buffer, uint64 size, uint64 nmemb, void *io_handle );
-    virtual int     Eof( void *io_handle );
-    virtual int     Flush( void *io_handle );
-    virtual int     Close( void *io_handle );
+    virtual void   *Open( const char *filename, const char *access ) const;
+    virtual uint64  Seek( void *io_handle, uint64 offset, int whence ) const;
+    virtual uint64  Tell( void *io_handle ) const;
+    virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_handle ) const;
+    virtual uint64  Write( const void *buffer, uint64 size, uint64 nmemb, void *io_handle ) const;
+    virtual int     Eof( void *io_handle ) const;
+    virtual int     Flush( void *io_handle ) const;
+    virtual int     Close( void *io_handle ) const;
+
+    const char     *LastError() const;
 };
 
 /************************************************************************/
 /*                       GetDefaultIOInterfaces()                       */
 /************************************************************************/
 
-const IOInterfaces *GetDefaultIOInterfaces()
+const IOInterfaces *PCIDSK::GetDefaultIOInterfaces()
 {
     static StdioIOInterface singleton_stdio_interface;
 
@@ -57,27 +60,42 @@ const IOInterfaces *GetDefaultIOInterfaces()
 /*                                Open()                                */
 /************************************************************************/
 
-void *StdioIOInterface::Open( const char *filename, const char *access )
+void *
+StdioIOInterface::Open( const char *filename, const char *access ) const
 
 {
-    return (void *) fopen( filename, access );
+    FILE *fp = fopen( filename, access );
+
+    if( fp == NULL )
+        throw new PCIDSKException( "Failed to open %s: %s", 
+                                   filename, LastError() );
+
+    return (FILE *) fp;
 }
 
 /************************************************************************/
 /*                                Seek()                                */
 /************************************************************************/
 
-uint64 StdioIOInterface::Seek( void *io_handle, uint64 offset, int whence )
+uint64 
+StdioIOInterface::Seek( void *io_handle, uint64 offset, int whence ) const
 
 {
-    return fseek( (FILE *) io_handle, offset, whence );
+    uint64 result = fseek( (FILE *) io_handle, offset, whence );
+
+    if( result == (uint64) -1 )
+        throw new PCIDSKException( "Seek(%d,%d): %s", 
+                                   (int) offset, whence, 
+                                   LastError() );
+
+    return result;
 }
 
 /************************************************************************/
 /*                                Tell()                                */
 /************************************************************************/
 
-uint64 StdioIOInterface::Tell( void *io_handle )
+uint64 StdioIOInterface::Tell( void *io_handle ) const
 
 {
     return ftell( (FILE *) io_handle );
@@ -88,28 +106,46 @@ uint64 StdioIOInterface::Tell( void *io_handle )
 /************************************************************************/
 
 uint64 StdioIOInterface::Read( void *buffer, uint64 size, uint64 nmemb, 
-                               void *io_handle )
+                               void *io_handle ) const
 
 {
-    return fread( buffer, size, nmemb, (FILE *) io_handle );
+    errno = 0;
+
+    uint64 result = fread( buffer, size, nmemb, (FILE *) io_handle );
+
+    if( errno != 0 && result == 0 && nmemb != 0 )
+        throw new PCIDSKException( "Read(%d): %s", 
+                                   (int) size * nmemb,
+                                   LastError() );
+
+    return result;
 }
 
 /************************************************************************/
 /*                               Write()                                */
 /************************************************************************/
 
-uint64 StdioIOInterface::Write( void *buffer, uint64 size, uint64 nmemb, 
-                                void *io_handle )
+uint64 StdioIOInterface::Write( const void *buffer, uint64 size, uint64 nmemb, 
+                                void *io_handle ) const
 
 {
-    return fwrite( buffer, size, nmemb, (FILE *) io_handle );
+    errno = 0;
+
+    uint64 result = fwrite( buffer, size, nmemb, (FILE *) io_handle );
+
+    if( errno != 0 && result == 0 && nmemb != 0 )
+        throw new PCIDSKException( "Write(%d): %s", 
+                                   (int) size * nmemb,
+                                   LastError() );
+
+    return result;
 }
 
 /************************************************************************/
 /*                                Eof()                                 */
 /************************************************************************/
 
-int StdioIOInterface::Eof( void *io_handle )
+int StdioIOInterface::Eof( void *io_handle ) const
 
 {
     return feof( (FILE *) io_handle );
@@ -119,7 +155,7 @@ int StdioIOInterface::Eof( void *io_handle )
 /*                               Flush()                                */
 /************************************************************************/
 
-int StdioIOInterface::Flush( void *io_handle )
+int StdioIOInterface::Flush( void *io_handle ) const
 
 {
     return fflush( (FILE *) io_handle );
@@ -129,8 +165,20 @@ int StdioIOInterface::Flush( void *io_handle )
 /*                               Close()                                */
 /************************************************************************/
 
-int StdioIOInterface::Close( void *io_handle )
+int StdioIOInterface::Close( void *io_handle ) const
 
 {
     return fclose( (FILE *) io_handle );
+}
+
+/************************************************************************/
+/*                             LastError()                              */
+/*                                                                      */
+/*      Return a string representation of the last error.               */
+/************************************************************************/
+
+const char *StdioIOInterface::LastError() const
+
+{
+    return strerror( errno );
 }
