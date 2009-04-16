@@ -5,7 +5,10 @@ OBJ =   test_main.o testpcidskexception.o testpcidskfile.o
 
 LIBS =	../src/pcidsk.a -L/usr/local/lib -lcppunit -ldl 
 
-default:	test_main
+default:	test_main pcidsk_read
+
+pcidsk_read:	pcidsk_read.o  ../src/pcidsk.a 
+	g++ pcidsk_read.o $(LIBS) -o pcidsk_read
 
 test_main:	$(OBJ) ../src/pcidsk.a 
 	g++ $(OBJ) $(LIBS) -o test_main
