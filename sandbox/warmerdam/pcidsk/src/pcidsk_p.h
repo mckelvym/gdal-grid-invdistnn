@@ -56,8 +56,19 @@ private:
     int          width;
     int          height;
     int          channel_count;
+    std::string  interleaving;
 
     std::vector<PCIDSKChannel*> channels;
+
+    // pixel interleaved info.
+    uint64       block_size; // pixel interleaved scanline size.
+    int          pixel_group_size; // pixel interleaved pixel_offset value.
+    uint64       first_line_offset;
+
+    int          last_block_index;
+    int          last_block_dirty;
+    void        *last_block_data;
+    Mutex       *last_block_mutex;
 
 public:
 
@@ -73,7 +84,16 @@ public:
     int       GetWidth() const { return width; }
     int       GetHeight() const { return height; }
     int       GetChannels() const { return channel_count; }
+    const char *GetInterleaving() const { return interleaving.c_str(); }
     
+    // the following are only for pixel interleaved IO
+    uint64    GetBlockSize() const { return block_size; }
+    int       GetPixelGroupSize() const { return pixel_group_size; }
+    void     *ReadAndLockBlock( int block_index );
+    void      UnlockBlock( int mark_dirty );
+    void      WriteBlock( int block_index, void *buffer );
+    void      FlushBlock();
+
     void      WriteToFile( const void *buffer, uint64 offset, uint64 size );
     void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
 
@@ -102,7 +122,7 @@ protected:
 
 public:
     CPCIDSKChannel( PCIDSKBuffer &image_header, 
-                    CPCIDSKFile *file );
+                    CPCIDSKFile *file, eChanType pixel_type );
     virtual   ~CPCIDSKChannel();
 
     int       GetBlockWidth() { return block_width; }
@@ -122,8 +142,16 @@ public:
 class CPixelInterleavedChannel : public CPCIDSKChannel
 {
 private:
-
+    int      image_offset;
 public:
+    CPixelInterleavedChannel( PCIDSKBuffer &image_header, 
+                              PCIDSKBuffer &file_header, 
+                              int channelnum,
+                              CPCIDSKFile *file,
+                              int image_offset,
+                              eChanType pixel_type );
+    virtual ~CPixelInterleavedChannel();
+
     virtual int ReadBlock( int block_index, void *buffer );
     virtual int WriteBlock( int block_index, void *buffer );
 };
@@ -153,7 +181,8 @@ public:
                              PCIDSKBuffer &file_header, 
                              int channelnum,
                              CPCIDSKFile *file,
-                             uint64 image_offset );
+                             uint64 image_offset,
+                             eChanType pixel_type );
     virtual ~CBandInterleavedChannel();
 
     virtual int ReadBlock( int block_index, void *buffer );

@@ -42,8 +42,9 @@ CBandInterleavedChannel::CBandInterleavedChannel( PCIDSKBuffer &image_header,
                                                   PCIDSKBuffer &file_header,
                                                   int channelnum,
                                                   CPCIDSKFile *file,
-                                                  uint64 image_offset )
-        : CPCIDSKChannel( image_header, file )
+                                                  uint64 image_offset,
+                                                  eChanType pixel_type )
+        : CPCIDSKChannel( image_header, file, pixel_type )
 
 {
     io_handle_p = NULL;

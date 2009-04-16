@@ -35,9 +35,11 @@ using namespace PCIDSK;
 /************************************************************************/
 
 CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header, 
-                                CPCIDSKFile *file )
+                                CPCIDSKFile *file, 
+                                eChanType pixel_type )
 
 {
+    this->pixel_type = pixel_type;
     this->file = file;
 
     width = file->GetWidth();
@@ -45,19 +47,6 @@ CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header,
 
     block_width = width;
     block_height = 1;
-
-    const char *pixel_type_string = image_header.Get( 160, 8 );
-    
-    if( strcmp(pixel_type_string,"8U      ") == 0 )
-        pixel_type = CHN_8U;
-    else if( strcmp(pixel_type_string,"16S     ") == 0 )
-        pixel_type = CHN_16S;
-    else if( strcmp(pixel_type_string,"16U     ") == 0 )
-        pixel_type = CHN_16U;
-    else if( strcmp(pixel_type_string,"32R     ") == 0 )
-        pixel_type = CHN_32R;
-    else
-        pixel_type = CHN_UNKNOWN; // should we throw an exception?  
 }
 
 /************************************************************************/

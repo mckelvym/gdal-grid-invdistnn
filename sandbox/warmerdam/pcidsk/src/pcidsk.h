@@ -107,9 +107,7 @@ class PCIDSK_DLL PCIDSKInterfaces
 
     const IOInterfaces 	*io;
     Mutex               *(*CreateMutex)(void);
-
 //    DBInterfaces 	db_interfaces;
-//    ErrorInterfaces     error_interfaces;
 };
 
 class PCIDSKFile;
@@ -170,7 +168,17 @@ public:
     virtual int GetWidth() const = 0;
     virtual int GetHeight() const = 0;
     virtual int GetChannels() const = 0;
-    
+    virtual const char *GetInterleaving() const = 0;
+
+    // the following are only for pixel interleaved IO
+    virtual uint64 GetBlockSize() const = 0;
+    virtual int    GetPixelGroupSize() const = 0;
+    virtual void *ReadAndLockBlock( int block_index ) = 0;
+    virtual void  UnlockBlock( int mark_dirty ) = 0;
+    virtual void  WriteBlock( int block_index, void *buffer ) = 0;
+    virtual void  FlushBlock() = 0;
+
+    // low level io, primarily internal.
     virtual void WriteToFile( const void *buffer, uint64 offset, uint64 size)=0;
     virtual void ReadFromFile( void *buffer, uint64 offset, uint64 size ) = 0;
 };

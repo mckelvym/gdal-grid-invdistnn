@@ -107,6 +107,22 @@ CPCIDSKFile::CPCIDSKFile()
 CPCIDSKFile::~CPCIDSKFile()
 
 {
+/* -------------------------------------------------------------------- */
+/*      Cleanup last line caching stuff for pixel interleaved data.     */
+/* -------------------------------------------------------------------- */
+    if( last_block_data != NULL )
+    {
+        FlushBlock();
+        last_block_index = -1;
+        free( last_block_data );
+        last_block_data = NULL;
+        delete last_block_mutex;
+    }
+
+    
+/* -------------------------------------------------------------------- */
+/*      Close and cleanup IO stuff.                                     */
+/* -------------------------------------------------------------------- */
     {
         MutexHolder oHolder( io_mutex );
 
@@ -174,9 +190,46 @@ void CPCIDSKFile::InitializeFromHeader()
 
     uint64 ih_start_block = atouint64(fh.Get(336,16));
     uint64 image_start_block = atouint64(fh.Get(304,16));
-    std::string interleaving = fh.Get(360,8);
+    interleaving = fh.Get(360,8);
 
     uint64 image_offset = (image_start_block-1) * 512;
+
+    block_size = 0;
+    last_block_index = -1;
+    last_block_dirty = 0;
+    last_block_data = NULL;
+    last_block_mutex = NULL;
+
+/* -------------------------------------------------------------------- */
+/*      Get the number of each channel type - only used for some        */
+/*      interleaving cases.                                             */
+/* -------------------------------------------------------------------- */
+    int count_8u = atoi(fh.Get(464,4));
+    int count_16s = atoi(fh.Get(468,4));
+    int count_16u = atoi(fh.Get(472,4));
+    int count_32r = atoi(fh.Get(476,4));
+
+/* -------------------------------------------------------------------- */
+/*      for pixel interleaved files we need to compute the length of    */
+/*      a scanline padded out to a 512 byte boundary.                   */
+/* -------------------------------------------------------------------- */
+    if( interleaving == "PIXEL   " )
+    {
+        first_line_offset = image_offset;
+        pixel_group_size = count_8u + count_16s*2 + count_16u*2 + count_32r*4;
+        
+        block_size = pixel_group_size * width;
+        if( block_size % 512 != 0 )
+            block_size += 512 - (block_size % 512);
+
+        last_block_data = malloc(block_size);
+        if( last_block_data == NULL )
+            throw new PCIDSKException( "Allocating %d bytes for scanline buffer failed.", 
+                                       (int) block_size );
+
+        last_block_mutex = interfaces.CreateMutex();
+        image_offset = 0;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Initialize the list of channels.                                */
@@ -188,14 +241,40 @@ void CPCIDSKFile::InitializeFromHeader()
         PCIDSKBuffer ih(1024);
         PCIDSKChannel *channel;
         
-            ReadFromFile( ih.buffer, 
-                          (ih_start_block-1)*512 + (channelnum-1)*1024, 
-                          1024);
-        
+        ReadFromFile( ih.buffer, 
+                      (ih_start_block-1)*512 + (channelnum-1)*1024, 
+                      1024);
+
+        // work out channel type from header
+        eChanType pixel_type;
+        const char *pixel_type_string = ih.Get( 160, 8 );
+    
+        if( strcmp(pixel_type_string,"8U      ") == 0 )
+            pixel_type = CHN_8U;
+        else if( strcmp(pixel_type_string,"16S     ") == 0 )
+            pixel_type = CHN_16S;
+        else if( strcmp(pixel_type_string,"16U     ") == 0 )
+            pixel_type = CHN_16U;
+        else if( strcmp(pixel_type_string,"32R     ") == 0 )
+            pixel_type = CHN_32R;
+        else
+            pixel_type = CHN_UNKNOWN; // should we throw an exception?  
+
+        // if we didn't get channel type in header, work out from counts (old)
+
+        if( channelnum <= count_8u )
+            pixel_type = CHN_8U;
+        else if( channelnum <= count_8u + count_16s )
+            pixel_type = CHN_16S;
+        else if( channelnum <= count_8u + count_16s + count_16u )
+            pixel_type = CHN_16U;
+        else 
+            pixel_type = CHN_32R;
+            
         if( interleaving == "BAND    " )
         {
             channel = new CBandInterleavedChannel( ih, fh, channelnum, this,
-                                                   image_offset );
+                                                   image_offset, pixel_type );
 
             
             image_offset += DataTypeSize(channel->GetType())
@@ -203,7 +282,13 @@ void CPCIDSKFile::InitializeFromHeader()
             
             // bands start on block boundaries I think.
             image_offset = ((image_offset+511) / 512) * 512;
-                                       
+        }
+        else if( interleaving == "PIXEL   " )
+        {
+            channel = new CPixelInterleavedChannel( ih, fh, channelnum, this,
+                                                    (int) image_offset, 
+                                                    pixel_type );
+            image_offset += DataTypeSize(pixel_type);
         }
 
         channels.push_back( channel );
@@ -238,6 +323,81 @@ void CPCIDSKFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
     if( interfaces.io->Write( buffer, 1, size, io_handle ) != size )
         throw new PCIDSKException( "PCIDSKFile:Failed to write %d bytes at %d.",
                                    (int) size, (int) offset );
+}
+
+/************************************************************************/
+/*                          ReadAndLockBlock()                          */
+/************************************************************************/
+
+void *CPCIDSKFile::ReadAndLockBlock( int block_index )
+
+{
+    if( last_block_data == NULL )
+        throw new PCIDSKException( "ReadAndLockBlock() called on a file that is not pixel interleaved." );
+
+    if( block_index == last_block_index )
+    {
+        last_block_mutex->Acquire();
+        return last_block_data;
+    }
+
+    FlushBlock();
+
+    last_block_mutex->Acquire();
+
+    ReadFromFile( last_block_data, 
+                  first_line_offset + block_index*block_size,
+                  block_size );
+    
+    return last_block_data;
+}
+
+/************************************************************************/
+/*                            UnlockBlock()                             */
+/************************************************************************/
+
+void CPCIDSKFile::UnlockBlock( int mark_dirty )
+
+{
+    if( last_block_mutex == NULL )
+        return;
+
+    last_block_dirty |= mark_dirty;
+    last_block_mutex->Release();
+}
+
+/************************************************************************/
+/*                             WriteBlock()                             */
+/************************************************************************/
+
+void CPCIDSKFile::WriteBlock( int block_index, void *buffer )
+
+{
+    if( last_block_data == NULL )
+        throw new PCIDSKException( "WriteBlock() called on a file that is not pixel interleaved." );
+
+    WriteToFile( buffer,
+                 first_line_offset + block_index*block_size,
+                 block_size );
+}
+
+/************************************************************************/
+/*                             FlushBlock()                             */
+/************************************************************************/
+
+void CPCIDSKFile::FlushBlock()
+
+{
+    if( last_block_dirty ) 
+    {
+        last_block_mutex->Acquire();
+        if( last_block_dirty ) // is it still dirty?
+        {
+            WriteBlock( last_block_index, last_block_data );
+            last_block_dirty = 0;
+        }
+        last_block_mutex->Release();
+    }
 }
 
 
