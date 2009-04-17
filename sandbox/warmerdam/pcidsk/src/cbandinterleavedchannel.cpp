@@ -125,7 +125,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
     else
     {
         int  i;
-        PCIDSKBuffer line_from_disk( pixel_offset * (width-1) + pixel_size );
+        PCIDSKBuffer line_from_disk( (int) (pixel_offset*(width-1) + pixel_size) );
         char *this_pixel;
 
         MutexHolder holder( *io_mutex_p );
