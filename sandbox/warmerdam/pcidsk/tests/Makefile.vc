@@ -1,0 +1,33 @@
+
+CXXFLAGS = -I../src /nologo /MD /EHsc /Zi /W3 \
+	/D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE
+
+OBJ =   test_main.obj testpcidskexception.obj testpcidskfile.obj
+
+LIBS =	../src/pcidsk.lib
+
+default:	pcidsk_read.exe
+
+test_main.exe:	$(OBJ) ../src/pcidsk.lib
+	cl $(OBJ) $(LIBS)
+
+pcidsk_read.exe:	pcidsk_read.obj ../src/pcidsk.lib
+	cl $(CXXFLAGS) pcidsk_read.obj $(LIBS)
+
+../src/pcidsk.lib:
+	(cd ../src ; $(MAKE))
+
+check:  test_main.exe
+	./test_main.exe
+
+clean:
+	-del *.obj
+	-del *.exe
+	-del *.lib
+	-del *.pdb
+	-del *.manifest
+	-del *.ilk
+	-del *.exp
+
+.cpp.obj:	
+	$(CC) $(CXXFLAGS) /c $*.cpp
