@@ -67,6 +67,7 @@ typedef void GDALRasterBandShadow;
 typedef void GDALColorTableShadow;
 typedef void GDALRasterAttributeTableShadow;
 typedef void GDALTransformerInfoShadow;
+typedef void GDALAsyncRasterIOShadow;
 
 typedef int FALSE_IS_ERR;
 
@@ -85,6 +86,8 @@ typedef int GDALAccess;
 typedef int GDALDataType;
 typedef int CPLErr;
 typedef int GDALResampleAlg;
+typedef int GDALAsyncStatusType;
+
 #else
 /*! Pixel data types */
 %rename (DataType) GDALDataType;
@@ -160,6 +163,15 @@ typedef enum {
   /*! Cubic Convolution Approximation (4x4 kernel) */  GRA_Cubic=2,
   /*! Cubic B-Spline Approximation (4x4 kernel) */     GRA_CubicSpline=3,
 } GDALResampleAlg;
+
+%rename (AsyncStatusType) GDALAsyncStatusType;
+typedef enum {
+	GARIO_PENDING = 0,
+	GARIO_UPDATE = 1,
+	GARIO_ERROR = 2,
+	GARIO_COMPLETE = 3
+} GDALAsyncStatusType;
+
 #endif
 
 #if defined(SWIGPYTHON)
@@ -226,6 +238,8 @@ typedef enum {
 %rename (gcps_to_geo_transform) GDALGCPsToGeoTransform;
 %rename (get_data_type_name) GDALGetDataTypeName;
 %rename (get_data_type_by_name) GDALGetDataTypeByName;
+%rename (get_asyncstatus_type_name) GDALGetAsyncStatusTypeName;
+%rename (get_asyncstatus_type_by_name) GDALGetAsyncStatusTypeByName;
 %rename (get_color_interpretation_name) GDALGetColorInterpretationName;
 %rename (get_palette_interpretation_name) GDALGetPaletteInterpretationName;
 %rename (dec_to_dms) GDALDecToDMS;
@@ -246,6 +260,8 @@ typedef enum {
 %rename (GCPsToGeoTransform) GDALGCPsToGeoTransform;
 %rename (GetDataTypeName) GDALGetDataTypeName;
 %rename (GetDataTypeByName) GDALGetDataTypeByName;
+%rename (GetAsyncStatusTypeName) GDALGetAsyncStatusTypeName;
+%rename (GetAsyncStatusTypeByName) GDALGetAsyncStatusTypeByName;
 %rename (GetColorInterpretationName) GDALGetColorInterpretationName;
 %rename (GetPaletteInterpretationName) GDALGetPaletteInterpretationName;
 %rename (DecToDMS) GDALDecToDMS;
@@ -514,6 +530,9 @@ int GDALDataTypeIsComplex( GDALDataType eDataType );
 const char *GDALGetDataTypeName( GDALDataType eDataType );
 
 GDALDataType GDALGetDataTypeByName( const char * pszDataTypeName );
+
+const char *GDALGetAsyncStatusTypeName( GDALAsyncStatusType );
+GDALAsyncStatusType GDALGetAsyncStatusTypeByName(const char *);
 
 const char *GDALGetColorInterpretationName( GDALColorInterp eColorInterp );
 

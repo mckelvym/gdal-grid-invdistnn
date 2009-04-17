@@ -36,6 +36,9 @@
 
 CPL_CVSID("$Id$");
 
+CURL *http_persistent_handle;
+
+
 /************************************************************************/
 /*                            CPLWriteFct()                             */
 /*                                                                      */
@@ -74,6 +77,21 @@ CPLWriteFct(void *buffer, size_t size, size_t nmemb, void *reqInfo)
 
     return nmemb;
 }
+
+
+static size_t CPLHdrWriteFct(void *buffer, size_t size, size_t nmemb, void *reqInfo)
+{
+    CPLHTTPResult *psResult = (CPLHTTPResult *) reqInfo;
+	// copy the buffer to a char* and initialize with zeros (zero terminate as well)
+	char* pszHdr = (char*)CPLCalloc(nmemb + 1, size);
+    CPLPrintString(pszHdr, (char *)buffer, nmemb * size);
+	char *pszKey = NULL;
+	const char *pszValue = CPLParseNameValue(pszHdr, &pszKey );
+	psResult->papszHeaders = CSLSetNameValue(psResult->papszHeaders, pszKey, pszValue);
+	CPLFree(pszHdr);
+    return nmemb; 
+}
+
 #endif /* def HAVE_CURL */
 
 /************************************************************************/
@@ -91,6 +109,16 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
     return NULL;
 #else
     CURL *http_handle;
+
+	const char *pszPersistent = CSLFetchNameValue( papszOptions, "PERSISTENT" );
+	if (pszPersistent)
+	{
+		if (!http_persistent_handle)
+			http_persistent_handle = curl_easy_init();
+
+		http_handle = http_persistent_handle;
+	}
+
     char szCurlErrBuf[CURL_ERROR_SIZE+1];
     CPLHTTPResult *psResult;
     struct curl_slist *headers=NULL; 
@@ -99,10 +127,14 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
     CPLDebug( "HTTP", "Fetch(%s)", pszURL );
 
     psResult = (CPLHTTPResult *) CPLCalloc(1,sizeof(CPLHTTPResult));
-
-    http_handle = curl_easy_init();
+	
+    if (!http_handle)
+		http_handle = curl_easy_init();
 
     curl_easy_setopt(http_handle, CURLOPT_URL, pszURL );
+
+    // turn off SSL verification, accept all servers with ssl
+    curl_easy_setopt(http_handle, CURLOPT_SSL_VERIFYPEER, FALSE);
 
     /* Enable following redirections.  Requires libcurl 7.10.1 at least */
     curl_easy_setopt(http_handle, CURLOPT_FOLLOWLOCATION, 1 );
@@ -130,6 +162,10 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
     curl_easy_setopt(http_handle, CURLOPT_NOSIGNAL, 1 );
 #endif
 
+	// capture response headers
+	curl_easy_setopt(http_handle, CURLOPT_HEADERDATA, psResult);
+	curl_easy_setopt(http_handle, CURLOPT_HEADERFUNCTION, CPLHdrWriteFct);
+ 
     curl_easy_setopt(http_handle, CURLOPT_WRITEDATA, psResult );
     curl_easy_setopt(http_handle, CURLOPT_WRITEFUNCTION, CPLWriteFct );
 
@@ -160,8 +196,11 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
                   "%s", szCurlErrBuf );
     }
 
-    curl_easy_cleanup( http_handle );
-    curl_slist_free_all(headers);
+
+	if (!pszPersistent)
+	    curl_easy_cleanup( http_handle );
+    
+	curl_slist_free_all(headers);
 
     return psResult;
 #endif /* def HAVE_CURL */
@@ -188,8 +227,8 @@ int CPLHTTPEnabled()
 void CPLHTTPCleanup()
 
 {
-    /* nothing for now, but if we use the more complicated api later, 
-       we will need to do cleanup, like mapserver maphttp.c does. */
+	if (http_persistent_handle)
+		curl_easy_cleanup(http_persistent_handle);
 }
 
 /************************************************************************/
@@ -204,6 +243,7 @@ void CPLHTTPDestroyResult( CPLHTTPResult *psResult )
         CPLFree( psResult->pabyData );
         CPLFree( psResult->pszErrBuf );
         CPLFree( psResult->pszContentType );
+        CPLFree( psResult->papszHeaders );
         CPLFree( psResult );
     }
 }

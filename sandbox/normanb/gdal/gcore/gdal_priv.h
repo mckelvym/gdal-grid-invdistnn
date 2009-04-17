@@ -42,6 +42,8 @@ class GDALDriver;
 class GDALRasterAttributeTable;
 class GDALProxyDataset;
 class GDALProxyRasterBand;
+class GDALAsyncRasterIO;
+
 
 /* -------------------------------------------------------------------- */
 /*      Pull in the public declarations.  This gets the C apis, and     */
@@ -161,7 +163,7 @@ class CPL_DLL GDALDefaultOverviews
                            char **papszSiblingFiles = NULL,
                            int bNameIsOVR = FALSE );
 
-    int        IsInitialized() { return poDS != NULL; }
+    int        IsInitialized() { return poDS != NULL && strlen(osOvrFilename) > 0; }
 
     // Overview Related
 
@@ -192,7 +194,7 @@ class CPL_DLL GDALDefaultOverviews
 
     int        HaveMaskFile( char **papszSiblings = NULL, 
                              const char *pszBasename = NULL );
-
+    
 };
 
 /* ******************************************************************** */
@@ -280,6 +282,18 @@ class CPL_DLL GDALDataset : public GDALMajorObject
                                char **papszOptions );
 
     virtual CPLErr          CreateMaskBand( int nFlags );
+
+	virtual GDALAsyncRasterIO* BeginAsyncRasterIO(int xOff, int yOff,
+									int xSize, int ySize, 
+									void *pBuf,
+									int bufXSize, int bufYSize,
+									GDALDataType bufType,
+									int nBandCount, int* bandMap,
+									int nPixelSpace, int nLineSpace,
+									int nBandSpace,
+									char **papszOptions);
+
+	virtual void EndAsyncRasterIO(GDALAsyncRasterIO *);
 
     CPLErr      RasterIO( GDALRWFlag, int, int, int, int,
                           void *, int, int, GDALDataType,
@@ -735,6 +749,75 @@ GDALRegenerateOverviewsMultiBand(int nBands, GDALRasterBand** papoSrcBands,
                                  GDALRasterBand*** papapoOverviewBands,
                                  const char * pszResampling, 
                                  GDALProgressFunc pfnProgress, void * pProgressData );
+
+
+/* ******************************************************************** */
+/*                          GDALAsyncRasterIO                           */
+/* ******************************************************************** */
+
+
+/**
+ * Class used as a session object for remote streaming data services
+ */
+class CPL_DLL GDALAsyncRasterIO
+{
+  protected:
+    GDALDataset* poDS;
+	int xOff;
+	int yOff;
+	int xSize;
+	int ySize;
+	void * pBuf;
+	int bufXSize;
+	int bufYSize;
+	GDALDataType bufType;
+	int nBandCount;
+	int* pBandMap;
+	int nPixelSpace;
+	int nLineSpace;
+	int nBandSpace;
+	long nDataRead;
+  public:
+	GDALAsyncRasterIO(GDALDataset* poDS = NULL);
+	virtual ~GDALAsyncRasterIO();
+
+	GDALDataset* GetGDALDataset(){return poDS;}
+	int GetXOffset(){return xOff;}
+	int GetYOffset(){return yOff;}
+	int GetXSize(){return xSize;}
+	int GetYSize(){return ySize;}
+	void * GetBuffer(){return pBuf;}
+	int GetBufferXSize(){return bufXSize;}
+	int GetBufferYSize(){return bufYSize;}
+	GDALDataType GetBufferType(){return bufType;}
+	int GetBandCount(){return nBandCount;}
+	int* GetBandMap(){return pBandMap;}
+	int GetPixelSpace(){return nPixelSpace;}
+	int GetLineSpace(){return nLineSpace;}
+	int GetBandSpace(){return nBandSpace;}
+
+	int GetNDataRead(){return nDataRead;}
+	
+	/* Returns GARIO_UPDATE, GARIO_NO_MESSAGE (if pending==false and nothing in the queue or if pending==true && timeout != 0 and nothing in the queue at the end of the timeout), GARIO_COMPLETE, GARIO_ERROR */
+	virtual GDALAsyncStatusType GetNextUpdatedRegion(bool wait, int timeout,
+                                                   int* pnxbufoff,
+                                                   int* pnybufoff,
+                                                   int* pnxbufsize,
+                                                   int* pnybufsize) = 0;
+	/* if pending = true, we wait forever if timeout=0, for the timeout time otherwise */
+	/* if pending = false, we return immediately */
+	/* the int* are output values */
+
+	// lock a whole buffer.
+	virtual void LockBuffer() = 0;
+
+	// lock only a block
+    // the caller must relax a previous lock before asking for a new one
+    virtual void LockBuffer(int xbufoff, int ybufoff, int xbufsize, int ybufsize) = 0;
+    virtual void UnlockBuffer() = 0; 
+	
+	friend class GDALDataset;
+};
 
 CPL_C_START
 GDALDriverManager CPL_DLL * GetGDALDriverManager( void );

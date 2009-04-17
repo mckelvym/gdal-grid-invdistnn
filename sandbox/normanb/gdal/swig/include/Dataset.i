@@ -64,6 +64,60 @@ CPLErr DSReadRaster_internal( GDALDatasetShadow *obj,
 %}
 #endif
 
+
+//************************************************************************
+//
+// Define the extensions for GDALAsyncRasterIO (nee GDALAsyncRasterIOShadow)
+//
+//************************************************************************
+%rename (GDALAsyncRasterIO) GDALAsyncRasterIOShadow;
+
+class GDALAsyncRasterIOShadow {
+private:
+  GDALAsyncRasterIOShadow();
+public:
+%extend {
+%immutable;
+    int XOff;
+    int YOff;
+    int XSize;
+    int YSize;
+    void * Buffer;
+    int BufferXSize;
+    int BufferYSize;
+    GDALDataType BufferType;
+    int BandCount;
+    int NDataRead;
+    int PixelSpace;
+    int LineSpace;
+    int BandSpace;
+%mutable;
+
+    %apply (int *OUTPUT){int *xoff, int *yoff, int *buf_xsize, int *buf_ysize}
+    GDALAsyncStatusType GetNextUpdatedRegion(bool wait, int timeout, int* xoff, int* yoff, int* buf_xsize, int* buf_ysize)
+    {
+        return GDALGetNextUpdatedRegion(self, wait, timeout, xoff, yoff, buf_xsize, buf_ysize);
+    }
+    %clear (int *xoff, int *yoff, int *buf_xsize, int *buf_ysize);
+    
+//    void LockBuffer(int xbufoff, int ybufoff, int xbufsize, int ybufsize)
+//    {
+//        GDALLockBuffer(self, xbufoff, ybufoff, xbufsize, ybufsize);
+//    }
+    
+    void LockBuffer()
+    {
+        GDALLockBuffer(self);
+    }
+    
+    void UnlockBuffer()
+    {
+        GDALUnlockBuffer(self);
+    }
+    } /* extend */
+}; /* GDALAsyncRasterIOShadow */ 
+
+
 //************************************************************************
 //
 // Define the extensions for Dataset (nee GDALDatasetShadow)
@@ -324,7 +378,99 @@ CPLErr ReadRaster(  int xoff, int yoff, int xsize, int ysize,
 /* AddBand */
 /* AdviseRead */
 /* ReadRaster */
-  
+
+#if !defined(SWIGCSHARP) && !defined(SWIGJAVA)
+%feature("kwargs") BeginAsyncRasterIO;
+%apply (int nList, int *pList ) { (int band_list, int *pband_list ) };
+%apply (int *nLength, char **pBuffer ) { (int *buf_len, char **buf ) };
+%apply(int *optional_int) { (int*) };  
+  GDALAsyncRasterIOShadow* BeginAsyncRasterIO(int xOff, int yOff, int xSize, int ySize, int *buf_len, char **buf, \
+								int buf_xsize, int buf_ysize, GDALDataType bufType = (GDALDataType)0, int band_list = 0, int *pband_list = 0, int nPixelSpace = 0, \
+                                int nLineSpace = 0, int nBandSpace = 0, char **options = 0)  {
+    
+    if ((options != NULL) && (buf_xsize ==0) && (buf_ysize == 0))
+    {
+        // calculate an appropriate buffer size
+        const char* pszLevel = CSLFetchNameValue(options, "LEVEL");
+        if (pszLevel)
+        {
+            // round up
+            int nLevel = atoi(pszLevel);
+            int nRes = 2 << (nLevel - 1);
+            buf_xsize = ceil(xSize / (1.0 * nRes));
+            buf_ysize = ceil(ySize / (1.0 * nRes));
+        }
+    }
+    
+    
+    int nxsize = (buf_xsize == 0) ? xSize : buf_xsize;
+    int nysize = (buf_ysize == 0) ? ySize : buf_ysize;
+    
+    GDALDataType ntype;
+    if (bufType != 0) {
+        ntype = (GDALDataType) bufType;
+    } 
+    else {
+        ntype = GDT_Byte;
+    }
+    
+    bool myBandList = false;
+    int nBCount;
+    int* pBandList;
+    
+    if (band_list != 0){
+        myBandList = false;
+        nBCount = band_list;
+        pBandList = pband_list;
+    }        
+    else
+    {
+        myBandList = true;
+        nBCount = GDALGetRasterCount(self);
+        pBandList = (int*)CPLMalloc(sizeof(int) * nBCount);
+        for (int i = 0; i < nBCount; ++i) {
+            pBandList[i] = i;
+        }
+    }
+    
+    // for python bindings create buffer 
+    if (*buf == NULL)
+    {
+        // calculate buffer size
+        // if type is byte typeSize is GDT_Int32 (4) since these are packed into an int (BGRA)
+        if (ntype == GDT_Byte)
+            *buf = (char*) VSIMalloc( nxsize * nysize * (int)GDALGetDataTypeSize(GDT_Int32) );
+        else
+            *buf = (char*) VSIMalloc( nxsize * nysize *  (int)GDALGetDataTypeSize(ntype)); 
+    }
+        
+    // check we were able to create the buffer
+    if (*buf)
+    {
+        return (GDALAsyncRasterIO*) GDALBeginAsyncRasterIO(self, xOff, yOff, xSize, ySize, (void*) *buf, nxsize, nysize, ntype, nBCount, pBandList, nPixelSpace, nLineSpace,
+        nBandSpace, options);
+    }
+    else
+    {
+        *buf = 0;
+        return NULL;
+    }
+    
+    if ( myBandList ) {
+       CPLFree( pBandList );
+    }
+
+  }
+
+  %clear(int nBands, int *pband_list);
+  %clear(int *buf_len, char **buf);
+  %clear(int*);
+#endif  
+
+  void EndAsyncRasterIO(GDALAsyncRasterIOShadow* ario){
+    GDALEndAsyncRasterIO(self, (GDALAsyncRasterIOH) ario);
+  }
+
 } /* extend */
 }; /* GDALDatasetShadow */
 
@@ -337,5 +483,46 @@ int GDALDatasetShadow_RasterYSize_get( GDALDatasetShadow *h ) {
 }
 int GDALDatasetShadow_RasterCount_get( GDALDatasetShadow *h ) {
   return GDALGetRasterCount( h );
+}
+int GDALAsyncRasterIOShadow_XOff_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetXOffset(h);
+}
+int GDALAsyncRasterIOShadow_YOff_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetYOffset(h);
+}
+int GDALAsyncRasterIOShadow_XSize_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetXSize(h);
+}
+int GDALAsyncRasterIOShadow_YSize_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetYSize(h);
+}
+void * GDALAsyncRasterIOShadow_Buffer_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetBuffer(h);
+}
+int GDALAsyncRasterIOShadow_BufferXSize_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetBufferXSize(h);
+}
+int GDALAsyncRasterIOShadow_BufferYSize_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetBufferYSize(h);
+}
+GDALDataType GDALAsyncRasterIOShadow_BufferType_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetBufferType(h);
+}
+int GDALAsyncRasterIOShadow_BandCount_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetBandCount(h);
+}
+
+int GDALAsyncRasterIOShadow_NDataRead_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetNDataRead(h);
+}
+
+int GDALAsyncRasterIOShadow_PixelSpace_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetPixelSpace(h);
+}
+int GDALAsyncRasterIOShadow_LineSpace_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetLineSpace(h);
+}
+int GDALAsyncRasterIOShadow_BandSpace_get(GDALAsyncRasterIOShadow *h){
+    return GDALGetBandSpace(h);
 }
 %}

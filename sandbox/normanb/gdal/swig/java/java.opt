@@ -1,6 +1,6 @@
 #
 # Java Stuff
-JAVA_HOME = /usr/lib/jvm/java-6-openjdk/
+#JAVA_HOME = /usr/lib/jvm/java-6-openjdk/
 JAVADOC=$(JAVA_HOME)/bin/javadoc
 JAVAC=$(JAVA_HOME)/bin/javac
 JAVA=$(JAVA_HOME)/bin/java

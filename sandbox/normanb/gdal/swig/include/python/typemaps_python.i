@@ -271,11 +271,29 @@ CreateTupleFromDoubleArray( int *first, unsigned int size ) {
     free( *$2 );
   }
 }
+
+/* required for GDALAsyncRasterIO */
+%typemap(in,numinputs=0) (int *nLength, char **pBuffer ) ( int nLen = 0, char *pBuf = 0 )
+{
+  /* %typemap(in,numinputs=0) (int *nLength, char **pBuffer ) */
+  $1 = &nLen;
+  $2 = &pBuf;
+}
+%typemap(freearg) (int *nLength, char **pBuffer )
+{
+  /* %typemap(freearg) (int *nLen, char **pBuf ) */
+  if( *$1 ) {
+    free( *$2 );
+  }
+}
+
+/* end of required for GDALAsyncRasterIO */
+
 %typemap(in,numinputs=1) (int nLen, char *pBuf )
 {
   Py_ssize_t   safeLen;
   /* %typemap(in,numinputs=1) (int nLen, char *pBuf ) */
-  PyString_AsStringAndSize($input, (char**) &$2, &safeLen );
+  PyString_AsStringAndSize($input, &$2, &safeLen );
   $1 = (int) safeLen;
 }
 %typemap(typecheck,precedence=SWIG_TYPECHECK_POINTER)

@@ -243,6 +243,11 @@ void CPL_STDCALL GDALAllRegister()
     GDALRegister_JP2KAK();
 #endif
 
+#ifdef FRMT_jpipkak
+	// jpip support 
+	GDALRegister_JPIPKAK();
+#endif
+
 #ifdef FRMT_ecw
     GDALRegister_ECW();
     GDALRegister_JP2ECW();

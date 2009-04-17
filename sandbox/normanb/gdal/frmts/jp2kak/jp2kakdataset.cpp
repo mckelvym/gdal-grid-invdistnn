@@ -1116,14 +1116,15 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
     pszExtension = CPLGetExtension( poOpenInfo->pszFilename );
     if( poOpenInfo->nHeaderBytes < 16 )
     {
-        if( (EQUALN(poOpenInfo->pszFilename,"http://",7)
+        // JPIP is defunct in jp2kakdataset
+        /*if( (EQUALN(poOpenInfo->pszFilename,"http://",7)
              || EQUALN(poOpenInfo->pszFilename,"https://",8)
              || EQUALN(poOpenInfo->pszFilename,"jpip://",7))
             && EQUAL(pszExtension,"jp2") )
         {
             bIsJPIP = TRUE;
         }
-        else if( EQUALN(poOpenInfo->pszFilename,"J2K_SUBFILE:",12) )
+        else */ if( EQUALN(poOpenInfo->pszFilename,"J2K_SUBFILE:",12) )
         {
             static GByte abySubfileHeader[16];
 

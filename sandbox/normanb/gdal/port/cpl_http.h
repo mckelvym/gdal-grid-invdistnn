@@ -51,7 +51,7 @@ typedef struct {
     int     nDataLen;
     int     nDataAlloc;
     GByte   *pabyData;
-
+    char    **papszHeaders;
     int     nMimePartCount;
     CPLMimePart *pasMimePart;
 } CPLHTTPResult;

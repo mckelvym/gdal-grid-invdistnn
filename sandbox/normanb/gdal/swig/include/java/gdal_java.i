@@ -231,6 +231,7 @@ import org.gdal.gdalconst.gdalconstConstants;
         }
         
         int nMinBufferSize = (buf_ysize - 1) * nLineSpace + (buf_xsize - 1) * nPixelSpace + (nBands - 1) * nBandSpace + nPixelSize;
+
         if (nioBufferSize < nMinBufferSize)
         {
             CPLError(CE_Failure, CPLE_AppDefined, "Buffer not big enough");
@@ -378,6 +379,37 @@ import org.gdal.gdalconst.gdalconstConstants;
 
   return eErr;
 }
+
+  GDALAsyncRasterIOShadow* BeginAsyncRasterIO_Direct(int  xoff, int yoff, int xsize, int ysize, 
+                                    int buf_xsize, int buf_ysize, 
+                                    GDALDataType buf_type,
+                                    void *nioBuffer, long nioBufferSize, int band_list, int *pband_list,
+                                    int nPixelSpace = 0, int nLineSpace = 0, int nBandSpace = 0, char **options = 0)
+  {
+      int nxsize = (buf_xsize == 0) ? xsize : buf_xsize;
+      int nysize = (buf_ysize == 0) ? ysize : buf_ysize;
+      
+      GDALDataType ntype;
+      if (buf_type != 0){
+        ntype = (GDALDataType) buf_type;
+      }
+      else{
+        ntype = GDT_Byte;
+      }
+      
+      if (band_list == 0)
+      {
+          band_list = GDALGetRasterCount(self);
+          pband_list = (int*)CPLMalloc(sizeof(int) * band_list);
+          for (int i = 0; i < band_list; ++i) {
+            pband_list[i] = i;
+          }
+      }
+      return (GDALAsyncRasterIO*) GDALBeginAsyncRasterIO(self, xoff, yoff, xsize, ysize, nioBuffer, nxsize, nysize,
+                               ntype, band_list, pband_list, nPixelSpace, nLineSpace, nBandSpace, options);
+  }
+     
+
 //%clear (void *nioBuffer, long nioBufferSize);
 %clear (int band_list, int *pband_list);
 
@@ -415,6 +447,7 @@ import org.gdal.gdalconst.gdalconstConstants;
                                     nioBuffer, buf_xsize, buf_ysize,
                                     buf_type, nPixelSpace, nLineSpace );
   }
+                                
 
   CPLErr ReadBlock_Direct( int nXBlockOff, int nYBlockOff, void *nioBuffer, long nioBufferSize )
   {

@@ -172,7 +172,6 @@
         return _gdal.Dataset_ReadRaster(self, xoff, yoff, xsize, ysize,
                                            buf_xsize, buf_ysize, buf_type,
                                            band_list)
-
     def GetSubDatasets(self):
         sd_list = []
         
@@ -186,8 +185,22 @@
                               sd['SUBDATASET_'+str(i)+'_DESC'] ) )
             i = i + 1
         return sd_list
+        
+    def BeginAsyncRasterIO(self, xoff, yoff, xsize, ysize, buf_xsize = None, buf_ysize = None, buf_type = None, band_list = None, options=None):
+        if band_list is None:
+            band_list = range(1, self.RasterCount + 1)
+        if buf_xsize is None:
+            buf_xsize = 0;
+        if buf_ysize is None:
+            buf_ysize = 0;
+        if buf_type is None:
+            buf_type = GDT_Byte
+        
+        return _gdal.Dataset_BeginAsyncRasterIO(self, xoff, yoff, xsize, ysize, buf_xsize, buf_ysize, buf_type, band_list,  0, 0, 0, options)            
+        
 }
 }
+
 
 %extend GDALMajorObjectShadow {
 %pythoncode {
@@ -264,4 +277,26 @@ PyProgressProxy( double dfComplete, const char *pszMessage, void *pData )
     return bContinue;    
 }
 %}
+
+// type map for getbuffer
+%typemap(out) void*
+%{
+    // map to string object
+    char* pBuf = (char*)GDALGetBuffer(arg1);
+    int xSize = GDALGetBufferXSize(arg1);
+    int ySize = GDALGetBufferYSize(arg1);
+
+    GDALDataType bufType = GDALGetBufferType(arg1);
+    int typeSize = (int)GDALGetDataTypeSize(bufType);
+    
+    if (bufType == GDT_Byte)
+        // if type is byte typeSize is GDT_Int32 (4) since these are packed into an int (BGRA)
+        $result = PyString_FromStringAndSize(pBuf, xSize * ySize * (int)GDALGetDataTypeSize(GDT_Int32));
+    else
+        $result = PyString_FromStringAndSize(pBuf, xSize * ySize * typeSize);
+ 
+%}
+%apply void* {GDALAsyncRasterIOShadow_Buffer_get(GDALAsyncRasterIOShadow *h)};
+// end typemap
+
 %import typemaps_python.i
