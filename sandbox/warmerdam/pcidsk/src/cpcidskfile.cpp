@@ -348,6 +348,7 @@ void *CPCIDSKFile::ReadAndLockBlock( int block_index )
     ReadFromFile( last_block_data, 
                   first_line_offset + block_index*block_size,
                   block_size );
+    last_block_index = block_index;
     
     return last_block_data;
 }

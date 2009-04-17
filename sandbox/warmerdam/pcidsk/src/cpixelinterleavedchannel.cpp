@@ -71,31 +71,49 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer )
     uint8 *pixel_buffer = (uint8 *) file->ReadAndLockBlock( block_index );
 
 /* -------------------------------------------------------------------- */
-/*      Copy the data into our callers buffer.                          */
+/*      Copy the data into our callers buffer.  Try to do this          */
+/*      reasonably efficiently.  We might consider adding faster        */
+/*      cases for 16/32bit data that is word aligned.                   */
 /* -------------------------------------------------------------------- */
     if( pixel_size == pixel_group )
         memcpy( buffer, pixel_buffer, pixel_size * width );
     else
     {
         int i;
+        uint8  *src = ((uint8 *)pixel_buffer) + image_offset;
+        uint8  *dst = (uint8 *) buffer;
 
         if( pixel_size == 1 )
         {
-            for( i = 0; i < width; i++ )
+            for( i = width; i != 0; i-- )
             {
-                ((uint8 *) buffer)[i] =
-                    pixel_buffer[image_offset+i*pixel_group];
+                *dst = *src;
+                dst++;
+                src += pixel_group;
+            }
+        }
+        else if( pixel_size == 2 )
+        {
+            for( i = width; i != 0; i-- )
+            {
+                *(dst++) = *(src++);
+                *(dst++) = *(src++);
+                src += pixel_group-2;
+            }
+        }
+        else if( pixel_size == 4 )
+        {
+            for( i = width; i != 0; i-- )
+            {
+                *(dst++) = *(src++);
+                *(dst++) = *(src++);
+                *(dst++) = *(src++);
+                *(dst++) = *(src++);
+                src += pixel_group-4;
             }
         }
         else
-        {
-            for( i = 0; i > width; i++ )
-            {
-                memcpy( ((uint8 *) buffer) + i, 
-                        pixel_buffer + image_offset + i*pixel_group, 
-                        pixel_size );
-            }    
-        }
+            throw new PCIDSKException( "Unsupported pixel type..." );
     }
     
     file->UnlockBlock( 0 );
