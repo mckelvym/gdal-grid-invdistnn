@@ -1,0 +1,805 @@
+<html>
+<head>
+<META HTTP-EQUIV="Content-Type" content="text/html; charset=Windows-1252">
+</head>
+<body>
+<pre>
+<table width=100% bgcolor=#CFCFE5><tr> <td> <font face=arial size=+3>
+Build Log
+</font></table><table width=* cellspacing=0 cellpadding=0><tr><td width=0 bgcolor=#EDEDF5>&nbsp;</td><td width=0 bgcolor=#FFFFFF>&nbsp;</td><td width=*><pre>
+<h3>------- Build started: Project: makegdal, Configuration: Debug|Win32 -------
+</h3>
+</pre></table><table width=100% bgcolor=#DFDFE5><tr><td><font face=arial size=+2>
+Command Lines
+</font></table><table width=* cellspacing=0 cellpadding=0><tr><td width=0 bgcolor=#EDEDF5>&nbsp;</td><td width=0 bgcolor=#FFFFFF>&nbsp;</td><td width=*><pre>Creating temporary file "C:\DOCUME~1\nbarker\LOCALS~1\Temp\BAT000003.bat" with contents
+[
+@echo off
+cd c:\Gdal_1_7_0\gdal\ && nmake -f makefile.vc MSVC_VER=1310 DEBUG=1 && nmake -f makefile.vc MSVC_VER=1310 DEBUG=1 install
+if errorlevel 1 goto VCReportError
+goto VCEnd
+:VCReportError
+echo Project : error PRJ0019: A tool returned an error code from "Performing Makefile project actions"
+exit 1
+:VCEnd
+]
+Creating command line "C:\DOCUME~1\nbarker\LOCALS~1\Temp\BAT000003.bat"
+</pre></table><table width=100% bgcolor=#DFDFE5><tr><td><font face=arial size=+2>
+Output Window
+</font></table><table width=* cellspacing=0 cellpadding=0><tr><td width=0 bgcolor=#EDEDF5>&nbsp;</td><td width=0 bgcolor=#FFFFFF>&nbsp;</td><td width=*><pre>Performing Makefile project actions
+Microsoft (R) Program Maintenance Utility Version 7.10.3077
+Copyright (C) Microsoft Corporation.  All rights reserved.
+ cd port
+ nmake /nologo /f makefile.vc
+ cd ..
+ cd frmts/iso8211 nmake /nologo /f makefile.vc
+ lib /out:libiso8211.lib ddfmodule.obj ddfutils.obj ddffielddefn.obj ddfrecord.obj  ddffield.obj ddfsubfielddefn.obj
+Microsoft (R) Library Manager Version 7.10.3077
+Copyright (C) Microsoft Corporation.  All rights reserved.
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+ cd ..\sdts
+ nmake /nologo /f makefile.vc
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+ cd ..\..\ogr
+ nmake /nologo /f makefile.vc ogr.lib frmts
+'ogr.lib' is up-to-date
+ cd ogrsf_frmts nmake /nologo /f makefile.vc
+ for %d in ( generic geojson shape ntf sdts tiger s57 dgn mitab gml  avc rec mem vrt csv gmt bna kml gpx  geoconcept xplane georss        odbc pgeo         ) do  cd %d  && nmake /NOLOGO /f makefile.vc  && cd ..
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>cd generic   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd geojson   && nmake /NOLOGO /f makefile.vc   && cd .. 
+ cd jsonc
+ nmake /f makefile.vc
+Microsoft (R) Program Maintenance Utility Version 7.10.3077
+Copyright (C) Microsoft Corporation.  All rights reserved.
+ cd ..
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd shape   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd ntf   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd sdts   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd tiger   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd s57   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd dgn   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd mitab   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd gml   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd avc   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd rec   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd mem   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd vrt   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd csv   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd gmt   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd bna   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd kml   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd gpx   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd geoconcept   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd xplane   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd georss   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd odbc   && nmake /NOLOGO /f makefile.vc   && cd .. 
+C:\GDAL_1_7_0\gdal\ogr\ogrsf_frmts>cd pgeo   && nmake /NOLOGO /f makefile.vc   && cd .. 
+ lib /out:ogrsf_frmts.lib generic\*.obj shape\*.obj ntf\*.obj  sdts\*.obj s57\*.obj tiger\*.obj gml\*.obj  mitab\*.obj dgn\*.obj avc\*.obj mem\*.obj  vrt\*.obj csv\*.obj rec\*.obj kml\*.obj  gmt\*.obj bna\*.obj geoconcept\*.obj  geojson\*.obj geojson\jsonc\*.obj  gpx\*.obj xplane\*.obj georss\*.obj   odbc\*.obj pgeo\*.obj              
+Microsoft (R) Library Manager Version 7.10.3077
+Copyright (C) Microsoft Corporation.  All rights reserved.
+ lib /out:ogrsf_frmts_sup.lib  ..\..\frmts\iso8211\*.obj  ..\..\frmts\sdts\sdtsattrreader.obj  ..\..\frmts\sdts\sdtscatd.obj  ..\..\frmts\sdts\sdtsiref.obj  ..\..\frmts\sdts\sdtslib.obj  ..\..\frmts\sdts\sdtslinereader.obj  ..\..\frmts\sdts\sdtspointreader.obj  ..\..\frmts\sdts\sdtspolygonreader.obj  ..\..\frmts\sdts\sdtsrasterreader.obj  ..\..\frmts\sdts\sdtstransfer.obj  ..\..\frmts\sdts\sdtsindexedreader.obj  ..\..\frmts\sdts\sdtsxref.obj
+Microsoft (R) Library Manager Version 7.10.3077
+Copyright (C) Microsoft Corporation.  All rights reserved.
+ cd ..
+ cd ..
+ cd gcore nmake /nologo /f makefile.vc
+ cd ..\alg
+ nmake /nologo /f makefile.vc
+ cd ..
+ cd frmts nmake /nologo /f makefile.vc
+ for %d in ( ceos aigrid elas hfa gtiff sdts raw gxf ceos2 png  dted mem jdem gif  envisat aaigrid usgsdem l1b  fit vrt xpm bmp rmf  nitf pcidsk airsar rs2  ilwis msgn rik pcraster  leveller sgi srtmhgt idrisi  jaxapalsar ers ingr dimap  gff terragen gsg cosar pds  adrg coasp tsx blx jpipkak jpeg bsb zlib jp2kak grib wcs wms ) do  cd %d  && nmake /nologo /f makefile.vc  && cd ..
+c:\Gdal_1_7_0\gdal\frmts>cd ceos   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd aigrid   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd elas   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd hfa   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd gtiff   && nmake /nologo /f makefile.vc   && cd .. 
+ cd libtiff
+ nmake /nologo /f makefile.vc
+ xcopy /D  /Y *.obj ..\..\o
+0 File(s) copied
+ cd ..
+ cd libgeotiff nmake /nologo /f makefile.vc
+ xcopy /D  /Y *.obj ..\..\o
+0 File(s) copied
+ cd ..
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd sdts   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd raw   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd gxf   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd ceos2   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd png   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+ cd libpng
+ nmake /nologo /f makefile.vc
+ xcopy /D  /Y *.obj ..\..\o
+0 File(s) copied
+ cd ..
+C:\GDAL_1_7_0\gdal\frmts>cd dted   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd mem   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd jdem   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd gif   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+ cd libungif
+ nmake /nologo /f makefile.vc
+ xcopy /D  /Y *.obj ..\..\o
+0 File(s) copied
+ cd ..
+C:\GDAL_1_7_0\gdal\frmts>cd envisat   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd aaigrid   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd usgsdem   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd l1b   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd fit   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd vrt   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd xpm   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd bmp   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd rmf   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd nitf   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd pcidsk   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd airsar   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd rs2   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd ilwis   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd msgn   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd rik   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd pcraster   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj  ..\o
+0 File(s) copied
+ cd libcsf
+ nmake /nologo /f makefile.vc
+ xcopy /D  /Y *.obj ..\..\o
+0 File(s) copied
+ cd ..
+C:\GDAL_1_7_0\gdal\frmts>cd leveller   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd sgi   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd srtmhgt   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd idrisi   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+ cd ..
+C:\GDAL_1_7_0\gdal\frmts>cd jaxapalsar   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd ers   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd ingr   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+ cd ..
+C:\GDAL_1_7_0\gdal\frmts>cd dimap   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd gff   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd terragen   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd gsg   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd cosar   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd pds   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd adrg   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd coasp   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd tsx   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd blx   && nmake /nologo /f makefile.vc   && cd .. 
+ copy *.obj ..\o
+blx.obj
+blxdataset.obj
+        2 file(s) copied.
+C:\GDAL_1_7_0\gdal\frmts>cd jpipkak   && nmake /nologo /f makefile.vc   && cd .. 
+ cl /nologo /MD /EHsc /GR /Zi /W4 /Fd..\..\gdal17dev.pdb -I..\..\port -I..\..\ogr -I..\..\gcore  -I..\..\alg -I..\..\ogr\ogrsf_frmts -IC:\kakadu_5_2_6\v5_2_6-00691N\apps\support\ -IC:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\ -IC:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\ /DKDU_PENTIUM_MSVC /GX -DOGR_ENABLED  /c JPIPKAKDataset.cpp
+JPIPKAKDataset.cpp
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_threads.h(1031) : warning C4100: 'exception_handled' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_threads.h(1077) : warning C4100: 'exception_handled' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_messaging.h(177) : warning C4100: 'string' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_messaging.h(189) : warning C4100: 'string' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_messaging.h(198) : warning C4100: 'end_of_message' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_messaging.h(535) : warning C4100: 'end_of_message' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_messaging.h(627) : warning C4100: 'end_of_message' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(987) : warning C4100: 'tpart_idx' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(986) : warning C4100: 'last_marked' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(986) : warning C4100: 'out' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1616) : warning C4100: 'val' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1616) : warning C4100: 'field_idx' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1615) : warning C4100: 'name' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1615) : warning C4100: 'string' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1643) : warning C4100: 'val' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1643) : warning C4100: 'field_idx' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1642) : warning C4100: 'name' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1642) : warning C4100: 'output' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(1665) : warning C4100: 'after_reading' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3138) : warning C4100: 'hflip' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3138) : warning C4100: 'vflip' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3138) : warning C4100: 'transpose' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3138) : warning C4100: 'discard_levels' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3137) : warning C4100: 'skip_components' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3137) : warning C4100: 'source' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3208) : warning C4100: 'hflip' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3208) : warning C4100: 'vflip' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3208) : warning C4100: 'transpose' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3208) : warning C4100: 'discard_levels' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3207) : warning C4100: 'skip_components' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3207) : warning C4100: 'source' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3603) : warning C4100: 'c_idx' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3603) : warning C4100: 'bytes' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3602) : warning C4100: 'num_bytes' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3602) : warning C4100: 'code' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3606) : warning C4100: 'tpart_idx' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3606) : warning C4100: 'bytes' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3605) : warning C4100: 'num_bytes' : unreferenced formal parameter
+c:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_params.h(3605) : warning C4100: 'code' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_compressed.h(656) : warning C4100: 'offset' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_compressed.h(698) : warning C4100: 'num_tiles' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_compressed.h(698) : warning C4100: 'tnum' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_compressed.h(740) : warning C4100: 'unique_id' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_compressed.h(824) : warning C4100: 'backtrack' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_compressed.h(899) : warning C4100: 'num_bytes' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_sample_processing.h(633) : warning C4100: 'allow_exchange' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\coresys\common\kdu_sample_processing.h(759) : warning C4100: 'allow_exchange' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(243) : warning C4100: 'rhs' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(507) : warning C4100: 'rhs' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(973) : warning C4100: 'rhs' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(1050) : warning C4100: 'rhs' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(3274) : warning C4100: 'rhs' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(3290) : warning C4100: 'super_box' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(3445) : warning C4100: 'rhs' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(3468) : warning C4100: 'rubber_length' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(3467) : warning C4100: 'box_type' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(3467) : warning C4100: 'super_box' : unreferenced formal parameter
+C:\kakadu_5_2_6\v5_2_6-00691N\apps\compressed_io\jp2.h(3477) : warning C4100: 'box_type' : unreferenced formal parameter
+jpipkakdataset.cpp(299) : warning C4189: 'nRef_Comp' : local variable is initialized but not referenced
+jpipkakdataset.cpp(603) : warning C4800: 'int' : forcing value to bool 'true' or 'false' (performance warning)
+jpipkakdataset.cpp(927) : warning C4244: '=' : conversion from 'double' to 'int', possible loss of data
+jpipkakdataset.cpp(928) : warning C4244: '=' : conversion from 'double' to 'int', possible loss of data
+jpipkakdataset.cpp(929) : warning C4244: '=' : conversion from 'double' to 'int', possible loss of data
+jpipkakdataset.cpp(930) : warning C4244: '=' : conversion from 'double' to 'int', possible loss of data
+jpipkakdataset.cpp(891) : warning C4189: 'w' : local variable is initialized but not referenced
+jpipkakdataset.cpp(892) : warning C4189: 'h' : local variable is initialized but not referenced
+jpipkakdataset.cpp(1184) : warning C4100: 'ybufsize' : unreferenced formal parameter
+jpipkakdataset.cpp(1184) : warning C4100: 'xbufsize' : unreferenced formal parameter
+jpipkakdataset.cpp(1184) : warning C4100: 'ybufoff' : unreferenced formal parameter
+jpipkakdataset.cpp(1184) : warning C4100: 'xbufoff' : unreferenced formal parameter
+jpipkakdataset.cpp(1260) : warning C4127: conditional expression is constant
+jpipkakdataset.cpp(1284) : warning C4244: '=' : conversion from 'double' to 'int', possible loss of data
+ copy C:\kakadu_5_2_6\v5_2_6-00691N\obj\*.obj ..\o
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\args.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\image_in.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\image_out.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\jp2.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\jpx.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\kdu_cache.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\kdu_region_decompressor.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\kdu_stripe_decompressor.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\kdu_tiff.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\mj2.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\palette.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\roi_sources.obj
+       12 file(s) copied.
+ xcopy /D  /Y *.obj ..\o
+C:JPIPKAKDataset.obj
+1 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd jpeg   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+ cd libjpeg
+ nmake /nologo /f makefile.vc
+ lib /out:libjpeg.lib jcapimin.obj jcapistd.obj jccoefct.obj jccolor.obj jcdctmgr.obj jchuff.obj  jcinit.obj jcmainct.obj jcmarker.obj jcmaster.obj jcomapi.obj jcparam.obj  jcphuff.obj jcprepct.obj jcsample.obj jctrans.obj jdapimin.obj jdapistd.obj  jdatadst.obj jdatasrc.obj jdcoefct.obj jdcolor.obj jddctmgr.obj jdhuff.obj  jdinput.obj jdmainct.obj jdmarker.obj jdmaster.obj jdmerge.obj jdphuff.obj  jdpostct.obj jdsample.obj jdtrans.obj jerror.obj jfdctflt.obj jfdctfst.obj  jfdctint.obj jidctflt.obj jidctfst.obj jidctint.obj jidctred.obj jquant1.obj  jquant2.obj jutils.obj jmemmgr.obj jmemansi.obj
+Microsoft (R) Library Manager Version 7.10.3077
+Copyright (C) Microsoft Corporation.  All rights reserved.
+ xcopy /D  /Y *.obj ..\..\o
+0 File(s) copied
+ cd ..
+C:\GDAL_1_7_0\gdal\frmts>cd bsb   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd zlib   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd jp2kak   && nmake /nologo /f makefile.vc   && cd .. 
+ copy C:\kakadu_5_2_6\v5_2_6-00691N\obj\*.obj ..\o
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\args.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\image_in.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\image_out.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\jp2.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\jpx.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\kdu_cache.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\kdu_region_decompressor.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\kdu_stripe_decompressor.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\kdu_tiff.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\mj2.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\palette.obj
+C:\kakadu_5_2_6\v5_2_6-00691N\obj\roi_sources.obj
+       12 file(s) copied.
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd grib   && nmake /nologo /f makefile.vc   && cd .. 
+ cd degrib18 && nmake /NOLOGO /f makefile.vc && cd ..
+ cd degrib && nmake /NOLOGO /f makefile.vc && cd ..
+ xcopy /D /Y *.obj ..\..\..\o
+0 File(s) copied
+ cd g2clib-1.0.4 && nmake /NOLOGO /f makefile.vc && cd ..
+ xcopy /D /Y *.obj ..\..\..\o
+0 File(s) copied
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd wcs   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+C:\GDAL_1_7_0\gdal\frmts>cd wms   && nmake /nologo /f makefile.vc   && cd .. 
+ xcopy /D  /Y *.obj ..\o
+0 File(s) copied
+ cd ..
+ cd vb6 nmake /nologo /f makefile.vc
+ cd ..
+ if exist gdal.lib del gdal.lib
+ lib /nologo /out:gdal.lib port\*.obj gcore\*.obj alg\*.obj frmts\o\*.obj ogr\ogrsf_frmts\ogrsf_frmts.lib ogr\ogr.lib vb6\vb6_support.obj
+ link /nologo /dll /INCLUDE:_OGRFeatureStylePuller  /INCLUDE:_OSRValidate  /INCLUDE:_OPTGetProjectionMethods  /INCLUDE:_OGR_G_GetPointCount  /INCLUDE:_OGRRegisterAll /INCLUDE:_GDALSimpleImageWarp@36  /INCLUDE:_GDALReprojectImage@48  /INCLUDE:_GDALComputeMedianCutPCT@32  /INCLUDE:_GDALDitherRGB2PCT@28  /INCLUDE:_OCTNewCoordinateTransformation@8 /INCLUDE:_vbSafeArrayToPtr@16 port\*.obj gcore\*.obj alg\*.obj frmts\o\*.obj ogr\ogrsf_frmts\ogrsf_frmts.lib ogr\ogr.lib vb6\vb6_support.obj       odbc32.lib odbccp32.lib user32.lib                          C:\libcurl/libcurl_imp.lib wsock32.lib wldap32.lib winmm.lib  C:\kakadu_5_2_6\v5_2_6-00691N\..\lib\kdu_v52R.lib gcore\Version.res  /out:gdal17dev.dll /implib:gdal_i.lib  /debug
+ if exist gdal17dev.dll.manifest mt -manifest gdal17dev.dll.manifest -outputresource:gdal17dev.dll;2
+ cd frmts
+ nmake /nologo /f makefile.vc plugindirs
+ for %d in (  ) do  cd %d  && nmake /nologo /f makefile.vc plugin  && cd ..
+ cd ..
+ cd apps nmake /nologo /f makefile.vc
+ cd ..
+ cd pymod if exist "C:\Python25"\python.exe nmake /nologo /f makefile.vc
+ cd ..
+Microsoft (R) Program Maintenance Utility Version 7.10.3077
+Copyright (C) Microsoft Corporation.  All rights reserved.
+ if exist gdal.lib del gdal.lib
+ lib /nologo /out:gdal.lib port\*.obj gcore\*.obj alg\*.obj frmts\o\*.obj ogr\ogrsf_frmts\ogrsf_frmts.lib ogr\ogr.lib vb6\vb6_support.obj
+ link /nologo /dll /INCLUDE:_OGRFeatureStylePuller  /INCLUDE:_OSRValidate  /INCLUDE:_OPTGetProjectionMethods  /INCLUDE:_OGR_G_GetPointCount  /INCLUDE:_OGRRegisterAll /INCLUDE:_GDALSimpleImageWarp@36  /INCLUDE:_GDALReprojectImage@48  /INCLUDE:_GDALComputeMedianCutPCT@32  /INCLUDE:_GDALDitherRGB2PCT@28  /INCLUDE:_OCTNewCoordinateTransformation@8 /INCLUDE:_vbSafeArrayToPtr@16 port\*.obj gcore\*.obj alg\*.obj frmts\o\*.obj ogr\ogrsf_frmts\ogrsf_frmts.lib ogr\ogr.lib vb6\vb6_support.obj       odbc32.lib odbccp32.lib user32.lib                          C:\libcurl/libcurl_imp.lib wsock32.lib wldap32.lib winmm.lib  C:\kakadu_5_2_6\v5_2_6-00691N\..\lib\kdu_v52R.lib gcore\Version.res  /out:gdal17dev.dll /implib:gdal_i.lib  /debug
+ if exist gdal17dev.dll.manifest mt -manifest gdal17dev.dll.manifest -outputresource:gdal17dev.dll;2
+ cd frmts
+ nmake /nologo /f makefile.vc plugindirs
+ for %d in (  ) do  cd %d  && nmake /nologo /f makefile.vc plugin  && cd ..
+ cd ..
+ cd apps nmake /nologo /f makefile.vc
+ cd ..
+ cd pymod if exist "C:\Python25"\python.exe nmake /nologo /f makefile.vc
+ cd ..
+ mkdir "C:\warmerda\bld"\bin
+A subdirectory or file C:\warmerda\bld\bin already exists.
+ mkdir "C:\warmerda\bld"\data
+A subdirectory or file C:\warmerda\bld\data already exists.
+ xcopy /y /r /d /f gdal17dev.dll "C:\warmerda\bld"\bin
+C:\Gdal_1_7_0\gdal\gdal17dev.dll -> C:\warmerda\bld\bin\gdal17dev.dll
+1 File(s) copied
+ cd frmts
+ nmake /nologo /f makefile.vc plugins-install
+ for %d in (  ) do  cd %d  && nmake /nologo /f makefile.vc plugin-install  && cd ..
+ cd ..\apps
+ nmake /nologo /f makefile.vc install
+ copy *.exe "C:\warmerda\bld"\bin
+gdaladdo.exe
+gdalbuildvrt.exe
+gdalenhance.exe
+gdalinfo.exe
+gdalmanage.exe
+gdaltindex.exe
+gdaltransform.exe
+gdalwarp.exe
+gdal_contour.exe
+gdal_grid.exe
+gdal_rasterize.exe
+gdal_translate.exe
+nearblack.exe
+ogr2ogr.exe
+ogrinfo.exe
+ogrtindex.exe
+       16 file(s) copied.
+ cd ..\pymod
+ if exist "C:\Python25"\python.exe nmake /nologo /f makefile.vc install
+ mkdir "C:\warmerda\bld"\pymod
+A subdirectory or file C:\warmerda\bld\pymod already exists.
+ for %d in ( gdal.py ogr.py osr.py gdalconst.py gdalnumeric.py ) do copy %d "C:\warmerda\bld"\pymod
+c:\Gdal_1_7_0\gdal\pymod>copy gdal.py "C:\warmerda\bld"\pymod 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ogr.py "C:\warmerda\bld"\pymod 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy osr.py "C:\warmerda\bld"\pymod 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy gdalconst.py "C:\warmerda\bld"\pymod 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy gdalnumeric.py "C:\warmerda\bld"\pymod 
+        1 file(s) copied.
+ mkdir "C:\warmerda\bld"\pymod
+A subdirectory or file C:\warmerda\bld\pymod already exists.
+ for %d in ( ..\swig\python\scripts\epsg_tr.py  ..\swig\python\scripts\gdalchksum.py  ..\swig\python\scripts\gdal2xyz.py  ..\swig\python\scripts\gcps2wld.py  ..\swig\python\scripts\gdalimport.py  ..\swig\python\scripts\gdal_merge.py  ..\swig\python\scripts\pct2rgb.py  ..\swig\python\scripts\rgb2pct.py  ..\swig\python\scripts\gcps2vec.py  ..\swig\python\scripts\mkgraticule.py ) do copy %d "C:\warmerda\bld"\bin
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\epsg_tr.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\gdalchksum.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\gdal2xyz.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\gcps2wld.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\gdalimport.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\gdal_merge.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\pct2rgb.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\rgb2pct.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\gcps2vec.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\pymod>copy ..\swig\python\scripts\mkgraticule.py "C:\warmerda\bld"\bin 
+        1 file(s) copied.
+ copy _gdal.dll "C:\warmerda\bld"\pymod
+        1 file(s) copied.
+ if exist _gdal.dll.manifest xcopy /y /r /d /f _gdal.dll.manifest "C:\warmerda\bld"\pymod
+ cd ..
+ xcopy /y /r /d /f data\*.* "C:\warmerda\bld"\data
+0 File(s) copied
+ xcopy /y /r /d /f LICENSE.TXT "C:\warmerda\bld"\data
+0 File(s) copied
+ mkdir "C:\warmerda\bld"\html
+A subdirectory or file C:\warmerda\bld\html already exists.
+ cd frmts
+ nmake /nologo /f makefile.vc html-install
+ copy *.html "C:\warmerda\bld"\html
+formats_list.html
+frmt_various.html
+        2 file(s) copied.
+ for %d in ( ceos aigrid elas hfa gtiff sdts raw gxf ceos2 png  dted mem jdem gif  envisat aaigrid usgsdem l1b  fit vrt xpm bmp rmf  nitf pcidsk airsar rs2  ilwis msgn rik pcraster  leveller sgi srtmhgt idrisi  jaxapalsar ers ingr dimap  gff terragen gsg cosar pds  adrg coasp tsx blx jpipkak jpeg bsb zlib jp2kak grib wcs wms ) do  copy %d\frmt_*.html "C:\warmerda\bld"\html
+c:\Gdal_1_7_0\gdal\frmts>copy ceos\frmt_*.html "C:\warmerda\bld"\html 
+ceos\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy aigrid\frmt_*.html "C:\warmerda\bld"\html 
+aigrid\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy elas\frmt_*.html "C:\warmerda\bld"\html 
+elas\frmt_elas.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy hfa\frmt_*.html "C:\warmerda\bld"\html 
+hfa\frmt_hfa.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy gtiff\frmt_*.html "C:\warmerda\bld"\html 
+gtiff\frmt_gtiff.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy sdts\frmt_*.html "C:\warmerda\bld"\html 
+sdts\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy raw\frmt_*.html "C:\warmerda\bld"\html 
+raw\frmt_fast.html
+raw\frmt_lcp.html
+raw\frmt_mff2.html
+        3 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy gxf\frmt_*.html "C:\warmerda\bld"\html 
+gxf\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy ceos2\frmt_*.html "C:\warmerda\bld"\html 
+ceos2\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy png\frmt_*.html "C:\warmerda\bld"\html 
+png\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy dted\frmt_*.html "C:\warmerda\bld"\html 
+dted\frmt_dted.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy mem\frmt_*.html "C:\warmerda\bld"\html 
+mem\frmt_mem.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy jdem\frmt_*.html "C:\warmerda\bld"\html 
+jdem\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy gif\frmt_*.html "C:\warmerda\bld"\html 
+gif\frmt_gif.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy envisat\frmt_*.html "C:\warmerda\bld"\html 
+envisat\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy aaigrid\frmt_*.html "C:\warmerda\bld"\html 
+aaigrid\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy usgsdem\frmt_*.html "C:\warmerda\bld"\html 
+usgsdem\frmt_usgsdem.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy l1b\frmt_*.html "C:\warmerda\bld"\html 
+l1b\frmt_l1b.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy fit\frmt_*.html "C:\warmerda\bld"\html 
+fit\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy vrt\frmt_*.html "C:\warmerda\bld"\html 
+vrt\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy xpm\frmt_*.html "C:\warmerda\bld"\html 
+xpm\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy bmp\frmt_*.html "C:\warmerda\bld"\html 
+bmp\frmt_bmp.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy rmf\frmt_*.html "C:\warmerda\bld"\html 
+rmf\frmt_rmf.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy nitf\frmt_*.html "C:\warmerda\bld"\html 
+nitf\frmt_nitf.html
+nitf\frmt_nitf_advanced.html
+        2 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy pcidsk\frmt_*.html "C:\warmerda\bld"\html 
+pcidsk\frmt_pcidsk.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy airsar\frmt_*.html "C:\warmerda\bld"\html 
+airsar\frmt_airsar.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy rs2\frmt_*.html "C:\warmerda\bld"\html 
+rs2\frmt_rs2.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy ilwis\frmt_*.html "C:\warmerda\bld"\html 
+ilwis\frmt_ilwis.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy msgn\frmt_*.html "C:\warmerda\bld"\html 
+msgn\frmt_msgn.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy rik\frmt_*.html "C:\warmerda\bld"\html 
+rik\frmt_rik.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy pcraster\frmt_*.html "C:\warmerda\bld"\html 
+pcraster\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy leveller\frmt_*.html "C:\warmerda\bld"\html 
+leveller\frmt_leveller.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy sgi\frmt_*.html "C:\warmerda\bld"\html 
+sgi\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy srtmhgt\frmt_*.html "C:\warmerda\bld"\html 
+srtmhgt\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy idrisi\frmt_*.html "C:\warmerda\bld"\html 
+idrisi\frmt_Idrisi.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy jaxapalsar\frmt_*.html "C:\warmerda\bld"\html 
+jaxapalsar\frmt_palsar.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy ers\frmt_*.html "C:\warmerda\bld"\html 
+ers\frmt_ers.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy ingr\frmt_*.html "C:\warmerda\bld"\html 
+ingr\frmt_intergraphraster.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy dimap\frmt_*.html "C:\warmerda\bld"\html 
+dimap\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy gff\frmt_*.html "C:\warmerda\bld"\html 
+gff\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy terragen\frmt_*.html "C:\warmerda\bld"\html 
+terragen\frmt_terragen.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy gsg\frmt_*.html "C:\warmerda\bld"\html 
+gsg\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy cosar\frmt_*.html "C:\warmerda\bld"\html 
+cosar\frmt_cosar.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy pds\frmt_*.html "C:\warmerda\bld"\html 
+pds\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy adrg\frmt_*.html "C:\warmerda\bld"\html 
+adrg\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy coasp\frmt_*.html "C:\warmerda\bld"\html 
+coasp\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy tsx\frmt_*.html "C:\warmerda\bld"\html 
+tsx\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy blx\frmt_*.html "C:\warmerda\bld"\html 
+blx\frmt_blx.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy jpipkak\frmt_*.html "C:\warmerda\bld"\html 
+jpipkak\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy jpeg\frmt_*.html "C:\warmerda\bld"\html 
+jpeg\frmt_jpeg.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy bsb\frmt_*.html "C:\warmerda\bld"\html 
+bsb\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy zlib\frmt_*.html "C:\warmerda\bld"\html 
+zlib\frmt_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy jp2kak\frmt_*.html "C:\warmerda\bld"\html 
+jp2kak\frmt_jp2kak.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy grib\frmt_*.html "C:\warmerda\bld"\html 
+grib\frmt_grib.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy wcs\frmt_*.html "C:\warmerda\bld"\html 
+wcs\frmt_wcs.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\frmts>copy wms\frmt_*.html "C:\warmerda\bld"\html 
+wms\frmt_wms.html
+        1 file(s) copied.
+ cd ..
+ cd ogr nmake /nologo /f makefile.vc install
+ cd ..
+ cd ogr\ogrsf_frmts nmake /nologo /f makefile.vc html-install
+ copy *.html "C:\warmerda\bld"\html
+ogr_formats.html
+        1 file(s) copied.
+ for %d in ( generic geojson shape ntf sdts tiger s57 dgn mitab gml  avc rec mem vrt csv gmt bna kml gpx  geoconcept xplane georss        odbc pgeo         ) do  copy %d\drv_*.html "C:\warmerda\bld"\html
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy generic\drv_*.html "C:\warmerda\bld"\html 
+generic\drv_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy geojson\drv_*.html "C:\warmerda\bld"\html 
+geojson\drv_geojson.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy shape\drv_*.html "C:\warmerda\bld"\html 
+shape\drv_shapefile.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy ntf\drv_*.html "C:\warmerda\bld"\html 
+ntf\drv_ntf.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy sdts\drv_*.html "C:\warmerda\bld"\html 
+sdts\drv_sdts.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy tiger\drv_*.html "C:\warmerda\bld"\html 
+tiger\drv_tiger.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy s57\drv_*.html "C:\warmerda\bld"\html 
+s57\drv_s57.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy dgn\drv_*.html "C:\warmerda\bld"\html 
+dgn\drv_dgn.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy mitab\drv_*.html "C:\warmerda\bld"\html 
+mitab\drv_mitab.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy gml\drv_*.html "C:\warmerda\bld"\html 
+gml\drv_gml.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy avc\drv_*.html "C:\warmerda\bld"\html 
+avc\drv_avcbin.html
+avc\drv_avce00.html
+        2 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy rec\drv_*.html "C:\warmerda\bld"\html 
+rec\drv_*.html 
+The system cannot find the file specified.
+        0 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy mem\drv_*.html "C:\warmerda\bld"\html 
+mem\drv_memory.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy vrt\drv_*.html "C:\warmerda\bld"\html 
+vrt\drv_vrt.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy csv\drv_*.html "C:\warmerda\bld"\html 
+csv\drv_csv.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy gmt\drv_*.html "C:\warmerda\bld"\html 
+gmt\drv_gmt.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy bna\drv_*.html "C:\warmerda\bld"\html 
+bna\drv_bna.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy kml\drv_*.html "C:\warmerda\bld"\html 
+kml\drv_kml.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy gpx\drv_*.html "C:\warmerda\bld"\html 
+gpx\drv_gpx.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy geoconcept\drv_*.html "C:\warmerda\bld"\html 
+geoconcept\drv_geoconcept.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy xplane\drv_*.html "C:\warmerda\bld"\html 
+xplane\drv_xplane.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy georss\drv_*.html "C:\warmerda\bld"\html 
+georss\drv_georss.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy odbc\drv_*.html "C:\warmerda\bld"\html 
+odbc\drv_odbc.html
+        1 file(s) copied.
+c:\Gdal_1_7_0\gdal\ogr\ogrsf_frmts>copy pgeo\drv_*.html "C:\warmerda\bld"\html 
+pgeo\drv_pgeo.html
+        1 file(s) copied.
+ cd ..\..
+</pre></table><table width=100% bgcolor=#DFDFE5><tr><td><font face=arial size=+2>
+Results
+</font></table><table width=* cellspacing=0 cellpadding=0><tr><td width=0 bgcolor=#EDEDF5>&nbsp;</td><td width=0 bgcolor=#FFFFFF>&nbsp;</td><td width=*><pre>
+Build log was saved at "file://c:\Gdal_1_7_0\gdal\Debug\BuildLog.htm"
+makegdal - 0 error(s), 72 warning(s)</pre></table><table   width=100% height=20 bgcolor=#CFCFE5><tr><td><font face=arial size=+2>
+</font></table></body></html>
