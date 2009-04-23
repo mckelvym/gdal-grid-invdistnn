@@ -53,9 +53,7 @@ CBandInterleavedChannel::CBandInterleavedChannel( PCIDSKBuffer &image_header,
 /* -------------------------------------------------------------------- */
 /*      Establish the data layout.                                      */
 /* -------------------------------------------------------------------- */
-    byte_order = image_header.buffer[201];
-
-    if( strncmp(file_header.Get(360,8),"FILE",4) == 0 )
+    if( strcmp(file->GetInterleaving(),"FILE") == 0 )
     {
         start_byte = atouint64(image_header.Get( 168, 16 ));
         pixel_offset = atouint64(image_header.Get( 184, 8 ));
@@ -71,18 +69,10 @@ CBandInterleavedChannel::CBandInterleavedChannel( PCIDSKBuffer &image_header,
 /* -------------------------------------------------------------------- */
 /*      Establish the file we will be accessing.                        */
 /* -------------------------------------------------------------------- */
-    int i;
+    image_header.Get(64,64,filename);
 
-    strcpy( filename, image_header.Get( 64, 64 ) );
-    for( i = 63; i >= 0 && filename[i] == ' '; i-- )
-    {
-        filename[i] = '\0';
-    }
-
-    if( strlen(filename) != 0 )
-        throw new PCIDSKException( "External (FILE interleaved) channels not yet supported." );
-
-    file->GetIODetails( &io_handle_p, &io_mutex_p );
+    if( filename.length() == 0 )
+        file->GetIODetails( &io_handle_p, &io_mutex_p );
 }
 
 /************************************************************************/
@@ -105,6 +95,12 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
     int    pixel_size = DataTypeSize( pixel_type );
 
     PCIDSKInterfaces *interfaces = file->GetInterfaces();
+
+/* -------------------------------------------------------------------- */
+/*      Get file access handles if we don't already have them.          */
+/* -------------------------------------------------------------------- */
+    if( io_handle_p == NULL )
+        file->GetIODetails( &io_handle_p, &io_mutex_p, filename );
 
 /* -------------------------------------------------------------------- */
 /*      If the imagery is packed, we can read directly into the         */
@@ -143,9 +139,10 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
     }
 
 /* -------------------------------------------------------------------- */
-/*      Do we need to byte swap the data?                               */
+/*      Do byte swapping if needed.                                     */
 /* -------------------------------------------------------------------- */
-    /* TODO */
+    if( needs_swap )
+        SwapData( buffer, pixel_size, width );
 
     return 1;
 }

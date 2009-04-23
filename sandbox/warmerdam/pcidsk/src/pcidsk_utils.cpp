@@ -78,3 +78,48 @@ int PCIDSK::DataTypeSize( eChanType chan_type )
         return 0;
     }
 }
+
+/************************************************************************/
+/*                              SwapData()                              */
+/************************************************************************/
+
+void PCIDSK::SwapData( void *data, int size, int count )
+
+{
+    uint8 *data8 = (uint8 *) data;
+
+    if( size == 2 )
+    {
+        uint8 t;
+
+        for( ; count; count-- )
+        {
+            t = data8[0];
+            data8[0] = data8[1];
+            data8[1] = t;
+
+            data8 += 2;
+        }
+    }
+    else if( size == 1 )
+        /* do nothing */; 
+    else if( size == 4 )
+    {
+        uint8 t;
+
+        for( ; count; count-- )
+        {
+            t = data8[0];
+            data8[0] = data8[3];
+            data8[3] = t;
+
+            t = data8[1];
+            data8[1] = data8[2];
+            data8[2] = t;
+
+            data8 += 4;
+        }
+    }
+    else
+        throw new PCIDSKException( "Unsupported data size in SwapData()" );
+}

@@ -190,7 +190,7 @@ void CPCIDSKFile::InitializeFromHeader()
 
     uint64 ih_start_block = atouint64(fh.Get(336,16));
     uint64 image_start_block = atouint64(fh.Get(304,16));
-    interleaving = fh.Get(360,8);
+    fh.Get(360,8,interleaving);
 
     uint64 image_offset = (image_start_block-1) * 512;
 
@@ -199,6 +199,18 @@ void CPCIDSKFile::InitializeFromHeader()
     last_block_dirty = 0;
     last_block_data = NULL;
     last_block_mutex = NULL;
+
+/* -------------------------------------------------------------------- */
+/*      Load the segment pointers into a PCIDSKBuffer.  For now we      */
+/*      try to avoid doing too much other processing on them.           */
+/* -------------------------------------------------------------------- */
+    int segment_block_count = atoi(fh.Get(456,8));
+    
+    segment_count = (segment_block_count * 512) / 32;
+    segment_pointers.SetSize( segment_block_count * 512 );
+    ReadFromFile( segment_pointers.buffer, 
+                  atouint64(fh.Get(440,16)) * 512, 
+                  segment_block_count * 512 );
 
 /* -------------------------------------------------------------------- */
 /*      Get the number of each channel type - only used for some        */
@@ -213,7 +225,7 @@ void CPCIDSKFile::InitializeFromHeader()
 /*      for pixel interleaved files we need to compute the length of    */
 /*      a scanline padded out to a 512 byte boundary.                   */
 /* -------------------------------------------------------------------- */
-    if( interleaving == "PIXEL   " )
+    if( interleaving == "PIXEL" )
     {
         first_line_offset = image_offset;
         pixel_group_size = count_8u + count_16s*2 + count_16u*2 + count_32r*4;
@@ -239,11 +251,15 @@ void CPCIDSKFile::InitializeFromHeader()
     for( channelnum = 1; channelnum <= channel_count; channelnum++ )
     {
         PCIDSKBuffer ih(1024);
-        PCIDSKChannel *channel;
+        PCIDSKChannel *channel = NULL;
         
         ReadFromFile( ih.buffer, 
                       (ih_start_block-1)*512 + (channelnum-1)*1024, 
                       1024);
+
+        // fetch the filename, if there is one.
+        std::string filename;
+        ih.Get(64,64,filename);
 
         // work out channel type from header
         eChanType pixel_type;
@@ -271,7 +287,7 @@ void CPCIDSKFile::InitializeFromHeader()
         else 
             pixel_type = CHN_32R;
             
-        if( interleaving == "BAND    " )
+        if( interleaving == "BAND" )
         {
             channel = new CBandInterleavedChannel( ih, fh, channelnum, this,
                                                    image_offset, pixel_type );
@@ -283,13 +299,29 @@ void CPCIDSKFile::InitializeFromHeader()
             // bands start on block boundaries I think.
             image_offset = ((image_offset+511) / 512) * 512;
         }
-        else if( interleaving == "PIXEL   " )
+
+        else if( interleaving == "PIXEL" )
         {
             channel = new CPixelInterleavedChannel( ih, fh, channelnum, this,
                                                     (int) image_offset, 
                                                     pixel_type );
             image_offset += DataTypeSize(pixel_type);
         }
+
+        else if( interleaving == "FILE" 
+                 && strncmp(filename.c_str(),"/SIS=",5) == 0 )
+        {
+        }
+
+        else if( interleaving == "FILE" )
+        {
+            channel = new CBandInterleavedChannel( ih, fh, channelnum, this,
+                                                   0, pixel_type );
+        }
+
+        else
+            throw new PCIDSKException( "Unsupported interleaving:%s", 
+                                       interleaving.c_str() );
 
         channels.push_back( channel );
     }

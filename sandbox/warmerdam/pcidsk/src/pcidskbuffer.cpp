@@ -37,14 +37,11 @@ using namespace PCIDSK;
 PCIDSKBuffer::PCIDSKBuffer( int size )
 
 {
-    buffer_size = size;
-    buffer = (char *) malloc(size+1);
+    buffer_size = 0;
+    buffer = NULL;
 
-    if( buffer == NULL )
-        throw PCIDSKException( "Out of memory allocating %d byte PCIDSKBuffer.",
-                               size );
-
-    buffer[size] = '\0';
+    if( size > 0 )
+        SetSize( size );
 }
 
 /************************************************************************/
@@ -58,18 +55,53 @@ PCIDSKBuffer::~PCIDSKBuffer()
 }
 
 /************************************************************************/
+/*                              SetSize()                               */
+/************************************************************************/
+
+void PCIDSKBuffer::SetSize( int size )
+
+{
+    if( buffer != NULL )
+        free( buffer );
+
+    buffer_size = size;
+    buffer = (char *) malloc(size+1);
+
+    if( buffer == NULL )
+        throw PCIDSKException( "Out of memory allocating %d byte PCIDSKBuffer.",
+                               size );
+
+    buffer[size] = '\0';
+}
+
+/************************************************************************/
 /*                                Get()                                 */
 /************************************************************************/
 
 const char *PCIDSKBuffer::Get( int offset, int size )
 
 {
+    Get( offset, size, work_field, 0 );
+    return work_field.c_str();
+}
+
+/************************************************************************/
+/*                                Get()                                 */
+/************************************************************************/
+
+void PCIDSKBuffer::Get( int offset, int size, std::string &target, int unpad )
+
+{
     if( offset + size > buffer_size )
         throw PCIDSKException( "Get() past end of PCIDSKBuffer." );
 
-    work_field.assign( buffer + offset, size );
+    if( unpad )
+    {
+        while( size > 0 && buffer[offset+size-1] == ' ' )
+            size--;
+    }
 
-    return work_field.c_str();
+    target.assign( buffer + offset, size );
 }
 
 /************************************************************************/

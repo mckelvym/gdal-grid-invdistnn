@@ -121,8 +121,8 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer )
 /* -------------------------------------------------------------------- */
 /*      Do byte swapping if needed.                                     */
 /* -------------------------------------------------------------------- */
-
-    // TODO
+    if( needs_swap )
+        SwapData( buffer, pixel_size, width );
 
     return 0;
 }

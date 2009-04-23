@@ -47,6 +47,20 @@ CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header,
 
     block_width = width;
     block_height = 1;
+
+/* -------------------------------------------------------------------- */
+/*      Establish if we need to byte swap the data on load/store.       */
+/* -------------------------------------------------------------------- */
+    unsigned short test_value = 1;
+
+    byte_order = image_header.buffer[201];
+    if( ((uint8 *) &test_value)[0] == 1 )
+        needs_swap = (byte_order != 'S');
+    else
+        needs_swap = (byte_order == 'S');
+
+    if( pixel_type == CHN_8U )
+        needs_swap = 0;
 }
 
 /************************************************************************/

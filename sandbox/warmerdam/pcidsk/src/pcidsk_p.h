@@ -33,8 +33,37 @@
 
 namespace PCIDSK {
 
-class PCIDSKBuffer;
 class CPCIDSKFile;
+
+/************************************************************************/
+/*                             PCIDSKBuffer                             */
+/*                                                                      */
+/*      Convenience class for managing ascii headers of various         */
+/*      sorts.  Primarily for internal use.                             */
+/************************************************************************/
+
+class PCIDSKBuffer 
+{
+private:
+    std::string work_field;
+
+public:
+    PCIDSKBuffer( int size = 0 );
+    ~PCIDSKBuffer();
+
+    char	*buffer;
+    int         buffer_size;
+
+    const char *Get( int offset, int size );
+    void        Get( int offset, int size, std::string &target, int unpad=1 );
+
+    int64       GetInt64( int offset, int size );
+    uint64      GetUInt64( int offset, int size );
+
+    void        Put( const char *value,  int offset, int size );
+
+    void        SetSize( int size );
+};
 
 /************************************************************************/
 /*                              PCIDSKFile                              */
@@ -60,6 +89,9 @@ private:
 
     std::vector<PCIDSKChannel*> channels;
 
+    int          segment_count;
+    PCIDSKBuffer segment_pointers;
+
     // pixel interleaved info.
     uint64       block_size; // pixel interleaved scanline size.
     int          pixel_group_size; // pixel interleaved pixel_offset value.
@@ -69,6 +101,9 @@ private:
     int          last_block_dirty;
     void        *last_block_data;
     Mutex       *last_block_mutex;
+
+    // register of open external raw files.
+    std::vector<std::string> 
 
 public:
 
@@ -99,6 +134,8 @@ public:
 
     void      GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp )
         { *io_handle_pp = &io_handle; *io_mutex_pp = &io_mutex; }
+    void      GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
+                            std::string &filename );
 };
 
 /************************************************************************/
@@ -113,6 +150,8 @@ class CPCIDSKChannel : public PCIDSKChannel
 
 protected:
     eChanType pixel_type;
+    char      byte_order; // 'S': littleendian, 'N': bigendian
+    int       needs_swap;
 
     // width/height, and block size.
     int       width;
@@ -143,6 +182,7 @@ class CPixelInterleavedChannel : public CPCIDSKChannel
 {
 private:
     int      image_offset;
+
 public:
     CPixelInterleavedChannel( PCIDSKBuffer &image_header, 
                               PCIDSKBuffer &file_header, 
@@ -166,12 +206,11 @@ class CBandInterleavedChannel : public CPCIDSKChannel
 {
 private:
     // raw file layout - internal or external
-    char      byte_order; // 'S': littleendian, 'N': bigendian
     uint64    start_byte;
     uint64    pixel_offset;
     uint64    line_offset;
 
-    char      filename[65];
+    std::string filename;
 
     void     **io_handle_p;
     Mutex    **io_mutex_p;
@@ -252,37 +291,12 @@ class PCIDSK_DLL MutexHolder
 };
 
 /************************************************************************/
-/*                             PCIDSKBuffer                             */
-/*                                                                      */
-/*      Convenience class for managing ascii headers of various         */
-/*      sorts.  Primarily for internal use.                             */
-/************************************************************************/
-
-class PCIDSKBuffer 
-{
-private:
-    std::string work_field;
-
-public:
-    PCIDSKBuffer( int size );
-    ~PCIDSKBuffer();
-
-    char	*buffer;
-    int         buffer_size;
-
-    const char *Get( int offset, int size );
-    int64       GetInt64( int offset, int size );
-    uint64      GetUInt64( int offset, int size );
-
-    void        Put( const char *value,  int offset, int size );
-};
-
-/************************************************************************/
 /*                          Utility functions.                          */
 /************************************************************************/
 
 uint64 atouint64( const char *);
 int64  atoint64( const char *);
+void   SwapData( void *data, int value_size, int value_count );
 
 }; // end of PCIDSK namespace
 
