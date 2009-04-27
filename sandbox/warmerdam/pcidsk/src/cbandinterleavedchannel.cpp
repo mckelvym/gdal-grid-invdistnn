@@ -100,7 +100,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
 /*      Get file access handles if we don't already have them.          */
 /* -------------------------------------------------------------------- */
     if( io_handle_p == NULL )
-        file->GetIODetails( &io_handle_p, &io_mutex_p, filename );
+        file->GetIODetails( &io_handle_p, &io_mutex_p, filename.c_str() );
 
 /* -------------------------------------------------------------------- */
 /*      If the imagery is packed, we can read directly into the         */
@@ -146,7 +146,6 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
 
     return 1;
 }
-
 
 /************************************************************************/
 /*                             WriteBlock()                             */

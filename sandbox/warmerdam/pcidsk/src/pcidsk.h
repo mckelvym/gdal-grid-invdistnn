@@ -181,6 +181,9 @@ public:
     // low level io, primarily internal.
     virtual void WriteToFile( const void *buffer, uint64 offset, uint64 size)=0;
     virtual void ReadFromFile( void *buffer, uint64 offset, uint64 size ) = 0;
+
+    virtual void GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
+                            const char *filename = "" ) = 0;
 };
 
 PCIDSKFile PCIDSK_DLL *Open( const char *filename, const char *access,  

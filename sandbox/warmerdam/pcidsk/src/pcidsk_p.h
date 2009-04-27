@@ -66,6 +66,17 @@ public:
 };
 
 /************************************************************************/
+/*                            ProtectedFile                             */
+/************************************************************************/
+class ProtectedFile
+{
+  public:
+    std::string     filename;
+    void           *io_handle;
+    Mutex          *io_mutex;
+};
+ 
+/************************************************************************/
 /*                              PCIDSKFile                              */
 /************************************************************************/
 class CPCIDSKFile : public PCIDSKFile
@@ -78,9 +89,6 @@ private:
     PCIDSKInterfaces interfaces;
     
     void         InitializeFromHeader();
-
-    void        *io_handle;
-    Mutex       *io_mutex;
 
     int          width;
     int          height;
@@ -102,8 +110,11 @@ private:
     void        *last_block_data;
     Mutex       *last_block_mutex;
 
+    void        *io_handle;
+    Mutex       *io_mutex;
+
     // register of open external raw files.
-    std::vector<std::string> 
+    std::vector<ProtectedFile>  file_list;
 
 public:
 
@@ -132,10 +143,8 @@ public:
     void      WriteToFile( const void *buffer, uint64 offset, uint64 size );
     void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
 
-    void      GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp )
-        { *io_handle_pp = &io_handle; *io_mutex_pp = &io_mutex; }
     void      GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
-                            std::string &filename );
+                            const char *filename = "" );
 };
 
 /************************************************************************/

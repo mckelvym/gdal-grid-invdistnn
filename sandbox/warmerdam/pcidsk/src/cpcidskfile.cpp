@@ -133,6 +133,17 @@ CPCIDSKFile::~CPCIDSKFile()
         }
     }
 
+    size_t i_file;
+
+    for( i_file=0; i_file < file_list.size(); i_file++ )
+    {
+        delete file_list[i_file].io_mutex;
+        file_list[i_file].io_mutex = NULL;
+
+        interfaces.io->Close( file_list[i_file].io_handle );
+        file_list[i_file].io_handle = NULL;
+    }
+
     delete io_mutex;
 }
 
@@ -234,7 +245,7 @@ void CPCIDSKFile::InitializeFromHeader()
         if( block_size % 512 != 0 )
             block_size += 512 - (block_size % 512);
 
-        last_block_data = malloc(block_size);
+        last_block_data = malloc((size_t) block_size);
         if( last_block_data == NULL )
             throw new PCIDSKException( "Allocating %d bytes for scanline buffer failed.", 
                                        (int) block_size );
@@ -433,4 +444,63 @@ void CPCIDSKFile::FlushBlock()
     }
 }
 
+/************************************************************************/
+/*                            GetIODetails()                            */
+/************************************************************************/
 
+void CPCIDSKFile::GetIODetails( void ***io_handle_pp, 
+                                Mutex ***io_mutex_pp, 
+                                const char *filename )
+
+{
+    *io_handle_pp = NULL;
+    *io_mutex_pp = NULL;
+
+/* -------------------------------------------------------------------- */
+/*      Does this reference the PCIDSK file itself?                     */
+/* -------------------------------------------------------------------- */
+    if( filename == NULL || strlen(filename) == 0 )
+    {
+        *io_handle_pp = &io_handle;
+        *io_mutex_pp = &io_mutex;
+        return;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Does the file exist already in our file list?                   */
+/* -------------------------------------------------------------------- */
+    unsigned int i;
+
+    for( i = 0; i < file_list.size(); i++ )
+    {
+        if( strcmp(file_list[i].filename.c_str(),filename) == 0 )
+        {
+            *io_handle_pp = &(file_list[i].io_handle);
+            *io_mutex_pp = &(file_list[i].io_mutex);
+            return;
+        }
+    }
+
+/* -------------------------------------------------------------------- */
+/*      If not, we need to try and open the file.  Eventually we        */
+/*      will need better rules about read or update access.             */
+/* -------------------------------------------------------------------- */
+    ProtectedFile new_file;
+    
+    new_file.io_handle = interfaces.io->Open( filename, "r" );
+    if( new_file.io_handle == NULL )
+        throw new PCIDSKException( "Unable to open file '%s'.", 
+                                   filename );
+
+/* -------------------------------------------------------------------- */
+/*      Push the new file into the list of files managed for this       */
+/*      PCIDSK file.                                                    */
+/* -------------------------------------------------------------------- */
+    new_file.io_mutex = interfaces.CreateMutex();
+    new_file.filename = filename;
+
+    file_list.push_back( new_file );
+
+    *io_handle_pp = &(file_list[file_list.size()-1].io_handle);
+    *io_mutex_pp  = &(file_list[file_list.size()-1].io_mutex);
+}
