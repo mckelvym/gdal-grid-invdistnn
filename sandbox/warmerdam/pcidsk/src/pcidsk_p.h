@@ -34,6 +34,7 @@
 namespace PCIDSK {
 
 class CPCIDSKFile;
+class PCIDSKSegment;
 
 /************************************************************************/
 /*                             PCIDSKBuffer                             */
@@ -49,6 +50,7 @@ private:
 
 public:
     PCIDSKBuffer( int size = 0 );
+    PCIDSKBuffer( const char *src, int size );
     ~PCIDSKBuffer();
 
     char	*buffer;
@@ -57,6 +59,8 @@ public:
     const char *Get( int offset, int size );
     void        Get( int offset, int size, std::string &target, int unpad=1 );
 
+    double      GetDouble( int offset, int size );
+    int         GetInt( int offset, int size );
     int64       GetInt64( int offset, int size );
     uint64      GetUInt64( int offset, int size );
 
@@ -100,6 +104,8 @@ private:
     int          segment_count;
     PCIDSKBuffer segment_pointers;
 
+    std::vector<PCIDSKSegment*> segments;
+
     // pixel interleaved info.
     uint64       block_size; // pixel interleaved scanline size.
     int          pixel_group_size; // pixel interleaved pixel_offset value.
@@ -124,8 +130,10 @@ public:
     virtual PCIDSKInterfaces *GetInterfaces() { return &interfaces; }
 
     PCIDSKChannel  *GetChannel( int band );
-    PCIDSK::PCIDSKObject   *GetSegment( int segment );
-    std::vector<PCIDSK::PCIDSKObject *> GetObjects();
+    PCIDSK::PCIDSKSegment   *GetSegment( int segment );
+    std::vector<PCIDSK::PCIDSKSegment *> GetSegments();
+
+    PCIDSK::PCIDSKSegment  *GetSegment( int type, const char *name );
 
     int       GetWidth() const { return width; }
     int       GetHeight() const { return height; }
@@ -158,6 +166,9 @@ class CPCIDSKChannel : public PCIDSKChannel
     friend class PCIDSKFile;
 
 protected:
+    CPCIDSKFile *file;
+
+    int       channel_number;
     eChanType pixel_type;
     char      byte_order; // 'S': littleendian, 'N': bigendian
     int       needs_swap;
@@ -181,6 +192,8 @@ public:
 
     int       GetOverviewCount();
     PCIDSKChannel  *GetOverview( int i );
+
+    int         GetChannelNumber() { return channel_number; }
 };
 
 /************************************************************************/
@@ -276,6 +289,74 @@ public:
     virtual int WriteBlock( int block_index, void *buffer );
 };
 
+/************************************************************************/
+/*                            CPCIDSKSegment                            */
+/*                                                                      */
+/*      Base class for accessing all segments.  Provides core           */
+/*      PCIDSKObject implementation for segments with raw segment io    */
+/*      options.                                                        */
+/************************************************************************/
+
+class CPCIDSKSegment : public PCIDSKSegment
+{
+protected:
+    CPCIDSKFile *file;
+
+    int         segment;
+
+    eSegType    segment_type;
+    char        segment_flag;
+    std::string segment_name;
+
+    uint64	data_offset;     // includes 1024 byte segment header.
+    uint64      data_size;
+    
+    PCIDSKBuffer header;
+
+public:
+                CPCIDSKSegment( CPCIDSKFile *file, int segment,
+                                const char *segment_pointer );
+    virtual	~CPCIDSKSegment();
+
+    void        LoadSegmentPointer( const char *segment_pointer );
+    void        LoadSegmentHeader();
+
+    PCIDSKBuffer &GetHeader();
+
+    void      WriteToFile( const void *buffer, uint64 offset, uint64 size );
+    void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
+
+    eSegType    GetSegmentType() { return segment_type; }
+    const char *GetName() { return segment_name.c_str(); }
+    const char *GetDescription();
+    int         GetSegmentNumber() { return segment; }
+};
+
+/************************************************************************/
+/*                            CPCIDSKGeoref                             */
+/************************************************************************/
+
+class CPCIDSKGeoref : public CPCIDSKSegment, public PCIDSKGeoref
+{
+private:
+    bool         loaded;
+
+    std::string  geosys;
+    double       a1, a2, xrot, b1, yrot, b3;
+
+    void         Load();
+
+    PCIDSKBuffer seg_data;
+
+public:
+    CPCIDSKGeoref( CPCIDSKFile *file, int segment,const char *segment_pointer );
+
+    virtual     ~CPCIDSKGeoref();
+
+    void        GetTransform( double &a1, double &a2, double &xrot, 
+                              double &b1, double &yrot, double &b3 );
+    const char *GetGeosys();
+};
 
 /************************************************************************/
 /*                             MutexHolder                              */

@@ -1,7 +1,7 @@
 
 CXXFLAGS = -g -Wall -I../src -I/usr/local/include
 
-OBJ =   test_main.o testpcidskexception.o testpcidskfile.o
+OBJ =   test_main.o testpcidskexception.o testpcidskfile.o testsegments.o
 
 LIBS =	../src/pcidsk.a -L/usr/local/lib -lcppunit -ldl 
 

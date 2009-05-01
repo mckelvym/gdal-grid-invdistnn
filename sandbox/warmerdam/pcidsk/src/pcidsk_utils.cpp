@@ -80,6 +80,71 @@ int PCIDSK::DataTypeSize( eChanType chan_type )
 }
 
 /************************************************************************/
+/*                            DataTypeName()                            */
+/************************************************************************/
+
+const char *PCIDSK::DataTypeName( eChanType chan_type )
+
+{
+    switch( chan_type )
+    {
+      case CHN_8U:
+        return "8U";
+      case CHN_16S:
+        return "16S";
+      case CHN_16U:
+        return "16U";
+      case CHN_32R:
+        return "32R";
+      default:
+        return "UNK";
+    }
+}
+/************************************************************************/
+/*                          SegmentTypeName()                           */
+/************************************************************************/
+
+const char *PCIDSK::SegmentTypeName( eSegType type )
+
+{
+    switch( type )
+    {
+      case SEG_BIT:
+        return "BIT";
+      case SEG_VEC:
+        return "VEC";
+      case SEG_SIG:
+        return "SIG";
+      case SEG_TEX:
+        return "TEX";
+      case SEG_GEO:
+        return "GEO";
+      case SEG_ORB:
+        return "ORB";
+      case SEG_LUT:
+        return "LUT";
+      case SEG_PCT:
+        return "PCT";
+      case SEG_BLUT:
+        return "BLUT";
+      case SEG_BPCT:
+        return "BPCT";
+      case SEG_BIN:
+        return "BIN";
+      case SEG_ARR:
+        return "ARR";
+      case SEG_SYS:
+        return "SYS";
+      case SEG_GCPOLD:
+        return "GCPOLD";
+      case SEG_GCP2:
+        return "GCP2";
+      default:
+        return "UNKNOWN";
+    }
+}
+
+/************************************************************************/
 /*                              SwapData()                              */
 /************************************************************************/
 
@@ -123,3 +188,4 @@ void PCIDSK::SwapData( void *data, int size, int count )
     else
         throw new PCIDSKException( "Unsupported data size in SwapData()" );
 }
+

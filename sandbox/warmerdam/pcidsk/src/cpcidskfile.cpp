@@ -119,6 +119,21 @@ CPCIDSKFile::~CPCIDSKFile()
         delete last_block_mutex;
     }
 
+/* -------------------------------------------------------------------- */
+/*      Cleanup channels and segments.                                  */
+/* -------------------------------------------------------------------- */
+    size_t i;
+    for( i = 0; i < channels.size(); i++ )
+    {
+        delete channels[i];
+        channels[i] = NULL;
+    }
+    
+    for( i = 0; i < segments.size(); i++ )
+    {
+        delete segments[i];
+        segments[i] = NULL;
+    }
     
 /* -------------------------------------------------------------------- */
 /*      Close and cleanup IO stuff.                                     */
@@ -165,17 +180,83 @@ PCIDSKChannel *CPCIDSKFile::GetChannel( int band )
 /*                             GetSegment()                             */
 /************************************************************************/
 
-PCIDSK::PCIDSKObject *CPCIDSKFile::GetSegment( int segment )
+PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
 
 {
-    throw new PCIDSKException( "Segment access not implemented yet." );
+/* -------------------------------------------------------------------- */
+/*      Is this a valid segment?                                        */
+/* -------------------------------------------------------------------- */
+    if( segment < 1 || segment > segment_count )
+        return NULL;
+
+    const char *segment_pointer = segment_pointers.buffer + (segment-1) * 32;
+
+    if( segment_pointer[0] != 'A' && segment_pointer[0] != 'L' )
+        return NULL;
+
+/* -------------------------------------------------------------------- */
+/*      Do we already have a corresponding object?                      */
+/* -------------------------------------------------------------------- */
+    if( segments[segment] != NULL )
+        return segments[segment];
+
+/* -------------------------------------------------------------------- */
+/*      Instantiate per the type.                                       */
+/* -------------------------------------------------------------------- */
+    int segment_type = segment_pointers.GetInt((segment-1)*32+1,3);
+    PCIDSKSegment *segobj = NULL;
+
+    switch( segment_type )
+    {
+      case SEG_GEO:
+        segobj = new CPCIDSKGeoref( this, segment, segment_pointer );
+        break;
+
+      default:
+        segobj = new CPCIDSKSegment( this, segment, segment_pointer );
+    }
+
+    segments[segment] = segobj;
+
+    return segobj;
 }
 
 /************************************************************************/
-/*                             GetObjects()                             */
+/*                             GetSegment()                             */
+/*                                                                      */
+/*      Find segment by type/name.                                      */
 /************************************************************************/
 
-std::vector<PCIDSK::PCIDSKObject *> CPCIDSKFile::GetObjects()
+PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int type, const char *name )
+
+{
+    int  i;
+    char type_str[4];
+
+    sprintf( type_str, "%03d", type );
+
+    for( i = 0; i < segment_count; i++ )
+    {
+        if( type != SEG_UNKNOWN 
+            && strncmp(segment_pointers.buffer+i*16+1,type_str,3) == 0 )
+            continue;
+
+        if( name != NULL 
+            && strncmp(segment_pointers.buffer+i*16+4,name,8) == 0 )
+            continue;
+
+        return (PCIDSKSegment *) GetSegment(i+1);
+    }
+
+    return NULL;
+}
+
+
+/************************************************************************/
+/*                            GetSegments()                             */
+/************************************************************************/
+
+std::vector<PCIDSK::PCIDSKSegment *> CPCIDSKFile::GetSegments()
 
 {
     throw new PCIDSKException( "Objects list access not implemented yet." );
@@ -220,8 +301,10 @@ void CPCIDSKFile::InitializeFromHeader()
     segment_count = (segment_block_count * 512) / 32;
     segment_pointers.SetSize( segment_block_count * 512 );
     ReadFromFile( segment_pointers.buffer, 
-                  atouint64(fh.Get(440,16)) * 512, 
+                  atouint64(fh.Get(440,16)) * 512 - 512, 
                   segment_block_count * 512 );
+
+    segments.resize( segment_count + 1 );
 
 /* -------------------------------------------------------------------- */
 /*      Get the number of each channel type - only used for some        */

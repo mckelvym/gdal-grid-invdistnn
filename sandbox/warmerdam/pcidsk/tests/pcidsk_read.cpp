@@ -1,4 +1,5 @@
 #include "pcidsk.h"
+#include <assert.h>
 
 /************************************************************************/
 /*                               Usage()                                */
@@ -7,7 +8,8 @@
 static void Usage()
 
 {
-    printf( "Usage: pcidsk_read [-p] [-l] <src_filename> [<dst_filename>]\n" );
+    printf( "Usage: pcidsk_read [-p] [-l] <src_filename> [<dst_filename>]\n"
+            "                   [-ls]\n" );
     exit( 1 );
 }
 
@@ -23,6 +25,7 @@ int main( int argc, char **argv)
     const char *dst_file = NULL;
     std::string strategy = "-b";
     int i_arg;
+    bool list_segments = false;
 
     for( i_arg = 1; i_arg < argc; i_arg++ )
     {
@@ -30,6 +33,8 @@ int main( int argc, char **argv)
             strategy = argv[i_arg];
         else if( strcmp(argv[i_arg],"-l") == 0 )
             strategy = argv[i_arg];
+        else if( strcmp(argv[i_arg],"-ls") == 0 )
+            list_segments = true;
         else if( argv[i_arg][0] == '-' )
             Usage();
         else if( src_file == NULL )
@@ -59,6 +64,32 @@ int main( int argc, char **argv)
         fp_raw = fopen(dst_file,"wb");
 
 /* -------------------------------------------------------------------- */
+/*      List segments if requested.                                     */
+/* -------------------------------------------------------------------- */
+    if( list_segments )
+    {
+        for( int segment = 1; segment < 1024; segment++ )
+        {
+            try 
+            {
+                PCIDSK::PCIDSKSegment *segobj = file->GetSegment( segment );
+
+                if( segobj != NULL )
+                {
+                    printf( "Segment %d/%s of type %d/%s.\n",
+                            segment, 
+                            segobj->GetName(), 
+                            segobj->GetSegmentType(),
+                            PCIDSK::SegmentTypeName(segobj->GetSegmentType()) );
+                }
+            }
+            catch(...)
+            {
+            }
+        }
+    }
+
+/* -------------------------------------------------------------------- */
 /*      Process the imagery, channel by channel.                        */
 /* -------------------------------------------------------------------- */
     if( strategy == "-b" )
@@ -66,6 +97,9 @@ int main( int argc, char **argv)
         for( channel_index = 1; channel_index <= channel_count; channel_index++ )
         {
             PCIDSK::PCIDSKChannel *channel = file->GetChannel( channel_index );
+
+            assert( channel != NULL );
+
             int i_block;
             int x_block_count = 
                 (channel->GetWidth() + channel->GetBlockWidth()-1) 
@@ -80,8 +114,9 @@ int main( int argc, char **argv)
             
             int block_count = x_block_count * y_block_count;
             
-            printf( "Process %d blocks on channel %d...",
-                    block_count, channel_index );
+            printf( "Process %d blocks on channel %d (%s)...",
+                    block_count, channel_index,
+                    PCIDSK::DataTypeName( channel->GetType()) );
             fflush(stdout);
             
             for( i_block = 0; i_block < block_count; i_block++ )

@@ -1,9 +1,9 @@
 CXXFLAGS = -g -Wall
 
-OBJ =   pcidskobject.o io_stdio.o pthread_mutex.o pcidskinterfaces.o \
+OBJ =   io_stdio.o pthread_mutex.o pcidskinterfaces.o \
 	pcidskexception.o cpcidskfile.o pcidskbuffer.o pcidsk_utils.o \
 	cpcidskchannel.o cbandinterleavedchannel.o cpixelinterleavedchannel.o \
-	
+	cpcidsksegment.o cpcidskgeoref.o
 
 default:	pcidsk.a
 

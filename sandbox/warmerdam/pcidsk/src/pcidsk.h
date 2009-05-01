@@ -47,6 +47,29 @@ typedef enum {
     CHN_UNKNOWN
 } eChanType;
 
+/* -------------------------------------------------------------------- */
+/*      Segment Types                                                   */
+/* -------------------------------------------------------------------- */
+typedef enum {
+    SEG_UNKNOWN = -1, 
+
+    SEG_BIT = 101,
+    SEG_VEC = 116, 
+    SEG_SIG = 121,
+    SEG_TEX = 140,
+    SEG_GEO = 150,
+    SEG_ORB = 160,
+    SEG_LUT = 170,
+    SEG_PCT = 171,
+    SEG_BLUT = 172,
+    SEG_BPCT = 173,
+    SEG_BIN = 180,
+    SEG_ARR = 181,
+    SEG_SYS = 182,
+    SEG_GCPOLD = 214,
+    SEG_GCP2 = 215,
+} eSegType;
+
 /************************************************************************/
 /*                              Exception                               */
 /************************************************************************/
@@ -110,51 +133,13 @@ class PCIDSK_DLL PCIDSKInterfaces
 //    DBInterfaces 	db_interfaces;
 };
 
-class PCIDSKFile;
-
-/************************************************************************/
-/*                             PCIDSKObject                             */
-/************************************************************************/
-class PCIDSK_DLL PCIDSKObject 
-{
-protected:
-    PCIDSKFile  *file; // owner
-
-public:
-    PCIDSKObject();
-    virtual ~PCIDSKObject();
-  // metadata read/write
-  // name
-  // band/segment #
-  // class (band, pct, etc)
-};
-
-/************************************************************************/
-/*                            PCIDSKChannel                             */
-/************************************************************************/
-class PCIDSK_DLL PCIDSKChannel : public PCIDSKObject
-{
-    friend class PCIDSKFile;
-
-protected:
-    virtual ~PCIDSKChannel() {};
-
-public:
-    virtual int GetBlockWidth() = 0;
-    virtual int GetBlockHeight() = 0;
-    virtual int GetWidth() = 0;
-    virtual int GetHeight() = 0;
-    virtual eChanType GetType() = 0;
-    virtual int ReadBlock( int block_index, void *buffer ) = 0;
-    virtual int WriteBlock( int block_index, void *buffer ) = 0;
-    virtual int GetOverviewCount() = 0;
-    virtual PCIDSKChannel *GetOverview( int i ) = 0;
-};
+class PCIDSKSegment;
+class PCIDSKChannel;
 
 /************************************************************************/
 /*                              PCIDSKFile                              */
 /************************************************************************/
-class PCIDSK_DLL PCIDSKFile : PCIDSKObject
+class PCIDSK_DLL PCIDSKFile
 {
 public:
     virtual ~PCIDSKFile() {};
@@ -162,8 +147,8 @@ public:
     virtual PCIDSKInterfaces *GetInterfaces() = 0;
 
     virtual PCIDSKChannel  *GetChannel( int band ) = 0;
-    virtual PCIDSKObject   *GetSegment( int segment ) = 0;
-    virtual std::vector<PCIDSKObject *> GetObjects() = 0;
+    virtual PCIDSKSegment  *GetSegment( int segment ) = 0;
+    virtual std::vector<PCIDSKSegment *> GetSegments() = 0;
 
     virtual int GetWidth() const = 0;
     virtual int GetHeight() const = 0;
@@ -186,10 +171,66 @@ public:
                             const char *filename = "" ) = 0;
 };
 
+/************************************************************************/
+/*                            PCIDSKChannel                             */
+/************************************************************************/
+class PCIDSK_DLL PCIDSKChannel 
+{
+public:
+    virtual ~PCIDSKChannel() {};
+    virtual int GetBlockWidth() = 0;
+    virtual int GetBlockHeight() = 0;
+    virtual int GetWidth() = 0;
+    virtual int GetHeight() = 0;
+    virtual eChanType GetType() = 0;
+    virtual int ReadBlock( int block_index, void *buffer ) = 0;
+    virtual int WriteBlock( int block_index, void *buffer ) = 0;
+    virtual int GetOverviewCount() = 0;
+    virtual PCIDSKChannel *GetOverview( int i ) = 0;
+};
+
+/************************************************************************/
+/*                            PCIDSKSegment                             */
+/************************************************************************/
+
+class PCIDSKSegment 
+{
+public:
+    virtual	~PCIDSKSegment() {}
+
+    virtual void WriteToFile( const void *buffer, uint64 offset, uint64 size)=0;
+    virtual void ReadFromFile( void *buffer, uint64 offset, uint64 size ) = 0;
+
+    virtual eSegType    GetSegmentType() = 0;
+    virtual const char *GetName() = 0;
+    virtual const char *GetDescription() = 0;
+    virtual int         GetSegmentNumber() = 0;
+};
+
+/************************************************************************/
+/*                             PCIDSKGeoref                             */
+/************************************************************************/
+
+class PCIDSKGeoref
+{
+public:
+    virtual	~PCIDSKGeoref() {}
+
+    virtual void GetTransform( double &a1, double &a2, double &xrot, 
+                               double &b1, double &yrot, double &b3 ) = 0;
+    virtual const char *GetGeosys() = 0;
+};
+
+/************************************************************************/
+/*                        Supporting functions.                         */
+/************************************************************************/
+
 PCIDSKFile PCIDSK_DLL *Open( const char *filename, const char *access,  
                              const PCIDSKInterfaces *interfaces );
 
 int PCIDSK_DLL DataTypeSize( eChanType );
+const char* PCIDSK_DLL DataTypeName( eChanType );
+const char* PCIDSK_DLL SegmentTypeName( eSegType );
 
 }; // end of PCIDSK namespace
 

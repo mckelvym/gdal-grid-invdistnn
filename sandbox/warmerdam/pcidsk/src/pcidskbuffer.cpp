@@ -45,6 +45,20 @@ PCIDSKBuffer::PCIDSKBuffer( int size )
 }
 
 /************************************************************************/
+/*                            PCIDSKBuffer()                            */
+/************************************************************************/
+
+PCIDSKBuffer::PCIDSKBuffer( const char *src, int size )
+
+{
+    buffer_size = 0;
+    buffer = NULL;
+
+    SetSize( size );
+    memcpy( buffer, src, size );
+}
+
+/************************************************************************/
 /*                           ~PCIDSKBuffer()                            */
 /************************************************************************/
 
@@ -124,3 +138,48 @@ void PCIDSKBuffer::Put( const char *value, int offset, int size )
     memcpy( buffer + offset, value, v_size );
 }
 
+/************************************************************************/
+/*                               GetInt()                               */
+/************************************************************************/
+
+int PCIDSKBuffer::GetInt( int offset, int size )
+
+{
+    std::string value_str;
+
+    if( offset + size > buffer_size )
+        throw PCIDSKException( "GetInt() past end of PCIDSKBuffer." );
+
+    value_str.assign( buffer + offset, size );
+
+    return atoi(value_str.c_str());
+}
+
+/************************************************************************/
+/*                             GetDouble()                              */
+/************************************************************************/
+
+double PCIDSKBuffer::GetDouble( int offset, int size )
+
+{
+    std::string value_str;
+
+    if( offset + size > buffer_size )
+        throw PCIDSKException( "GetDouble() past end of PCIDSKBuffer." );
+
+    value_str.assign( buffer + offset, size );
+
+/* -------------------------------------------------------------------- */
+/*      PCIDSK uses FORTRAN 'D' format for doubles - convert to 'E'     */
+/*      (C style) before calling atof.                                  */
+/* -------------------------------------------------------------------- */
+    int i;
+
+    for( i = 0; i < size; i++ )
+    {
+        if( value_str[i] == 'D' )
+            value_str[i] = 'E';
+    }
+
+    return atof(value_str.c_str());
+}
