@@ -139,6 +139,23 @@ void PCIDSKBuffer::Put( const char *value, int offset, int size )
 }
 
 /************************************************************************/
+/*                             GetUInt64()                              */
+/************************************************************************/
+
+uint64 PCIDSKBuffer::GetUInt64( int offset, int size )
+
+{
+    std::string value_str;
+
+    if( offset + size > buffer_size )
+        throw PCIDSKException( "GetUInt64() past end of PCIDSKBuffer." );
+
+    value_str.assign( buffer + offset, size );
+
+    return atouint64(value_str.c_str());
+}
+
+/************************************************************************/
 /*                               GetInt()                               */
 /************************************************************************/
 

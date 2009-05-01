@@ -66,7 +66,7 @@ void CPCIDSKSegment::LoadSegmentPointer( const char *segment_pointer )
     segment_flag = segptr.buffer[0];
     segment_type = (eSegType) (atoi(segptr.Get(1,3)));
     data_offset = (atouint64(segptr.Get(12,11))-1) * 512;
-    data_size = atouint64(segptr.Get(22,9)) * 512;
+    data_size = atouint64(segptr.Get(23,9)) * 512;
 
     segptr.Get(4,8,segment_name);
 }

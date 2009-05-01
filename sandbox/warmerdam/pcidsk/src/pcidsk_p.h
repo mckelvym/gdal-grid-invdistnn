@@ -34,7 +34,7 @@
 namespace PCIDSK {
 
 class CPCIDSKFile;
-class PCIDSKSegment;
+class SysVirtualFile;
 
 /************************************************************************/
 /*                             PCIDSKBuffer                             */
@@ -184,8 +184,9 @@ public:
                     CPCIDSKFile *file, eChanType pixel_type );
     virtual   ~CPCIDSKChannel();
 
-    int       GetBlockWidth() { return block_width; }
-    int       GetBlockHeight() { return block_height; }
+    virtual int GetBlockWidth() { return block_width; }
+    virtual int GetBlockHeight() { return block_height; }
+
     int       GetWidth() { return width; }
     int       GetHeight() { return height; }
     eChanType GetType() { return pixel_type; }
@@ -283,8 +284,27 @@ public:
 class CTiledChannel : public CPCIDSKChannel
 {
 private:
+    int                      image;
+
+    SysVirtualFile          *vfile;
+
+    std::string              compression;
+
+    std::vector<uint64>      tile_offsets;
+    std::vector<int>         tile_sizes;
+
+    void                     EstablishAccess();
 
 public:
+    CTiledChannel( PCIDSKBuffer &image_header, 
+                   PCIDSKBuffer &file_header, 
+                   int channelnum,
+                   CPCIDSKFile *file );
+    virtual ~CTiledChannel();
+
+    virtual int GetBlockWidth();
+    virtual int GetBlockHeight();
+
     virtual int ReadBlock( int block_index, void *buffer );
     virtual int WriteBlock( int block_index, void *buffer );
 };
@@ -359,6 +379,35 @@ public:
 };
 
 /************************************************************************/
+/*                             SysBlockMap                              */
+/************************************************************************/
+
+class SysBlockMap : public CPCIDSKSegment
+{
+private:
+    bool         loaded;
+
+    void         Load();
+
+    PCIDSKBuffer seg_data;
+
+    uint64       block_count;
+    uint64       first_free_block;
+
+    uint64       block_map_offset;
+    uint64       layer_list_offset;
+
+    std::vector<SysVirtualFile*> virtual_files;
+
+public:
+    SysBlockMap( CPCIDSKFile *file, int segment,const char *segment_pointer );
+
+    virtual     ~SysBlockMap();
+
+    SysVirtualFile *GetImageSysFile( int image );
+};
+
+/************************************************************************/
 /*                             MutexHolder                              */
 /************************************************************************/
 class PCIDSK_DLL MutexHolder
@@ -378,6 +427,36 @@ class PCIDSK_DLL MutexHolder
         if( mutex )
             mutex->Release(); 
     }
+};
+
+/************************************************************************/
+/*                            SysVirtualFile                            */
+/************************************************************************/
+
+class SysVirtualFile
+{
+private:
+    static const int       block_size = 8192;
+
+    CPCIDSKFile           *file;
+
+    uint64                 file_length;
+
+    std::vector<int>       block_segment;
+    std::vector<int>       block_index;
+
+    int                    loaded_block;
+    uint8                  block_data[block_size];
+
+    void                   LoadBlock( int requested_block );
+
+public:
+    SysVirtualFile( CPCIDSKFile *file, int start_block, uint64 image_length,
+                    PCIDSKBuffer &block_map_data );
+    ~SysVirtualFile();
+
+    void      WriteToFile( const void *buffer, uint64 offset, uint64 size );
+    void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
 };
 
 /************************************************************************/

@@ -10,6 +10,7 @@ class PCIDSKFileTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testOpenEltoro );
     CPPUNIT_TEST( testReadImage );
     CPPUNIT_TEST( testReadPixelInterleavedImage );
+    CPPUNIT_TEST( testReadTiledImage );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -19,6 +20,7 @@ public:
     void testOpenEltoro();
     void testReadImage();
     void testReadPixelInterleavedImage();
+    void testReadTiledImage();
 };
 
 // Registers the fixture into the 'registry'
@@ -90,6 +92,33 @@ void PCIDSKFileTest::testReadPixelInterleavedImage()
 
     CPPUNIT_ASSERT( ((short *) data_line)[511] == 304 );
     CPPUNIT_ASSERT( channel->GetType() == PCIDSK::CHN_16S );
+    
+    delete irvine;
+}
+
+void PCIDSKFileTest::testReadTiledImage()
+{
+    PCIDSKFile *irvine;
+    PCIDSKChannel *channel;
+    uint8 data_line[127*127];
+
+    irvine = PCIDSK::Open( "irvtiled.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( irvine != NULL );
+    CPPUNIT_ASSERT( strcmp(irvine->GetInterleaving(),"FILE") == 0 );
+
+    channel = irvine->GetChannel(1);
+
+    CPPUNIT_ASSERT( channel->GetBlockWidth() == 127 );
+    CPPUNIT_ASSERT( channel->GetBlockHeight() == 127 );
+
+    channel->ReadBlock( 6, data_line );
+
+    CPPUNIT_ASSERT( data_line[128] == 74 );
+
+
+    CPPUNIT_ASSERT( channel->GetBlockWidth() == 127 );
+    CPPUNIT_ASSERT( channel->GetBlockHeight() == 127 );
     
     delete irvine;
 }

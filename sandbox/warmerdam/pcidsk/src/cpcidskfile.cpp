@@ -212,6 +212,14 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
         segobj = new CPCIDSKGeoref( this, segment, segment_pointer );
         break;
 
+      case SEG_SYS:
+        if( strncmp(segment_pointer + 4, "SysBMDir",8) == 0 )
+            segobj = new SysBlockMap( this, segment, segment_pointer );
+        else
+            segobj = new CPCIDSKSegment( this, segment, segment_pointer );
+
+        break;
+
       default:
         segobj = new CPCIDSKSegment( this, segment, segment_pointer );
     }
@@ -238,14 +246,14 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int type, const char *name )
     for( i = 0; i < segment_count; i++ )
     {
         if( type != SEG_UNKNOWN 
-            && strncmp(segment_pointers.buffer+i*16+1,type_str,3) == 0 )
+            && strncmp(segment_pointers.buffer+i*32+1,type_str,3) != 0 )
             continue;
 
         if( name != NULL 
-            && strncmp(segment_pointers.buffer+i*16+4,name,8) == 0 )
+            && strncmp(segment_pointers.buffer+i*32+4,name,8) != 0 )
             continue;
 
-        return (PCIDSKSegment *) GetSegment(i+1);
+        return GetSegment(i+1);
     }
 
     return NULL;
@@ -405,6 +413,7 @@ void CPCIDSKFile::InitializeFromHeader()
         else if( interleaving == "FILE" 
                  && strncmp(filename.c_str(),"/SIS=",5) == 0 )
         {
+            channel = new CTiledChannel( ih, fh, channelnum, this );
         }
 
         else if( interleaving == "FILE" )
