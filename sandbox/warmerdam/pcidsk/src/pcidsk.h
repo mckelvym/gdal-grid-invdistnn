@@ -25,6 +25,12 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+/**
+ * \file pcidsk.h
+ *
+ * Public PCIDSK library classes and functions.
+ */
+
 #ifndef PCIDSK_H_INCLUDED
 #define PCIDSK_H_INCLUDED
 
@@ -34,22 +40,20 @@
 #include <exception>
 #include <stdarg.h>
 
+//! Namespace for all PCIDSK Library classes and functions.
+
 namespace PCIDSK {
 
-/* -------------------------------------------------------------------- */
-/*      Channel types.                                                  */
-/* -------------------------------------------------------------------- */
+//! Channel pixel data types.
 typedef enum {
-    CHN_8U,
-    CHN_16U,
-    CHN_16S,
-    CHN_32R,
-    CHN_UNKNOWN
+    CHN_8U,     /*!< 8 bit unsigned byte */
+    CHN_16U,    /*!< 16 bit unsigned integer */
+    CHN_16S,    /*!< 16 bit signed integer */
+    CHN_32R,    /*!< 32 bit ieee floating point */
+    CHN_UNKNOWN /*!< unknown channel type */
 } eChanType;
 
-/* -------------------------------------------------------------------- */
-/*      Segment Types                                                   */
-/* -------------------------------------------------------------------- */
+//! Segment types.
 typedef enum {
     SEG_UNKNOWN = -1, 
 
@@ -89,6 +93,7 @@ public:
 /************************************************************************/
 /*                                Mutex                                 */
 /************************************************************************/
+
 class Mutex
 {
 public:
@@ -103,6 +108,8 @@ Mutex PCIDSK_DLL *DefaultCreateMutex(void);
 /************************************************************************/
 /*                             IOInterfaces                             */
 /************************************************************************/
+
+//! IO Interface class.
 
 class IOInterfaces
 {
@@ -123,6 +130,9 @@ const IOInterfaces PCIDSK_DLL *GetDefaultIOInterfaces();
 /************************************************************************/
 /*                           PCIDSKInterfaces                           */
 /************************************************************************/
+
+//! Collection of PCIDSK hookable interfaces.
+
 class PCIDSK_DLL PCIDSKInterfaces 
 {
   public:
@@ -139,6 +149,9 @@ class PCIDSKChannel;
 /************************************************************************/
 /*                              PCIDSKFile                              */
 /************************************************************************/
+
+//! Top interface to PCIDSK (.pix) files.
+
 class PCIDSK_DLL PCIDSKFile
 {
 public:
@@ -174,6 +187,9 @@ public:
 /************************************************************************/
 /*                            PCIDSKChannel                             */
 /************************************************************************/
+
+//! Interface to one PCIDSK channel (band).
+
 class PCIDSK_DLL PCIDSKChannel 
 {
 public:
@@ -193,6 +209,8 @@ public:
 /*                            PCIDSKSegment                             */
 /************************************************************************/
 
+//! Interface to one PCIDSK auxilary segment.
+
 class PCIDSKSegment 
 {
 public:
@@ -211,7 +229,9 @@ public:
 /*                             PCIDSKGeoref                             */
 /************************************************************************/
 
-class PCIDSKGeoref
+//! Interface to PCIDSK georeferencing segment.
+
+class PCIDSK_DLL PCIDSKGeoref
 {
 public:
     virtual	~PCIDSKGeoref() {}

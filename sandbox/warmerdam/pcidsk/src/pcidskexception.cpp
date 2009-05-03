@@ -33,11 +33,46 @@ using PCIDSK::PCIDSKException;
 #  define vsnprintf _vsnprintf
 #endif
 
+/**
+
+\class PCIDSK::PCIDSKException
+
+\brief Generic SDK Exception
+
+The PCIDSKException class is used for all errors thrown by the PCIDSK
+library.  It includes a formatted message and is derived from std::exception.
+The PCIDSK library throws all exceptions as pointers, and library exceptions 
+should be caught like this:
+
+@code
+    try 
+    {
+         PCIDSKFile *file = PCIDSK::Open( "irvine.pix, "r", NULL );
+    }
+    catch( PCIDSK::PCIDSKException *ex )
+    {
+        fprintf( stderr, "PCIDSKException:\n%s\n", ex->what() );
+
+        delete ex;
+        exit( 1 );
+    }
+@endcode
+
+*/
+
 /************************************************************************/
 /*                          PCIDSKException()                           */
-/*                                                                      */
-/*      Constructor that provides printf() style message formating.     */
 /************************************************************************/
+
+/**
+ * Create exception with formatted message.
+ *
+ * This constructor supports formatting of an exception message
+ * using printf style format and additional arguments.
+ *
+ * @param fmt the printf style format (eg. "Illegal value:%d")
+ * @param ... additional arguments as required by the format string.
+ */
 
 PCIDSKException::PCIDSKException( const char *fmt, ... )
 
@@ -53,6 +88,10 @@ PCIDSKException::PCIDSKException( const char *fmt, ... )
 /*                          ~PCIDSKException()                          */
 /************************************************************************/
 
+/**
+ * Destructor.
+ */
+
 PCIDSKException::~PCIDSKException() throw()
 
 {
@@ -61,6 +100,17 @@ PCIDSKException::~PCIDSKException() throw()
 /************************************************************************/
 /*                              vPrintf()                               */
 /************************************************************************/
+
+/**
+ * Format a message.
+ *
+ * Assigns a message to an exception using printf style formatting
+ * and va_list arguments (similar to vfprintf(). 
+ *
+ * @param fmt printf style format string.
+ * @param args additional arguments as required.
+ */
+
 
 void PCIDSKException::vPrintf( const char *fmt, va_list args )
 
@@ -133,3 +183,11 @@ void PCIDSKException::vPrintf( const char *fmt, va_list args )
     va_end( wrk_args );
 #endif
 }
+
+/**
+ * \fn const char *PCIDSKException::what() const throw();
+ *
+ * \brief fetch exception message.
+ *
+ * @return a pointer to the internal message associated with the exception.
+ */ 

@@ -31,65 +31,6 @@
 using namespace PCIDSK;
 
 /************************************************************************/
-/*                                Open()                                */
-/************************************************************************/
-
-PCIDSKFile *PCIDSK::Open( const char *filename, const char *access,
-                          const PCIDSKInterfaces *interfaces )
-
-{
-/* -------------------------------------------------------------------- */
-/*      Use default interfaces if none are passed in.                   */
-/* -------------------------------------------------------------------- */
-    PCIDSKInterfaces default_interfaces;
-    if( interfaces == NULL )
-        interfaces = &default_interfaces;
-
-/* -------------------------------------------------------------------- */
-/*      First open the file, and confirm that it is PCIDSK before       */
-/*      going further.                                                  */
-/* -------------------------------------------------------------------- */
-    void *io_handle = interfaces->io->Open( filename, access );
-
-    assert( io_handle != NULL );
-
-    char header_check[6];
-
-    if( interfaces->io->Read( header_check, 1, 6, io_handle ) != 6 
-        || memcmp(header_check,"PCIDSK",6) != 0 )
-    {
-        interfaces->io->Close( io_handle );
-        throw new PCIDSKException( "File %s does not appear to be PCIDSK format.",
-                                   filename );
-    }
-
-/* -------------------------------------------------------------------- */
-/*      Create the PCIDSKFile object.                                   */
-/* -------------------------------------------------------------------- */
-
-    CPCIDSKFile *file = new CPCIDSKFile();
-    
-    file->interfaces = *interfaces;
-    file->io_handle = io_handle;
-    file->io_mutex = interfaces->CreateMutex();
-
-/* -------------------------------------------------------------------- */
-/*      Initialize it from the header.                                  */
-/* -------------------------------------------------------------------- */
-    try
-    {
-        file->InitializeFromHeader();
-    }
-    catch(...)
-    {
-        delete file;
-        throw;
-    }
-
-    return file;
-}
-
-/************************************************************************/
 /*                             CPCIDSKFile()                             */
 /************************************************************************/
 

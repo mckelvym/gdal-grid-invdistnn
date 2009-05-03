@@ -4,7 +4,7 @@ OBJ =   io_stdio.o pthread_mutex.o pcidskinterfaces.o \
 	pcidskexception.o cpcidskfile.o pcidskbuffer.o pcidsk_utils.o \
 	cpcidskchannel.o cbandinterleavedchannel.o cpixelinterleavedchannel.o \
 	cpcidsksegment.o cpcidskgeoref.o sysblockmap.o sysvirtualfile.o \
-	ctiledchannel.o
+	ctiledchannel.o pcidskopen.o pcidsk_utils_p.o
 
 default:	pcidsk.a
 
@@ -22,3 +22,7 @@ $(OBJ):	pcidsk.h pcidsk_p.h pcidsk_config.h
 
 %.o:	%.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+docs:
+	doxygen
+

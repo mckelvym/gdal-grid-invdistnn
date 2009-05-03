@@ -30,36 +30,15 @@
 using namespace PCIDSK;
 
 /************************************************************************/
-/*                             atouint64()                              */
-/************************************************************************/
-
-uint64 PCIDSK::atouint64( const char *str_value )
-
-{
-#if defined(__MSVCRT__) || defined(_MSC_VER)
-    return (uint64) _atoi64( str_value );
-#else
-    return (uint64) atoll( str_value );
-#endif
-}
-
-/************************************************************************/
-/*                              atoint64()                              */
-/************************************************************************/
-
-int64 PCIDSK::atoint64( const char *str_value )
-
-{
-#if defined(__MSVCRT__) || defined(_MSC_VER)
-    return (int64) _atoi64( str_value );
-#else
-    return (int64) atoll( str_value );
-#endif
-}
-
-/************************************************************************/
 /*                            DataTypeSize()                            */
 /************************************************************************/
+
+/**
+ * Return size of data type.
+ *
+ * @return the size of the passed data type in bytes, or zero for unknown 
+ * values.
+ */
 
 int PCIDSK::DataTypeSize( eChanType chan_type )
 
@@ -83,6 +62,16 @@ int PCIDSK::DataTypeSize( eChanType chan_type )
 /*                            DataTypeName()                            */
 /************************************************************************/
 
+/**
+ * Return name for the data type.
+ *
+ * The returned values are suitable for display to people, and matches
+ * the portion of the name after the underscore (ie. "8U" for CHN_8U.
+ *
+ * @return an internal string representing the data type.  The string should
+ * not be altered or freed.
+ */
+
 const char *PCIDSK::DataTypeName( eChanType chan_type )
 
 {
@@ -103,6 +92,19 @@ const char *PCIDSK::DataTypeName( eChanType chan_type )
 /************************************************************************/
 /*                          SegmentTypeName()                           */
 /************************************************************************/
+
+/**
+ * Return name for segment type.
+ *
+ * Returns a short name for the segment type code passed in.  This is normally
+ * the portion of the enumeration name that comes after the underscore - ie. 
+ * "BIT" for SEG_BIT. 
+ * 
+ * @param type the segment type code.
+ *
+ * @return the internal string for the segment type.  The string should
+ * not be altered or freed.
+ */
 
 const char *PCIDSK::SegmentTypeName( eSegType type )
 
@@ -143,49 +145,3 @@ const char *PCIDSK::SegmentTypeName( eSegType type )
         return "UNKNOWN";
     }
 }
-
-/************************************************************************/
-/*                              SwapData()                              */
-/************************************************************************/
-
-void PCIDSK::SwapData( void *data, int size, int count )
-
-{
-    uint8 *data8 = (uint8 *) data;
-
-    if( size == 2 )
-    {
-        uint8 t;
-
-        for( ; count; count-- )
-        {
-            t = data8[0];
-            data8[0] = data8[1];
-            data8[1] = t;
-
-            data8 += 2;
-        }
-    }
-    else if( size == 1 )
-        /* do nothing */; 
-    else if( size == 4 )
-    {
-        uint8 t;
-
-        for( ; count; count-- )
-        {
-            t = data8[0];
-            data8[0] = data8[3];
-            data8[3] = t;
-
-            t = data8[1];
-            data8[1] = data8[2];
-            data8[2] = t;
-
-            data8 += 4;
-        }
-    }
-    else
-        throw new PCIDSKException( "Unsupported data size in SwapData()" );
-}
-

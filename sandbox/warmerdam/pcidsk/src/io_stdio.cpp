@@ -54,6 +54,14 @@ typedef struct {
 /*                       GetDefaultIOInterfaces()                       */
 /************************************************************************/
 
+/**
+ * Fetch default IO interfaces.
+ *
+ * Returns the default IO interfaces implemented in the PCIDSK library.
+ * These are suitable for use in a PCIDSK::PCIDSKInterfaces object.
+ *
+ * @return pointer to internal IO interfaces class.
+ */
 const IOInterfaces *PCIDSK::GetDefaultIOInterfaces()
 {
     static StdioIOInterface singleton_stdio_interface;

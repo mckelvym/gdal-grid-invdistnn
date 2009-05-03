@@ -1,0 +1,137 @@
+/******************************************************************************
+ *
+ * Purpose:  Documentation for the PCIDSKFile class.
+ * 
+ ******************************************************************************
+ * Copyright (c) 2009
+ * PCI Geomatics, 50 West Wilmot Street, Richmond Hill, Ont, Canada
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ ****************************************************************************/
+
+/** 
+
+\fn PCIDSKInterfaces *PCIDSK::PCIDSKFile::GetInterfaces();
+  
+\brief Fetch hookable interfaces in use with this file.
+
+
+
+
+\fn PCIDSKChannel *PCIDSK::PCIDSKFile::GetChannel( int band );
+
+\brief Fetch channel interface object.
+
+The returned channel object remains owned by the PCIDSKFile and should
+not be deleted by the caller, and will become invalid after the PCIDSKFile is
+closed (deleted).
+
+@param band the band number to fetch (one based).
+
+@return pointer to internally managed channel object.
+
+
+\fn PCIDSKSegment *PCIDSK::PCIDSKFile::GetSegment( int segment );
+
+\brief Fetch segment interface object.
+
+The returned segment object remains owned by the PCIDSKFile and should
+not be deleted by the caller, and will become invalid after the PCIDSKFile is
+closed (deleted).
+
+@param segment the segment number to fetch (one based).
+
+@return pointer to internally managed segment object.
+
+
+\fn int PCIDSK::PCIDSKFile::GetWidth() const 
+
+\brief Fetch image width.
+
+@return the width of the file in pixels.
+
+
+\fn int PCIDSK::PCIDSKFile::GetHeight() const 
+
+\brief Fetch image height.
+
+@return the height of the file in pixels.
+
+
+\fn int PCIDSK::PCIDSKFile::GetChannels() const 
+
+\brief Fetch channel (band) count.
+
+@return the number of channels on this file.
+
+
+\fn const char *PCIDSK::PCIDSKFile::GetInterleaving() const 
+
+\brief Fetch file interleaving method.
+
+@return the interleaving name, one of "PIXEL", "BAND" or "FILE".  Note that 
+tiled files will be reported as "FILE" interleaving.
+
+
+\fn void PCIDSK::PCIDSKFile::WriteToFile( const void *buffer, uint64 offset, uint64 size);
+
+\brief Write data to file.
+
+This method is normally only used by the PCIDSK library itself, and provides
+a mechanism to write directly to the PCIDSK file.  Applications should normally
+use the PCIDSK::PCIDSKChannel::ReadBlock(), and 
+PCIDSK::PCIDSKChannel::WriteBlock() methods for imagery, or appropriate 
+PCIDSK::PCIDSKSegment methods for updating segment data.
+
+@param buffer pointer to the data to write to disk.
+@param offset the byte offset in the file (zero based) at which to write the data.
+@param size the number of bytes from buffer to write.
+
+
+\fn void PCIDSK::PCIDSKFile::ReadFromFile( void *buffer, uint64 offset, uint64 size);
+
+\brief Read data from file.
+
+This method is normally only used by the PCIDSK library itself, and provides
+a mechanism to read directly from the PCIDSK file.  Applications should normally
+use the PCIDSK::PCIDSKChannel::ReadBlock() method for imagery, or appropriate 
+PCIDSK::PCIDSKSegment methods for reading segment data.
+
+@param buffer pointer to the buffer into which the data should be read.
+@param offset the byte offset in the file (zero based) at which to read the data.
+@param size the number of bytes from the file to read.
+
+\fn void PCIDSK::PCIDSKFile::GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp, const char *filename = "" );
+
+\brief Fetch details for IO to named file. 
+
+This method is normally only used by the PCIDSK library itself to request 
+io accessors for a file.  If filename is empty, accessors for the PCIDSK file 
+are returned.  Otherwise accessors for a dependent file (ie. FILE linked 
+file) are returned. 
+
+@param io_handle_pp pointer to a pointer into which to load the IO handle.
+
+@param io_mutex_pp pointer to a pointer into which to load the associated mutex.
+
+@param filename the name of the file to access or an empty string for the PCIDSK
+file itself.
+
+*/
+

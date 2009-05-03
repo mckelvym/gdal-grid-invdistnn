@@ -1,0 +1,130 @@
+/******************************************************************************
+ *
+ * Purpose:  Documentation for the PCIDSKChannel class.
+ * 
+ ******************************************************************************
+ * Copyright (c) 2009
+ * PCI Geomatics, 50 West Wilmot Street, Richmond Hill, Ont, Canada
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ ****************************************************************************/
+
+/** 
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKChannel::GetWidth()
+  
+\brief Fetch image width.
+
+@return returns the channel width in pixels.
+
+
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKChannel::GetHeight()
+  
+\brief Fetch image height.
+
+@return returns the channel height in pixels.
+
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKChannel::GetBlockWidth()
+  
+\brief Fetch image block width.
+
+Channel (band) access is done in blocks according
+to the natural blocking of the data.  For PIXEL, BAND
+and some FILE interleaved files a block is one scanline.
+For tiled files it is a tile.
+
+@return returns the width of a block in pixels.
+
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKChannel::GetBlockHeight()
+  
+\brief Fetch image block height.
+
+Channel (band) access is done in blocks according
+to the natural blocking of the data.  For PIXEL, BAND
+and some FILE interleaved files a block is one scanline.
+For tiled files it is a tile.
+
+@return returns the height of a block in pixels.
+
+
+
+******************************************************************************
+\fn eChanType PCIDSK::PCIDSKChannel::GetType();
+
+\brief Fetch pixel data type.
+
+@return the pixel data type for this channel.
+
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKChannel::ReadBlock( int block_index, void *buffer );
+
+\brief read block of image data from disk.
+
+The buffer into which imagery is read should be preallocated large enough to 
+hold GetBlockWidth() * GetBlockHeight() * DataTypeSize(GetType()) bytes. 
+Image data is returned in the pixel data type reported by GetType() and 
+in the local systems byte order (for types larger than one byte).
+
+For scanline oriented images the block index is the scanline index.  For tiled
+images the block_index starts at 0 at the top left tile.  The tile to the 
+right of that is 1, and the first tile in the second row is equal to 
+"blocks_per_row".  
+
+Partial (incomplete) blocks at the right or bottom of images that are not a 
+multiple of the block width or height in size will be zero filled out to the
+block size.
+
+@param block_index zero based block index to read.
+
+@param buffer the buffer into which the block will be read.
+
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKChannel::WriteBlock( int block_index, void *buffer );
+
+\brief write block of image data from disk.
+
+The buffer from which imagery is read should be preallocated large enough to 
+hold GetBlockWidth() * GetBlockHeight() * DataTypeSize(GetType()) bytes. 
+Image data is expected in the pixel data type reported by GetType() and 
+in the local systems byte order (for types larger than one byte).
+
+For scanline oriented images the block index is the scanline index.  For tiled
+images the block_index starts at 0 at the top left tile.  The tile to the 
+right of that is 1, and the first tile in the second row is equal to 
+"blocks_per_row".  
+
+Partial (incomplete) blocks at the right or bottom of images that are not a 
+multiple of the block width or height in size may be zero filled out to the
+block size.
+
+@param block_index zero based block index to read.
+
+@param buffer the buffer from which the block will be written.
+
+*/
+
