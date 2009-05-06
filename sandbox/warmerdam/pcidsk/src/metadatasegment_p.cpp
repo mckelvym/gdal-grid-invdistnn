@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Implementation of the SysBlockMap class.
+ * Purpose:  Implementation of the MetadataSegment class.
  *
  * This class is used to manage access to the SYS virtual block map segment
  * (named SysBMap).  This segment is used to keep track of one or more 
@@ -42,8 +42,8 @@ using namespace PCIDSK;
 /*                            SysBlockMap()                             */
 /************************************************************************/
 
-SysBlockMap::SysBlockMap( CPCIDSKFile *file, int segment,
-                              const char *segment_pointer )
+MetadataSegment::MetadataSegment( CPCIDSKFile *file, int segment,
+                                  const char *segment_pointer )
         : CPCIDSKSegment( file, segment, segment_pointer )
 
 {
@@ -54,23 +54,16 @@ SysBlockMap::SysBlockMap( CPCIDSKFile *file, int segment,
 /*                            ~SysBlockMap()                            */
 /************************************************************************/
 
-SysBlockMap::~SysBlockMap()
+MetadataSegment::~MetadataSegment()
 
 {
-    size_t i;
-    
-    for( i = 0; i < virtual_files.size(); i++ )
-    {
-        delete virtual_files[i];
-        virtual_files[i] = NULL;
-    }
 }
 
 /************************************************************************/
 /*                                Load()                                */
 /************************************************************************/
 
-void SysBlockMap::Load()
+void MetadataSegment::Load()
 
 {
     if( loaded )
@@ -84,48 +77,72 @@ void SysBlockMap::Load()
     seg_data.SetSize( data_size - 1024 );
 
     ReadFromFile( seg_data.buffer, 0, data_size - 1024 );
-
-    if( strncmp(seg_data.buffer,"VERSION",7) != 0 )
-        throw new PCIDSKException( "SysBlockMap::Load() - block map corrupt." );
-
-/* -------------------------------------------------------------------- */
-/*      Establish our SysVirtualFile array based on the number of       */
-/*      images listed in the image list.                                */
-/* -------------------------------------------------------------------- */
-    int layer_count = seg_data.GetInt( 10, 8 );
-
-    block_count = seg_data.GetUInt64( 18, 8 );
-    first_free_block = seg_data.GetUInt64( 26, 8 );
-
-    virtual_files.resize( layer_count );
-
-    block_map_offset = 512;
-    layer_list_offset = block_map_offset + 28 * block_count;
 }
 
 /************************************************************************/
-/*                          GetImageSysFile()                           */
+/*                           FetchMetadata()                            */
 /************************************************************************/
 
-SysVirtualFile *SysBlockMap::GetImageSysFile( int image )
+void MetadataSegment::FetchMetadata( const char *group, int id,
+                                     std::map<std::string,std::string> &md_set)
 
 {
+/* -------------------------------------------------------------------- */
+/*      Load the metadata segment if not already loaded.                */
+/* -------------------------------------------------------------------- */
     Load();
 
-    if( image < 0 || image >= (int) virtual_files.size() )
-        throw new PCIDSKException( "GetImageSysFile(%d): invalid image index",
-                                   image );
+/* -------------------------------------------------------------------- */
+/*      Establish the key prefix we are searching for.                  */
+/* -------------------------------------------------------------------- */
+    char key_prefix[200];
+    int  prefix_len;
 
-    if( virtual_files[image] != NULL )
-        return virtual_files[image];
+    sprintf( key_prefix, "METADATA_%s_%d_", group, id );
+    prefix_len = strlen(key_prefix);
 
-    uint64  vfile_length = 
-        seg_data.GetUInt64( layer_list_offset + 24*image + 12, 12 );
-    int  start_block = 
-        seg_data.GetInt( layer_list_offset + 24*image + 4, 8 );
+/* -------------------------------------------------------------------- */
+/*      Process all the metadata entries in this segment, searching     */
+/*      for those that match our prefix.                                */
+/* -------------------------------------------------------------------- */
+    const char *pszNext;
 
-    virtual_files[image] = 
-        new SysVirtualFile( file, start_block, vfile_length, seg_data );
+    for( pszNext = (const char *) seg_data.buffer; *pszNext != '\0'; )
+    {
+/* -------------------------------------------------------------------- */
+/*      Identify the end of this line, and the split character (:).     */
+/* -------------------------------------------------------------------- */
+        int i_split = -1, i;
 
-    return virtual_files[image];
+        for( i=0; 
+             pszNext[i] != 10 && pszNext[i] != 12 && pszNext[i] != 0; 
+             i++) 
+        {
+            if( i_split == -1 && pszNext[i] == ':' )
+                i_split = i;
+        }
+
+        if( pszNext[i] == '\0' )
+            break;
+
+/* -------------------------------------------------------------------- */
+/*      If this matches our prefix, capture the key and value.          */
+/* -------------------------------------------------------------------- */
+        if( i_split != -1 && strncmp(pszNext,key_prefix,prefix_len) == 0 )
+        {
+            std::string key, value;
+
+            key.assign( pszNext+prefix_len, i_split-prefix_len );
+            value.assign( pszNext+i_split+1, i-i_split-1 );
+
+            md_set[key] = value;
+        }
+
+/* -------------------------------------------------------------------- */
+/*      Advance to start of next line.                                  */
+/* -------------------------------------------------------------------- */
+        pszNext = pszNext + i;
+        while( *pszNext == 10 || *pszNext == 12 )
+            pszNext++;
+    }
 }

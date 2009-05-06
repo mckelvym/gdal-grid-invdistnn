@@ -44,6 +44,9 @@
 
 namespace PCIDSK {
 
+class PCIDSKSegment;
+class PCIDSKChannel;
+
 //! Channel pixel data types.
 typedef enum {
     CHN_8U,     /*!< 8 bit unsigned byte */
@@ -143,9 +146,6 @@ class PCIDSK_DLL PCIDSKInterfaces
 //    DBInterfaces 	db_interfaces;
 };
 
-class PCIDSKSegment;
-class PCIDSKChannel;
-
 /************************************************************************/
 /*                              PCIDSKFile                              */
 /************************************************************************/
@@ -203,6 +203,9 @@ public:
     virtual int WriteBlock( int block_index, void *buffer ) = 0;
     virtual int GetOverviewCount() = 0;
     virtual PCIDSKChannel *GetOverview( int i ) = 0;
+
+    virtual const char *GetMetadataValue( const char *key ) = 0;
+    virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 
 /************************************************************************/

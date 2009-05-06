@@ -41,8 +41,9 @@ using namespace PCIDSK;
 CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header, 
                               PCIDSKBuffer &file_header,
                               int channelnum,
-                              CPCIDSKFile *file )
-        : CPCIDSKChannel( image_header, file, pixel_type )
+                              CPCIDSKFile *file,
+                              eChanType pixel_type )
+        : CPCIDSKChannel( image_header, file, pixel_type, channelnum )
 
 {
 /* -------------------------------------------------------------------- */
@@ -57,6 +58,19 @@ CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header,
     image = atoi(strstr(filename.c_str(),"SIS=") + 4);
 
     vfile = NULL;
+
+/* -------------------------------------------------------------------- */
+/*      If this is an unassociated channel (ie. an overview), we        */
+/*      will set the size and blocksize values to someone               */
+/*      unreasonable and set them properly in EstablishAccess()         */
+/* -------------------------------------------------------------------- */
+    if( channelnum == -1 )
+    {
+        width = -1;
+        height = -1;
+        block_width = -1;
+        block_height = -1;
+    }
 }
 
 /************************************************************************/
@@ -105,7 +119,19 @@ void CTiledChannel::EstablishAccess()
     theader.Get(32,4,data_type);
     theader.Get(54, 8, compression);
     
-    // TODO: translate data type. 
+    if( data_type == "8U" )
+        pixel_type = CHN_8U;
+    else if( data_type == "16S" )
+        pixel_type = CHN_16S;
+    else if( data_type == "16U" )
+        pixel_type = CHN_16U;
+    else if( data_type == "32R" )
+        pixel_type = CHN_32R;
+    else
+    {
+        throw new PCIDSKException( "Unknown channel type: %s", 
+                                   data_type.c_str() );
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Extract the tile map                                            */
@@ -188,3 +214,43 @@ int CTiledChannel::GetBlockHeight()
     EstablishAccess();
     return CPCIDSKChannel::GetBlockHeight();
 }
+
+/************************************************************************/
+/*                              GetWidth()                              */
+/************************************************************************/
+
+int CTiledChannel::GetWidth()
+
+{
+    if( width == -1 )
+        EstablishAccess();
+
+    return CPCIDSKChannel::GetWidth();
+}
+
+/************************************************************************/
+/*                             GetHeight()                              */
+/************************************************************************/
+
+int CTiledChannel::GetHeight()
+
+{
+    if( height == -1 )
+        EstablishAccess();
+
+    return CPCIDSKChannel::GetHeight();
+}
+
+/************************************************************************/
+/*                              GetType()                               */
+/************************************************************************/
+
+eChanType CTiledChannel::GetType()
+
+{
+    if( pixel_type == CHN_UNKNOWN )
+        EstablishAccess();
+
+    return CPCIDSKChannel::GetType();
+}
+

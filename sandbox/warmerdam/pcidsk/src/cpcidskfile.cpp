@@ -156,6 +156,8 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
       case SEG_SYS:
         if( strncmp(segment_pointer + 4, "SysBMDir",8) == 0 )
             segobj = new SysBlockMap( this, segment, segment_pointer );
+        else if( strncmp(segment_pointer + 4, "METADATA",8) == 0 )
+            segobj = new MetadataSegment( this, segment, segment_pointer );
         else
             segobj = new CPCIDSKSegment( this, segment, segment_pointer );
 
@@ -354,7 +356,7 @@ void CPCIDSKFile::InitializeFromHeader()
         else if( interleaving == "FILE" 
                  && strncmp(filename.c_str(),"/SIS=",5) == 0 )
         {
-            channel = new CTiledChannel( ih, fh, channelnum, this );
+            channel = new CTiledChannel( ih, fh, channelnum, this, pixel_type );
         }
 
         else if( interleaving == "FILE" )

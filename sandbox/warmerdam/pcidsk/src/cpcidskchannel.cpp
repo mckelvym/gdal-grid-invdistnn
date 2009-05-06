@@ -36,11 +36,13 @@ using namespace PCIDSK;
 
 CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header, 
                                 CPCIDSKFile *file, 
-                                eChanType pixel_type )
+                                eChanType pixel_type,
+                                int channel_number )
 
 {
     this->pixel_type = pixel_type;
     this->file = file;
+    this->channel_number = channel_number;
 
     width = file->GetWidth();
     height = file->GetHeight();
@@ -51,16 +53,32 @@ CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header,
 /* -------------------------------------------------------------------- */
 /*      Establish if we need to byte swap the data on load/store.       */
 /* -------------------------------------------------------------------- */
-    unsigned short test_value = 1;
+    if( channel_number != -1 )
+    {
+        unsigned short test_value = 1;
 
-    byte_order = image_header.buffer[201];
-    if( ((uint8 *) &test_value)[0] == 1 )
-        needs_swap = (byte_order != 'S');
-    else
-        needs_swap = (byte_order == 'S');
+        byte_order = image_header.buffer[201];
+        if( ((uint8 *) &test_value)[0] == 1 )
+            needs_swap = (byte_order != 'S');
+        else
+            needs_swap = (byte_order == 'S');
+        
+        if( pixel_type == CHN_8U )
+            needs_swap = 0;
 
-    if( pixel_type == CHN_8U )
-        needs_swap = 0;
+/* -------------------------------------------------------------------- */
+/*      Initialize the metadata object, but do not try to load till     */
+/*      needed.  We avoid doing this for unassociated channels such     */
+/*      as overviews.                                                   */
+/* -------------------------------------------------------------------- */
+        metadata.Initialize( file, "IMG", channel_number );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      No overviews for unassociated files, so just mark them as       */
+/*      initialized.                                                    */
+/* -------------------------------------------------------------------- */
+    overviews_initialized = channel_number == -1;
 }
 
 /************************************************************************/
@@ -70,8 +88,42 @@ CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header,
 CPCIDSKChannel::~CPCIDSKChannel()
 
 {
+    for( size_t io; io < overview_bands.size(); io++ )
+    {
+        if( overview_bands[io] != NULL )
+        {
+            delete overview_bands[io];
+            overview_bands[io] = NULL;
+        }
+    }
 }
 
+/************************************************************************/
+/*                       EstablishOverviewInfo()                        */
+/************************************************************************/
+
+void CPCIDSKChannel::EstablishOverviewInfo()
+
+{
+    if( overviews_initialized )
+        return;
+
+    overviews_initialized = true;
+
+    std::vector<std::string> keys = GetMetadataKeys();
+    size_t i;
+
+    for( i = 0; i < keys.size(); i++ )
+    {
+        if( strncmp(keys[i].c_str(),"_Overview_",10) != 0 )
+            continue;
+
+        const char *value = GetMetadataValue( keys[i].c_str() );
+
+        overview_infos.push_back( std::string(value) );
+        overview_bands.push_back( NULL );
+    }
+}
 
 /************************************************************************/
 /*                          GetOverviewCount()                          */
@@ -80,7 +132,9 @@ CPCIDSKChannel::~CPCIDSKChannel()
 int CPCIDSKChannel::GetOverviewCount()
 
 {
-    return 0;
+    EstablishOverviewInfo();
+
+    return overview_infos.size();
 }
 
 /************************************************************************/
@@ -90,6 +144,23 @@ int CPCIDSKChannel::GetOverviewCount()
 PCIDSKChannel *CPCIDSKChannel::GetOverview( int overview_index )
 
 {
-    return NULL;
+    EstablishOverviewInfo();
+
+    if( overview_bands[overview_index] == NULL )
+    {
+        PCIDSKBuffer image_header(1024), file_header(1024);
+        char  pseudo_filename[65];
+
+        sprintf( pseudo_filename, "/SIS=%d", 
+                 atoi(overview_infos[overview_index].c_str()) );
+
+        image_header.Put( pseudo_filename, 64, 64 );
+        
+        overview_bands[overview_index] = 
+            new CTiledChannel( image_header, file_header, -1, file, 
+                               CHN_UNKNOWN );
+    }
+
+    return overview_bands[overview_index];
 }
 

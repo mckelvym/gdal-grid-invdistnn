@@ -31,10 +31,14 @@
 
 #include "pcidsk.h"
 
+#include <map>
+
 namespace PCIDSK {
 
 class CPCIDSKFile;
+class CTiledChannel;
 class SysVirtualFile;
+class MetadataSegment;
 
 /************************************************************************/
 /*                             PCIDSKBuffer                             */
@@ -45,6 +49,8 @@ class SysVirtualFile;
 
 class PCIDSKBuffer 
 {
+    friend class MetadataSegment;
+
 private:
     std::string work_field;
 
@@ -67,6 +73,34 @@ public:
     void        Put( const char *value,  int offset, int size );
 
     void        SetSize( int size );
+};
+
+/************************************************************************/
+/*                             MetadataSet                              */
+/************************************************************************/
+
+class MetadataSet 
+{									
+private:
+    CPCIDSKFile  *file;
+
+    bool         loaded;
+    std::map<std::string,std::string> md_set;
+
+    std::string  group;
+    int          id;
+
+    void         Load();
+
+public:
+    MetadataSet();
+    ~MetadataSet();
+
+    void        Initialize( CPCIDSKFile *file, const char *group, int id );
+    const char *GetMetadataValue( const char *key );
+    std::vector<std::string> GetMetadataKeys();
+    
+    void        SetMetadataValue( const char *key, const char *value );
 };
 
 /************************************************************************/
@@ -167,6 +201,7 @@ class CPCIDSKChannel : public PCIDSKChannel
 
 protected:
     CPCIDSKFile *file;
+    MetadataSet  metadata;
 
     int       channel_number;
     eChanType pixel_type;
@@ -179,22 +214,35 @@ protected:
     int       block_width;
     int       block_height;
 
+    // info about overviews;
+    void      EstablishOverviewInfo();
+
+    bool                         overviews_initialized;
+    std::vector<std::string>     overview_infos;
+    std::vector<CTiledChannel *> overview_bands;
+    
 public:
     CPCIDSKChannel( PCIDSKBuffer &image_header, 
-                    CPCIDSKFile *file, eChanType pixel_type );
+                    CPCIDSKFile *file, eChanType pixel_type,
+                    int channel_number );
     virtual   ~CPCIDSKChannel();
 
     virtual int GetBlockWidth() { return block_width; }
     virtual int GetBlockHeight() { return block_height; }
 
-    int       GetWidth() { return width; }
-    int       GetHeight() { return height; }
-    eChanType GetType() { return pixel_type; }
+    virtual int GetWidth() { return width; }
+    virtual int GetHeight() { return height; }
+    virtual eChanType GetType() { return pixel_type; }
 
     int       GetOverviewCount();
     PCIDSKChannel  *GetOverview( int i );
 
     int         GetChannelNumber() { return channel_number; }
+
+    const char *GetMetadataValue( const char *key ) 
+		{ return metadata.GetMetadataValue(key); }
+    std::vector<std::string> GetMetadataKeys() 
+        	{ return metadata.GetMetadataKeys(); }
 };
 
 /************************************************************************/
@@ -299,11 +347,15 @@ public:
     CTiledChannel( PCIDSKBuffer &image_header, 
                    PCIDSKBuffer &file_header, 
                    int channelnum,
-                   CPCIDSKFile *file );
+                   CPCIDSKFile *file,
+                   eChanType pixel_type );
     virtual ~CTiledChannel();
 
     virtual int GetBlockWidth();
     virtual int GetBlockHeight();
+    virtual int GetWidth();
+    virtual int GetHeight();
+    virtual eChanType GetType();
 
     virtual int ReadBlock( int block_index, void *buffer );
     virtual int WriteBlock( int block_index, void *buffer );
@@ -405,6 +457,28 @@ public:
     virtual     ~SysBlockMap();
 
     SysVirtualFile *GetImageSysFile( int image );
+};
+
+/************************************************************************/
+/*                           MetadataSegment                            */
+/************************************************************************/
+
+class MetadataSegment : public CPCIDSKSegment
+{
+private:
+    bool         loaded;
+
+    void         Load();
+
+    PCIDSKBuffer seg_data;
+
+public:
+    MetadataSegment( CPCIDSKFile *file, int segment,
+                     const char *segment_pointer );
+    virtual     ~MetadataSegment();
+
+    void         FetchMetadata( const char *group, int id, 
+                                std::map<std::string,std::string> &md_set );
 };
 
 /************************************************************************/

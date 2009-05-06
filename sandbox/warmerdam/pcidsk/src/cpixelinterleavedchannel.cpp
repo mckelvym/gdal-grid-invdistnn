@@ -40,7 +40,7 @@ CPixelInterleavedChannel::CPixelInterleavedChannel( PCIDSKBuffer &image_header,
                                                     CPCIDSKFile *file,
                                                     int image_offset,
                                                     eChanType pixel_type )
-        : CPCIDSKChannel( image_header, file, pixel_type )
+        : CPCIDSKChannel( image_header, file, pixel_type, channelnum )
 
 {
     this->image_offset = image_offset;
