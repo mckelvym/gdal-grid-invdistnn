@@ -206,7 +206,7 @@ int main( int argc, char **argv)
             int y_block_count = 
                 (channel->GetHeight() + channel->GetBlockHeight()-1) 
                 / channel->GetBlockHeight();
-            int block_size = file->GetBlockSize();
+            int block_size = (int) file->GetBlockSize();
             int block_count = x_block_count * y_block_count;
 
             if( strcmp(file->GetInterleaving(),"PIXEL   ") != 0 )

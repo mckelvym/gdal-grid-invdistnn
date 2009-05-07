@@ -263,7 +263,10 @@ public:
                               eChanType pixel_type );
     virtual ~CPixelInterleavedChannel();
 
-    virtual int ReadBlock( int block_index, void *buffer );
+    virtual int ReadBlock( int block_index, void *buffer,
+                           int xoff=-1, int yoff=-1,
+                           int xsize=-1, int ysize=-1 );
+
     virtual int WriteBlock( int block_index, void *buffer );
 };
 
@@ -295,7 +298,9 @@ public:
                              eChanType pixel_type );
     virtual ~CBandInterleavedChannel();
 
-    virtual int ReadBlock( int block_index, void *buffer );
+    virtual int ReadBlock( int block_index, void *buffer,
+                           int xoff=-1, int yoff=-1,
+                           int xsize=-1, int ysize=-1 );
     virtual int WriteBlock( int block_index, void *buffer );
 };
 
@@ -317,7 +322,9 @@ private:
     int       src_ysize;
 
 public:
-    virtual int ReadBlock( int block_index, void *buffer );
+    virtual int ReadBlock( int block_index, void *buffer,
+                           int xoff=-1, int yoff=-1,
+                           int xsize=-1, int ysize=-1 );
     virtual int WriteBlock( int block_index, void *buffer );
 };
 
@@ -357,7 +364,9 @@ public:
     virtual int GetHeight();
     virtual eChanType GetType();
 
-    virtual int ReadBlock( int block_index, void *buffer );
+    virtual int ReadBlock( int block_index, void *buffer,
+                           int xoff=-1, int yoff=-1,
+                           int xsize=-1, int ysize=-1 );
     virtual int WriteBlock( int block_index, void *buffer );
 };
 
@@ -443,11 +452,11 @@ private:
 
     PCIDSKBuffer seg_data;
 
-    uint64       block_count;
-    uint64       first_free_block;
+    int          block_count;
+    int          first_free_block;
 
-    uint64       block_map_offset;
-    uint64       layer_list_offset;
+    int          block_map_offset;
+    int          layer_list_offset;
 
     std::vector<SysVirtualFile*> virtual_files;
 

@@ -88,13 +88,42 @@ CBandInterleavedChannel::~CBandInterleavedChannel()
 /*                             ReadBlock()                              */
 /************************************************************************/
 
-int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
+int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer,
+                                        int xoff, int yoff, 
+                                        int xsize, int ysize )
 
 {
-    uint64 offset = start_byte + line_offset * block_index;
-    int    pixel_size = DataTypeSize( pixel_type );
-
     PCIDSKInterfaces *interfaces = file->GetInterfaces();
+
+/* -------------------------------------------------------------------- */
+/*      Default window if needed.                                       */
+/* -------------------------------------------------------------------- */
+    if( xoff == -1 && yoff == -1 && xsize == -1 && ysize == -1 )
+    {
+        xoff = 0;
+        yoff = 0;
+        xsize = GetBlockWidth();
+        ysize = GetBlockHeight();
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Validate Window                                                 */
+/* -------------------------------------------------------------------- */
+    if( xoff < 0 || xoff + xsize > GetBlockWidth()
+        || yoff < 0 || yoff + ysize > GetBlockHeight() )
+    {
+        throw new PCIDSKException( 
+            "Invalid window in ReadBloc(): xoff=%d,yoff=%d,xsize=%d,ysize=%d",
+            xoff, yoff, xsize, ysize );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Establish region to read.                                       */
+/* -------------------------------------------------------------------- */
+    int    pixel_size = DataTypeSize( pixel_type );
+    uint64 offset = start_byte + line_offset * block_index
+        + pixel_offset * xoff;
+    int    window_size = (int) (pixel_offset*(xsize-1) + pixel_size);
 
 /* -------------------------------------------------------------------- */
 /*      Get file access handles if we don't already have them.          */
@@ -111,7 +140,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
         MutexHolder holder( *io_mutex_p );
 
         interfaces->io->Seek( *io_handle_p, offset, SEEK_SET );
-        interfaces->io->Read( buffer, 1, pixel_size * width, *io_handle_p );
+        interfaces->io->Read( buffer, 1, window_size, *io_handle_p );
     }
 
 /* -------------------------------------------------------------------- */
@@ -121,7 +150,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
     else
     {
         int  i;
-        PCIDSKBuffer line_from_disk( (int) (pixel_offset*(width-1) + pixel_size) );
+        PCIDSKBuffer line_from_disk( window_size );
         char *this_pixel;
 
         MutexHolder holder( *io_mutex_p );
@@ -130,7 +159,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
         interfaces->io->Read( buffer, 1, line_from_disk.buffer_size, 
                               *io_handle_p );
 
-        for( i = 0, this_pixel = line_from_disk.buffer; i < width; i++ )
+        for( i = 0, this_pixel = line_from_disk.buffer; i < xsize; i++ )
         {
             memcpy( ((char *) buffer) + pixel_size * i, 
                     this_pixel, pixel_size );
@@ -142,7 +171,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer )
 /*      Do byte swapping if needed.                                     */
 /* -------------------------------------------------------------------- */
     if( needs_swap )
-        SwapData( buffer, pixel_size, width );
+        SwapData( buffer, pixel_size, xsize );
 
     return 1;
 }

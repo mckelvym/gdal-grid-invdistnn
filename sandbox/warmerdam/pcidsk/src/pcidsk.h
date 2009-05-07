@@ -199,7 +199,9 @@ public:
     virtual int GetWidth() = 0;
     virtual int GetHeight() = 0;
     virtual eChanType GetType() = 0;
-    virtual int ReadBlock( int block_index, void *buffer ) = 0;
+    virtual int ReadBlock( int block_index, void *buffer,
+                           int xoff=-1, int yoff=-1,
+                           int xsize=-1, int ysize=-1 ) = 0;
     virtual int WriteBlock( int block_index, void *buffer ) = 0;
     virtual int GetOverviewCount() = 0;
     virtual PCIDSKChannel *GetOverview( int i ) = 0;
@@ -252,8 +254,8 @@ PCIDSKFile PCIDSK_DLL *Open( const char *filename, const char *access,
                              const PCIDSKInterfaces *interfaces );
 
 int PCIDSK_DLL DataTypeSize( eChanType );
-const char* PCIDSK_DLL DataTypeName( eChanType );
-const char* PCIDSK_DLL SegmentTypeName( eSegType );
+const char PCIDSK_DLL *DataTypeName( eChanType );
+const char PCIDSK_DLL *SegmentTypeName( eSegType );
 
 }; // end of PCIDSK namespace
 

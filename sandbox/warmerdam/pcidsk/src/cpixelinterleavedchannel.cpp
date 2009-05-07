@@ -59,11 +59,42 @@ CPixelInterleavedChannel::~CPixelInterleavedChannel()
 /*                             ReadBlock()                              */
 /************************************************************************/
 
-int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer )
+int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
+                                         int xoff, int yoff, 
+                                         int xsize, int ysize )
 
 {
+/* -------------------------------------------------------------------- */
+/*      Default window if needed.                                       */
+/* -------------------------------------------------------------------- */
+    if( xoff == -1 && yoff == -1 && xsize == -1 && ysize == -1 )
+    {
+        xoff = 0;
+        yoff = 0;
+        xsize = GetBlockWidth();
+        ysize = GetBlockHeight();
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Validate Window                                                 */
+/* -------------------------------------------------------------------- */
+    if( xoff < 0 || xoff + xsize > GetBlockWidth()
+        || yoff < 0 || yoff + ysize > GetBlockHeight() )
+    {
+        throw new PCIDSKException( 
+            "Invalid window in ReadBloc(): xoff=%d,yoff=%d,xsize=%d,ysize=%d",
+            xoff, yoff, xsize, ysize );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Work out sizes and offsets.                                     */
+/* -------------------------------------------------------------------- */
     int pixel_group = file->GetPixelGroupSize();
     int pixel_size = DataTypeSize(GetType());
+
+    // TODO: We don't yet support subwindowing...
+    if( xoff != 0 || xsize != width )
+        throw new PCIDSKException( "windowing not yet supported for pixel interleaved files." );
 
 /* -------------------------------------------------------------------- */
 /*      Read and lock the scanline.                                     */
@@ -75,7 +106,7 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer )
 /*      reasonably efficiently.  We might consider adding faster        */
 /*      cases for 16/32bit data that is word aligned.                   */
 /* -------------------------------------------------------------------- */
-    if( pixel_size == pixel_group )
+    if( pixel_size == pixel_group && xsize == width )
         memcpy( buffer, pixel_buffer, pixel_size * width );
     else
     {
@@ -126,7 +157,6 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer )
 
     return 0;
 }
-
 
 /************************************************************************/
 /*                             WriteBlock()                             */

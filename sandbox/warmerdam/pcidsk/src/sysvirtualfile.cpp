@@ -112,7 +112,7 @@ void SysVirtualFile::ReadFromFile( void *buffer, uint64 offset, uint64 size )
 
         amount_to_copy = block_size - offset_in_block;
         if( amount_to_copy > (int) (size - buffer_offset) )
-            amount_to_copy = size - buffer_offset;
+            amount_to_copy = (int) (size - buffer_offset);
 
         memcpy( ((uint8 *) buffer) + buffer_offset, 
                 block_data + offset_in_block, amount_to_copy );

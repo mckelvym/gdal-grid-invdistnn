@@ -138,8 +138,8 @@ void CTiledChannel::EstablishAccess()
 /* -------------------------------------------------------------------- */
     int tiles_per_row = (width + block_width - 1) / block_width;
     int tiles_per_col = (height + block_height - 1) / block_height;
-    uint64 tile_count = tiles_per_row * tiles_per_col;
-    uint64 i;
+    int tile_count = tiles_per_row * tiles_per_col;
+    int i;
 
     tile_offsets.resize( tile_count );
     tile_sizes.resize( tile_count );
@@ -159,26 +159,78 @@ void CTiledChannel::EstablishAccess()
 /*                             ReadBlock()                              */
 /************************************************************************/
 
-int CTiledChannel::ReadBlock( int block_index, void *buffer )
+int CTiledChannel::ReadBlock( int block_index, void *buffer,
+                              int xoff, int yoff, 
+                              int xsize, int ysize )
 
 {
     if( !vfile )
         EstablishAccess();
 
-/* -------------------------------------------------------------------- */
-/*      Fetch the desired block.                                        */
-/* -------------------------------------------------------------------- */
-    vfile->ReadFromFile( buffer, 
-                         tile_offsets[block_index], 
-                         tile_sizes[block_index] );
-
-/* -------------------------------------------------------------------- */
-/*      Do byte swapping if needed.                                     */
-/* -------------------------------------------------------------------- */
     int pixel_size = DataTypeSize(GetType());
 
-    if( needs_swap )
-        SwapData( buffer, pixel_size, width );
+/* -------------------------------------------------------------------- */
+/*      Default window if needed.                                       */
+/* -------------------------------------------------------------------- */
+    if( xoff == -1 && yoff == -1 && xsize == -1 && ysize == -1 )
+    {
+        xoff = 0;
+        yoff = 0;
+        xsize = GetBlockWidth();
+        ysize = GetBlockHeight();
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Validate Window                                                 */
+/* -------------------------------------------------------------------- */
+    if( xoff < 0 || xoff + xsize > GetBlockWidth()
+        || yoff < 0 || yoff + ysize > GetBlockHeight() )
+    {
+        throw new PCIDSKException( 
+            "Invalid window in ReadBloc(): xoff=%d,yoff=%d,xsize=%d,ysize=%d",
+            xoff, yoff, xsize, ysize );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      The simpliest case it an uncompressed direct and complete       */
+/*      tile read into the destination buffer.                          */
+/* -------------------------------------------------------------------- */
+    if( xoff == 0 && xsize == GetBlockWidth() 
+        && yoff == 0 && ysize == GetBlockHeight() 
+        && compression == "NONE" )
+    {
+        vfile->ReadFromFile( buffer, 
+                             tile_offsets[block_index], 
+                             tile_sizes[block_index] );
+        // Do byte swapping if needed.
+        if( needs_swap )
+            SwapData( buffer, pixel_size, xsize * ysize );
+
+        return 1;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      For now we do not support compression.                          */
+/* -------------------------------------------------------------------- */
+    if( compression != "NONE" )
+    {
+        throw new PCIDSKException( "Compression type '%s' is not currently supported.", compression.c_str() );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Load uncompressed data, one scanline at a time, into the        */
+/*      target buffer.                                                  */
+/* -------------------------------------------------------------------- */
+    int iy;
+
+    for( iy = 0; iy < ysize; iy++ )
+    {
+        vfile->ReadFromFile( ((uint8 *) buffer) 
+                             + iy * xsize * pixel_size,
+                             tile_offsets[block_index] 
+                             + (iy*block_width + xoff) * pixel_size,
+                             xsize * pixel_size );
+    }
 
     return 1;
 }

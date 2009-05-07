@@ -81,7 +81,7 @@ void SysBlockMap::Load()
 /* -------------------------------------------------------------------- */
 /*      Load the segment contents into a buffer.                        */
 /* -------------------------------------------------------------------- */
-    seg_data.SetSize( data_size - 1024 );
+    seg_data.SetSize( (int) (data_size - 1024) );
 
     ReadFromFile( seg_data.buffer, 0, data_size - 1024 );
 
@@ -94,8 +94,8 @@ void SysBlockMap::Load()
 /* -------------------------------------------------------------------- */
     int layer_count = seg_data.GetInt( 10, 8 );
 
-    block_count = seg_data.GetUInt64( 18, 8 );
-    first_free_block = seg_data.GetUInt64( 26, 8 );
+    block_count = seg_data.GetInt( 18, 8 );
+    first_free_block = seg_data.GetInt( 26, 8 );
 
     virtual_files.resize( layer_count );
 
