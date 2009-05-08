@@ -36,6 +36,8 @@ using namespace PCIDSK;
 /**
  * Return size of data type.
  *
+ * @param chan_type the channel type enumeration value.
+ *
  * @return the size of the passed data type in bytes, or zero for unknown 
  * values.
  */
@@ -67,6 +69,8 @@ int PCIDSK::DataTypeSize( eChanType chan_type )
  *
  * The returned values are suitable for display to people, and matches
  * the portion of the name after the underscore (ie. "8U" for CHN_8U.
+ *
+ * @param chan_type the channel type enumeration value to be translated.
  *
  * @return an internal string representing the data type.  The string should
  * not be altered or freed.

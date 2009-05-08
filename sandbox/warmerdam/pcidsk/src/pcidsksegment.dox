@@ -118,5 +118,32 @@ The description is at most 80 characters long.
 
 @return the segment number (1+).
 
+******************************************************************************
+\fn std::vector<std::string> PCIDSK::PCIDSKSegment::GetMetadataKeys();
+
+\brief Fetch metadata keys
+
+Returns a vector of metadata keys that occur on this object.  The values
+associated with each may be fetched with GetMetadataValue().
+
+@return list of keys
+
+@see GetMetadataValue()
+
+******************************************************************************
+\fn const char *PCIDSK::PCIDSKSegment::GetMetadataValue( const char *key );
+
+\brief Fetch metadata value
+
+Note that the returned pointer is to an internal structure and it may become 
+invalid if another thread modifies the metadata for this object.
+
+@param key the key to fetch the value for.
+
+@return the value of the indicated metadata item, or NULL if it does not 
+exist on the target object.
+
+@see GetMetadataKeys()
+
 */
 

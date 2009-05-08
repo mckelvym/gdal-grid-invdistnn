@@ -153,6 +153,17 @@ void CTiledChannel::EstablishAccess()
         tile_offsets[i] = tmap.GetUInt64( i*12 + 0, 12 );
         tile_sizes[i] = tmap.GetInt( tile_count*12 + i*8, 8 );
     }
+
+/* -------------------------------------------------------------------- */
+/*      Establish byte swapping.  Tiled data files are always big       */
+/*      endian, regardless of what the headers might imply.             */
+/* -------------------------------------------------------------------- */
+    unsigned short test_value = 1;
+    
+    if( ((uint8 *) &test_value)[0] == 1 )
+        needs_swap = pixel_type != CHN_8U;
+    else
+        needs_swap = false;
 }
 
 /************************************************************************/
@@ -189,6 +200,12 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
         throw new PCIDSKException( 
             "Invalid window in ReadBloc(): xoff=%d,yoff=%d,xsize=%d,ysize=%d",
             xoff, yoff, xsize, ysize );
+    }
+
+    if( block_index < 0 || block_index >= (int) tile_offsets.size() )
+    {
+        throw new PCIDSKException( "Requested non-existant block (%d)", 
+                                   block_index );
     }
 
 /* -------------------------------------------------------------------- */
@@ -231,6 +248,10 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
                              + ((iy+yoff)*block_width + xoff) * pixel_size,
                              xsize * pixel_size );
     }
+
+    // Do byte swapping if needed.
+    if( needs_swap )
+        SwapData( buffer, pixel_size, xsize * ysize );
 
     return 1;
 }

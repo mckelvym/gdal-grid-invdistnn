@@ -480,8 +480,9 @@ RECURSIVE              = NO
 # excluded from the INPUT source files. This way you can easily exclude a 
 # subdirectory from a directory tree whose root is specified with the INPUT tag.
 
-EXCLUDE                = io_win32.cpp win32_mutex.cpp \
-		       	 pcidsk_config.h pcidsk_p.h
+EXCLUDE                = io_win32.cpp win32_mutex.cpp sysblockmap.cpp \
+		       	 pcidsk_config.h pcidsk_p.h pcidskbuffer.cpp \
+			 sysvirtualfile.cpp 
 			 
 
 # The EXCLUDE_SYMLINKS tag can be used select whether or not files or 

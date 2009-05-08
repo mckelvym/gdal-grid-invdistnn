@@ -80,12 +80,15 @@ For tiled files it is a tile.
 
 
 ******************************************************************************
-\fn int PCIDSK::PCIDSKChannel::ReadBlock( int block_index, void *buffer );
+\fn int PCIDSK::PCIDSKChannel::ReadBlock( int block_index, void *buffer,
+                                          int win_xoff=-1, int win_yoff=-1, 
+                                          int win_xsize=-1, int win_ysize=-1 );
 
 \brief read block of image data from disk.
 
 The buffer into which imagery is read should be preallocated large enough to 
-hold GetBlockWidth() * GetBlockHeight() * DataTypeSize(GetType()) bytes. 
+hold GetBlockWidth() * GetBlockHeight() * DataTypeSize(GetType()) bytes, 
+or win_xsize*win_ysize*DataType(GetType()) if subwindowing is being used.
 Image data is returned in the pixel data type reported by GetType() and 
 in the local systems byte order (for types larger than one byte).
 
@@ -98,9 +101,21 @@ Partial (incomplete) blocks at the right or bottom of images that are not a
 multiple of the block width or height in size will be zero filled out to the
 block size.
 
+The win_xoff, win_yoff, win_xsize, and win_ysize parameters may be used to
+select a subwindow of the desired block.  By default the whole block is
+returned.
+
 @param block_index zero based block index to read.
 
 @param buffer the buffer into which the block will be read.
+
+@param win_xoff the x (right) offset into the block to start reading.
+
+@param win_yoff the y (down) offset into the block to start reading.
+
+@param win_xsize the width of the window to read from the block.
+
+@param win_ysize the height of the window to read from the block.
 
 
 ******************************************************************************
@@ -125,6 +140,57 @@ block size.
 @param block_index zero based block index to read.
 
 @param buffer the buffer from which the block will be written.
+
+******************************************************************************
+\fn std::vector<std::string> PCIDSK::PCIDSKChannel::GetMetadataKeys();
+
+\brief Fetch metadata keys
+
+Returns a vector of metadata keys that occur on this object.  The values
+associated with each may be fetched with GetMetadataValue().
+
+@return list of keys
+
+@see GetMetadataValue()
+
+******************************************************************************
+\fn const char *PCIDSK::PCIDSKChannel::GetMetadataValue( const char *key );
+
+\brief Fetch metadata value
+
+Note that the returned pointer is to an internal structure and it may become 
+invalid if another thread modifies the metadata for this object.
+
+@param key the key to fetch the value for.
+
+@return the value of the indicated metadata item, or NULL if it does not 
+exist on the target object.
+
+@see GetMetadataKeys()
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKChannel::GetOverviewCount();
+
+\brief Fetch number of overviews
+
+@return the number of overviews available for this channel.
+
+@see GetOverview()
+
+******************************************************************************
+\fn PCIDSK::PCIDSKChannel *PCIDSK::PCIDSKChannel::GetOverview(int i);
+
+\brief Fetch Overview
+
+This method fetches a pointer to the requested overview.  The return 
+PCIDSKChannel object remains owned by the parent PCIDSKChannel but may be 
+otherwise accessed using the normal PCIDSKChannel mechanisms.  The size of
+the overview in pixels and lines will reveal it's decimation factor relative 
+to the base image.  
+
+@param i the zero based index of the overview to fetch (from zero to GetOverviewCount()-1)
+
+@return the overview channel object.
 
 */
 

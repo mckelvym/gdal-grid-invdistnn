@@ -63,12 +63,6 @@ MetadataSet::~MetadataSet()
 void MetadataSet::Initialize( CPCIDSKFile *file, const char *group, int id )
 
 {
-    if( strcmp(group,"IMG") != 0 
-        && strcmp(group,"FIL") != 0 
-        && strcmp(group,"SEG") != 0 )
-        throw new PCIDSKException( 
-            "Illegal group '%s' in MetadataSet::Initialize()", group );
-
     this->file = file;
     this->group = group;
     this->id = id;

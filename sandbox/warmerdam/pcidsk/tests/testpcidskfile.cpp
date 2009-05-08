@@ -11,6 +11,9 @@ class PCIDSKFileTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testReadImage );
     CPPUNIT_TEST( testReadPixelInterleavedImage );
     CPPUNIT_TEST( testReadTiledImage );
+    CPPUNIT_TEST( testMetadata );
+    CPPUNIT_TEST( testOverviews );
+    CPPUNIT_TEST( testTiled16Bit );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -21,6 +24,9 @@ public:
     void testReadImage();
     void testReadPixelInterleavedImage();
     void testReadTiledImage();
+    void testMetadata();
+    void testOverviews();
+    void testTiled16Bit();
 };
 
 // Registers the fixture into the 'registry'
@@ -105,7 +111,6 @@ void PCIDSKFileTest::testReadPixelInterleavedImage()
 
     // Test the pixel interleaved reads on the file itself.
     CPPUNIT_ASSERT(irvine->GetPixelGroupSize() == 13);
-    CPPUNIT_ASSERT(irvine->GetBlockSize() == 6656);
     
     uint8 *interleaved_line = (uint8 *) irvine->ReadAndLockBlock( 254 );
     CPPUNIT_ASSERT(interleaved_line[13*7+0] == 66 );
@@ -150,6 +155,114 @@ void PCIDSKFileTest::testReadTiledImage()
     channel->ReadBlock( 6, data_line, 1, 1, 2, 2 );
     CPPUNIT_ASSERT( data_line[0] == 74 );
     CPPUNIT_ASSERT( data_line[4] == 255 );
+
+    delete irvine;
+}
+
+void PCIDSKFileTest::testMetadata()
+{
+    PCIDSKFile *irvine;
+    PCIDSKChannel *channel;
+    PCIDSKSegment *segment;
+    std::vector<std::string> keys;
+
+    irvine = PCIDSK::Open( "irvtiled.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( irvine != NULL );
+
+    keys = irvine->GetMetadataKeys();
+    CPPUNIT_ASSERT( keys.size() == 1 );
+    CPPUNIT_ASSERT( keys[0] == "_DBLayout" );
+    CPPUNIT_ASSERT( strcmp(irvine->GetMetadataValue(keys[0].c_str()),
+                           "TILED") == 0 );
+
+    channel = irvine->GetChannel(1);
+
+    keys = channel->GetMetadataKeys();
+    CPPUNIT_ASSERT( keys.size() == 3 );
+    CPPUNIT_ASSERT( keys[0] == "_Overview_3" );
+    CPPUNIT_ASSERT( keys[2] == "testname" );
+    CPPUNIT_ASSERT( strcmp(channel->GetMetadataValue("testname"),
+                           "image test metadata") == 0 );
+
+    segment = irvine->GetSegment(2);
+
+    keys = segment->GetMetadataKeys();
+    CPPUNIT_ASSERT( keys.size() == 1 );
+    CPPUNIT_ASSERT( keys[0] == "testname" );
+    CPPUNIT_ASSERT( strcmp(segment->GetMetadataValue("testname"),
+                           "lut segment") == 0 );
+
+    delete irvine;
+}
+
+void PCIDSKFileTest::testOverviews()
+{
+    PCIDSKFile *irvine;
+    PCIDSKChannel *channel;
+    uint8 data_block[256*256];
+
+    irvine = PCIDSK::Open( "irvtiled.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( irvine != NULL );
+
+    channel = irvine->GetChannel(1);
+
+    CPPUNIT_ASSERT( channel->GetOverviewCount() == 2 );
+    
+    PCIDSKChannel *overview = channel->GetOverview(0);
+    
+    CPPUNIT_ASSERT( overview->GetWidth() == 170 );
+    CPPUNIT_ASSERT( overview->GetHeight() == 170 );
+    CPPUNIT_ASSERT( overview->GetBlockWidth() == 170 );
+    CPPUNIT_ASSERT( overview->GetBlockHeight() == 170 );
+
+    overview->ReadBlock( 0, data_block );
+
+    CPPUNIT_ASSERT( data_block[170] == 64 );
+
+    overview = channel->GetOverview(1);
+    
+    CPPUNIT_ASSERT( overview->GetWidth() == 57 );
+    CPPUNIT_ASSERT( overview->GetHeight() == 57 );
+    CPPUNIT_ASSERT( overview->GetBlockWidth() == 57 );
+    CPPUNIT_ASSERT( overview->GetBlockHeight() == 57 );
+
+    overview->ReadBlock( 0, data_block );
+
+    CPPUNIT_ASSERT( data_block[57] == 55 );
+
+    delete irvine;
+}
+
+void PCIDSKFileTest::testTiled16Bit()
+{
+    PCIDSKFile *irvine;
+    PCIDSKChannel *channel;
+    unsigned short data_block[127*100];
+
+    irvine = PCIDSK::Open( "irv_dem_tiled.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( irvine != NULL );
+
+    channel = irvine->GetChannel(1);
+
+    CPPUNIT_ASSERT( channel->GetBlockWidth() == 127 );
+    CPPUNIT_ASSERT( channel->GetBlockHeight() == 100 );
+
+    channel->ReadBlock( 2, data_block );
+
+    CPPUNIT_ASSERT( data_block[127*99+45] == 400 );
+
+    PCIDSKChannel *overview = channel->GetOverview(0);
+
+    CPPUNIT_ASSERT( overview->GetBlockWidth() == 100 );
+    CPPUNIT_ASSERT( overview->GetBlockHeight() == 33 );
+
+    overview->ReadBlock( 0, data_block );
+    CPPUNIT_ASSERT( data_block[0] == 66 );
+    CPPUNIT_ASSERT( data_block[60] == 405 );
+    CPPUNIT_ASSERT( data_block[3299] == 417 );
 
     delete irvine;
 }

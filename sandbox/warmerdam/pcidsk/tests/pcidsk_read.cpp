@@ -65,6 +65,21 @@ int main( int argc, char **argv)
                 file->GetInterleaving() );
 
 /* -------------------------------------------------------------------- */
+/*      Report file level metadata if there is any.                     */
+/* -------------------------------------------------------------------- */
+        std::vector<std::string> keys = file->GetMetadataKeys();  
+        size_t i_key;
+
+        if( keys.size() > 0 )
+            printf( "  Metadata:\n" );
+        for( i_key = 0; i_key < keys.size(); i_key++ )
+        {
+            printf( "    %s: %s\n", 
+                    keys[i_key].c_str(), 
+                    file->GetMetadataValue( keys[i_key].c_str() ) );
+        }
+
+/* -------------------------------------------------------------------- */
 /*      If a destination raw file is requested, open it now.            */
 /* -------------------------------------------------------------------- */
         FILE *fp_raw = NULL;
@@ -84,8 +99,8 @@ int main( int argc, char **argv)
                 printf( "Channel %d of type %s.\n",
                         channel, PCIDSK::DataTypeName(chanobj->GetType()) );;
 
-                std::vector<std::string> keys = chanobj->GetMetadataKeys();  
-                size_t i_key;
+                keys = chanobj->GetMetadataKeys();  
+                i_key;
 
                 if( keys.size() > 0 )
                     printf( "  Metadata:\n" );
@@ -132,6 +147,16 @@ int main( int argc, char **argv)
                                 segobj->GetName(), 
                                 segobj->GetSegmentType(),
                                 PCIDSK::SegmentTypeName(segobj->GetSegmentType()) );
+                        keys = segobj->GetMetadataKeys();  
+                        
+                        if( keys.size() > 0 )
+                            printf( "  Metadata:\n" );
+                        for( i_key = 0; i_key < keys.size(); i_key++ )
+                        {
+                            printf( "    %s: %s\n", 
+                                    keys[i_key].c_str(), 
+                                    segobj->GetMetadataValue( keys[i_key].c_str() ) );
+                        }
                     }
                 }
                 catch(...)
@@ -255,7 +280,7 @@ int main( int argc, char **argv)
             int y_block_count = 
                 (channel->GetHeight() + channel->GetBlockHeight()-1) 
                 / channel->GetBlockHeight();
-            int block_size = (int) file->GetBlockSize();
+            int block_size = (int) file->GetPixelGroupSize() * file->GetWidth();
             int block_count = x_block_count * y_block_count;
 
             if( strcmp(file->GetInterleaving(),"PIXEL   ") != 0 )

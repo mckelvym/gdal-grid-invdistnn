@@ -158,6 +158,7 @@ private:
     // register of open external raw files.
     std::vector<ProtectedFile>  file_list;
 
+    MetadataSet  metadata;
 public:
 
     CPCIDSKFile();
@@ -177,7 +178,6 @@ public:
     const char *GetInterleaving() const { return interleaving.c_str(); }
     
     // the following are only for pixel interleaved IO
-    uint64    GetBlockSize() const { return block_size; }
     int       GetPixelGroupSize() const { return pixel_group_size; }
     void     *ReadAndLockBlock( int block_index, int xoff=-1, int xsize=-1 );
     void      UnlockBlock( bool mark_dirty = false );
@@ -189,6 +189,11 @@ public:
 
     void      GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
                             const char *filename = "" );
+
+    const char *GetMetadataValue( const char *key ) 
+		{ return metadata.GetMetadataValue(key); }
+    std::vector<std::string> GetMetadataKeys() 
+        	{ return metadata.GetMetadataKeys(); }
 };
 
 /************************************************************************/
@@ -396,6 +401,8 @@ protected:
     
     PCIDSKBuffer header;
 
+    MetadataSet  metadata;
+
 public:
                 CPCIDSKSegment( CPCIDSKFile *file, int segment,
                                 const char *segment_pointer );
@@ -413,6 +420,11 @@ public:
     const char *GetName() { return segment_name.c_str(); }
     const char *GetDescription();
     int         GetSegmentNumber() { return segment; }
+
+    const char *GetMetadataValue( const char *key ) 
+		{ return metadata.GetMetadataValue(key); }
+    std::vector<std::string> GetMetadataKeys() 
+        	{ return metadata.GetMetadataKeys(); }
 };
 
 /************************************************************************/

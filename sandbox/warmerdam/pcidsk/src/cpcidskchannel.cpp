@@ -88,7 +88,7 @@ CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header,
 CPCIDSKChannel::~CPCIDSKChannel()
 
 {
-    for( size_t io; io < overview_bands.size(); io++ )
+    for( size_t io=0; io < overview_bands.size(); io++ )
     {
         if( overview_bands[io] != NULL )
         {

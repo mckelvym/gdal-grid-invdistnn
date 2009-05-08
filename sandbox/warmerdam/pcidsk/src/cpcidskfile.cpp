@@ -39,6 +39,12 @@ CPCIDSKFile::CPCIDSKFile()
 {
     io_handle = NULL;
     io_mutex = NULL;
+
+/* -------------------------------------------------------------------- */
+/*      Initialize the metadata object, but do not try to load till     */
+/*      needed.                                                         */
+/* -------------------------------------------------------------------- */
+    metadata.Initialize( this, "FIL", 0 );
 }
 
 /************************************************************************/

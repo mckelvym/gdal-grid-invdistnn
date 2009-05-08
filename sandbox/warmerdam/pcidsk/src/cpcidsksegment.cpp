@@ -43,6 +43,12 @@ CPCIDSKSegment::CPCIDSKSegment( CPCIDSKFile *file, int segment,
 
     LoadSegmentPointer( segment_pointer );
     LoadSegmentHeader(); // eventually we might want to defer this.
+
+/* -------------------------------------------------------------------- */
+/*      Initialize the metadata object, but do not try to load till     */
+/*      needed.                                                         */
+/* -------------------------------------------------------------------- */
+    metadata.Initialize( file, SegmentTypeName(segment_type), segment );
 }
 
 /************************************************************************/

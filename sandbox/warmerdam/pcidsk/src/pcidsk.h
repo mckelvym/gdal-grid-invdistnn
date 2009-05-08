@@ -169,12 +169,9 @@ public:
     virtual const char *GetInterleaving() const = 0;
 
     // the following are only for pixel interleaved IO
-    virtual uint64 GetBlockSize() const = 0;
     virtual int    GetPixelGroupSize() const = 0;
     virtual void *ReadAndLockBlock( int block_index, int xoff=-1, int xsize=-1) = 0;
     virtual void  UnlockBlock( bool mark_dirty = false ) = 0;
-    virtual void  WriteBlock( int block_index, void *buffer ) = 0;
-    virtual void  FlushBlock() = 0;
 
     // low level io, primarily internal.
     virtual void WriteToFile( const void *buffer, uint64 offset, uint64 size)=0;
@@ -182,6 +179,9 @@ public:
 
     virtual void GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
                             const char *filename = "" ) = 0;
+
+    virtual const char *GetMetadataValue( const char *key ) = 0;
+    virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 
 /************************************************************************/
@@ -200,8 +200,8 @@ public:
     virtual int GetHeight() = 0;
     virtual eChanType GetType() = 0;
     virtual int ReadBlock( int block_index, void *buffer,
-                           int xoff=-1, int yoff=-1,
-                           int xsize=-1, int ysize=-1 ) = 0;
+                           int win_xoff=-1, int win_yoff=-1,
+                           int win_xsize=-1, int win_ysize=-1 ) = 0;
     virtual int WriteBlock( int block_index, void *buffer ) = 0;
     virtual int GetOverviewCount() = 0;
     virtual PCIDSKChannel *GetOverview( int i ) = 0;
@@ -228,6 +228,9 @@ public:
     virtual const char *GetName() = 0;
     virtual const char *GetDescription() = 0;
     virtual int         GetSegmentNumber() = 0;
+
+    virtual const char *GetMetadataValue( const char *key ) = 0;
+    virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 
 /************************************************************************/

@@ -133,7 +133,11 @@ void MetadataSegment::FetchMetadata( const char *group, int id,
             std::string key, value;
 
             key.assign( pszNext+prefix_len, i_split-prefix_len );
-            value.assign( pszNext+i_split+1, i-i_split-1 );
+
+            if( pszNext[i_split+1] == ' ' )
+                value.assign( pszNext+i_split+2, i-i_split-2 );
+            else
+                value.assign( pszNext+i_split+1, i-i_split-1 );
 
             md_set[key] = value;
         }
