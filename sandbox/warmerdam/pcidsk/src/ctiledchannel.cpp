@@ -228,7 +228,7 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
         vfile->ReadFromFile( ((uint8 *) buffer) 
                              + iy * xsize * pixel_size,
                              tile_offsets[block_index] 
-                             + (iy*block_width + xoff) * pixel_size,
+                             + ((iy+yoff)*block_width + xoff) * pixel_size,
                              xsize * pixel_size );
     }
 

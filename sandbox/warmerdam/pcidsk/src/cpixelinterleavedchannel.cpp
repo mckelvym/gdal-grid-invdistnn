@@ -60,30 +60,30 @@ CPixelInterleavedChannel::~CPixelInterleavedChannel()
 /************************************************************************/
 
 int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
-                                         int xoff, int yoff, 
-                                         int xsize, int ysize )
+                                         int win_xoff, int win_yoff, 
+                                         int win_xsize, int win_ysize )
 
 {
 /* -------------------------------------------------------------------- */
 /*      Default window if needed.                                       */
 /* -------------------------------------------------------------------- */
-    if( xoff == -1 && yoff == -1 && xsize == -1 && ysize == -1 )
+    if( win_xoff == -1 && win_yoff == -1 && win_xsize == -1 && win_ysize == -1 )
     {
-        xoff = 0;
-        yoff = 0;
-        xsize = GetBlockWidth();
-        ysize = GetBlockHeight();
+        win_xoff = 0;
+        win_yoff = 0;
+        win_xsize = GetBlockWidth();
+        win_ysize = GetBlockHeight();
     }
 
 /* -------------------------------------------------------------------- */
 /*      Validate Window                                                 */
 /* -------------------------------------------------------------------- */
-    if( xoff < 0 || xoff + xsize > GetBlockWidth()
-        || yoff < 0 || yoff + ysize > GetBlockHeight() )
+    if( win_xoff < 0 || win_xoff + win_xsize > GetBlockWidth()
+        || win_yoff < 0 || win_yoff + win_ysize > GetBlockHeight() )
     {
         throw new PCIDSKException( 
-            "Invalid window in ReadBloc(): xoff=%d,yoff=%d,xsize=%d,ysize=%d",
-            xoff, yoff, xsize, ysize );
+            "Invalid window in ReadBloc(): win_xoff=%d,win_yoff=%d,xsize=%d,ysize=%d",
+            win_xoff, win_yoff, win_xsize, win_ysize );
     }
 
 /* -------------------------------------------------------------------- */
@@ -92,22 +92,19 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
     int pixel_group = file->GetPixelGroupSize();
     int pixel_size = DataTypeSize(GetType());
 
-    // TODO: We don't yet support subwindowing...
-    if( xoff != 0 || xsize != width )
-        throw new PCIDSKException( "windowing not yet supported for pixel interleaved files." );
-
 /* -------------------------------------------------------------------- */
 /*      Read and lock the scanline.                                     */
 /* -------------------------------------------------------------------- */
-    uint8 *pixel_buffer = (uint8 *) file->ReadAndLockBlock( block_index );
+    uint8 *pixel_buffer = (uint8 *) 
+        file->ReadAndLockBlock( block_index, win_xoff, win_xsize);
 
 /* -------------------------------------------------------------------- */
 /*      Copy the data into our callers buffer.  Try to do this          */
 /*      reasonably efficiently.  We might consider adding faster        */
 /*      cases for 16/32bit data that is word aligned.                   */
 /* -------------------------------------------------------------------- */
-    if( pixel_size == pixel_group && xsize == width )
-        memcpy( buffer, pixel_buffer, pixel_size * width );
+    if( pixel_size == pixel_group )
+        memcpy( buffer, pixel_buffer, pixel_size * win_xsize );
     else
     {
         int i;
@@ -116,7 +113,7 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
 
         if( pixel_size == 1 )
         {
-            for( i = width; i != 0; i-- )
+            for( i = win_xsize; i != 0; i-- )
             {
                 *dst = *src;
                 dst++;
@@ -125,7 +122,7 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
         }
         else if( pixel_size == 2 )
         {
-            for( i = width; i != 0; i-- )
+            for( i = win_xsize; i != 0; i-- )
             {
                 *(dst++) = *(src++);
                 *(dst++) = *(src++);
@@ -134,7 +131,7 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
         }
         else if( pixel_size == 4 )
         {
-            for( i = width; i != 0; i-- )
+            for( i = win_xsize; i != 0; i-- )
             {
                 *(dst++) = *(src++);
                 *(dst++) = *(src++);
@@ -153,7 +150,7 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
 /*      Do byte swapping if needed.                                     */
 /* -------------------------------------------------------------------- */
     if( needs_swap )
-        SwapData( buffer, pixel_size, width );
+        SwapData( buffer, pixel_size, win_xsize );
 
     return 0;
 }

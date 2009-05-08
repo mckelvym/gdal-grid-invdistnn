@@ -66,6 +66,12 @@ void PCIDSKFileTest::testReadImage()
 
     CPPUNIT_ASSERT( data_line[2] == 38 );
     CPPUNIT_ASSERT( chan1->GetType() == PCIDSK::CHN_8U );
+
+    // Test subwindowing.
+    data_line[5] = 255;
+    chan1->ReadBlock( 3, data_line, 2, 0, 5, 0 );
+    CPPUNIT_ASSERT( data_line[0] == 38 );
+    CPPUNIT_ASSERT( data_line[5] == 255 );
     
     delete eltoro;
 
@@ -92,6 +98,26 @@ void PCIDSKFileTest::testReadPixelInterleavedImage()
 
     CPPUNIT_ASSERT( ((short *) data_line)[511] == 304 );
     CPPUNIT_ASSERT( channel->GetType() == PCIDSK::CHN_16S );
+
+    // test windowed access.    
+    channel->ReadBlock( 511, data_line, 510, 0, 2, 1 );
+    CPPUNIT_ASSERT( ((short *) data_line)[1] == 304 );
+
+    // Test the pixel interleaved reads on the file itself.
+    CPPUNIT_ASSERT(irvine->GetPixelGroupSize() == 13);
+    CPPUNIT_ASSERT(irvine->GetBlockSize() == 6656);
+    
+    uint8 *interleaved_line = (uint8 *) irvine->ReadAndLockBlock( 254 );
+    CPPUNIT_ASSERT(interleaved_line[13*7+0] == 66 );
+    CPPUNIT_ASSERT(interleaved_line[13*7+1] == 25 );
+    CPPUNIT_ASSERT(interleaved_line[13*7+2] == 28 );
+    irvine->UnlockBlock();
+    
+    interleaved_line = (uint8 *) irvine->ReadAndLockBlock( 254, 7, 5 );
+    CPPUNIT_ASSERT(interleaved_line[0] == 66 );
+    CPPUNIT_ASSERT(interleaved_line[1] == 25 );
+    CPPUNIT_ASSERT(interleaved_line[2] == 28 );
+    irvine->UnlockBlock();
     
     delete irvine;
 }
@@ -120,6 +146,11 @@ void PCIDSKFileTest::testReadTiledImage()
     CPPUNIT_ASSERT( channel->GetBlockWidth() == 127 );
     CPPUNIT_ASSERT( channel->GetBlockHeight() == 127 );
     
+    data_line[4] = 255;
+    channel->ReadBlock( 6, data_line, 1, 1, 2, 2 );
+    CPPUNIT_ASSERT( data_line[0] == 74 );
+    CPPUNIT_ASSERT( data_line[4] == 255 );
+
     delete irvine;
 }
 

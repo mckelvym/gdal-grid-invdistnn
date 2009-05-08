@@ -9,7 +9,7 @@ static void Usage()
 
 {
     printf( "Usage: pcidsk_read [-p] [-l] <src_filename> [<dst_filename>]\n"
-            "                   [-ls]\n" );
+            "                   [-ls] [-lc]\n" );
     exit( 1 );
 }
 
@@ -26,6 +26,7 @@ int main( int argc, char **argv)
     std::string strategy = "-b";
     int i_arg;
     bool list_segments = false;
+    bool list_channels = false;
 
     for( i_arg = 1; i_arg < argc; i_arg++ )
     {
@@ -35,6 +36,8 @@ int main( int argc, char **argv)
             strategy = argv[i_arg];
         else if( strcmp(argv[i_arg],"-ls") == 0 )
             list_segments = true;
+        else if( strcmp(argv[i_arg],"-lc") == 0 )
+            list_channels = true;
         else if( argv[i_arg][0] == '-' )
             Usage();
         else if( src_file == NULL )
@@ -57,6 +60,10 @@ int main( int argc, char **argv)
         int channel_count = file->GetChannels();
         int channel_index;
 
+        printf( "File: %dC x %dR x %dC (%s)\n", 
+                file->GetWidth(), file->GetHeight(), file->GetChannels(),
+                file->GetInterleaving() );
+
 /* -------------------------------------------------------------------- */
 /*      If a destination raw file is requested, open it now.            */
 /* -------------------------------------------------------------------- */
@@ -64,6 +71,48 @@ int main( int argc, char **argv)
 
         if( dst_file != NULL )
             fp_raw = fopen(dst_file,"wb");
+
+/* -------------------------------------------------------------------- */
+/*      List segments if requested.                                     */
+/* -------------------------------------------------------------------- */
+        if( list_channels )
+        {
+            for( int channel = 1; channel <= file->GetChannels(); channel++ )
+            {
+                PCIDSK::PCIDSKChannel *chanobj = file->GetChannel( channel );
+
+                printf( "Channel %d of type %s.\n",
+                        channel, PCIDSK::DataTypeName(chanobj->GetType()) );;
+
+                std::vector<std::string> keys = chanobj->GetMetadataKeys();  
+                size_t i_key;
+
+                if( keys.size() > 0 )
+                    printf( "  Metadata:\n" );
+                for( i_key = 0; i_key < keys.size(); i_key++ )
+                {
+                    printf( "    %s: %s\n", 
+                            keys[i_key].c_str(), 
+                            chanobj->GetMetadataValue( keys[i_key].c_str() ) );
+                }
+
+                if( chanobj->GetOverviewCount() > 0 )
+                {
+                    int   io;
+
+                    printf( "  Overviews: " );
+                    for( io=0; io < chanobj->GetOverviewCount(); io++ )
+                    {
+                        PCIDSK::PCIDSKChannel *overobj = 
+                            chanobj->GetOverview(io);
+
+                        printf( "%dx%d ", 
+                                overobj->GetWidth(), overobj->GetHeight() );
+                    }
+                    printf( "\n" );
+                }
+            }
+        }
 
 /* -------------------------------------------------------------------- */
 /*      List segments if requested.                                     */

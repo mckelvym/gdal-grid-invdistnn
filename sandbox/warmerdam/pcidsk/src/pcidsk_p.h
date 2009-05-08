@@ -146,7 +146,9 @@ private:
     uint64       first_line_offset;
 
     int          last_block_index;
-    int          last_block_dirty;
+    bool         last_block_dirty;
+    int          last_block_xoff;
+    int          last_block_xsize;
     void        *last_block_data;
     Mutex       *last_block_mutex;
 
@@ -177,8 +179,8 @@ public:
     // the following are only for pixel interleaved IO
     uint64    GetBlockSize() const { return block_size; }
     int       GetPixelGroupSize() const { return pixel_group_size; }
-    void     *ReadAndLockBlock( int block_index );
-    void      UnlockBlock( int mark_dirty );
+    void     *ReadAndLockBlock( int block_index, int xoff=-1, int xsize=-1 );
+    void      UnlockBlock( bool mark_dirty = false );
     void      WriteBlock( int block_index, void *buffer );
     void      FlushBlock();
 

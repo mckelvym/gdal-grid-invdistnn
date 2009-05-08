@@ -171,8 +171,8 @@ public:
     // the following are only for pixel interleaved IO
     virtual uint64 GetBlockSize() const = 0;
     virtual int    GetPixelGroupSize() const = 0;
-    virtual void *ReadAndLockBlock( int block_index ) = 0;
-    virtual void  UnlockBlock( int mark_dirty ) = 0;
+    virtual void *ReadAndLockBlock( int block_index, int xoff=-1, int xsize=-1) = 0;
+    virtual void  UnlockBlock( bool mark_dirty = false ) = 0;
     virtual void  WriteBlock( int block_index, void *buffer ) = 0;
     virtual void  FlushBlock() = 0;
 

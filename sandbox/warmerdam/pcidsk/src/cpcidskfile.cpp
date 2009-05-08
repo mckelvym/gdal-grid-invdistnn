@@ -407,26 +407,53 @@ void CPCIDSKFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
 /*                          ReadAndLockBlock()                          */
 /************************************************************************/
 
-void *CPCIDSKFile::ReadAndLockBlock( int block_index )
+void *CPCIDSKFile::ReadAndLockBlock( int block_index, 
+                                     int win_xoff, int win_xsize )
 
 {
     if( last_block_data == NULL )
         throw new PCIDSKException( "ReadAndLockBlock() called on a file that is not pixel interleaved." );
 
-    if( block_index == last_block_index )
+/* -------------------------------------------------------------------- */
+/*      Default, and validate windowing.                                */
+/* -------------------------------------------------------------------- */
+    if( win_xoff == -1 && win_xsize == -1 )
+    {
+        win_xoff = 0;
+        win_xsize = GetWidth();
+    }
+
+    if( win_xoff < 0 || win_xoff+win_xsize > GetWidth() )
+    {
+        throw new PCIDSKException( "CPCIDSKFile::ReadAndLockBlock(): Illegal window - xoff=%d, xsize=%d", 
+                                   win_xoff, win_xsize );
+    }
+
+    if( block_index == last_block_index 
+        && win_xoff == last_block_xoff
+        && win_xsize == last_block_xsize )
     {
         last_block_mutex->Acquire();
         return last_block_data;
     }
 
+/* -------------------------------------------------------------------- */
+/*      Flush any dirty writable data.                                  */
+/* -------------------------------------------------------------------- */
     FlushBlock();
 
+/* -------------------------------------------------------------------- */
+/*      Read the requested window.                                      */
+/* -------------------------------------------------------------------- */
     last_block_mutex->Acquire();
 
     ReadFromFile( last_block_data, 
-                  first_line_offset + block_index*block_size,
-                  block_size );
+                  first_line_offset + block_index*block_size
+                  + win_xoff * pixel_group_size,
+                  pixel_group_size * win_xsize );
     last_block_index = block_index;
+    last_block_xoff = win_xoff;
+    last_block_xsize = win_xsize;
     
     return last_block_data;
 }
@@ -435,7 +462,7 @@ void *CPCIDSKFile::ReadAndLockBlock( int block_index )
 /*                            UnlockBlock()                             */
 /************************************************************************/
 
-void CPCIDSKFile::UnlockBlock( int mark_dirty )
+void CPCIDSKFile::UnlockBlock( bool mark_dirty )
 
 {
     if( last_block_mutex == NULL )
