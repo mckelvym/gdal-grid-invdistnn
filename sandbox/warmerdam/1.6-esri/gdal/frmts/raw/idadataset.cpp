@@ -339,7 +339,7 @@ void IDADataset::ProcessGeoref()
                      dfLatCenter, dfLongCenter, 
                      0.0, 0.0 );
         oSRS.SetGeogCS( "Clarke 1866", "Clarke 1866", "Clarke 1866", 
-                        6378206.4, 293.97869821389662 );
+                        6378206.4, 293.9786982 );
     }
     else if( nProjection == 6 ) 
     {
@@ -353,7 +353,7 @@ void IDADataset::ProcessGeoref()
                       dfLatCenter, dfLongCenter, 
                       0.0, 0.0 );
         oSRS.SetGeogCS( "Clarke 1866", "Clarke 1866", "Clarke 1866", 
-                        6378206.4, 293.97869821389662 );
+                        6378206.4, 293.9786982 );
     }
     else if( nProjection == 9 ) 
     {

@@ -8,7 +8,7 @@ OBJ	=	vb6_support.obj
 default:	$(OBJ)
 
 $(VB6_GDAL_DLL):	$(OBJ)
-	link /dll /debug $(OBJ) ../gdal_i.lib /out:$(VB6_GDAL_DLL)
+	link /dll /debug $(OBJ) ../gdal_i$(TARGET).lib /out:$(VB6_GDAL_DLL)
 	copy $(VB6_GDAL_DLL) D:\local\bin
 
 clean:	

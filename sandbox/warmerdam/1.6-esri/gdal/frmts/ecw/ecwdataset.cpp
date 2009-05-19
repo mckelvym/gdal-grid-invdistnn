@@ -399,18 +399,17 @@ CPLErr ECWRasterBand::IRasterIO( GDALRWFlag eRWFlag,
         else
             pabySrcBuf = pabyWorkBuffer;
 
-	if ( nNewYSize == nBufYSize || iSrcLine == (int)(iDstLine * dfSrcYInc) )
-	{
+	    if ( nNewYSize == nBufYSize || iSrcLine == (int)(iDstLine * dfSrcYInc) )
+	    {
             eRStatus = poGDS->poFileView->ReadLineBIL( 
                 poGDS->eNCSRequestDataType, 1, (void **) &pabySrcBuf );
 
-	    if( eRStatus != NCSECW_READ_OK )
-	    {
-	        CPLFree( pabyWorkBuffer );
-	        CPLError( CE_Failure, CPLE_AppDefined,
-			  "NCScbmReadViewLineBIL failed." );
-		return CE_Failure;
-	    }
+	        if( eRStatus != NCSECW_READ_OK )
+	        {
+	            CPLFree( pabyWorkBuffer );
+	            CPLError( CE_Failure, CPLE_AppDefined, "NCScbmReadViewLineBIL failed." );
+		        return CE_Failure;
+	        }
 
             if( !bDirect )
             {
@@ -421,9 +420,9 @@ CPLErr ECWRasterBand::IRasterIO( GDALRWFlag eRWFlag,
                                    ((GByte *)pData) + iDstLine * nLineSpace, 
                                    eBufType, nPixelSpace, nBufXSize );
                 }
-		else
-		{
-	            int	iPixel;
+		        else
+		        {
+	                int	iPixel;
 
                     for ( iPixel = 0; iPixel < nBufXSize; iPixel++ )
                     {
@@ -434,19 +433,19 @@ CPLErr ECWRasterBand::IRasterIO( GDALRWFlag eRWFlag,
 				       + iPixel * nPixelSpace,
                                        eBufType, nPixelSpace, 1 );
                     }
-		}
+		        }
             }
 
             iSrcLine++;
-	}
-	else
-	{
-	    // Just copy the previous line in this case
+	    }
+	    else
+	    {
+	        // Just copy the previous line in this case
             GDALCopyWords( (GByte *)pData + (iDstLineOff - nLineSpace),
                             eBufType, nPixelSpace,
                             (GByte *)pData + iDstLineOff,
                             eBufType, nPixelSpace, nBufXSize );
-	}
+	    }
     }
 
     CPLFree( pabyWorkBuffer );
@@ -1331,10 +1330,11 @@ const GDAL_GCP *ECWDataset::GetGCPs()
 const char *ECWDataset::GetProjectionRef() 
 
 {
-    if( pszProjection == NULL )
-        return GDALPamDataset::GetProjectionRef();
-    else
-        return pszProjection;
+    const char* prj = GDALPamDataset::GetProjectionRef();
+    if( prj && strlen(prj) > 0 )
+        return prj;
+
+    return pszProjection;
 }
 
 /************************************************************************/
@@ -1346,11 +1346,18 @@ CPLErr ECWDataset::GetGeoTransform( double * padfTransform )
 {
     if( bGeoTransformValid )
     {
-        memcpy( padfTransform, adfGeoTransform, sizeof(double) * 6 );
-        return( CE_None );
+        const char* prj = GDALPamDataset::GetProjectionRef();
+        if( prj && strlen(prj) > 0 )
+            bGeoTransformValid = GDALPamDataset::GetGeoTransform( padfTransform ) != CE_None;
     }
-    else
-        return GDALPamDataset::GetGeoTransform( padfTransform );
+
+    if( bGeoTransformValid )
+    {
+        memcpy( padfTransform, adfGeoTransform, sizeof(adfGeoTransform[0]) * 6 );
+        return CE_None;
+    }
+
+    return GDALPamDataset::GetGeoTransform( padfTransform );
 }
 
 /************************************************************************/

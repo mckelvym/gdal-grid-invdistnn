@@ -237,16 +237,22 @@ static int ReadKey(GTIF* gt, TempKeyData* tempData,
                 count = tempData->tk_asciiParamsLength - offset;
                 /* issue warning... if we could */
             }
-            else if (offset + count > tempData->tk_asciiParamsLength)
-                return (0);
 
-            keyptr->gk_data = (char *) _GTIFcalloc (MAX(1,count+1));
-            _GTIFmemcpy (keyptr->gk_data,
-                         tempData->tk_asciiParams + offset, count);
-            if( keyptr->gk_data[MAX(0,count-1)] == '|' )
-                keyptr->gk_data[MAX(0,count-1)] = '\0';
+            if (tempData->tk_asciiParams)
+            {
+              keyptr->gk_data = (char *) _GTIFcalloc (MAX(1,count+1));
+              _GTIFmemcpy (keyptr->gk_data,
+                           tempData->tk_asciiParams + offset, count);
+              if( keyptr->gk_data[MAX(0,count-1)] == '|' )
+                  keyptr->gk_data[MAX(0,count-1)] = '\0';
+              else
+                  keyptr->gk_data[MAX(0,count)] = '\0';
+            }
             else
-                keyptr->gk_data[MAX(0,count)] = '\0';
+            {
+              keyptr->gk_data = (char *) _GTIFcalloc (_gtiff_size[keyptr->gk_type]);
+              keyptr->gk_data[_gtiff_size[keyptr->gk_type]-1] = '\0';
+            }
             break;
         default:
             return 0; /* failure */

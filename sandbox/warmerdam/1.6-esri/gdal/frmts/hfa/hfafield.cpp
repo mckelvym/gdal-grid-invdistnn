@@ -951,11 +951,17 @@ HFAField::ExtractInstValue( const char * pszField, int nIndexValue,
           {
               dfDoubleRet = nIntRet = nRows;
           }
-          else if( nBaseItemType == EPT_u8 )
+          else if( nBaseItemType <= EPT_u8 )
           {
               dfDoubleRet = pabyData[nIndexValue];
               nIntRet = pabyData[nIndexValue];
           }
+          else if( nBaseItemType == EPT_s8 )
+          {
+              dfDoubleRet = ((char*)pabyData)[nIndexValue];
+              nIntRet     = ((char*)pabyData)[nIndexValue];
+          }
+
           else if( nBaseItemType == EPT_s16 )
           {
               GInt16  nValue;

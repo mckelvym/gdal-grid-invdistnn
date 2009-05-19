@@ -610,10 +610,15 @@ CPLErr MrSIDRasterBand::GetStatistics( int bApproxOK, int bForce,
 double MrSIDRasterBand::GetNoDataValue( int * pbSuccess )
 
 {
-    if( pbSuccess )
+    if( bNoDataSet )
+    {
+      if( pbSuccess )
         *pbSuccess = bNoDataSet;
 
-    return dfNoDataValue;
+      return dfNoDataValue;
+    }
+
+    return GDALPamRasterBand::GetNoDataValue( pbSuccess );
 }
 
 /************************************************************************/
@@ -915,11 +920,18 @@ CPLErr MrSIDDataset::GetGeoTransform( double * padfTransform )
 {
     if( bHasGeoTransform )
     {
+        const char* prj = GDALPamDataset::GetProjectionRef();
+        if( prj && strlen(prj) > 0 )
+            bHasGeoTransform = GDALPamDataset::GetGeoTransform( padfTransform ) != CE_None;
+    }
+
+    if( bHasGeoTransform )
+    {
         memcpy( padfTransform, adfGeoTransform, sizeof(adfGeoTransform[0]) * 6 );
         return CE_None;
     }
-    else
-        return GDALPamDataset::GetGeoTransform( padfTransform );
+
+    return GDALPamDataset::GetGeoTransform( padfTransform );
 }
 
 /************************************************************************/
@@ -928,10 +940,11 @@ CPLErr MrSIDDataset::GetGeoTransform( double * padfTransform )
 
 const char *MrSIDDataset::GetProjectionRef()
 {
-    if( pszProjection && strlen(pszProjection) > 0 )
-        return pszProjection;
-    else
-        return GDALPamDataset::GetProjectionRef();
+    const char* prj = GDALPamDataset::GetProjectionRef();
+    if( prj && strlen(prj) > 0 )
+        return prj;
+
+    return pszProjection;
 }
 
 /************************************************************************/
@@ -947,6 +960,11 @@ char *MrSIDDataset::SerializeMetadataRec( const LTIMetadataRecord *poMetadataRec
     char           *pszMetadata = CPLStrdup( "" );
 
     for ( i = 0; i < iNumDims; i++ )
+    {
+        // stops on large binary data
+        if ( poMetadataRec->getDataType() == LTI_METADATA_DATATYPE_UINT8 && paiDims[i] > 1024 )
+          return pszMetadata;
+
         for ( j = 0; j < paiDims[i]; j++ )
         {
             CPLString osTemp;
@@ -990,6 +1008,7 @@ char *MrSIDDataset::SerializeMetadataRec( const LTIMetadataRecord *poMetadataRec
                 strncat( pszMetadata, ",", 1 );
             strncat( pszMetadata, osTemp, iLength );
         }
+    }
 
     return pszMetadata;
 }
@@ -1372,6 +1391,20 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo )
             CPLFree( pszElement );
             CPLFree( pszKey );
         }
+    }
+
+    // Add MrSID version
+    if( !bIsJP2 )
+    {
+      lt_uint8 major;
+      lt_uint8 minor;
+      char letter;
+      MrSIDImageReader* poMrSIDImageReader = (MrSIDImageReader*)poDS->poImageReader;
+      poMrSIDImageReader->getVersion(major, minor, minor, letter);
+      if (major < 2) 
+        major = 2;
+
+      poDS->SetMetadataItem( "VERSION", CPLString().Printf("MG%d", major) );
     }
 
     poDS->GetGTIFDefn();

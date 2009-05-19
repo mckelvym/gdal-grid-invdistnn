@@ -55,6 +55,8 @@ CPL_C_END
 const char      *pszGDALSignature =
         "Created with GDAL (http://www.remotesensing.org/gdal/)";
 
+static const char szWGS84[] = "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AXIS[\"Lat\",NORTH],AXIS[\"Long\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]";
+
 /************************************************************************/
 /* ==================================================================== */
 /*  List of HDF-EOS Swath product types.                                */
@@ -83,7 +85,7 @@ class HDF4ImageDataset : public HDF4Dataset
     friend class HDF4ImageRasterBand;
 
     char        *pszFilename;
-    int32       hHDF4, iGR, iPal, iDataset;
+    int32       iGR, iPal, iDataset;
     int32       iRank, iNumType, nAttrs,
                 iInterlaceMode, iPalInterlaceMode, iPalDataType;
     int32       nComps, nPalEntries;
@@ -196,10 +198,7 @@ HDF4ImageRasterBand::HDF4ImageRasterBand( HDF4ImageDataset *poDS, int nBand,
     // SDS based datasets since other variations haven't been tested. #2208  
     if( poDS->iDatasetType == HDF4_SDS )
     {
-        int nChunkSize = 
-            atoi( CPLGetConfigOption("HDF4_BLOCK_PIXELS", "100000") );
-
-        nBlockYSize = nChunkSize / poDS->GetRasterXSize();
+        nBlockYSize = 100000 / poDS->GetRasterXSize();
         nBlockYSize = MAX(1,MIN(nBlockYSize,poDS->GetRasterYSize()));
     }
     else
@@ -657,7 +656,6 @@ double HDF4ImageRasterBand::GetScale( int *pbSuccess )
 HDF4ImageDataset::HDF4ImageDataset()
 {
     pszFilename = NULL;
-    hHDF4 = 0;
     hSD = 0;
     hGR = 0;
     iGR = 0;
@@ -723,7 +721,7 @@ HDF4ImageDataset::~HDF4ImageDataset()
 
         CPLFree( pasGCPList );
     }
-    if ( hHDF4 > 0 )
+    if ( hHDF4 )
     {
         switch ( iDatasetType )
         {
@@ -1647,11 +1645,6 @@ void HDF4ImageDataset::ProcessModisSDSGeolocation(void)
 /* -------------------------------------------------------------------- */
 /*      Scan for latitude and longitude sections.                       */
 /* -------------------------------------------------------------------- */
-    int32   nDatasets, nAttributes;
-
-    if ( SDfileinfo( hSD, &nDatasets, &nAttributes ) != 0 )
-	return;
-
     for( iDSIndex = 0; iDSIndex < nDatasets; iDSIndex++ )
     {
         int32	    iRank, iNumType, nAttrs, iSDS;
@@ -1681,7 +1674,7 @@ void HDF4ImageDataset::ProcessModisSDSGeolocation(void)
 /* -------------------------------------------------------------------- */
     CPLString  osWrk;
     
-    SetMetadataItem( "SRS", SRS_WKT_WGS84, "GEOLOCATION" );
+    SetMetadataItem( "SRS", szWGS84, "GEOLOCATION" );
     
     osWrk.Printf( "HDF4_SDS:UNKNOWN:\"%s\":%d", 
                   pszFilename, iXIndex );
@@ -2141,7 +2134,7 @@ int HDF4ImageDataset::ProcessSwathGeolocation( int32 hSW, char **papszDimList )
         // MODIS L1B
         else if ( eProduct == PROD_MODIS_L1B )
         {
-            pszGCPProjection = CPLStrdup( SRS_WKT_WGS84 );
+            pszGCPProjection = CPLStrdup( szWGS84 );
         }
     }
 
@@ -2306,32 +2299,10 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
     papszSubdatasetName = CSLTokenizeString2( poOpenInfo->pszFilename,
                                               ":", CSLT_HONOURSTRINGS | CSLT_PRESERVEESCAPES);
     if ( CSLCount( papszSubdatasetName ) != 4
-         && CSLCount( papszSubdatasetName ) != 5
-         && CSLCount( papszSubdatasetName ) != 6 )
+         && CSLCount( papszSubdatasetName ) != 5 )
     {
         CSLDestroy( papszSubdatasetName );
-        delete poDS;
         return NULL;
-    }
-
-    /* -------------------------------------------------------------------- */
-    /*    Check for drive name in windows HDF4:"D:\...                      */
-    /* -------------------------------------------------------------------- */
-    if (strlen(papszSubdatasetName[2]) == 1)
-    {
-        char* pszFilename = (char*) CPLMalloc( 2 + strlen(papszSubdatasetName[3]) + 1);
-        sprintf(pszFilename, "%s:%s", papszSubdatasetName[2], papszSubdatasetName[3]);
-        CPLFree(papszSubdatasetName[2]);
-        CPLFree(papszSubdatasetName[3]);
-        papszSubdatasetName[2] = pszFilename;
-
-        /* Move following arguments one rank upper */
-        papszSubdatasetName[3] = papszSubdatasetName[4];
-        if (papszSubdatasetName[4] != NULL)
-        {
-            papszSubdatasetName[4] = papszSubdatasetName[5];
-            papszSubdatasetName[5] = NULL;
-        }
     }
 
     poDS->pszFilename = CPLStrdup( papszSubdatasetName[2] );
@@ -2364,7 +2335,7 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
     if ( !Hishdf( poDS->pszFilename ) )
     {
         CSLDestroy( papszSubdatasetName );
-        delete poDS;
+        CPLFree( poDS->pszFilename );
         return NULL;
     }
 
@@ -2394,11 +2365,6 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
     if ( poDS->iDatasetType == HDF4_EOS )
     {
         poDS->pszSubdatasetName = CPLStrdup( papszSubdatasetName[3] );
-        if (papszSubdatasetName[4] == NULL)
-        {
-            delete poDS;
-            return NULL;
-        }
         poDS->pszFieldName = CPLStrdup( papszSubdatasetName[4] );
     }
     else
@@ -2432,7 +2398,9 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
                 {
                     CPLDebug( "HDF4Image", "Can't open HDF4 file %s",
                               poDS->pszFilename );
-                    delete poDS;
+                    CPLFree( poDS->pszFilename );
+                    CPLFree( poDS->pszSubdatasetName );
+                    CPLFree( poDS->pszFieldName );
                     return( NULL );
                 }
 
@@ -2441,7 +2409,9 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
                 {
                     CPLDebug( "HDF4Image", "Can't attach to subdataset %s",
                               poDS->pszSubdatasetName );
-                    delete poDS;
+                    CPLFree( poDS->pszFilename );
+                    CPLFree( poDS->pszSubdatasetName );
+                    CPLFree( poDS->pszFieldName );
                     return( NULL );
                 }
 
@@ -2536,10 +2506,7 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
                     poDS->hHDF4 = GDopen( poDS->pszFilename, DFACC_WRITE );
                     
                 if( poDS->hHDF4 <= 0 )
-                {
-                    delete poDS;
                     return( NULL );
-                }
 
                 hGD = GDattach( poDS->hHDF4, poDS->pszSubdatasetName );
 
@@ -2675,23 +2642,14 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
               poDS->hHDF4 = Hopen( poDS->pszFilename, DFACC_WRITE, 0 );
             
           if( poDS->hHDF4 <= 0 )
-          {
-              delete poDS;
               return( NULL );
-          }
 
           poDS->hSD = SDstart( poDS->pszFilename, DFACC_READ );
           if ( poDS->hSD == -1 )
-          {
-              delete poDS;
               return NULL;
-          }
                 
           if ( poDS->ReadGlobalAttributes( poDS->hSD ) != CE_None )
-          {
-              delete poDS;
               return NULL;
-          }
 
           memset( poDS->aiDimSizes, 0, sizeof(int32) * H4_MAX_VAR_DIMS );
           iSDS = SDselect( poDS->hSD, poDS->iDataset );
@@ -2798,27 +2756,18 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
             poDS->hHDF4 = Hopen( poDS->pszFilename, DFACC_WRITE, 0 );
             
         if( poDS->hHDF4 <= 0 )
-        {
-            delete poDS;
             return( NULL );
-        }
 
         poDS->hGR = GRstart( poDS->hHDF4 );
         if ( poDS->hGR == -1 )
-        {
-            delete poDS;
             return NULL;
-        }
                 
         poDS->iGR = GRselect( poDS->hGR, poDS->iDataset );
         if ( GRgetiminfo( poDS->iGR, poDS->szName,
                           &poDS->iRank, &poDS->iNumType,
                           &poDS->iInterlaceMode, poDS->aiDimSizes,
                           &poDS->nAttrs ) != 0 )
-        {
-            delete poDS;
             return NULL;
-        }
 
         // We will duplicate global metadata for every subdataset
         poDS->papszLocalMetadata = CSLDuplicate( poDS->papszGlobalMetadata );
@@ -2861,7 +2810,6 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
         poDS->nBandCount = poDS->iRank;
         break;
       default:
-        delete poDS;
         return NULL;
     }
     
@@ -3124,13 +3072,6 @@ GDALDataset *HDF4ImageDataset::Create( const char * pszFilename,
     int                 iBand;
     int32               iSDS = -1;
     int32               aiDimSizes[H4_MAX_VAR_DIMS];
-
-    if( nBands == 0 )
-    {
-        CPLError( CE_Failure, CPLE_NotSupported,
-                  "Unable to export files with zero bands." );
-        return NULL;
-    }
 
     poDS = new HDF4ImageDataset();
 

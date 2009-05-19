@@ -88,7 +88,6 @@ void CPL_STDCALL GDALAllRegister()
 
 #ifdef FRMT_nitf
     GDALRegister_NITF();
-    GDALRegister_RPFTOC();
 #endif
 
 #ifdef FRMT_hfa
@@ -116,7 +115,6 @@ void CPL_STDCALL GDALAllRegister()
 #endif
     
 #ifdef FRMT_aigrid
-//    GDALRegister_AIGrid2();
     GDALRegister_AIGrid();
 #endif
 
@@ -227,6 +225,26 @@ void CPL_STDCALL GDALAllRegister()
     GDALRegister_HDF4Image();
 #endif
 
+#ifdef FRMT_raw
+    GDALRegister_PNM();
+    GDALRegister_DOQ1();
+    GDALRegister_DOQ2();
+    GDALRegister_PAux();
+    GDALRegister_MFF();
+    GDALRegister_HKV();
+    GDALRegister_FujiBAS();
+    GDALRegister_GSC();
+    GDALRegister_FAST();
+    GDALRegister_BT();
+    GDALRegister_LAN();
+    GDALRegister_CPG();
+    GDALRegister_IDA();
+    GDALRegister_NDF();
+    GDALRegister_EIR();
+    GDALRegister_DIPEx();
+    GDALRegister_LCP();
+#endif
+
 #ifdef FRMT_pds
     GDALRegister_ISIS3();
     GDALRegister_ISIS2();
@@ -325,36 +343,6 @@ void CPL_STDCALL GDALAllRegister()
 #endif
 
 /* -------------------------------------------------------------------- */
-/*      Put raw formats at the end of the list. These drivers support   */
-/*      various ASCII-header labeled formats, so the driver could be    */
-/*      confused if you have files in some of above formats and such    */
-/*      ASCII-header in the same directory.                             */
-/* -------------------------------------------------------------------- */
-
-#ifdef FRMT_raw
-    GDALRegister_PNM();
-    GDALRegister_DOQ1();
-    GDALRegister_DOQ2();
-    GDALRegister_ENVI();
-    GDALRegister_EHdr();
-    GDALRegister_GenBin();
-    GDALRegister_PAux();
-    GDALRegister_MFF();
-    GDALRegister_HKV();
-    GDALRegister_FujiBAS();
-    GDALRegister_GSC();
-    GDALRegister_FAST();
-    GDALRegister_BT();
-    GDALRegister_LAN();
-    GDALRegister_CPG();
-    GDALRegister_IDA();
-    GDALRegister_NDF();
-    GDALRegister_EIR();
-    GDALRegister_DIPEx();
-    GDALRegister_LCP();
-#endif
-
-/* -------------------------------------------------------------------- */
 /*      Our test for the following is weak or expensive so we try       */
 /*      them last.                                                      */
 /* -------------------------------------------------------------------- */
@@ -392,6 +380,16 @@ void CPL_STDCALL GDALAllRegister()
     GDALRegister_ADRG();
 #endif
 
+/* -------------------------------------------------------------------- */
+/*      EHdr conflicts with other formats if a .hdr file exists
+/* -------------------------------------------------------------------- */
+
+#ifdef FRMT_raw
+    GDALRegister_EHdr();
+    GDALRegister_ENVI();
+    GDALRegister_GenBin();
+#endif
+
 #ifdef FRMT_blx
     GDALRegister_BLX();
 #endif
@@ -399,11 +397,6 @@ void CPL_STDCALL GDALAllRegister()
 #ifdef FRMT_pgchip
     GDALRegister_PGCHIP();
 #endif
-
-#ifdef FRMT_georaster
-    GDALRegister_GEOR();
-#endif
-
 /* -------------------------------------------------------------------- */
 /*      Deregister any drivers explicitly marked as supressed by the    */
 /*      GDAL_SKIP environment variable.                                 */

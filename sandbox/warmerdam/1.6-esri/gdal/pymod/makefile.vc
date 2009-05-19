@@ -37,7 +37,7 @@ CFLAGS = $(PYOPTFLAGS) $(INC) $(EXTRAFLAGS) $(MSVC_VLD_FLAGS)
 default:	$(PYGDAL_DLL)
 
 $(PYGDAL_DLL):	$(OBJ)
-	link /dll /def:_gdal.def $(OBJ) ../gdal_i.lib /LIBPATH:$(PYDIR)/libs \
+	link /dll /def:_gdal.def $(OBJ) ../gdal_i$(TARGET).lib /LIBPATH:$(PYDIR)/libs \
 		/out:$(PYGDAL_DLL) $(MSVC_VLD_LIB)
 	
 clean:

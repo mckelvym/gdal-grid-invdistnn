@@ -1257,9 +1257,9 @@ PNGCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
     if( CSLFetchBoolean( papszOptions, "WORLDFILE", FALSE ) )
     {
     	double      adfGeoTransform[6];
-	
-	poSrcDS->GetGeoTransform( adfGeoTransform );
-	GDALWriteWorldFile( pszFilename, "wld", adfGeoTransform );
+
+	if( poSrcDS->GetGeoTransform( adfGeoTransform ) == CE_None )
+	    GDALWriteWorldFile( pszFilename, "wld", adfGeoTransform );
     }
 
 /* -------------------------------------------------------------------- */

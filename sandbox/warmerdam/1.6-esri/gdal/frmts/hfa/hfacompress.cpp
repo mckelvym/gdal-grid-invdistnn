@@ -269,10 +269,8 @@ GUInt32 nLastUnique = 0;
       /* The values have changed - ie a run has come to and end */
       encodeValue( u32Last, count - nLastUnique );
       
-      if( ( m_pCurrValues - m_pValues ) > (int) m_nBlockSize )
-      {
+      if( ( m_pCurrValues - m_pValues ) >= m_nBlockCount )
       	return false;
-      }
       
       m_nNumRuns++;
       u32Last = u32Val;

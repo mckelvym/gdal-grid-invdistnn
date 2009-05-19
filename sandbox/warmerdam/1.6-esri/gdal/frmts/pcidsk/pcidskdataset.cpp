@@ -69,6 +69,7 @@ PCIDSKDataset::PCIDSKDataset()
     adfGeoTransform[3] = 0.0;
     adfGeoTransform[4] = 0.0;
     adfGeoTransform[5] = 1.0;
+    bGeoTransformValid = FALSE;
 
     nBandFileCount = 0;
     pafpBandFiles = NULL;
@@ -125,8 +126,10 @@ PCIDSKDataset::~PCIDSKDataset()
 
 CPLErr PCIDSKDataset::GetGeoTransform( double * padfTransform )
 {
-    memcpy( padfTransform, adfGeoTransform, sizeof(adfGeoTransform[0]) * 6 );
+    if( !bGeoTransformValid )
+        return GDALPamDataset::GetGeoTransform( padfTransform );
 
+    memcpy( padfTransform, adfGeoTransform, sizeof(adfGeoTransform[0]) * 6 );
     return CE_None;
 }
 
@@ -138,7 +141,7 @@ CPLErr PCIDSKDataset::SetGeoTransform( double * padfTransform )
 {
     memcpy( adfGeoTransform, padfTransform, sizeof(double) * 6 );
     bGeoSegmentDirty = TRUE;
-
+    bGeoTransformValid = TRUE;
     return CE_None;
 }
 
@@ -838,6 +841,7 @@ GDALDataset *PCIDSKDataset::Open( GDALOpenInfo * poOpenInfo )
                         poDS->adfGeoTransform[j + 3] =
                             CPLScanDouble( szTemp + 26 * j, 26 );
                     }
+                    poDS->bGeoTransformValid = TRUE;
 
                     oSRS.importFromPCI( szProj, NULL, NULL );
                     if ( poDS->pszProjection )
@@ -896,6 +900,7 @@ GDALDataset *PCIDSKDataset::Open( GDALOpenInfo * poOpenInfo )
                         poDS->adfGeoTransform[j + 3] =
                             CPLScanDouble( szTemp + 26 * j, 26 );
                     }
+                    poDS->bGeoTransformValid = TRUE;
 
                     oSRS.importFromPCI( szProj, szUnits, adfProjParms );
                     if ( poDS->pszProjection )
@@ -957,6 +962,8 @@ GDALDataset *PCIDSKDataset::Open( GDALOpenInfo * poOpenInfo )
                                 CPLScanDouble( szTemp + 96, 18 ) / dfUnitConv;
                         }
                     }
+
+                    poDS->bGeoTransformValid = TRUE;
                 }
             }
             break;
@@ -1017,6 +1024,10 @@ GDALDataset *PCIDSKDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
     poDS->SetDescription( poOpenInfo->pszFilename );
     poDS->TryLoadXML();
+
+    // reads georeferencing from world file
+    if( !poDS->bGeoTransformValid )
+        poDS->bGeoTransformValid = GDALReadWorldFile( poOpenInfo->pszFilename, "pxw", poDS->adfGeoTransform );
 
     return( poDS );
 }
@@ -1385,25 +1396,15 @@ PCIDSKDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 
 {
     PCIDSKDataset	*poDS;
-    GDALDataType eType;
+    GDALDataType eType = poSrcDS->GetRasterBand(1)->GetRasterDataType();
     int          iBand;
-
-    int nBands = poSrcDS->GetRasterCount();
-    if (nBands == 0)
-    {
-        CPLError( CE_Failure, CPLE_NotSupported, 
-                  "PCIDSK driver does not support source dataset with zero band.\n");
-        return NULL;
-    }
 
     if( !pfnProgress( 0.0, NULL, pProgressData ) )
         return NULL;
 
-    eType = poSrcDS->GetRasterBand(1)->GetRasterDataType();
-
     /* check that other bands match type- sets type */
     /* to unknown if they differ.                  */
-    for( iBand = 1; iBand < nBands; iBand++ )
+    for( iBand = 1; iBand < poSrcDS->GetRasterCount(); iBand++ )
      {
          GDALRasterBand *poBand = poSrcDS->GetRasterBand( iBand+1 );
          eType = GDALDataTypeUnion( eType, poBand->GetRasterDataType() );

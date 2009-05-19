@@ -84,7 +84,7 @@ typedef enum {
 /*      Some standard WKT geographic coordinate systems.                */
 /* ==================================================================== */
 
-#define SRS_WKT_WGS84 "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+#define SRS_WKT_WGS84 "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AXIS[\"Lat\",NORTH],AXIS[\"Long\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]"
 
 /* ==================================================================== */
 /*      Some "standard" strings.                                        */
@@ -124,7 +124,7 @@ typedef enum {
 #define SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP                              \
                                 "Lambert_Conformal_Conic_2SP"
 #define SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP_BELGIUM                      \
-                                "Lambert_Conformal_Conic_2SP_Belgium"
+                                "Lambert_Conformal_Conic_2SP_Belgium)"
 #define SRS_PT_LAMBERT_AZIMUTHAL_EQUAL_AREA                     \
                                 "Lambert_Azimuthal_Equal_Area"
 #define SRS_PT_MERCATOR_1SP     "Mercator_1SP"
@@ -177,6 +177,24 @@ typedef enum {
 #define SRS_PT_WAGNER_VII       "Wagner_VII"
                                 
 
+/* Added from ESRI in in March 2009 */
+#define SRS_PT_LAMBERT_CONFORMAL_CONIC                         "Lambert_Conformal_Conic"
+#define SRS_PT_Aitoff                                          "Aitoff"
+#define SRS_PT_Hammer_Aitoff                                    "Hammer_Aitoff"
+#define SRS_PT_Behrmann                                         "Behrmann"
+#define SRS_PT_Craster_Parabolic                                "Craster_Parabolic"
+#define SRS_PT_Local                                            "Local"
+#define SRS_PT_Double_Stereographic                             "Double_Stereographic"
+#define SRS_PT_Flat_Polar_Quartic                               "Flat_Polar_Quartic"
+#define SRS_PT_Hotine_Oblique_Mercator_Azimuth_Center           "Hotine_Oblique_Mercator_Azimuth_Center"
+#define SRS_PT_Hotine_Oblique_Mercator_Two_Point_Center         "Hotine_Oblique_Mercator_Two_Point_Center"
+#define SRS_PT_Hotine_Oblique_Mercator_Azimuth_Natural_Origin   "Hotine_Oblique_Mercator_Azimuth_Natural_Origin"
+#define SRS_PT_Stereographic_North_Pole                         "Stereographic_North_Pole"
+#define SRS_PT_Stereographic_South_Pole                         "Stereographic_South_Pole"
+#define SRS_PT_Times                                            "Times"
+#define SRS_PT_Winkel_Tripel                                    "Winkel_Tripel"
+#define SRS_PT_Vertical_Near_Side_Perspective                   "Vertical_Near_Side_Perspective"
+
 #define SRS_PP_CENTRAL_MERIDIAN         "central_meridian"
 #define SRS_PP_SCALE_FACTOR             "scale_factor"
 #define SRS_PP_STANDARD_PARALLEL_1      "standard_parallel_1"
@@ -207,6 +225,12 @@ typedef enum {
 #define SRS_PP_LATITUDE_OF_2ND_POINT    "Latitude_Of_2nd_Point"
 #define SRS_PP_LONGITUDE_OF_2ND_POINT   "Longitude_Of_2nd_Point"
 
+/* Added from ESRI in March 2009 */
+#define SRS_PP_X_SCALE                  "X_Scale"
+#define SRS_PP_Y_SCALE                  "Y_Scale"
+#define SRS_PP_XY_PLANE_ROTATION        "XY_Plane_Rotation"
+#define SRS_PP_HEIGHT                   "Height"
+
 #define SRS_UL_METER            "Meter"
 #define SRS_UL_FOOT             "Foot (International)" /* or just "FOOT"? */
 #define SRS_UL_FOOT_CONV                    "0.3048"
@@ -220,6 +244,9 @@ typedef enum {
 #define SRS_UL_CHAIN_CONV                   "20.116684023368047"
 #define SRS_UL_ROD              "Rod"           /* based on US Foot */
 #define SRS_UL_ROD_CONV                     "5.02921005842012"
+/* Added from ESRI in in March 2009 */
+#define SRS_UL_LINK_Clarke      "Link_Clarke"          
+#define SRS_UL_LINK_Clarke_CONV              "0.2011661949"
 
 #define SRS_UA_DEGREE           "degree"
 #define SRS_UA_DEGREE_CONV                  "0.0174532925199433"

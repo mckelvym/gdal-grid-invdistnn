@@ -11,6 +11,9 @@
 !INCLUDE $(EXT_NMAKE_OPT)
 !ENDIF
 
+# Uncomment this for DEBUG build
+DEBUG=YES
+
 ###############################################################################
 # Check version of Visual C++ compiler:
 # nmake -f makefile.vc MSVC_VER=xxxx
@@ -23,7 +26,7 @@
 #
 !IFNDEF MSVC_VER
 #assume msvc 7.1
-MSVC_VER=1310
+MSVC_VER=1500
 !ENDIF
 
 ###############################################################################
@@ -39,7 +42,7 @@ MSVC_VER=1310
 # But the paths *should* be absolute (relative paths mess up in submakefiles).
 
 !IFNDEF GDAL_HOME
-GDAL_HOME = "C:\warmerda\bld"
+GDAL_HOME = "C:\GDAL\bld"
 !ENDIF
 BINDIR = $(GDAL_HOME)\bin
 PLUGINDIR = $(BINDIR)\gdalplugins
@@ -62,10 +65,10 @@ SWIG = swig.exe
 
 # SWIG Java settings
 !IFNDEF JAVA_HOME
-JAVA_HOME = c:\j2sdk1.4.2_12
+JAVA_HOME = C:\ArcGIS\SharedArcGIS\DepFiles\Sun\jdk
 !ENDIF
 !IFNDEF ANT_HOME
-ANT_HOME=c:\programmi\apache-ant-1.7.0
+ANT_HOME=C:\ArcGIS\SharedArcGIS\DepFiles\Apache\Ant-1.6.5
 !ENDIF
 JAVADOC=$(JAVA_HOME)\bin\javadoc
 JAVAC=$(JAVA_HOME)\bin\javac
@@ -75,20 +78,14 @@ JAVA_INCLUDE=-I$(JAVA_HOME)\include -I$(JAVA_HOME)\include\win32
 
 # Compilation flags
 !IFNDEF OPTFLAGS
-!IF $(MSVC_VER) >= 1400
 !IFNDEF DEBUG
-OPTFLAGS= /nologo /MD /EHsc /Ox /W3 /D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE /DNDEBUG
+OPTFLAGS= /nologo /MD /EHsc /Ox /DNDEBUG
+TARGET  =
 !ELSE
-OPTFLAGS= /nologo /MD /EHsc /Zi /W4 /D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE /Fd$(GDAL_ROOT)\gdal$(VERSION).pdb
+OPTFLAGS= /nologo /MDd /EHsc /Zi /DDEBUG /D_DEBUG /Fd$(GDAL_ROOT)\gdal$(VERSION)$(TARGET).pdb
+TARGET  =d
 !ENDIF
-!ELSE
-!IFNDEF DEBUG
-OPTFLAGS=	/nologo /MD /EHsc /GR /Ox /W3 /DNDEBUG
-!ELSE
-OPTFLAGS=	/nologo /MD /EHsc /GR /Zi /W4 /Fd$(GDAL_ROOT)\gdal$(VERSION).pdb
 !ENDIF
-!ENDIF  #MSVC_VER
-!ENDIF  # OPTFLAGS
 
 # Linker debug options
 !IFDEF DEBUG
@@ -118,10 +115,10 @@ DLLBUILD=1
 
 # Enable all OGR formats, or only raster formats?  Comment out to disable
 # vector formats. 
-INCLUDE_OGR_FRMTS = YES
+#INCLUDE_OGR_FRMTS = YES
 
 # Location of Visual C++ directory (only required for following SETARGV stuff)
-VCDIR   = 	D:\Software\VStudio\VC98
+#VCDIR   = 	"C:\Program Files\Microsoft Visual Studio .NET 2003\Vc7"
 
 # Enable the following if VCDIR set properly, and you want the utility
 # programs to be able to expand wildcards. 
@@ -131,7 +128,7 @@ VCDIR   = 	D:\Software\VStudio\VC98
 BSB_SUPPORTED = 1
 
 # Comment out the following to disable ODBC support.
-ODBC_SUPPORTED = 1
+#ODBC_SUPPORTED = 1
 
 # Comment out the following to disable JPEG support.
 JPEG_SUPPORTED = 1
@@ -151,7 +148,7 @@ JPEG_SUPPORTED = 1
 #TIFF_LIB =	c:/warmerda/libtiff/libtiff/libtiff_i.lib
 # uncomment following line, if you have libtiff version >= 4.0 to
 # enable BigTIFF support
-#TIFF_OPTS=	-DBIGTIFF_SUPPORT
+TIFF_OPTS=	-DBIGTIFF_SUPPORT
 
 # if using an external libgeotiff library
 #GEOTIFF_INC =   -Ic:/warmerda/libgeotiff -Ic:/warmerda/libgeotiff/libxtiff
@@ -159,8 +156,8 @@ JPEG_SUPPORTED = 1
 
 # Uncomment the following and update to enable ECW support.
 #ECW_PLUGIN = NO
-#ECWDIR  = 	C:\warmerda\libecwj2-3.3
-#ECWLIB  = 	$(ECWDIR)\Source\NCSBuildQmake\Debug\libecwj2.lib
+#ECWDIR  =   C:\GDAL\codec\ECW
+#ECWLIB  =   $(ECWDIR)\lib\NCSEcw.lib $(ECWDIR)\lib\NCSUtil.lib
 
 # DWG/DXF support via DWGdirect from Open Design Alliance
 
@@ -174,7 +171,7 @@ JPEG_SUPPORTED = 1
 #OGDILIB =	$(OGDIDIR)\lib\$(TARGET)\ogdi$(OGDIVER).lib \
 #		$(OGDIDIR)\lib\$(TARGET)\zlib_ogdi$(OGDIVER).lib
 
-# Uncomment for Expat support (required for KML and GPX read support).
+# Uncomment for Expat support (required for KML read support).
 #EXPAT_DIR = "C:\Program Files\Expat 2.0.1"
 #EXPAT_INCLUDE = -I$(EXPAT_DIR)/source/lib
 #EXPAT_LIB = $(EXPAT_DIR)/bin/libexpat.lib
@@ -201,26 +198,48 @@ JPEG_SUPPORTED = 1
 #JASPER_INCLUDE = $(JASPER_INCLUDE) -DHAVE_JASPER_UUID
 
 # Uncommment if you have Kakadu 4.0 or newer
-#KAKDIR =	D:\warmerda\jp2\kakadu
+KAKDIR = C:\Kakadu\include
+!IFNDEF DEBUG
+KAKLIB = C:\ArcGIS\SharedArcGIS\DepFiles\lib\Kakadu\kdu61.lib
+!ELSE
+# Uncomment for building JP2KAK driver using Kakadu debug dll
+KAKLIB = C:\ArcGIS\SharedArcGIS\DepFiles\lib\Kakadu\kdu61d.lib
+!ENDIF
 
 # Uncomment the following and update to enable NCSA HDF Release 4 support.
-#HDF4_PLUGIN = NO
-#HDF4_DIR =	D:\warmerda\HDF41r5
-#HDF4_LIB =	/LIBPATH:$(HDF4_DIR)\lib Ws2_32.lib
+HDF4_PLUGIN = NO
+HDF4_DIR =	C:\GDAL\codec\hdf4
+HDF4_FLAGS = -D_HDFDLL_
+!IFNDEF DEBUG
+HDF4_LIB =	/LIBPATH:$(HDF4_DIR)\dll Ws2_32.lib
+!ELSE
+# Uncomment for building HDF4 driver using HDF debug dll
+HDF4_LIB =	/LIBPATH:$(HDF4_DIR)\dlld Ws2_32.lib
+!ENDIF
 
 # Uncomment the following and update to enable NCSA HDF Release 5 support.
-#HDF5_PLUGIN = NO
-#HDF5_DIR =	c:\warmerda\supportlibs\hdf5\5-164-win
-#HDF5_LIB =	$(HDF5_DIR)\dll\hdf5dll.lib 
+HDF5_PLUGIN = NO
+HDF5_DIR =	C:\GDAL\codec\hdf5
+!IFNDEF DEBUG
+HDF5_LIB =	$(HDF5_DIR)\lib\hdf5dll.lib 
+!ELSE
+HDF5_LIB =	$(HDF5_DIR)\lib\hdf5ddll.lib 
+!ENDIF
 
 # Uncomment the following for MrSID support.
 # You will likely require /MD and /EHsc in OPTFLAGS. 
-#MRSID_DIR =	d:\projects\mrsid
-#MRSID_INCLUDE = -I$(MRSID_DIR)\include\base -I$(MRSID_DIR)\include\support \
-#		-I$(MRSID_DIR)\include\metadata \
-#		-I$(MRSID_DIR)\include\mrsid_readers \
-#		-I$(MRSID_DIR)\include\j2k_readers
-#MRSID_LIB =	$(MRSID_DIR)\lib\Release_md\lti_dsdk_dll.lib advapi32.lib user32.lib
+MRSID_DIR =	C:\GDAL\codec\DSDK
+MRSID_INCLUDE = -I$(MRSID_DIR)\include \
+        -I$(MRSID_DIR)\include\base -I$(MRSID_DIR)\include\support \
+		-I$(MRSID_DIR)\include\metadata \
+		-I$(MRSID_DIR)\include\mrsid_readers \
+		-I$(MRSID_DIR)\include\j2k_readers
+!IFNDEF DEBUG
+MRSID_LIB =	$(MRSID_DIR)\lib\Release_md\lti_dsdk_dll.lib advapi32.lib user32.lib
+!ELSE
+MRSID_LIB =	$(MRSID_DIR)\lib\Debug_md\lti_dsdk_dld.lib advapi32.lib user32.lib
+!ENDIF
+
 # Comment out the following to supress JP2MRSID driver. 
 #MRSID_FLAGS =	-DMRSID_J2K
 # Enable these, if you have the MrSID Encoding SDK and want
@@ -297,10 +316,10 @@ OCI_INCLUDE =	-I$(ORACLE_HOME)\oci\include
 
 # Uncomment to use libcurl (DLL by default)
 # The cURL library is used for WCS, WMS, GeoJSON, SRS call importFromUrl(), etc.
-#CURL_DIR=C:\curl-7.15.0
-#CURL_INC = -I$(CURL_DIR)/include
+CURL_DIR = C:/ArcGIS/SharedArcGIS/DepFiles
+CURL_INC = -I$(CURL_DIR)/include
 # Uncoment following line to use libcurl as dynamic library
-#CURL_LIB = $(CURL_DIR)/libcurl_imp.lib wsock32.lib wldap32.lib winmm.lib
+CURL_LIB = $(CURL_DIR)/Lib/Curl/libcurl.lib
 # Uncoment following two lines to use libcurl as static library
 #CURL_LIB = $(CURL_DIR)/libcurl.lib wsock32.lib wldap32.lib winmm.lib
 #CURL_CFLAGS = -DCURL_STATICLIB
@@ -313,6 +332,9 @@ OCI_INCLUDE =	-I$(ORACLE_HOME)\oci\include
 #GEOS_DIR=C:/warmerda/geos
 #GEOS_CFLAGS = -I$(GEOS_DIR)/capi -I$(GEOS_DIR)/source/headers -DHAVE_GEOS
 #GEOS_LIB     = $(GEOS_DIR)/source/geos_c_i.lib
+
+# Uncomment for Panorama GIS support
+#PANORAMA_INC =	z:/panorama/include
 
 # Any extra libraries needed on this platform?
 ADD_LIBS	=
@@ -329,7 +351,7 @@ ADD_LIBS	=
 # Location of MS Data Access SDK (not really needed anymore I think)
 #MSDASDK =	D:\Software\MDAC_2.6
 
-GDAL_DLL =	gdal$(VERSION).dll
+GDAL_DLL =	gdal$(VERSION)$(TARGET).dll
 
 INC	=	-I$(GDAL_ROOT)\port -I$(GDAL_ROOT)\ogr -I$(GDAL_ROOT)\gcore \
 		-I$(GDAL_ROOT)\alg -I$(GDAL_ROOT)\ogr\ogrsf_frmts
@@ -339,15 +361,11 @@ MSVC_VLD_FLAGS=-DMSVC_USE_VLD -I$(MSVC_VLD_DIR)\include
 MSVC_VLD_LIB=/LIBPATH:$(MSVC_VLD_DIR)/lib
 !ENDIF
 
-!IFDEF INCLUDE_OGR_FRMTS
-OGR_FLAG = -DOGR_ENABLED
-!ENDIF
-
 #LINKER_FLAGS =	/NODEFAULTLIB:LIBC 
 LINKER_FLAGS = $(MSVC_VLD_LIB) $(LDEBUG)
 
 
-CFLAGS	=	$(OPTFLAGS) $(INC) $(EXTRAFLAGS) $(OGR_FLAG) $(MSVC_VLD_FLAGS)
+CFLAGS	=	$(OPTFLAGS) $(INC) $(EXTRAFLAGS) $(MSVC_VLD_FLAGS)
 MAKE	=	nmake /nologo
 
 CC	=	cl
@@ -357,7 +375,7 @@ INSTALL	=	xcopy /y /r /d /f
 CPLLIB	=    $(GDAL_ROOT)/port/cpl.lib
 
 !IFDEF DLLBUILD
-GDALLIB	=    $(GDAL_ROOT)/gdal_i.lib
+GDALLIB	=    $(GDAL_ROOT)/gdal_i$(TARGET).lib
 !ELSE
 GDALLIB	=    $(GDAL_ROOT)/gdal.lib
 !ENDIF
@@ -424,7 +442,7 @@ SYM_PREFIX=_
 !ENDIF
 
 EXTERNAL_LIBS =	$(OGDILIB) $(XERCES_LIB) $(EXPAT_LIB) $(OCI_LIB) $(PG_LIB) $(ODBCLIB) \
-		$(ECW_LIB_LINK) $(HDF4_LIB_LINK) $(FME_LIB) $(JASPER_LIB) $(MRSID_LIB_LINK) \
+		$(KAKLIB) $(ECW_LIB_LINK) $(HDF4_LIB_LINK) $(FME_LIB) $(JASPER_LIB) $(MRSID_LIB_LINK) \
 		$(FITS_LIB_LINK) $(JPEG_LIB) $(PNG_LIB) $(NETCDF_LIB_LINK) $(PROJ4_LIB) \
 		$(GEOTIFF_LIB) $(TIFF_LIB) $(PROJ_LIBRARY) $(SQLITE_LIB) \
 		$(MYSQL_LIB) $(GEOS_LIB) $(HDF5_LIB_LINK) $(SDE_LIB) $(DWG_LIB) \

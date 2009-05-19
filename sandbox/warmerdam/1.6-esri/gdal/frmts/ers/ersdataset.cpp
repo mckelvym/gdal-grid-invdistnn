@@ -309,10 +309,12 @@ CPLErr ERSDataset::SetGCPs( int nGCPCountIn, const GDAL_GCP *pasGCPListIn,
 const char *ERSDataset::GetProjectionRef()
 
 {
-    if (pszProjection && strlen(pszProjection) > 0)
-        return pszProjection;
+    // try xml first
+    const char* pszPrj = GDALPamDataset::GetProjectionRef();
+    if(pszPrj && strlen(pszPrj) > 0)
+      return pszPrj;
 
-    return GDALPamDataset::GetProjectionRef();
+    return pszProjection;
 }
 
 /************************************************************************/
@@ -985,7 +987,26 @@ GDALDataset *ERSDataset::Open( GDALOpenInfo * poOpenInfo )
 /*      Initialize any PAM information.                                 */
 /* -------------------------------------------------------------------- */
     poDS->TryLoadXML();
-    
+
+    // if no SR in xml, try aux
+    const char* pszPrj = poDS->GDALPamDataset::GetProjectionRef();
+    if( !pszPrj || strlen(pszPrj) == 0 )
+    {
+      // try aux
+      GDALDataset* poAuxDS = GDALFindAssociatedAuxFile( poOpenInfo->pszFilename, GA_ReadOnly, poDS );
+      if( poAuxDS )
+      {
+        pszPrj = poAuxDS->GetProjectionRef();
+        if( pszPrj && strlen(pszPrj) > 0 )
+        {
+          CPLFree( poDS->pszProjection );
+          poDS->pszProjection = CPLStrdup(pszPrj);
+        }
+
+        GDALClose( poAuxDS );
+      }
+    }
+
     return( poDS );
 }
 

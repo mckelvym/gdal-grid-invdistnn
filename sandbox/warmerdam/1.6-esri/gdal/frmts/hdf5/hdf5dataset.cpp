@@ -264,6 +264,9 @@ GDALDataset *HDF5Dataset::Open( GDALOpenInfo * poOpenInfo )
 
     poDS->SetMetadata( poDS->papszMetadata  );
     
+    if ( CSLCount( poDS->papszSubDatasets ) / 2 >= 2 )
+      poDS->SetMetadata( poDS->papszSubDatasets, "SUBDATASETS" );
+
     return( poDS );
 }
 

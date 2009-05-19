@@ -1845,11 +1845,11 @@ static void GTIFFetchProjParms( GTIF * psGTIF, GTIFDefn * psDefn )
                        &dfStdParallel2, 0, 1 ) == 0 )
             dfStdParallel2 = 0.0;
 
-        if( GTIFKeyGet(psGTIF, ProjNatOriginLongGeoKey, 
+        if( GTIFKeyGet(psGTIF, ProjCenterLongGeoKey, 
                        &dfNatOriginLong, 0, 1 ) == 0
             && GTIFKeyGet(psGTIF, ProjFalseOriginLongGeoKey, 
                           &dfNatOriginLong, 0, 1 ) == 0
-            && GTIFKeyGet(psGTIF, ProjCenterLongGeoKey, 
+            && GTIFKeyGet(psGTIF, ProjNatOriginLongGeoKey, 
                           &dfNatOriginLong, 0, 1 ) == 0 )
             dfNatOriginLong = 0.0;
 
@@ -2053,7 +2053,7 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
     psDefn->SemiMinor = 0.0;
     psDefn->PM = KvUserDefined;
     psDefn->PMLongToGreenwich = 0.0;
-
+    psDefn->invFlattening = 0.0;
     psDefn->ProjCode = KvUserDefined;
     psDefn->Projection = KvUserDefined;
     psDefn->CTProjection = KvUserDefined;
@@ -2170,8 +2170,12 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
 /*      Check for a datum setting, and then use the datum to derive     */
 /*      an ellipsoid.                                                   */
 /* -------------------------------------------------------------------- */
+    /* if there is no GeogGeodeticDatumGeoKey setting, we can use the one got */
+    /* from GTIFGetGCSInfo.                                                   */
+    i = (psDefn->Datum != KvUserDefined) ? psDefn->Datum : KvUserDefined;
     GTIFKeyGet(psGTIF, GeogGeodeticDatumGeoKey, &(psDefn->Datum), 0, 1 );
-
+    if(psDefn->Datum == KvUserDefined)
+      psDefn->Datum = i;
     if( psDefn->Datum != KvUserDefined )
     {
         GTIFGetDatumInfo( psDefn->Datum, NULL, &(psDefn->Ellipsoid) );
@@ -2181,8 +2185,12 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
 /*      Check for an explicit ellipsoid.  Use the ellipsoid to          */
 /*      derive the ellipsoid characteristics, if possible.              */
 /* -------------------------------------------------------------------- */
+    /* if there is no GeogEllipsoidGeoKey setting, we can use the one got */
+    /* from GTIFGetDatumInfo.                                             */
+    i = (psDefn->Ellipsoid != KvUserDefined) ? psDefn->Ellipsoid : KvUserDefined;
     GTIFKeyGet(psGTIF, GeogEllipsoidGeoKey, &(psDefn->Ellipsoid), 0, 1 );
-
+    if(psDefn->Ellipsoid == KvUserDefined)
+      psDefn->Ellipsoid = i;
     if( psDefn->Ellipsoid != KvUserDefined )
     {
         GTIFGetEllipsoidInfo( psDefn->Ellipsoid, NULL,

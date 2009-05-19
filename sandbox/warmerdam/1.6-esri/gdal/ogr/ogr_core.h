@@ -144,6 +144,7 @@ typedef int     OGRBoolean;
 typedef enum 
 {
     wkbUnknown = 0,         /**< unknown type, non-standard */
+ #ifndef _ESRI_WKB
     wkbPoint = 1,           /**< 0-dimensional geometric object, standard WKB */
     wkbLineString = 2,      /**< 1-dimensional geometric object with linear
                              *   interpolation between Points, standard WKB */
@@ -155,6 +156,7 @@ typedef enum
     wkbMultiPolygon = 6,    /**< GeometryCollection of Polygons, standard WKB */
     wkbGeometryCollection = 7, /**< geometric object that is a collection of 1
                                     or more geometric objects, standard WKB */
+#endif
     wkbNone = 100,          /**< non-standard, for pure attribute records */
     wkbLinearRing = 101,    /**< non-standard, just for createGeometry() */
     wkbPoint25D = 0x80000001, /**< 2.5D extension as per 99-402 */
@@ -177,8 +179,10 @@ OGRwkbGeometryType CPL_DLL OGRMergeGeometryTypes( OGRwkbGeometryType eMain,
 
 typedef enum 
 {
+#ifndef _ESRI_WKB
     wkbXDR = 0,         /* MSB/Sun/Motoroloa: Most Significant Byte First   */
     wkbNDR = 1          /* LSB/Intel/Vax: Least Significant Byte First      */
+#endif
 } OGRwkbByteOrder;
 
 #ifndef NO_HACK_FOR_IBM_DB2_V72

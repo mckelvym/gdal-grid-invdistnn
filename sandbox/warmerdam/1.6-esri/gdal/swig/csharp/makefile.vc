@@ -20,13 +20,13 @@ GDAL_ROOT	=	..\..
 !IFDEF CSHARP_STATIC_LINKAGE
 GDALLIB	= $(GDAL_ROOT)\gdal.lib
 !ELSE
-GDALLIB	= $(GDAL_ROOT)\gdal_i.lib
+GDALLIB	= $(GDAL_ROOT)\gdal_i$(TARGET).lib
 !ENDIF
 
 !IFDEF MONO
 CSC = mcs
 !ELSE
-!IF $(MSVC_VER) >= 1400
+!IF $(MSVC_VER) == 1400
 !IFDEF WIN64
 CSC = csc /platform:anycpu
 !ELSE

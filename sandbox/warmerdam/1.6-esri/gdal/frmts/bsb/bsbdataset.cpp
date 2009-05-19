@@ -252,8 +252,7 @@ GDALHeuristicDatelineWrap( int nPointCount, double *padfX )
 
 {
     int i;
-    /* Following inits are useless but keep GCC happy */
-    double dfX_PM_Min = 0, dfX_PM_Max = 0, dfX_Dateline_Min = 0, dfX_Dateline_Max = 0;
+    double dfX_PM_Min, dfX_PM_Max, dfX_Dateline_Min, dfX_Dateline_Max;
     int    bUsePMWrap;
 
     if( nPointCount < 2 )
@@ -394,10 +393,6 @@ void BSBDataset::ScanForGCPs( bool isNos, const char *pszFilename )
         {
             const char *pszPR = strstr(psInfo->papszHeader[i],"PR=");
 
-            // Capture whole line as metadata so some apps can do more
-            // specific processing.
-            SetMetadataItem( "BSB_KNP", psInfo->papszHeader[i] + 4 );
-
             if( pszPR == NULL )
             {
                 /* no match */
@@ -408,7 +403,7 @@ void BSBDataset::ScanForGCPs( bool isNos, const char *pszFilename )
                 // central meridian.  This is mostly helpful to ensure 
                 // that regions crossing the dateline will be contiguous 
                 // in mercator.
-                osUnderlyingSRS.Printf( "PROJCS[\"Global Mercator\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.01745329251994328]],PROJECTION[\"Mercator_2SP\"],PARAMETER[\"standard_parallel_1\",0],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",%d],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"Meter\",1]]", (int) pasGCPList[0].dfGCPX );
+                osUnderlyingSRS.Printf( "PROJCS[\"World Mercator\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.01745329251994328]],PROJECTION[\"Mercator_2SP\"],PARAMETER[\"standard_parallel_1\",0],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",%d],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"Meter\",1]]", (int) pasGCPList[0].dfGCPX );
             }
             
             break;
@@ -443,15 +438,20 @@ void BSBDataset::ScanForGCPs( bool isNos, const char *pszFilename )
 
             delete poCT;
         }
+        else
+            SetMetadataItem( "GCPPROJECTIONX", osUnderlyingSRS, "IMAGE_STRUCTURE" );
     }
 
 /* -------------------------------------------------------------------- */
 /*      Attempt to prepare a geotransform from the GCPs.                */
 /* -------------------------------------------------------------------- */
-    if( GDALGCPsToGeoTransform( nGCPCount, pasGCPList, adfGeoTransform, 
-                                FALSE ) )
+    if( osUnderlyingSRS.length() == 0 )
     {
-        bGeoTransformSet = TRUE;
+        if( GDALGCPsToGeoTransform( nGCPCount, pasGCPList, adfGeoTransform, 
+                                    FALSE ) )
+        {
+            bGeoTransformSet = TRUE;
+        }
     }
 }
 

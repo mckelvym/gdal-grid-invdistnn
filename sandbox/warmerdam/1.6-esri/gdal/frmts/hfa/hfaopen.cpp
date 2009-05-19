@@ -587,6 +587,9 @@ int HFAGetBandNoData( HFAHandle hHFA, int nBand, double *pdfNoData )
 
     HFABand *poBand = hHFA->papoBand[nBand-1];
 
+    if (poBand->nOverviews > 0)
+      poBand = poBand->papoOverviews[0];
+
     *pdfNoData = poBand->dfNoData;
     return poBand->bNoDataSet;
 }
@@ -898,7 +901,7 @@ const Eprj_MapInfo *HFAGetMapInfo( HFAHandle hHFA )
 }
 
 /************************************************************************/
-/*                         HFAInvGeoTransform()                         */
+/*                        HFAInvGeoTransform()                          */
 /************************************************************************/
 
 static int HFAInvGeoTransform( double *gt_in, double *gt_out )
@@ -955,11 +958,15 @@ int HFAGetGeoTransform( HFAHandle hHFA, double *padfGeoTransform )
         padfGeoTransform[0] = psMapInfo->upperLeftCenter.x
             - psMapInfo->pixelSize.width*0.5;
         padfGeoTransform[1] = psMapInfo->pixelSize.width;
+        if(padfGeoTransform[1] == 0.0)
+          padfGeoTransform[1] = 1.0;
         padfGeoTransform[2] = 0.0;
         if( psMapInfo->upperLeftCenter.y >= psMapInfo->lowerRightCenter.y )
             padfGeoTransform[5] = - psMapInfo->pixelSize.height;
         else
             padfGeoTransform[5] = psMapInfo->pixelSize.height;
+        if(padfGeoTransform[5] == 0.0)
+          padfGeoTransform[5] = 1.0;
 
         padfGeoTransform[3] = psMapInfo->upperLeftCenter.y
             - padfGeoTransform[5]*0.5;
@@ -1068,6 +1075,8 @@ CPLErr HFASetMapInfo( HFAHandle hHFA, const Eprj_MapInfo *poMapInfo )
             + strlen(poMapInfo->units) + 1;
 
         pabyData = poMIEntry->MakeData( nSize );
+        if(!pabyData)
+          return CE_Failure;
         memset( pabyData, 0, nSize );
 
         poMIEntry->SetPosition();
@@ -1187,6 +1196,9 @@ CPLErr HFASetPEString( HFAHandle hHFA, const char *pszPEString )
 /*      Prepare the data area with some extra space just in case.       */
 /* -------------------------------------------------------------------- */
         GByte *pabyData = poProX->MakeData( 700 + strlen(pszPEString) );
+        if( !pabyData ) 
+          return CE_Failure;
+
         memset( pabyData, 0, 250+strlen(pszPEString) );
 
         poProX->SetPosition();
@@ -1201,8 +1213,7 @@ CPLErr HFASetPEString( HFAHandle hHFA, const char *pszPEString )
 /*      handling for MIFObjects.                                        */
 /* -------------------------------------------------------------------- */
         pabyData = poProX->GetData();
-        
-        int       nDataSize = poProX->GetDataSize();
+        int    nDataSize = poProX->GetDataSize();
         GUInt32   iOffset = poProX->GetDataPos();
         GUInt32   nSize;
 
@@ -1361,6 +1372,8 @@ CPLErr HFASetProParameters( HFAHandle hHFA, const Eprj_ProParameters *poPro )
             nSize += strlen(poPro->proExeName) + 1;
 
         pabyData = poMIEntry->MakeData( nSize );
+        if(!pabyData)
+          return CE_Failure;
         poMIEntry->SetPosition();
 
 /* -------------------------------------------------------------------- */
@@ -1503,6 +1516,8 @@ CPLErr HFASetDatum( HFAHandle hHFA, const Eprj_Datum *poDatum )
             nSize += strlen(poDatum->gridname) + 1;
 
         pabyData = poDatumEntry->MakeData( nSize );
+        if(!pabyData)
+          return CE_Failure;
         poDatumEntry->SetPosition();
 
 /* -------------------------------------------------------------------- */
@@ -1874,7 +1889,7 @@ CPLErr HFAFlush( HFAHandle hHFA )
         eErr = hHFA->poRoot->FlushToDisk();
         if( eErr != CE_None )
             return eErr;
-        
+
         hHFA->bTreeDirty = FALSE;
     }
 

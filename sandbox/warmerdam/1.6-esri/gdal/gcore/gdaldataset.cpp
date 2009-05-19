@@ -1891,8 +1891,22 @@ char **GDALDataset::GetFileList()
     }
 
 /* -------------------------------------------------------------------- */
-/*      should we try for world file(s)?   Not for now.                 */
+/*      Do we have a world file?                                        */
 /* -------------------------------------------------------------------- */
+    const char* pszExtension = CPLGetExtension( osMainFilename );
+    if( strlen(pszExtension) > 2 )
+    {
+        // first + last + 'w'
+        char szDerivedExtension[4];
+        szDerivedExtension[0] = pszExtension[0];
+        szDerivedExtension[1] = pszExtension[strlen(pszExtension)-1];
+        szDerivedExtension[2] = 'w';
+        szDerivedExtension[3] = '\0';
+        CPLString osWorldFilename = CPLResetExtension( osMainFilename, szDerivedExtension );
+
+        if( VSIStatL( osWorldFilename, &sStat ) == 0 )
+            papszList = CSLAddString( papszList, osWorldFilename );
+    }
 
     return papszList;
 }
@@ -2204,10 +2218,9 @@ static int GDALDumpOpenSharedDatasetsForeach(void* elt, void* user_data)
 
 static int GDALDumpOpenDatasetsForeach(void* elt, void* user_data)
 {
-    DatasetCtxt* psStruct = (DatasetCtxt*) elt;
     FILE *fp = (FILE*) user_data;
     const char *pszDriverName;
-    GDALDataset *poDS = psStruct->poDS;
+    GDALDataset *poDS = (GDALDataset *) elt;
 
     /* Don't list shared datasets. They have already been listed by */
     /* GDALDumpOpenSharedDatasetsForeach */

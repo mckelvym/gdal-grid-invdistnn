@@ -349,7 +349,7 @@ CPLErr	HFABand::LoadExternalBlockInfo()
 /* -------------------------------------------------------------------- */
 /*      Open raw data file.                                             */
 /* -------------------------------------------------------------------- */
-    const char *pszRawFilename = poDMS->GetStringField( "fileName.string" );
+    const char *pszRawFilename = CPLGetFilename( poDMS->GetStringField( "fileName.string" ) );
     const char *pszFullFilename;
 
     pszFullFilename = CPLFormFilename( psInfo->pszPath, pszRawFilename, NULL );
@@ -525,15 +525,15 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
             }
             else if( nNumBits == 16 )
             {
-                nRawValue = 256 * *(pabyValues++);
-                nRawValue += *(pabyValues++);
+                nRawValue  = *(pabyValues++) << 8;
+                nRawValue |= *(pabyValues++);
             }
             else if( nNumBits == 32 )
             {
-                nRawValue = 256 * 256 * 256 * *(pabyValues++);
-                nRawValue += 256 * 256 * *(pabyValues++);
-                nRawValue += 256 * *(pabyValues++);
-                nRawValue += *(pabyValues++);
+                nRawValue  = *(pabyValues++) << 24;
+                nRawValue |= *(pabyValues++) << 16;
+                nRawValue |= *(pabyValues++) <<  8;
+                nRawValue |= *(pabyValues++);
             }
             else
             {
@@ -563,11 +563,11 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
             }
             else if( nDataType == EPT_u2 )
             {
-                if( (nPixelsOutput & 0x1) == 0 )
+                if( (nPixelsOutput & 0x3) == 0 )
                     pabyDest[nPixelsOutput>>2] = (GByte) nDataValue;
-                else if( (nPixelsOutput & 0x1) == 1 )
+                else if( (nPixelsOutput & 0x3) == 1 )
                     pabyDest[nPixelsOutput>>2] |= (GByte) (nDataValue<<2);
-                else if( (nPixelsOutput & 0x1) == 2 )
+                else if( (nPixelsOutput & 0x3) == 2 )
                     pabyDest[nPixelsOutput>>2] |= (GByte) (nDataValue<<4);
                 else
                     pabyDest[nPixelsOutput>>2] |= (GByte) (nDataValue<<6);
@@ -578,6 +578,10 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
                     pabyDest[nPixelsOutput>>1] = (GByte) nDataValue;
                 else
                     pabyDest[nPixelsOutput>>1] |= (GByte) (nDataValue<<4);
+            }
+            else if( nDataType == EPT_s8 )
+            {
+                ((GByte *) pabyDest)[nPixelsOutput] = (GByte) nDataValue;
             }
             else if( nDataType == EPT_u16 )
             {
@@ -601,7 +605,7 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
 /*      Note, floating point values are handled as if they were signed  */
 /*      32-bit integers (bug #1000).                                    */
 /* -------------------------------------------------------------------- */
-                ((float *) pabyDest)[nPixelsOutput] = *((float*)( &nDataValue ));
+                ((GInt32 *) pabyDest)[nPixelsOutput] = nDataValue;
             }
             else
             {
@@ -690,15 +694,15 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
         }
         else if( nNumBits == 16 )
         {
-            nDataValue = 256 * *(pabyValues++);
-            nDataValue += *(pabyValues++);
+            nDataValue  = *(pabyValues++) << 8;
+            nDataValue |= *(pabyValues++);
         }
         else if( nNumBits == 32 )
         {
-            nDataValue = 256 * 256 * 256 * *(pabyValues++);
-            nDataValue += 256 * 256 * *(pabyValues++);
-            nDataValue += 256 * *(pabyValues++);
-            nDataValue += *(pabyValues++);
+            nDataValue  = *(pabyValues++) << 24;
+            nDataValue |= *(pabyValues++) << 16;
+            nDataValue |= *(pabyValues++) <<  8;
+            nDataValue |= *(pabyValues++);
         }
         else
         {
@@ -722,6 +726,16 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
         }
         
         if( nDataType == EPT_u8 )
+        {
+            int		i;
+            
+            for( i = 0; i < nRepeatCount; i++ )
+            {
+                CPLAssert( nDataValue < 256 );
+                ((GByte *) pabyDest)[nPixelsOutput++] = (GByte)nDataValue;
+            }
+        }
+        else if( nDataType == EPT_s8 )
         {
             int		i;
             
@@ -770,12 +784,10 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
         else if( nDataType == EPT_f32 )
         {
             int		i;
-            float fDataValue;
 
-            memcpy( &fDataValue, &nDataValue, 4);
             for( i = 0; i < nRepeatCount; i++ )
             {
-                ((float *) pabyDest)[nPixelsOutput++] = fDataValue;
+                ((GInt32 *) pabyDest)[nPixelsOutput++] = (GInt32)nDataValue;
             }
         }
         else if( nDataType == EPT_u1 )
@@ -799,6 +811,26 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
                     pabyDest[nPixelsOutput>>3] &= ~(1<<(nPixelsOutput & 0x7));
                     nPixelsOutput++;
                 }
+            }
+        }
+        else if( nDataType == EPT_u2 )
+        {
+            int		i;
+
+            CPLAssert( nDataValue >= 0 && nDataValue < 4 );
+            
+            for( i = 0; i < nRepeatCount; i++ )
+            {
+                if( (nPixelsOutput & 0x3) == 0 )
+                    pabyDest[nPixelsOutput>>2] = (GByte) nDataValue;
+                else if( (nPixelsOutput & 0x3) == 1 )
+                    pabyDest[nPixelsOutput>>2] |= (GByte) (nDataValue<<2);
+                else if( (nPixelsOutput & 0x3) == 2 )
+                    pabyDest[nPixelsOutput>>2] |= (GByte) (nDataValue<<4);
+                else
+                    pabyDest[nPixelsOutput>>2] |= (GByte) (nDataValue<<6);
+
+                nPixelsOutput++;
             }
         }
         else if( nDataType == EPT_u4 )
@@ -838,17 +870,20 @@ static CPLErr UncompressBlock( GByte *pabyCData, int /* nSrcBytes */,
 void HFABand::NullBlock( void *pData )
 
 {
+    int nChunkSize = MAX(1,HFAGetDataTypeBits(nDataType)/8);
+    int nWords = nBlockXSize * nBlockYSize;
+
     if( !bNoDataSet )
-        memset( pData, 0, 
-                HFAGetDataTypeBits(nDataType)*nBlockXSize*nBlockYSize/8 );
+    {
+        if ( nDataType >= EPT_u2 )
+            memset( pData,   0, nChunkSize*nWords );
+         else
+            memset( pData, 255, nChunkSize*nWords );
+    }
     else
             
     {
         double adfND[2];
-        int nChunkSize = MAX(1,HFAGetDataTypeBits(nDataType)/8);
-        int nWords = nBlockXSize * nBlockYSize;
-        int i;
-
         switch( nDataType )
         {
           case EPT_u1:
@@ -931,7 +966,7 @@ void HFABand::NullBlock( void *pData )
             break;
         }
             
-        for( i = 0; i < nWords; i++ )
+        for( int i = 0; i < nWords; i++ )
             memcpy( ((GByte *) pData) + nChunkSize * i, 
                     &adfND[0], nChunkSize );
     }
@@ -985,23 +1020,8 @@ CPLErr HFABand::GetRasterBlock( int nXBlock, int nYBlock, void * pData )
 
     if( VSIFSeekL( fpData, nBlockOffset, SEEK_SET ) != 0 )
     {
-        // XXX: We will not report error here, because file just may be
-	// in update state and data for this block will be available later
-        if ( psInfo->eAccess == HFA_Update )
-        {
-            memset( pData, 0, 
-                    HFAGetDataTypeBits(nDataType)*nBlockXSize*nBlockYSize/8 );
-            return CE_None;
-        }
-        else
-        {
-            CPLError( CE_Failure, CPLE_FileIO, 
-                      "Seek to %x:%08x on %p failed\n%s",
-                      (int) (nBlockOffset >> 32),
-                      (int) (nBlockOffset & 0xffffffff), 
-                      fpData, VSIStrerror(errno) );
-            return CE_Failure;
-        }
+        NullBlock( pData );
+        return CE_None;
     }
 
 /* -------------------------------------------------------------------- */
@@ -1025,23 +1045,8 @@ CPLErr HFABand::GetRasterBlock( int nXBlock, int nYBlock, void * pData )
         {
             CPLFree( pabyCData );
 
-	    // XXX: Suppose that file in update state
-            if ( psInfo->eAccess == HFA_Update )
-            {
-                memset( pData, 0, 
-                    HFAGetDataTypeBits(nDataType)*nBlockXSize*nBlockYSize/8 );
-                return CE_None;
-            }
-            else
-            {
-                CPLError( CE_Failure, CPLE_FileIO,
-                          "Read of %d bytes at %x:%08x on %p failed.\n%s", 
-                          (int) nBlockSize, 
-                          (int) (nBlockOffset >> 32),
-                          (int) (nBlockOffset & 0xffffffff), 
-                          fpData, VSIStrerror(errno) );
-                return CE_Failure;
-            }
+            NullBlock( pData );
+            return CE_None;
         }
 
         eErr = UncompressBlock( pabyCData, (int) nBlockSize,
@@ -1058,18 +1063,8 @@ CPLErr HFABand::GetRasterBlock( int nXBlock, int nYBlock, void * pData )
 /* -------------------------------------------------------------------- */
     if( VSIFReadL( pData, (size_t) nBlockSize, 1, fpData ) != 1 )
     {
-	memset( pData, 0, 
-	    HFAGetDataTypeBits(nDataType)*nBlockXSize*nBlockYSize/8 );
-
-        if( fpData != fpExternal )
-            CPLDebug( "HFABand", 
-                      "Read of %x:%08x bytes at %d on %p failed.\n%s", 
-                      (int) nBlockSize, 
-                      (int) (nBlockOffset >> 32),
-                      (int) (nBlockOffset & 0xffffffff), 
-                      fpData, VSIStrerror(errno) );
-
-	return CE_None;
+        NullBlock( pData );
+	      return CE_None;
     }
 
 /* -------------------------------------------------------------------- */
@@ -1619,14 +1614,14 @@ CPLErr HFABand::GetPCT( int * pnColors,
             else
             {
                 if (VSIFSeekL( psInfo->fp, poColumnEntry->GetIntField("columnDataPtr"),
-                               SEEK_SET ) < 0)
+                           SEEK_SET ) < 0)
                 {
                     CPLError( CE_Failure, CPLE_FileIO,
                               "VSIFSeekL() failed in HFABand::GetPCT()." );
                     return CE_Failure;
                 }
                 if (VSIFReadL( apadfPCT[iColumn], sizeof(double), nPCTColors,
-                               psInfo->fp) != (size_t)nPCTColors)
+                           psInfo->fp) != (size_t)nPCTColors)
                 {
                     CPLError( CE_Failure, CPLE_FileIO,
                               "VSIFReadL() failed in HFABand::GetPCT()." );

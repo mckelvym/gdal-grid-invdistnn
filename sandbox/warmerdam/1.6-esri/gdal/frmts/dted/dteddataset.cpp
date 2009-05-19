@@ -52,6 +52,7 @@ class DTEDDataset : public GDALPamDataset
     char        *pszFilename;
     DTEDInfo    *psDTED;
     int         bVerifyChecksum;
+    char       *pszProjection;
 
   public:
                  DTEDDataset();
@@ -247,6 +248,7 @@ double DTEDRasterBand::GetNoDataValue( int * pbSuccess )
 DTEDDataset::DTEDDataset()
 {
     pszFilename = CPLStrdup("unknown");
+    pszProjection = CPLStrdup("");
     bVerifyChecksum = CSLTestBoolean(CPLGetConfigOption("DTED_VERIFY_CHECKSUM", "NO"));
 }
 
@@ -259,6 +261,7 @@ DTEDDataset::~DTEDDataset()
 {
     FlushCache();
     CPLFree(pszFilename);
+    CPLFree( pszProjection );
     if( psDTED != NULL )
         DTEDClose( psDTED );
 }
@@ -435,6 +438,23 @@ GDALDataset *DTEDDataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->SetDescription( poOpenInfo->pszFilename );
     poDS->TryLoadXML();
 
+    // if no SR in xml, try aux
+    const char* pszPrj = poDS->GDALPamDataset::GetProjectionRef();
+    if( !pszPrj || strlen(pszPrj) == 0 )
+    {
+      GDALDataset* poAuxDS = GDALFindAssociatedAuxFile( poOpenInfo->pszFilename, GA_ReadOnly, poDS );
+      if( poAuxDS )
+      {
+        pszPrj = poAuxDS->GetProjectionRef();
+        if( pszPrj && strlen(pszPrj) > 0 )
+        {
+          CPLFree( poDS->pszProjection );
+          poDS->pszProjection = CPLStrdup(pszPrj);
+        }
+
+        GDALClose( poAuxDS );
+      }
+    }
 
     return( poDS );
 }
@@ -463,12 +483,20 @@ CPLErr DTEDDataset::GetGeoTransform( double * padfTransform )
 const char *DTEDDataset::GetProjectionRef()
 
 {
-    const char* pszProjection = GetMetadataItem( "DTED_HorizontalDatum");
-    if (EQUAL(pszProjection, "WGS84"))
+    // get xml and aux SR first
+    const char* pszPrj = GDALPamDataset::GetProjectionRef();
+    if(pszPrj && strlen(pszPrj) > 0)
+      return pszPrj;
+
+    if (pszProjection && strlen(pszProjection) > 0)
+      return pszProjection;
+
+    pszPrj = GetMetadataItem( "DTED_HorizontalDatum");
+    if (EQUAL(pszPrj, "WGS84"))
     {
       return( "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433],AUTHORITY[\"EPSG\",\"4326\"]]" );
     }
-    else if (EQUAL(pszProjection, "WGS72"))
+    else if (EQUAL(pszPrj, "WGS72"))
     {
       static int bWarned = FALSE;
       if (!bWarned)
@@ -493,7 +521,7 @@ const char *DTEDDataset::GetProjectionRef()
         CPLError( CE_Warning, CPLE_AppDefined,
                   "The DTED file %s indicates %s as horizontal datum, which is not recognized by the DTED driver. \n"
                   "The DTED driver is going to consider it as WGS84.\n"
-                  "No more warnings will be issued in this session about this operation.", GetFileName(),pszProjection );
+                  "No more warnings will be issued in this session about this operation.", GetFileName(), pszProjection );
       }
       return( "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433],AUTHORITY[\"EPSG\",\"4326\"]]" );
     }
@@ -528,7 +556,8 @@ DTEDCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
                   "DTED driver does not support source dataset with zero band.\n");
         return NULL;
     }
-    else if (nBands != 1)
+    
+    if (nBands != 1)
     {
         CPLError( (bStrict) ? CE_Failure : CE_Warning, CPLE_NotSupported, 
                   "DTED driver only uses the first band of the dataset.\n");

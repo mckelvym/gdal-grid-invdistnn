@@ -331,38 +331,11 @@ CPLErr BMPRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     else
         iScanOffset = poGDS->sFileHeader.iOffBits + nBlockYOff * nScanSize;
 
-    if ( VSIFSeekL( poGDS->fp, iScanOffset, SEEK_SET ) < 0 )
+    if ( VSIFSeekL( poGDS->fp, iScanOffset, SEEK_SET ) < 0 
+    ||   VSIFReadL( pabyScan, 1, nScanSize, poGDS->fp ) < nScanSize )
     {
-        // XXX: We will not report error here, because file just may be
-    // in update state and data for this block will be available later
-        if( poGDS->eAccess == GA_Update )
-        {
-            memset( pImage, 0, nBlockXSize );
-            return CE_None;
-        }
-        else
-        {
-            CPLError( CE_Failure, CPLE_FileIO,
-                      "Can't seek to offset %ld in input file to read data.",
-                      (long) iScanOffset );
-            return CE_Failure;
-        }
-    }
-    if ( VSIFReadL( pabyScan, 1, nScanSize, poGDS->fp ) < nScanSize )
-    {
-        // XXX
-        if( poGDS->eAccess == GA_Update )
-        {
-            memset( pImage, 0, nBlockXSize );
-            return CE_None;
-        }
-        else
-        {
-            CPLError( CE_Failure, CPLE_FileIO,
-                      "Can't read from offset %ld in input file.", 
-                      (long) iScanOffset );
-            return CE_Failure;
-        }
+        memset( pImage, 0, nBlockXSize );
+        return CE_None;
     }
 
     if ( poGDS->sInfoHeader.iBitCount == 24 ||
@@ -916,8 +889,20 @@ CPLErr BMPDataset::GetGeoTransform( double * padfTransform )
 
     if( bGeoTransformValid )
         return CE_None;
-    else
-        return GDALPamDataset::GetGeoTransform( padfTransform );
+
+    if( GDALPamDataset::GetGeoTransform( padfTransform ) == CE_None)
+        return CE_None;
+
+    if (sInfoHeader.iXPelsPerMeter > 0 && sInfoHeader.iYPelsPerMeter > 0)
+    {
+        padfTransform[1] = sInfoHeader.iXPelsPerMeter;
+        padfTransform[5] = -sInfoHeader.iYPelsPerMeter;
+        padfTransform[0] = -0.5*padfTransform[1];
+        padfTransform[3] = -0.5*padfTransform[5];
+        return CE_None;
+    }
+
+    return CE_Failure;
 }
 
 /************************************************************************/

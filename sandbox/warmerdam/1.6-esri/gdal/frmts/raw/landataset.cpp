@@ -504,26 +504,45 @@ GDALDataset *LANDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Try to come up with something for the coordinate system.        */
 /* -------------------------------------------------------------------- */
-    int nCoordSys = *((GInt16 *) (poDS->pachHeader + 88));
+    // try xml and aux first
+    const char* pszPrj = poDS->GDALPamDataset::GetProjectionRef();
+    if( !pszPrj || strlen(pszPrj) == 0 ) 
+    {
+      GDALDataset* poAuxDS = GDALFindAssociatedAuxFile( poOpenInfo->pszFilename, GA_ReadOnly, poDS );
+      if( poAuxDS )
+      {
+        pszPrj = poAuxDS->GetProjectionRef();
+        if( pszPrj && strlen(pszPrj) > 0 )
+        {
+          CPLFree( poDS->pszProjection );
+          poDS->pszProjection = CPLStrdup(pszPrj);
+        }
 
-    if( nCoordSys == 0 )
-    {
-        poDS->pszProjection = CPLStrdup(SRS_WKT_WGS84);
-            
+        GDALClose( poAuxDS );
+      }
     }
-    else if( nCoordSys == 1 )
+
+    if( !pszPrj || strlen(pszPrj) == 0 )
     {
+      int nCoordSys = *((GInt16 *) (poDS->pachHeader + 88));
+      if( nCoordSys == 0 )
+      {
+          poDS->pszProjection = CPLStrdup(SRS_WKT_WGS84);
+      }
+      else if( nCoordSys == 1 )
+      {
+          poDS->pszProjection = 
+              CPLStrdup("LOCAL_CS[\"UTM - Zone Unknown\",UNIT[\"Meter\",1]]");
+      }
+      else if( nCoordSys == 2 )
+      {
+          poDS->pszProjection = CPLStrdup("LOCAL_CS[\"State Plane - Zone Unknown\",UNIT[\"US survey foot\",0.3048006096012192]]");
+      }
+      else 
+      {
         poDS->pszProjection = 
-            CPLStrdup("LOCAL_CS[\"UTM - Zone Unknown\",UNIT[\"Meter\",1]]");
-    }
-    else if( nCoordSys == 2 )
-    {
-        poDS->pszProjection = CPLStrdup("LOCAL_CS[\"State Plane - Zone Unknown\",UNIT[\"US survey foot\",0.3048006096012192]]");
-    }
-    else 
-    {
-        poDS->pszProjection = 
-            CPLStrdup("LOCAL_CS[\"Unknown\",UNIT[\"Meter\",1]]");
+              CPLStrdup("LOCAL_CS[\"Unknown\",UNIT[\"Meter\",1]]");
+      }
     }
 
 /* -------------------------------------------------------------------- */
@@ -580,13 +599,13 @@ GDALDataset *LANDataset::Open( GDALOpenInfo * poOpenInfo )
 CPLErr LANDataset::GetGeoTransform( double * padfTransform )
 
 {
-    if( adfGeoTransform[1] == 0.0 || adfGeoTransform[5] == 0.0 )
-        return CE_Failure;
-    else
+    if( adfGeoTransform[1] != 0.0 && adfGeoTransform[5] != 0.0 )
     {
         memcpy( padfTransform, adfGeoTransform, sizeof(double)*6 );
         return CE_None;
     }
+
+    return GDALPamDataset::GetGeoTransform( padfTransform );
 }
 
 /************************************************************************/
@@ -596,10 +615,14 @@ CPLErr LANDataset::GetGeoTransform( double * padfTransform )
 const char *LANDataset::GetProjectionRef()
 
 {
-    if( pszProjection == NULL )
-        return "";
-    else
+    /* try xml first */
+    const char* pszPrj = GDALPamDataset::GetProjectionRef();
+    if(pszPrj && strlen(pszPrj) > 0)
+      return pszPrj;
+
+    if (pszProjection && strlen(pszProjection) > 0)
         return pszProjection;
+    return( "" );
 }
 
 /************************************************************************/

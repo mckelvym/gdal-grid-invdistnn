@@ -690,7 +690,8 @@ void OGR_SRSNode::MakeValueSafe()
 /* -------------------------------------------------------------------- */
     for( i = 0; pszValue[i] != '\0'; i++ )
     {
-        if( !(pszValue[i] >= 'A' && pszValue[i] <= 'Z')
+        if( pszValue[i] != '+'
+            && !(pszValue[i] >= 'A' && pszValue[i] <= 'Z')
             && !(pszValue[i] >= 'a' && pszValue[i] <= 'z')
             && !(pszValue[i] >= '0' && pszValue[i] <= '9') )
         {

@@ -1651,6 +1651,8 @@ GDALDataset *JPGDataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->bGeoTransformValid = 
         GDALReadWorldFile( poOpenInfo->pszFilename, NULL, 
                            poDS->adfGeoTransform )
+        || GDALReadWorldFile( poOpenInfo->pszFilename, ".jpw", 
+                              poDS->adfGeoTransform )
         || GDALReadWorldFile( poOpenInfo->pszFilename, ".wld", 
                               poDS->adfGeoTransform );
 
@@ -1927,6 +1929,16 @@ JPEGCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 /* -------------------------------------------------------------------- */
 /*      Some some rudimentary checks                                    */
 /* -------------------------------------------------------------------- */
+    /* Make sure image isn't bigger than I can handle */
+    if( nXSize > JPEG_MAX_DIMENSION || nYSize > JPEG_MAX_DIMENSION )
+    {
+        CPLError( CE_Failure, CPLE_NotSupported, 
+                  "JPEG driver doesn't support such big image (%dx%d).",
+                  nXSize, nYSize );
+
+        return NULL;
+    }
+
     if( nBands != 1 && nBands != 3 )
     {
         CPLError( CE_Failure, CPLE_NotSupported, 

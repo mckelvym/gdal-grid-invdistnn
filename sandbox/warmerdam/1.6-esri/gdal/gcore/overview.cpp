@@ -985,6 +985,8 @@ GDALRegenerateOverviews( GDALRasterBandH hSrcBand,
         if( !pfnProgress( nChunkYOff / (double) poSrcBand->GetYSize(), 
                           NULL, pProgressData ) )
         {
+            VSIFree( pafChunk );
+            VSIFree( pabyChunkNodataMask );
             CPLError( CE_Failure, CPLE_UserInterrupt, "User terminated" );
             return CE_Failure;
         }

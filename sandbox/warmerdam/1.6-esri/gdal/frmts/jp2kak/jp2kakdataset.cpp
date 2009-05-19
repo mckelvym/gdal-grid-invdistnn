@@ -273,18 +273,13 @@ JP2KAKRasterBand::JP2KAKRasterBand( int nBand, int nDiscardLevels,
 
     bYCbCrReported = FALSE;
 
-    if( oCodeStream.get_bit_depth(nBand-1) > 8
-        && oCodeStream.get_bit_depth(nBand-1) <= 16
-        && oCodeStream.get_signed(nBand-1) )
-        this->eDataType = GDT_Int16;
-    else if( oCodeStream.get_bit_depth(nBand-1) > 8
-             && oCodeStream.get_bit_depth(nBand-1) <= 16
-             && !oCodeStream.get_signed(nBand-1) )
-        this->eDataType = GDT_UInt16;
-    else if( oCodeStream.get_bit_depth(nBand-1) > 16 )
+    int nBits = oCodeStream.get_bit_depth(nBand-1);
+    if( nBits <= 8)
+        this->eDataType = GDT_Byte;
+    else if( nBits == 32 )
         this->eDataType = GDT_Float32;
     else
-        this->eDataType = GDT_Byte;
+        this->eDataType = oCodeStream.get_signed(nBand-1) ? GDT_Int16 : GDT_UInt16;
 
     this->nDiscardLevels = nDiscardLevels;
     this->oCodeStream = oCodeStream;
@@ -1441,6 +1436,9 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
         poDS->PamOverride();
 
+        if( !poDS->bGeoTransformValid )
+            poDS->bGeoTransformValid = GDALReadWorldFile( poOpenInfo->pszFilename, 0, poDS->adfGeoTransform );
+
         return( poDS );
     }
 
@@ -1773,10 +1771,10 @@ transfer_bytes(kdu_byte *dest, kdu_line_buf &src, int gap, int precision,
     { // Decompressed samples have a 32-bit representation (integer or float)
         assert(precision >= 8); // Else would have used 16 bit representation
         kdu_sample32 *sp = src.get_buf32();
-        if (!src.is_absolute() && eOutType != GDT_Byte )
-        { // Transferring normalized floating point data.
+        if (!src.is_absolute() && eOutType != GDT_Byte)
+        { // Transferring normalized floating point data, but preserving precision.
             float scale16 = (float)(1<<precision);
-            float offset = (1<<(precision-1));
+            float offset  = 0.5*scale16;
             int val;
 
             for (; width > 0; width--, sp++, dest+=gap)
@@ -2315,13 +2313,20 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
     }
 
     if( CSLFetchNameValue( papszOptions, "BLOCKXSIZE" ) != NULL )
-        nTileXSize = MIN(nXSize,
-                         atoi(CSLFetchNameValue( papszOptions, "BLOCKXSIZE")));
+        nTileXSize = atoi(CSLFetchNameValue( papszOptions, "BLOCKXSIZE"));
 
     if( CSLFetchNameValue( papszOptions, "BLOCKYSIZE" ) != NULL )
-        nTileYSize = MIN(nYSize,
-                         atoi(CSLFetchNameValue( papszOptions, "BLOCKYSIZE")));
+        nTileYSize = atoi(CSLFetchNameValue( papszOptions, "BLOCKYSIZE"));
 
+    while( (double)nXSize*(double)nYSize/(double)nTileXSize/(double)nTileYSize/1024.0 >= 64.0 )
+    {
+      nTileXSize *= 2;
+      nTileYSize *= 2;
+    }
+
+    if( nTileXSize > nXSize ) nTileXSize = nXSize;
+    if( nTileYSize > nYSize ) nTileYSize = nYSize;
+      
 /* -------------------------------------------------------------------- */
 /*      Do we want a comment segment emitted?                           */
 /* -------------------------------------------------------------------- */

@@ -1416,7 +1416,7 @@ OGRErr OGRSpatialReference::SetWellKnownGeogCS( const char * pszName )
         pszWKT = (char* ) "GEOGCS[\"WGS 72\",DATUM[\"WGS_1972\",SPHEROID[\"WGS 72\",6378135,298.26,AUTHORITY[\"EPSG\",\"7043\"]],TOWGS84[0,0,4.5,0,0,0.554,0.2263],AUTHORITY[\"EPSG\",\"6322\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AUTHORITY[\"EPSG\",\"4322\"]]";
 
     else if( EQUAL(pszName, "NAD27") || EQUAL(pszName, "CRS27") )
-        pszWKT = (char* ) "GEOGCS[\"NAD27\",DATUM[\"North_American_Datum_1927\",SPHEROID[\"Clarke 1866\",6378206.4,294.978698213898,AUTHORITY[\"EPSG\",\"7008\"]],TOWGS84[-3,142,183,0,0,0,0],AUTHORITY[\"EPSG\",\"6267\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AUTHORITY[\"EPSG\",\"4267\"]]";
+        pszWKT = (char* ) "GEOGCS[\"NAD27\",DATUM[\"North_American_Datum_1927\",SPHEROID[\"Clarke 1866\",6378206.4,294.9786982,AUTHORITY[\"EPSG\",\"7008\"]],TOWGS84[-3,142,183,0,0,0,0],AUTHORITY[\"EPSG\",\"6267\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AUTHORITY[\"EPSG\",\"4267\"]]";
         
     else if( EQUAL(pszName, "NAD83") || EQUAL(pszName,"CRS83") )
         pszWKT = (char* ) "GEOGCS[\"NAD83\",DATUM[\"North_American_Datum_1983\",SPHEROID[\"GRS 1980\",6378137,298.257222101,AUTHORITY[\"EPSG\",\"7019\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6269\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AUTHORITY[\"EPSG\",\"4269\"]]";
@@ -2990,6 +2990,24 @@ OGRErr OGRSpatialReference::SetBonne(
 }
 
 /************************************************************************/
+/*                              SetWinkelTripel()                       */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetWinkelTripel( 
+    double dfStdP1, double dfCentralMeridian,
+    double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Winkel_Tripel );
+    SetNormProjParm( SRS_PP_STANDARD_PARALLEL_1, dfStdP1 );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
 /*                            OSRSetBonne()                             */
 /************************************************************************/
 
@@ -4551,6 +4569,336 @@ OGRErr OSRSetWagner( OGRSpatialReferenceH hSRS,
 
     return ((OGRSpatialReference *) hSRS)->SetWagner( 
         nVariation, dfCenterLat, dfFalseEasting, dfFalseNorthing );
+}
+
+/************************************************************************/
+/*                             SetAitoff()                              */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetAitoff( double dfCentralMeridian,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Aitoff );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                             SetHammerAitoff()                        */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetHammerAitoff( double dfCentralMeridian,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Hammer_Aitoff );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                             SetBehrmann()                            */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetBehrmann( double dfCentralMeridian,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Behrmann );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                             SetCrasterParabolic()                    */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetCrasterParabolic( double dfCentralMeridian,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Craster_Parabolic );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                             SetFlatPolarQuartic()                    */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetFlatPolarQuartic( double dfCentralMeridian,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Flat_Polar_Quartic );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                             SetTimes()                               */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetTimes( double dfCentralMeridian,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Times );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                             SetStereographicNorthPole()              */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetStereographicNorthPole( 
+                                double dfStdParallel1, double dfCentralMeridian, 
+                                double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Stereographic_North_Pole );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian  );
+    SetNormProjParm( SRS_PP_STANDARD_PARALLEL_1, dfStdParallel1 );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                             SetStereographicSouthPole()              */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetStereographicSouthPole( 
+                                double dfStdParallel1, double dfCentralMeridian, 
+                                double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Stereographic_South_Pole );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_STANDARD_PARALLEL_1, dfStdParallel1 );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                             SetDoubleStereographic()                 */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetDoubleStereographic( double dfLatitudeOfOrigin, 
+                           double dfCentralMeridian, double dfScale,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Double_Stereographic );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_ORIGIN, dfLatitudeOfOrigin );
+    SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCentralMeridian );
+    SetNormProjParm( SRS_PP_SCALE_FACTOR, dfScale );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*            SetHotineObliqueMercatorAzimuthCenter()                   */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetHotineObliqueMercatorAzimuthCenter( 
+                           double dfLatitudeOfCenter, double dfLongitudeOfCenter,
+                           double dfAzimuth, double dfScale,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Hotine_Oblique_Mercator_Azimuth_Center );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_CENTER, dfLatitudeOfCenter );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, dfLongitudeOfCenter );
+    SetNormProjParm( SRS_PP_AZIMUTH, dfAzimuth );
+    SetNormProjParm( SRS_PP_SCALE_FACTOR, dfScale );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*            SetHotineObliqueMercatorAzimuthNaturalOrigin()            */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetHotineObliqueMercatorAzimuthNaturalOrigin( 
+                           double dfLatitudeOfCenter, double dfLongitudeOfCenter,
+                           double dfAzimuth, double dfScale,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Hotine_Oblique_Mercator_Azimuth_Natural_Origin );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_CENTER, dfLatitudeOfCenter );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, dfLongitudeOfCenter );
+    SetNormProjParm( SRS_PP_AZIMUTH, dfAzimuth );
+    SetNormProjParm( SRS_PP_SCALE_FACTOR, dfScale );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*            SetHotineObliqueMercatorTwoPointCenter()            */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetHotineObliqueMercatorTwoPointCenter( 
+                           double dfLat1stP, double dfLat2ndP,
+                           double dfLong1stP, double dfLong2ndP,
+                           double dfScale, double dfFalseEasting,
+                           double dfFalseNorthing, double dfLatitudeOfCenter )
+
+{
+    SetProjection( SRS_PT_Hotine_Oblique_Mercator_Two_Point_Center );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_1ST_POINT, dfLat1stP );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_2ND_POINT, dfLat2ndP );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_1ST_POINT, dfLong1stP );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_2ND_POINT, dfLong2ndP );
+    SetNormProjParm( SRS_PP_SCALE_FACTOR, dfScale );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_CENTER, dfLatitudeOfCenter );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*            SetHotineObliqueMercatorTwoPointNaturalOrigin()           */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetHotineObliqueMercatorTwoPointNaturalOrigin( 
+                           double dfLat1stP, double dfLat2ndP,
+                           double dfLong1stP, double dfLong2ndP,
+                           double dfScale, double dfFalseEasting,
+                           double dfFalseNorthing, double dfLatitudeOfCenter )
+
+{
+    SetProjection( SRS_PT_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_NATURAL_ORIGIN );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_1ST_POINT, dfLat1stP );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_2ND_POINT, dfLat2ndP );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_1ST_POINT, dfLong1stP );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_2ND_POINT, dfLong2ndP );
+    SetNormProjParm( SRS_PP_SCALE_FACTOR, dfScale );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_CENTER, dfLatitudeOfCenter );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                          SetKrovakEsri()                             */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetKrovakEsri( 
+                           double dfLatitudeOfCenter, double dfLongitudeOfCenter, 
+                           double dfAzimuth, double dfPseudoStdParallel1,
+                           double dfScale, double dfFalseEasting,
+                           double dfFalseNorthing, double dfXScale,  
+                           double dfYScale, double dfXYScale)
+
+{
+    SetProjection( SRS_PT_KROVAK );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_CENTER, dfLatitudeOfCenter );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, dfLongitudeOfCenter );
+    SetNormProjParm( SRS_PP_AZIMUTH, dfAzimuth );
+    SetNormProjParm( SRS_PP_PSEUDO_STD_PARALLEL_1, dfPseudoStdParallel1 );
+    SetNormProjParm( SRS_PP_SCALE_FACTOR, dfScale );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+    SetNormProjParm( SRS_PP_X_SCALE, dfXScale );
+    SetNormProjParm( SRS_PP_Y_SCALE, dfYScale );
+    SetNormProjParm( SRS_PP_XY_PLANE_ROTATION, dfXYScale );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                          SetLocal()                             */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetLocal( 
+                           double dfLatitudeOfCenter, double dfLongitudeOfCenter, 
+                           double dfAzimuth, double dfScale, 
+                           double dfFalseEasting, double dfFalseNorthing)
+
+{
+    SetProjection( SRS_PT_Local );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_CENTER, dfLatitudeOfCenter );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, dfLongitudeOfCenter );
+    SetNormProjParm( SRS_PP_AZIMUTH, dfAzimuth );
+    SetNormProjParm( SRS_PP_SCALE_FACTOR, dfScale );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                     SetTwoPointEquidistant()                         */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetTwoPointEquidistant( 
+                           double dfLat1stP, double dfLat2ndP,
+                           double dfLong1stP, double dfLong2ndP,
+                           double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_TWO_POINT_EQUIDISTANT );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_1ST_POINT, dfLat1stP );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_2ND_POINT, dfLat2ndP );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_1ST_POINT, dfLong1stP );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_2ND_POINT, dfLong2ndP );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*              SetVerticalNearSidePerspective()                        */
+/************************************************************************/
+
+OGRErr OGRSpatialReference::SetVerticalNearSidePerspective(
+                                double dfCenterLat, double dfCenterLong,
+                                double dfHeight,
+                                double dfFalseEasting, double dfFalseNorthing )
+
+{
+    SetProjection( SRS_PT_Vertical_Near_Side_Perspective );
+    SetNormProjParm( SRS_PP_LATITUDE_OF_CENTER, dfCenterLat );
+    SetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, dfCenterLong );
+    SetNormProjParm( SRS_PP_HEIGHT, dfHeight );
+    SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
 }
 
 /************************************************************************/

@@ -490,6 +490,88 @@ class CPL_DLL OGRSpatialReference
     OGRErr      SetStatePlane( int nZone, int bNAD83 = TRUE,
                                const char *pszOverrideUnitName = NULL,
                                double dfOverrideUnit = 0.0 );
+
+    /** Added from ESRI in in March 2009 **/
+    /** Aitoff */
+    OGRErr      SetAitoff( double dfCentralMeridian,
+                           double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetHammerAitoff( double dfCentralMeridian,
+                               double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetBehrmann( double dfCentralMeridian,
+                               double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetCrasterParabolic( double dfCentralMeridian,
+                               double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetFlatPolarQuartic( double dfCentralMeridian,
+                               double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetTimes( double dfCentralMeridian,
+                           double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetStereographicNorthPole( 
+                                double dfStdParallel1, double dfCentralMeridian, 
+                                double dfFalseEasting, double dfFalseNorthing );
+                                
+    OGRErr      SetStereographicSouthPole( 
+                                double dfStdParallel1, double dfCentralMeridian, 
+                                double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetWinkelTripel( double dfStdP1, double dfCentralMeridian,
+                            double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetDoubleStereographic( double dfLatitudeOfOrigin, 
+                           double dfCentralMeridian, double dfScale,
+                           double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetHotineObliqueMercatorAzimuthCenter( 
+                           double dfLatitudeOfCenter, double dfLongitudeOfCenter,
+                           double dfAzimuth, double dfScale,
+                           double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetHotineObliqueMercatorAzimuthNaturalOrigin( 
+                           double dfLatitudeOfCenter, double dfLongitudeOfCenter,
+                           double dfAzimuth, double dfScale,
+                           double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetHotineObliqueMercatorTwoPointCenter( 
+                           double dfLat1stP, double dfLat2ndP,
+                           double dfLong1stP, double dfLong2ndP,
+                           double dfScale, double dfFalseEasting,
+                           double dfFalseNorthing, double dfLatitudeOfCenter );
+
+    OGRErr      SetHotineObliqueMercatorTwoPointNaturalOrigin( 
+                           double dfLat1stP, double dfLat2ndP,
+                           double dfLong1stP, double dfLong2ndP,
+                           double dfScale, double dfFalseEasting,
+                           double dfFalseNorthing, double dfLatitudeOfCenter );
+
+    OGRErr      SetKrovakEsri( 
+                           double dfLatitudeOfCenter, double dfLongitudeOfCenter, 
+                           double dfAzimuth, double dfPseudoStdParallel1,
+                           double dfScale, double dfFalseEasting,
+                           double dfFalseNorthing, double dfXScale,  
+                           double dfYScale, double dfXYScale);
+
+    OGRErr      SetLocal( 
+                           double dfLatitudeOfCenter, double dfLongitudeOfCenter, 
+                           double dfAzimuth, double dfScale, 
+                           double dfFalseEasting, double dfFalseNorthing);
+
+    OGRErr      SetTwoPointEquidistant( 
+                           double dfLat1stP, double dfLat2ndP,
+                           double dfLong1stP, double dfLong2ndP,
+                           double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      SetVerticalNearSidePerspective(
+                                double dfCenterLat, double dfCenterLong,
+                                double dfHeight,
+                                double dfFalseEasting, double dfFalseNorthing );
+
+    OGRErr      ImportFromStatePlaneWKT( int code, const char* datumName, const char* unitsName, int pcsCode );
+    OGRErr      ImportFromWisconsinWKT( char* prjName, double centralMeridian, double latOfOrigin, const char* unitsName );
 };
 
 /************************************************************************/

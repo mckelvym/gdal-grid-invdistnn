@@ -3,7 +3,7 @@ GDAL_ROOT	=	..\..
 !INCLUDE $(GDAL_ROOT)\nmake.opt
 
 !IFDEF DLLBUILD
-GDALLIB	=    $(GDAL_ROOT)\gdal_i.lib
+GDALLIB	=    $(GDAL_ROOT)\gdal_i$(TARGET).lib
 !ELSE
 GDALLIB	=    $(GDAL_ROOT)\gdal.lib
 !ENDIF

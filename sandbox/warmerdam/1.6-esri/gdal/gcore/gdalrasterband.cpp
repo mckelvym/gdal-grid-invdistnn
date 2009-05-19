@@ -2572,9 +2572,9 @@ CPLErr GDALRasterBand::GetHistogram( double dfMin, double dfMax,
         // FIXME: should we use the most reduced overview here or use some
         // minimum number of samples like GDALRasterBand::ComputeStatistics()
         // does?
-        GDALRasterBand *poBestOverview = GetRasterSampleOverview( 0 );
+        GDALRasterBand *poBestOverview = GetRasterSampleOverview( 2500 );
         
-        if( poBestOverview != this )
+        if( poBestOverview != NULL )
         {
             return poBestOverview->GetHistogram( dfMin, dfMax, nBuckets,
                                                  panHistogram,
