@@ -939,13 +939,6 @@ char **GDALPamDataset::GetFileList()
         papszFileList = CSLAddString( papszFileList, psPam->pszPamFilename );
     }
 
-    GDALDataset *poAuxDS = GDALFindAssociatedAuxFile( GetDescription(), GA_ReadOnly, this );
-    if( poAuxDS )
-    {
-        papszFileList = CSLAddString( papszFileList, poAuxDS->GetDescription() );
-        GDALClose( poAuxDS );
-    }
-
     return papszFileList;
 }
 
