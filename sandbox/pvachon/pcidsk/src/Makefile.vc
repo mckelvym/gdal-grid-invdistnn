@@ -1,0 +1,32 @@
+#OPTFLAGS = /Zi 
+OPTFLAGS = /Ox
+CXXFLAGS = /nologo /MD /GR /EHsc $(OPTFLAGS) /W3 \
+	/D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE
+
+OBJ =   io_win32.obj win32_mutex.obj pcidskinterfaces.obj \
+	pcidskexception.obj cpcidskfile.obj pcidskbuffer.obj pcidsk_utils.obj \
+	cpcidskchannel.obj cbandinterleavedchannel.obj \
+	cpixelinterleavedchannel.obj cpcidsksegment.obj cpcidskgeoref.obj \
+	sysblockmap.obj sysvirtualfile.obj ctiledchannel.obj \
+	pcidskopen.obj pcidsk_utils_p.obj metadatasegment_p.obj \
+	metadataset_p.obj
+
+default:	pcidsk.lib
+
+pcidsk.lib:	$(OBJ)
+	lib /nologo /out:pcidsk.lib $(OBJ)
+
+clean:
+	-del *.obj
+	-del *.lib
+	-del *.pdb
+	-del *.ilk
+
+check:	default	
+	(cd ../tests; $(MAKE) check)
+
+$(OBJ):	pcidsk.h pcidsk_p.h pcidsk_config.h 
+
+.cpp.obj:	
+	$(CC) $(CXXFLAGS) /c $*.cpp
+
