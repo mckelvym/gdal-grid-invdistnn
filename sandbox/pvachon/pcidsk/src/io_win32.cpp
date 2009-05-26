@@ -82,16 +82,20 @@ Win32IOInterface::Open( const char *filename, const char *access ) const
 		dwDesiredAccess |= GENERIC_WRITE;
 
 	if ( strchr(access, '+') )
-		dwCreationDisposition = CREATE_ALWAYS;
+		dwCreationDisposition = CREATE_NEW;
 	else
 		dwCreationDisposition = OPEN_EXISTING;
 
     dwFlagsAndAttributes = (dwDesiredAccess == GENERIC_READ) ? 
                 FILE_ATTRIBUTE_READONLY : FILE_ATTRIBUTE_NORMAL, 
     
-    hFile = CreateFile( (LPCWSTR)filename, dwDesiredAccess, 
+    hFile = CreateFileA( (LPCSTR)filename, dwDesiredAccess, 
                         FILE_SHARE_READ | FILE_SHARE_WRITE, 
                         NULL, dwCreationDisposition,  dwFlagsAndAttributes, NULL );
+
+	DWORD dwError = GetLastError();
+
+	if ( dwError != ERROR_SUCCESS )
 
     if( hFile == INVALID_HANDLE_VALUE )
     {
@@ -216,18 +220,26 @@ uint64 Win32IOInterface::Read( void *buffer, uint64 size, uint64 nmemb,
     size_t      result;
 	DWORD		dwError;
 
-    if( !ReadFile(fi->hFile, buffer, (DWORD)(size*nmemb), &dwSizeRead, NULL) )
-    {
+	if ( size * nmemb == 0 )
+		return 0;
+
+	BOOL bResult = ReadFile(fi->hFile, 
+							buffer, 
+							(DWORD)(size*nmemb), 
+							&dwSizeRead, 
+							NULL);
+
+    if( bResult == FALSE )
         result = 0;
-    }
-    else if( size == 0 )
+    else if( dwSizeRead == 0 )
         result = 0;
     else
         result = (size_t) (dwSizeRead / size);
 
 	dwError = GetLastError();
 
-    if( result == 0 && nmemb != 0 && dwError != 0)
+	if( result == 0 && nmemb != 0 && (dwError != ERROR_SUCCESS && 
+		dwError != ERROR_IO_PENDING))
         throw new PCIDSKException( "Read(%d): %s", 
                                    (int) size * nmemb,
                                    LastError() );
