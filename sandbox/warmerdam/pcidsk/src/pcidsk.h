@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary include file for PCIDSK SDK.
+ * Purpose:  Primary public include file for PCIDSK SDK.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -255,6 +255,9 @@ public:
 
 PCIDSKFile PCIDSK_DLL *Open( const char *filename, const char *access,  
                              const PCIDSKInterfaces *interfaces );
+PCIDSKFile PCIDSK_DLL *Create( const char *filename, int pixels, int lines,
+                               int *channels, const char *options,
+                               const PCIDSKInterfaces *interfaces );
 
 int PCIDSK_DLL DataTypeSize( eChanType );
 const char PCIDSK_DLL *DataTypeName( eChanType );
