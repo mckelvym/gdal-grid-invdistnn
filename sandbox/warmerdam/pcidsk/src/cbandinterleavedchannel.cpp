@@ -183,7 +183,75 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer,
 int CBandInterleavedChannel::WriteBlock( int block_index, void *buffer )
 
 {
-    ThrowPCIDSKException( "WriteBlock not implemented yet." );
-    return 0;
+    PCIDSKInterfaces *interfaces = file->GetInterfaces();
+
+/* -------------------------------------------------------------------- */
+/*      Establish region to read.                                       */
+/* -------------------------------------------------------------------- */
+    int    pixel_size = DataTypeSize( pixel_type );
+    uint64 offset = start_byte + line_offset * block_index;
+    int    window_size = (int) (pixel_offset*(width-1) + pixel_size);
+
+/* -------------------------------------------------------------------- */
+/*      Get file access handles if we don't already have them.          */
+/* -------------------------------------------------------------------- */
+    if( io_handle_p == NULL )
+        file->GetIODetails( &io_handle_p, &io_mutex_p, filename.c_str() );
+
+/* -------------------------------------------------------------------- */
+/*      If the imagery is packed, we can read directly into the         */
+/*      target buffer.                                                  */
+/* -------------------------------------------------------------------- */
+    if( pixel_size == (int) pixel_offset )
+    {
+        MutexHolder holder( *io_mutex_p );
+
+        if( needs_swap ) // swap before write.
+            SwapData( buffer, pixel_size, width );
+
+        interfaces->io->Seek( *io_handle_p, offset, SEEK_SET );
+        interfaces->io->Write( buffer, 1, window_size, *io_handle_p );
+
+        if( needs_swap ) // restore to original order.
+            SwapData( buffer, pixel_size, width );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Otherwise we allocate a working buffer that holds the whole     */
+/*      line, read into that, and pick out our data of interest.        */
+/* -------------------------------------------------------------------- */
+    else
+    {
+        int  i;
+        PCIDSKBuffer line_from_disk( window_size );
+        char *this_pixel;
+
+        MutexHolder holder( *io_mutex_p );
+        
+        interfaces->io->Seek( *io_handle_p, offset, SEEK_SET );
+        interfaces->io->Read( buffer, 1, line_from_disk.buffer_size, 
+                              *io_handle_p );
+
+        for( i = 0, this_pixel = line_from_disk.buffer; i < width; i++ )
+        {
+            memcpy( this_pixel, ((char *) buffer) + pixel_size * i, 
+                    pixel_size );
+
+            if( needs_swap ) // swap before write.
+                SwapData( this_pixel, pixel_size, 1 );
+
+            this_pixel += pixel_size;
+        }
+
+        interfaces->io->Seek( *io_handle_p, offset, SEEK_SET );
+        interfaces->io->Write( buffer, 1, line_from_disk.buffer_size, 
+                               *io_handle_p );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Do byte swapping if needed.                                     */
+/* -------------------------------------------------------------------- */
+
+    return 1;
 }
 

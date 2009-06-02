@@ -152,7 +152,7 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
     if( needs_swap )
         SwapData( buffer, pixel_size, win_xsize );
 
-    return 0;
+    return 1;
 }
 
 /************************************************************************/
@@ -162,7 +162,78 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
 int CPixelInterleavedChannel::WriteBlock( int block_index, void *buffer )
 
 {
-    ThrowPCIDSKException( "WriteBlock not implemented yet." );
-    return 0;
+/* -------------------------------------------------------------------- */
+/*      Work out sizes and offsets.                                     */
+/* -------------------------------------------------------------------- */
+    int pixel_group = file->GetPixelGroupSize();
+    int pixel_size = DataTypeSize(GetType());
+
+/* -------------------------------------------------------------------- */
+/*      Read and lock the scanline.                                     */
+/* -------------------------------------------------------------------- */
+    uint8 *pixel_buffer = (uint8 *) file->ReadAndLockBlock( block_index );
+
+/* -------------------------------------------------------------------- */
+/*      Copy the data into our callers buffer.  Try to do this          */
+/*      reasonably efficiently.  We might consider adding faster        */
+/*      cases for 16/32bit data that is word aligned.                   */
+/* -------------------------------------------------------------------- */
+    if( pixel_size == pixel_group )
+        memcpy( pixel_buffer, buffer, pixel_size * width );
+    else
+    {
+        int i;
+        uint8  *dst = ((uint8 *)pixel_buffer) + image_offset;
+        uint8  *src = (uint8 *) buffer;
+
+        if( pixel_size == 1 )
+        {
+            for( i = width; i != 0; i-- )
+            {
+                *dst = *src;
+                src++;
+                dst += pixel_group;
+            }
+        }
+        else if( pixel_size == 2 )
+        {
+            for( i = width; i != 0; i-- )
+            {
+                *(dst++) = *(src++);
+                *(dst++) = *(src++);
+
+                if( needs_swap )
+                    SwapData( dst-2, 2, 1 );
+
+                dst += pixel_group-2;
+            }
+        }
+        else if( pixel_size == 4 )
+        {
+            for( i = width; i != 0; i-- )
+            {
+                *(dst++) = *(src++);
+                *(dst++) = *(src++);
+                *(dst++) = *(src++);
+                *(dst++) = *(src++);
+
+                if( needs_swap )
+                    SwapData( dst-4, 4, 1);
+
+                dst += pixel_group-4;
+
+            }
+        }
+        else
+            ThrowPCIDSKException( "Unsupported pixel type..." );
+    }
+    
+    file->UnlockBlock( 1 );
+
+/* -------------------------------------------------------------------- */
+/*      Do byte swapping if needed.                                     */
+/* -------------------------------------------------------------------- */
+
+    return 1;
 }
 

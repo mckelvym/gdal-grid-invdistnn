@@ -303,6 +303,14 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
                            io_handle );
 
 /* -------------------------------------------------------------------- */
+/*      Ensure we write out something at the end of the image data      */
+/*      to force the file size.                                         */
+/* -------------------------------------------------------------------- */
+    interfaces->io->Seek( io_handle, (image_data_start + image_data_size)*512-1,
+                          SEEK_SET );
+    interfaces->io->Write( "\0", 1, 1, io_handle );
+    
+/* -------------------------------------------------------------------- */
 /*      Close the raw file, and reopen as a pcidsk file.                */
 /* -------------------------------------------------------------------- */
     interfaces->io->Close( io_handle );
