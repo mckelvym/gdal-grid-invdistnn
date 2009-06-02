@@ -119,26 +119,6 @@ void PCIDSKBuffer::Get( int offset, int size, std::string &target, int unpad )
 }
 
 /************************************************************************/
-/*                                Put()                                 */
-/************************************************************************/
-
-void PCIDSKBuffer::Put( const char *value, int offset, int size )
-
-{
-    if( offset + size > buffer_size )
-        throw PCIDSKException( "Put() past end of PCIDSKBuffer." );
-
-    int v_size = strlen(value);
-    if( v_size > size )
-        v_size = size;
-
-    if( v_size < size )
-        memset( buffer + offset, ' ', size );
-
-    memcpy( buffer + offset, value, v_size );
-}
-
-/************************************************************************/
 /*                             GetUInt64()                              */
 /************************************************************************/
 
@@ -199,4 +179,40 @@ double PCIDSKBuffer::GetDouble( int offset, int size )
     }
 
     return atof(value_str.c_str());
+}
+
+/************************************************************************/
+/*                                Put()                                 */
+/************************************************************************/
+
+void PCIDSKBuffer::Put( const char *value, int offset, int size )
+
+{
+    if( offset + size > buffer_size )
+        throw PCIDSKException( "Put() past end of PCIDSKBuffer." );
+
+    int v_size = strlen(value);
+    if( v_size > size )
+        v_size = size;
+
+    if( v_size < size )
+        memset( buffer + offset, ' ', size );
+
+    memcpy( buffer + offset, value, v_size );
+}
+
+/************************************************************************/
+/*                             PutUInt64()                              */
+/************************************************************************/
+
+void PCIDSKBuffer::Put( uint64 value, int offset, int size )
+
+{
+    char fmt[64];
+    char wrk[128];
+
+    sprintf( fmt, "%%%d%sd", size, PCIDSK_FRMT_64_WITHOUT_PREFIX );
+    sprintf( wrk, fmt, value );
+
+    Put( wrk, offset, size );
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Implementation of the Create() function.
+ * Purpose:  Implementation of the Create() function to create new PCIDSK files.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -48,9 +48,10 @@ using namespace PCIDSK;
  * @return a pointer to a file object for accessing the PCIDSK file. 
  */
 
-PCIDSKFile PCIDSK_DLL *Create( const char *filename, int pixels, int lines,
-                               int *channels, const char *options,
-                               const PCIDSKInterfaces *interfaces )
+PCIDSKFile PCIDSK_DLL *
+PCIDSK::Create( const char *filename, int pixels, int lines,
+                int *channels, const char *options,
+                const PCIDSKInterfaces *interfaces )
 
 {
 /* -------------------------------------------------------------------- */
@@ -80,7 +81,7 @@ PCIDSKFile PCIDSK_DLL *Create( const char *filename, int pixels, int lines,
                              options );
 
     if( strstr(options,"NOZERO") != NULL )
-        no_zero = true;
+        nozero = true;
     
 /* -------------------------------------------------------------------- */
 /*      Create the file.                                                */
@@ -89,15 +90,79 @@ PCIDSKFile PCIDSK_DLL *Create( const char *filename, int pixels, int lines,
 
     assert( io_handle != NULL );
 
+/* ==================================================================== */
+/*      Establish some key file layout information.                     */
+/* ==================================================================== */
+    int image_header_start = 2, image_header_size; // in blocks
+    uint64 image_data_start, image_data_size;      // in blocks
+    uint64 segment_ptr_start, segment_ptr_size=64; // in blocks
+    int pixel_group_size, line_size;               // in bytes
+
 /* -------------------------------------------------------------------- */
-/*      File Type, Version, and Size                                    */
-/* 	Notice: we get the first 4 characters from PCIVERSIONAME.	*/
+/*      Pixel interleaved.                                              */
 /* -------------------------------------------------------------------- */
+    if( strcmp(interleaving,"PIXEL") == 0 )
+    {
+        image_header_size = channel_count * 2;
+        pixel_group_size = 
+            channels[0] + channels[1]*2 + channels[2]*2 + channels[3]*4;
+        line_size = ((pixel_group_size * pixels + 511) / 512) * 512;
+        image_data_size = ((uint64)line_size) * lines;
+
+        // TODO: Old code enforces a 1TB limit for some reason.
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Band interleaved.                                               */
+/* -------------------------------------------------------------------- */
+    else if( strcmp(interleaving,"BAND") == 0 )
+    {
+        image_header_size = channel_count * 2;
+
+        pixel_group_size = 
+            channels[0] + channels[1]*2 + channels[2]*2 + channels[3]*4;
+        // BAND interleaved bands are tightly packed.
+        image_data_size = 
+            (((uint64)pixel_group_size) * pixels * lines + 511) / 512;
+
+        // TODO: Old code enforces a 1TB limit for some reason.
+    }
+
+/* -------------------------------------------------------------------- */
+/*      FILE/Tiled.                                                     */
+/* -------------------------------------------------------------------- */
+    else if( strcmp(interleaving,"FILE") == 0 )
+    {
+        // For some reason we reserve extra space, but only for FILE.
+        if( channel_count < 64 )
+            image_header_size = 64 * 2;
+        else
+            image_header_size = channel_count * 2;
+
+        image_data_size = 0;
+
+        // TODO: Old code enforces a 1TB limit on the fattest band.
+    }
+    
+/* -------------------------------------------------------------------- */
+/*      Place components.                                               */
+/* -------------------------------------------------------------------- */
+    segment_ptr_start = image_header_start + image_header_size;
+    image_data_start = segment_ptr_start + segment_ptr_size;
+
+/* ==================================================================== */
+/*      Prepare the file header.                                        */
+/* ==================================================================== */
     PCIDSKBuffer fh(512);
+    static const char default_time[] = "15:13 08May2009 ";
 
     // Initialize everything to spaces.
     fh.Put( "", 0, 512 );
 
+/* -------------------------------------------------------------------- */
+/*      File Type, Version, and Size                                    */
+/* 	Notice: we get the first 4 characters from PCIVERSIONAME.	*/
+/* -------------------------------------------------------------------- */
     // FH1 - magic format string.
     fh.Put( "PCIDSK", 0, 8 );
 
@@ -118,65 +183,130 @@ PCIDSKFile PCIDSK_DLL *Create( const char *filename, int pixels, int lines,
     // FH7.1 / FH7.2 - left blank (64+64 bytes @ 144)
 
     // FH8 Creation date/time
-    fh.Put( "", 272, 16 );
+    fh.Put( default_time, 272, 16 );
 
     // FH9 Update date/time
-    fh.Put( "", 288, 16 );
+    fh.Put( default_time, 288, 16 );
 
 /* -------------------------------------------------------------------- */
 /*      Image Data                                                      */
 /* -------------------------------------------------------------------- */
-    PrintInt( fh->ImageStart, "%16ld", ImgDataSt );
-    PrintInt( fh->ImageSize, "%16ld", ImgDataSz );
-    PrintInt( fh->ImageHeadStart, "%16ld", ImgHeadSt );
-    PrintInt( fh->ImageHeadSize, "%8ld", ImgHeadSz );
+    // FH10 - start block of image data
+    fh.Put( image_data_start+1, 304, 16 );
 
-    if( EQUAL(pszInterleaving,"pixel") )
-        TextFieldFill( fh->Interleave, "PIXEL", 8 );
-    else if( EQUAL(pszInterleaving,"band") ) 
-        TextFieldFill( fh->Interleave, "BAND", 8 );
-    else
-        TextFieldFill( fh->Interleave, "FILE", 8 );
+    // FH11 - number of blocks of image data.
+    fh.Put( image_data_size, 320, 16 );
 
-    PrintInt( fh->Channels, "%8d", tchan );
-    PrintInt( fh->Pixels, "%8d", pixels );
-    PrintInt( fh->Lines, "%8d", lines );
+    // FH12 - start block of image headers.
+    fh.Put( image_header_start+1, 336, 16 );
 
-    TextFieldFill( fh->PixelUnit, "METRE", 8 );
-    PrintDouble( fh->XPixelSize, "%16.9f", 1.0 );
-    PrintDouble( fh->YPixelSize, "%16.9f", 1.0 );
+    // FH13 - number of blocks of image headers.
+    fh.Put( image_header_size, 352, 8);
+
+    // FH14 - interleaving.
+    fh.Put( interleaving, 360, 8);
+
+    // FH15 - reserved - MIXED is for some ancient backwards compatability.
+    fh.Put( "MIXED", 368, 8);
+
+    // FH16 - number of image bands.
+    fh.Put( channel_count, 376, 8 );
+
+    // FH17 - width of image in pixels.
+    fh.Put( pixels, 384, 8 );
+
+    // FH18 - height of image in pixels.
+    fh.Put( lines, 392, 8 );
+
+    // FH19 - pixel ground size interpretation.
+    fh.Put( "METRE", 400, 8 );
+    
+    // TODO:
+    //PrintDouble( fh->XPixelSize, "%16.9f", 1.0 );
+    //PrintDouble( fh->YPixelSize, "%16.9f", 1.0 );
+    fh.Put( "1.0", 408, 16 );
+    fh.Put( "1.0", 424, 16 );
 
 /* -------------------------------------------------------------------- */
 /*      Segment Pointers                                                */
 /* -------------------------------------------------------------------- */
-    sprintf( buffer, "%16ld%8ld", SegPtrSt, SegPtrSz );
-    strncpy( pcibuf+440, buffer, 24 );
-	
-    PrintInt( fh->SegmentHeadStart, "%16ld", SegPtrSt );
-    PrintInt( fh->SegmentHeadSize, "%8ld", SegPtrSz );
+    // FH22 - start block of segment pointers.
+    fh.Put( segment_ptr_start+1, 440, 16 );
+
+    // fH23 - number of blocks of segment pointers.
+    fh.Put( segment_ptr_size, 456, 8 );
 
 /* -------------------------------------------------------------------- */
 /*      Number of different types of Channels                           */
 /* -------------------------------------------------------------------- */
-    PrintInt( fh->Num8U, "%4d", channels[0] );
-    PrintInt( fh->Num16S, "%4d", channels[1] );
-    PrintInt( fh->Num16U, "%4d", channels[2] );
-    PrintInt( fh->Num32R, "%4d", channels[3] );
+    // FH24.1 - 8U bands.
+    fh.Put( channels[0], 464, 4 );
+
+    // FH24.2 - 16S bands.
+    fh.Put( channels[1], 468, 4 );
+
+    // FH24.3 - 16U bands.
+    fh.Put( channels[2], 472, 4 );
+
+    // FH24.4 - 32R bands.
+    fh.Put( channels[3], 476, 4 );
 
 /* -------------------------------------------------------------------- */
-/*      For backward compatiblity we fill in field FH15                 */
+/*      Write out the file header.                                      */
 /* -------------------------------------------------------------------- */
-    TextFieldFill( fh->Reserved2, "MIXED", 8 );
+    interfaces->io->Write( fh.buffer, 512, 1, io_handle );
+
+/* ==================================================================== */
+/*      Write out the image headers.                                    */
+/* ==================================================================== */
+    PCIDSKBuffer ih( 1024 );
+    int chan_index;
+
+    ih.Put( " ", 0, 1024 );
+
+    // IHi.1 - Text describing Channel Contents
+    ih.Put( "Contents Not Specified", 0, 64 );
+
+    // IHi.2 - Filename storing image.
+    if( strcmp(interleaving,"FILE") == 0 )
+        ih.Put( "<unintialized>", 64, 64 );
+    
+    // IHi.3 - Creation time and date.
+    ih.Put( default_time, 128, 16 );
+
+    // IHi.4 - Creation time and date.
+    ih.Put( default_time, 144, 16 );
+
+    interfaces->io->Seek( io_handle, image_header_start*512, SEEK_SET );
+
+    for( chan_index = 0; chan_index < channel_count; chan_index++ )
+    {
+        if( chan_index < channels[0] )
+            ih.Put( "8U", 160, 8 );
+        else if( chan_index < channels[0] + channels[1] )
+            ih.Put( "16S", 160, 8 );
+        else if( chan_index < channels[0]+channels[1]+channels[2])
+            ih.Put( "16U", 160, 8 );
+        else if( chan_index < channels[0]+channels[1]+channels[2]+channels[3])
+            ih.Put( "32R", 160, 8 );
+
+        interfaces->io->Write( ih.buffer, 1024, 1, io_handle );
+    }
+
+/* ==================================================================== */
+/*      Write out the segment pointers, all spaces.                     */
+/* ==================================================================== */
+    PCIDSKBuffer segment_pointers( segment_ptr_size*512 );
+    segment_pointers.Put( " ", 0, segment_ptr_size*512 );
+
+    interfaces->io->Seek( io_handle, segment_ptr_start*512, SEEK_SET );
+    interfaces->io->Write( segment_pointers.buffer, segment_ptr_size, 512, 
+                           io_handle );
 
 /* -------------------------------------------------------------------- */
-/*              Write the master header block (block 1)                 */
+/*      Close the raw file, and reopen as a pcidsk file.                */
 /* -------------------------------------------------------------------- */
-    DKPut( idb_fp, 1L, 1L, pcibuf );
-
-/* -------------------------------------------------------------------- */
-/*      Clear Buffer to Blanks                                          */
-/* -------------------------------------------------------------------- */
-    memset(pcibuf, ' ', 1024);
-
-    return file;
+    interfaces->io->Close( io_handle );
+    
+    return Open( filename, "r+", interfaces );
 }

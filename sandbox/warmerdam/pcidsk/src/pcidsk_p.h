@@ -71,6 +71,7 @@ public:
     uint64      GetUInt64( int offset, int size );
 
     void        Put( const char *value,  int offset, int size );
+    void        Put( uint64 value, int offset, int size );
 
     void        SetSize( int size );
 };

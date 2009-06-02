@@ -5,7 +5,7 @@ OBJ =   io_stdio.o pthread_mutex.o pcidskinterfaces.o \
 	cpcidskchannel.o cbandinterleavedchannel.o cpixelinterleavedchannel.o \
 	cpcidsksegment.o cpcidskgeoref.o sysblockmap.o sysvirtualfile.o \
 	ctiledchannel.o pcidskopen.o pcidsk_utils_p.o metadataset_p.o \
-	metadatasegment_p.o
+	metadatasegment_p.o pcidskcreate.o
 
 default:	pcidsk.a
 

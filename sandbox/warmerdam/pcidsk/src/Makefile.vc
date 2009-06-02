@@ -9,7 +9,7 @@ OBJ =   io_win32.obj win32_mutex.obj pcidskinterfaces.obj \
 	cpixelinterleavedchannel.obj cpcidsksegment.obj cpcidskgeoref.obj \
 	sysblockmap.obj sysvirtualfile.obj ctiledchannel.obj \
 	pcidskopen.obj pcidsk_utils_p.obj metadatasegment_p.obj \
-	metadataset_p.obj
+	metadataset_p.obj pcidskcreate.obj
 
 default:	pcidsk.lib
 

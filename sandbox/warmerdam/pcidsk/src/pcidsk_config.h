@@ -42,6 +42,8 @@ namespace PCIDSK {
     typedef unsigned long long uint64;
 #endif
 
+};
+
 #ifndef PCIDSK_DLL
 #if defined(_MSC_VER) 
 #  define PCIDSK_DLL     __declspec(dllexport)
@@ -50,7 +52,13 @@ namespace PCIDSK {
 #endif
 #endif
 
-};
+#if defined(__MSVCRT__) || defined(_MSC_VER)
+  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "I64"
+#elif defined(HAVE_LONG_LONG)
+  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
+#else
+  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "l"
+#endif
 
 // #define MISSING_VSNPRINTF
 
