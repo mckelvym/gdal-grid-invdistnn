@@ -100,7 +100,6 @@ int main( int argc, char **argv)
                         channel, PCIDSK::DataTypeName(chanobj->GetType()) );;
 
                 keys = chanobj->GetMetadataKeys();  
-                i_key;
 
                 if( keys.size() > 0 )
                     printf( "  Metadata:\n" );
@@ -319,11 +318,9 @@ int main( int argc, char **argv)
 /*      Catch any exception and report the message.                     */
 /* ==================================================================== */
 
-    catch( PCIDSK::PCIDSKException *ex )
+    catch( PCIDSK::PCIDSKException ex )
     {
-        fprintf( stderr, "PCIDSKException:\n%s\n", ex->what() );
-
-        delete ex;
+        fprintf( stderr, "PCIDSKException:\n%s\n", ex.what() );
         exit( 1 );
     }
 }

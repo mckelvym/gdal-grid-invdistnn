@@ -79,7 +79,7 @@ void MetadataSet::Load()
         return;
 
     if( file == NULL )
-        throw new PCIDSKException( "Load() on MetadataSet that is not initialized yet." );
+        ThrowPCIDSKException( "Load() on MetadataSet that is not initialized yet." );
 
     PCIDSKSegment *seg = file->GetSegment( SEG_SYS , "METADATA");
 

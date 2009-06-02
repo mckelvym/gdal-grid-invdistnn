@@ -32,9 +32,7 @@ void PCIDSKExceptionTest::tearDown()
 
 void PCIDSKExceptionTest::testFormatting()
 {
-    PCIDSKException *ex = new PCIDSKException( "Illegal Value:%s", "value" );
+    PCIDSKException ex( "Illegal Value:%s", "value" );
 
-    CPPUNIT_ASSERT( strcmp(ex->what(),"Illegal Value:value") == 0 );
-
-    delete ex;
+    CPPUNIT_ASSERT( strcmp(ex.what(),"Illegal Value:value") == 0 );
 }

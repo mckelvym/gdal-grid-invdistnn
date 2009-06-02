@@ -99,7 +99,7 @@ void CPCIDSKSegment::ReadFromFile( void *buffer, uint64 offset, uint64 size )
 
 {
     if( offset+size+1024 > data_size )
-        throw new PCIDSKException( 
+        ThrowPCIDSKException( 
             "Attempt to read past end of segment %d (%d bytes at offset %d)",
             segment, (int) offset, (int) size );
     return file->ReadFromFile( buffer, offset + data_offset + 1024, size );

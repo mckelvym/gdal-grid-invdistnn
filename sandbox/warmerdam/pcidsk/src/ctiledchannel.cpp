@@ -99,7 +99,7 @@ void CTiledChannel::EstablishAccess()
         file->GetSegment( SEG_SYS, "SysBMDir" ));
 
     if( bmap == NULL )
-        throw new PCIDSKException( "Unable to find SysBMap segmet." );
+        ThrowPCIDSKException( "Unable to find SysBMap segmet." );
 
     vfile = bmap->GetImageSysFile( image );
 
@@ -129,8 +129,8 @@ void CTiledChannel::EstablishAccess()
         pixel_type = CHN_32R;
     else
     {
-        throw new PCIDSKException( "Unknown channel type: %s", 
-                                   data_type.c_str() );
+        ThrowPCIDSKException( "Unknown channel type: %s", 
+                              data_type.c_str() );
     }
 
 /* -------------------------------------------------------------------- */
@@ -197,15 +197,15 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
     if( xoff < 0 || xoff + xsize > GetBlockWidth()
         || yoff < 0 || yoff + ysize > GetBlockHeight() )
     {
-        throw new PCIDSKException( 
+        ThrowPCIDSKException( 
             "Invalid window in ReadBloc(): xoff=%d,yoff=%d,xsize=%d,ysize=%d",
             xoff, yoff, xsize, ysize );
     }
 
     if( block_index < 0 || block_index >= (int) tile_offsets.size() )
     {
-        throw new PCIDSKException( "Requested non-existant block (%d)", 
-                                   block_index );
+        ThrowPCIDSKException( "Requested non-existant block (%d)", 
+                              block_index );
     }
 
 /* -------------------------------------------------------------------- */
@@ -231,7 +231,7 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
 /* -------------------------------------------------------------------- */
     if( compression != "NONE" )
     {
-        throw new PCIDSKException( "Compression type '%s' is not currently supported.", compression.c_str() );
+        ThrowPCIDSKException( "Compression type '%s' is not currently supported.", compression.c_str() );
     }
 
 /* -------------------------------------------------------------------- */
@@ -263,7 +263,8 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
 int CTiledChannel::WriteBlock( int block_index, void *buffer )
 
 {
-    throw new PCIDSKException( "WriteBlock not implemented yet." );
+    ThrowPCIDSKException( "WriteBlock not implemented yet." );
+    return 0;
 }
 
 /************************************************************************/

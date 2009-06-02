@@ -93,6 +93,8 @@ public:
     virtual const char *what() const throw() { return message.c_str(); }
 };
 
+void PCIDSK_DLL ThrowPCIDSKException( const char *fmt, ... ); 
+
 /************************************************************************/
 /*                                Mutex                                 */
 /************************************************************************/

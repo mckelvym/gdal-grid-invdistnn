@@ -95,8 +95,8 @@ Win32IOInterface::Open( const char *filename, const char *access ) const
 
     if( hFile == INVALID_HANDLE_VALUE )
     {
-        throw new PCIDSKException( "Open(%s,%s) failed:\n%s", 
-                                   filename, access, LastError() );
+        ThrowPCIDSKException( "Open(%s,%s) failed:\n%s", 
+                              filename, access, LastError() );
     }
     
     FileInfo *fi = new FileInfo();
@@ -162,9 +162,9 @@ Win32IOInterface::Seek( void *io_handle, uint64 offset, int whence ) const
         printf( "nOffset=%u, nMoveLow=%u, dwMoveHigh=%u\n", 
                 (GUInt32) nOffset, nMoveLow, dwMoveHigh );
 #endif
-        throw new PCIDSKException( "Seek(%d,%d): %s", 
-                                   (int) offset, whence, 
-                                   LastError() );
+        ThrowPCIDSKException( "Seek(%d,%d): %s", 
+                              (int) offset, whence, 
+                              LastError() );
         return -1;
     }
 
@@ -225,9 +225,9 @@ uint64 Win32IOInterface::Read( void *buffer, uint64 size, uint64 nmemb,
         result = (size_t) (dwSizeRead / size);
 
     if( errno != 0 && result == 0 && nmemb != 0 )
-        throw new PCIDSKException( "Read(%d): %s", 
-                                   (int) size * nmemb,
-                                   LastError() );
+        ThrowPCIDSKException( "Read(%d): %s", 
+                              (int) size * nmemb,
+                              LastError() );
 
     fi->offset += size*result;
 
@@ -259,7 +259,7 @@ uint64 Win32IOInterface::Write( const void *buffer, uint64 size, uint64 nmemb,
         result = (size_t) (dwSizeRead / size);
 
     if( errno != 0 && result == 0 && nmemb != 0 )
-        throw new PCIDSKException( "Write(%d): %s", 
+        ThrowPCIDSKException( "Write(%d): %s", 
                                    (int) size * nmemb,
                                    LastError() );
 

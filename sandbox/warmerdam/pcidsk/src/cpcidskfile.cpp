@@ -117,8 +117,8 @@ PCIDSKChannel *CPCIDSKFile::GetChannel( int band )
 
 {
     if( band < 1 || band > channel_count )
-        throw PCIDSKException( "Out of range band (%d) requested.", 
-                               band );
+        ThrowPCIDSKException( "Out of range band (%d) requested.", 
+                              band );
 
     return channels[band-1];
 }
@@ -216,7 +216,10 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int type, const char *name )
 std::vector<PCIDSK::PCIDSKSegment *> CPCIDSKFile::GetSegments()
 
 {
-    throw new PCIDSKException( "Objects list access not implemented yet." );
+    PCIDSK::ThrowPCIDSKException( "Objects list access not implemented yet." );
+
+    std::vector<PCIDSK::PCIDSKSegment *> list;
+    return list;
 }
 
 /************************************************************************/
@@ -287,7 +290,7 @@ void CPCIDSKFile::InitializeFromHeader()
 
         last_block_data = malloc((size_t) block_size);
         if( last_block_data == NULL )
-            throw new PCIDSKException( "Allocating %d bytes for scanline buffer failed.", 
+            ThrowPCIDSKException( "Allocating %d bytes for scanline buffer failed.", 
                                        (int) block_size );
 
         last_block_mutex = interfaces.CreateMutex();
@@ -372,7 +375,7 @@ void CPCIDSKFile::InitializeFromHeader()
         }
 
         else
-            throw new PCIDSKException( "Unsupported interleaving:%s", 
+            ThrowPCIDSKException( "Unsupported interleaving:%s", 
                                        interleaving.c_str() );
 
         channels.push_back( channel );
@@ -390,7 +393,7 @@ void CPCIDSKFile::ReadFromFile( void *buffer, uint64 offset, uint64 size )
 
     interfaces.io->Seek( io_handle, offset, SEEK_SET );
     if( interfaces.io->Read( buffer, 1, size, io_handle ) != size )
-        throw new PCIDSKException( "PCIDSKFile:Failed to read %d bytes at %d.", 
+        ThrowPCIDSKException( "PCIDSKFile:Failed to read %d bytes at %d.", 
                                    (int) size, (int) offset );
 }
 
@@ -405,7 +408,7 @@ void CPCIDSKFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
 
     interfaces.io->Seek( io_handle, offset, SEEK_SET );
     if( interfaces.io->Write( buffer, 1, size, io_handle ) != size )
-        throw new PCIDSKException( "PCIDSKFile:Failed to write %d bytes at %d.",
+        ThrowPCIDSKException( "PCIDSKFile:Failed to write %d bytes at %d.",
                                    (int) size, (int) offset );
 }
 
@@ -418,7 +421,7 @@ void *CPCIDSKFile::ReadAndLockBlock( int block_index,
 
 {
     if( last_block_data == NULL )
-        throw new PCIDSKException( "ReadAndLockBlock() called on a file that is not pixel interleaved." );
+        ThrowPCIDSKException( "ReadAndLockBlock() called on a file that is not pixel interleaved." );
 
 /* -------------------------------------------------------------------- */
 /*      Default, and validate windowing.                                */
@@ -431,7 +434,7 @@ void *CPCIDSKFile::ReadAndLockBlock( int block_index,
 
     if( win_xoff < 0 || win_xoff+win_xsize > GetWidth() )
     {
-        throw new PCIDSKException( "CPCIDSKFile::ReadAndLockBlock(): Illegal window - xoff=%d, xsize=%d", 
+        ThrowPCIDSKException( "CPCIDSKFile::ReadAndLockBlock(): Illegal window - xoff=%d, xsize=%d", 
                                    win_xoff, win_xsize );
     }
 
@@ -486,7 +489,7 @@ void CPCIDSKFile::WriteBlock( int block_index, void *buffer )
 
 {
     if( last_block_data == NULL )
-        throw new PCIDSKException( "WriteBlock() called on a file that is not pixel interleaved." );
+        ThrowPCIDSKException( "WriteBlock() called on a file that is not pixel interleaved." );
 
     WriteToFile( buffer,
                  first_line_offset + block_index*block_size,
@@ -557,7 +560,7 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
     
     new_file.io_handle = interfaces.io->Open( filename, "r" );
     if( new_file.io_handle == NULL )
-        throw new PCIDSKException( "Unable to open file '%s'.", 
+        ThrowPCIDSKException( "Unable to open file '%s'.", 
                                    filename );
 
 /* -------------------------------------------------------------------- */

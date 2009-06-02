@@ -76,9 +76,8 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
              || strncmp(options,"FILE",4) == 0 )
         interleaving = "FILE";
     else
-        throw new 
-            PCIDSKException( "PCIDSK::Create() options '%s' not recognised.", 
-                             options );
+        ThrowPCIDSKException( "PCIDSK::Create() options '%s' not recognised.", 
+                              options );
 
     if( strstr(options,"NOZERO") != NULL )
         nozero = true;

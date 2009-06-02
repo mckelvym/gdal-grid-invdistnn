@@ -89,7 +89,7 @@ void
 SysVirtualFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
 
 {
-    throw new PCIDSKException( 
+    ThrowPCIDSKException( 
         "SysVirtualFile::WriteToFile() not yet implemented." );
 }
 
@@ -129,8 +129,8 @@ void SysVirtualFile::LoadBlock( int requested_block )
 
 {
     if( requested_block < 0 || requested_block >= (int) block_index.size() )
-        throw new PCIDSKException( "SysVirtualFile::LoadBlock(%d) - block out of range.",
-                                   requested_block );
+        ThrowPCIDSKException( "SysVirtualFile::LoadBlock(%d) - block out of range.",
+                              requested_block );
 
     if( requested_block == loaded_block )
         return;

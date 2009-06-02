@@ -78,7 +78,7 @@ void CPCIDSKGeoref::Load()
         seg_data.Get(32,16,geosys);
         
         if( seg_data.GetInt(48,8) != 3 || seg_data.GetInt(56,8) != 3 )
-            throw new PCIDSKException( "Unexpected number of coefficients in POLYNOMIAL GEO segment." );
+            ThrowPCIDSKException( "Unexpected number of coefficients in POLYNOMIAL GEO segment." );
 
         a1   = seg_data.GetDouble(212+26*0,26);
         a2   = seg_data.GetDouble(212+26*1,26);
@@ -98,7 +98,7 @@ void CPCIDSKGeoref::Load()
         seg_data.Get(32,16,geosys);
         
         if( seg_data.GetInt(48,8) != 3 || seg_data.GetInt(56,8) != 3 )
-            throw new PCIDSKException( "Unexpected number of coefficients in POLYNOMIAL GEO segment." );
+            ThrowPCIDSKException( "Unexpected number of coefficients in POLYNOMIAL GEO segment." );
 
         a1   = seg_data.GetDouble(1980+26*0,26);
         a2   = seg_data.GetDouble(1980+26*1,26);
@@ -111,8 +111,8 @@ void CPCIDSKGeoref::Load()
 
     else
     {
-        throw new PCIDSKException( "Unexpected GEO segment type: %s", 
-                                   seg_data.Get(0,16) );
+        ThrowPCIDSKException( "Unexpected GEO segment type: %s", 
+                              seg_data.Get(0,16) );
     }
 }
 

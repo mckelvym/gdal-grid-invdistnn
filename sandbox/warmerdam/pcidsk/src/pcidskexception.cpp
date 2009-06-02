@@ -49,11 +49,9 @@ should be caught like this:
     {
          PCIDSKFile *file = PCIDSK::Open( "irvine.pix, "r", NULL );
     }
-    catch( PCIDSK::PCIDSKException *ex )
+    catch( PCIDSK::PCIDSKException &ex )
     {
-        fprintf( stderr, "PCIDSKException:\n%s\n", ex->what() );
-
-        delete ex;
+        fprintf( stderr, "PCIDSKException:\n%s\n", ex.what() );
         exit( 1 );
     }
 @endcode
@@ -191,3 +189,27 @@ void PCIDSKException::vPrintf( const char *fmt, va_list args )
  *
  * @return a pointer to the internal message associated with the exception.
  */ 
+
+/**
+ * \brief throw a formatted exception.
+ *
+ * This function throws a PCIDSK Exception by reference after formatting
+ * the message using the given printf style format and arguments.  This
+ * function exists primarily so that throwing an exception can be done in
+ * one line of code, instead of declaring an exception and then throwing it.
+ *
+ * @param fmt the printf style format (eg. "Illegal value:%d")
+ * @param ... additional arguments as required by the format string.
+ */
+void PCIDSK::ThrowPCIDSKException( const char *fmt, ... )
+
+{
+    va_list args;
+    PCIDSKException ex("");
+
+    va_start( args, fmt );
+    ex.vPrintf( fmt, args );
+    va_end( args );
+
+    throw ex;
+}

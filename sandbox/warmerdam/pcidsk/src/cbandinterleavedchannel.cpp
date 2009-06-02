@@ -112,7 +112,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer,
     if( xoff < 0 || xoff + xsize > GetBlockWidth()
         || yoff < 0 || yoff + ysize > GetBlockHeight() )
     {
-        throw new PCIDSKException( 
+        ThrowPCIDSKException( 
             "Invalid window in ReadBloc(): xoff=%d,yoff=%d,xsize=%d,ysize=%d",
             xoff, yoff, xsize, ysize );
     }
@@ -183,6 +183,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer,
 int CBandInterleavedChannel::WriteBlock( int block_index, void *buffer )
 
 {
-    throw new PCIDSKException( "WriteBlock not implemented yet." );
+    ThrowPCIDSKException( "WriteBlock not implemented yet." );
+    return 0;
 }
 

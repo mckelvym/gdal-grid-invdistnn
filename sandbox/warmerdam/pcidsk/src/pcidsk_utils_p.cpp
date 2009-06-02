@@ -99,6 +99,6 @@ void PCIDSK::SwapData( void *data, int size, int count )
         }
     }
     else
-        throw new PCIDSKException( "Unsupported data size in SwapData()" );
+        ThrowPCIDSKException( "Unsupported data size in SwapData()" );
 }
 

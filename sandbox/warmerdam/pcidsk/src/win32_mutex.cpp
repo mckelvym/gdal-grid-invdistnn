@@ -92,7 +92,7 @@ int Win32Mutex::Acquire()
     hr = WaitForSingleObject( hMutex, (int) (3600 * 1000) );
 
     if( hr != 0 )
-        throw new PCIDSK::PCIDSKException( "Failed to acquire mutex in 3600s." );
+        PCIDSK::ThrowPCIDSKException( "Failed to acquire mutex in 3600s." );
 
     return 1;
 }

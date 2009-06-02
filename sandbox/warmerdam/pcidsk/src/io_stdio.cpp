@@ -84,8 +84,8 @@ StdioIOInterface::Open( const char *filename, const char *access ) const
     FILE *fp = fopen( filename, adjusted_access.c_str() );
 
     if( fp == NULL )
-        throw new PCIDSKException( "Failed to open %s: %s", 
-                                   filename, LastError() );
+        ThrowPCIDSKException( "Failed to open %s: %s", 
+                              filename, LastError() );
 
     FileInfo *fi = new FileInfo();
     fi->fp = fp;
@@ -112,9 +112,9 @@ StdioIOInterface::Seek( void *io_handle, uint64 offset, int whence ) const
     uint64 result = fseek( fi->fp, offset, whence );
 
     if( result == (uint64) -1 )
-        throw new PCIDSKException( "Seek(%d,%d): %s", 
-                                   (int) offset, whence, 
-                                   LastError() );
+        ThrowPCIDSKException( "Seek(%d,%d): %s", 
+                              (int) offset, whence, 
+                              LastError() );
 
     if( whence == SEEK_SET )
         fi->offset = offset;
@@ -153,9 +153,9 @@ uint64 StdioIOInterface::Read( void *buffer, uint64 size, uint64 nmemb,
     uint64 result = fread( buffer, size, nmemb, fi->fp );
 
     if( errno != 0 && result == 0 && nmemb != 0 )
-        throw new PCIDSKException( "Read(%d): %s", 
-                                   (int) size * nmemb,
-                                   LastError() );
+        ThrowPCIDSKException( "Read(%d): %s", 
+                              (int) size * nmemb,
+                              LastError() );
 
     fi->offset += size*result;
 
@@ -177,9 +177,9 @@ uint64 StdioIOInterface::Write( const void *buffer, uint64 size, uint64 nmemb,
     uint64 result = fwrite( buffer, size, nmemb, fi->fp );
 
     if( errno != 0 && result == 0 && nmemb != 0 )
-        throw new PCIDSKException( "Write(%d): %s", 
-                                   (int) size * nmemb,
-                                   LastError() );
+        ThrowPCIDSKException( "Write(%d): %s", 
+                              (int) size * nmemb,
+                              LastError() );
 
     fi->offset += size*result;
 

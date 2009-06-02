@@ -86,7 +86,7 @@ void SysBlockMap::Load()
     ReadFromFile( seg_data.buffer, 0, data_size - 1024 );
 
     if( strncmp(seg_data.buffer,"VERSION",7) != 0 )
-        throw new PCIDSKException( "SysBlockMap::Load() - block map corrupt." );
+        ThrowPCIDSKException( "SysBlockMap::Load() - block map corrupt." );
 
 /* -------------------------------------------------------------------- */
 /*      Establish our SysVirtualFile array based on the number of       */
@@ -113,7 +113,7 @@ SysVirtualFile *SysBlockMap::GetImageSysFile( int image )
     Load();
 
     if( image < 0 || image >= (int) virtual_files.size() )
-        throw new PCIDSKException( "GetImageSysFile(%d): invalid image index",
+        ThrowPCIDSKException( "GetImageSysFile(%d): invalid image index",
                                    image );
 
     if( virtual_files[image] != NULL )

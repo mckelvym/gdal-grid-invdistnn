@@ -73,8 +73,8 @@ PCIDSKFile *PCIDSK::Open( const char *filename, const char *access,
         || memcmp(header_check,"PCIDSK",6) != 0 )
     {
         interfaces->io->Close( io_handle );
-        throw new PCIDSKException( "File %s does not appear to be PCIDSK format.",
-                                   filename );
+        ThrowPCIDSKException( "File %s does not appear to be PCIDSK format.",
+                              filename );
     }
 
 /* -------------------------------------------------------------------- */
