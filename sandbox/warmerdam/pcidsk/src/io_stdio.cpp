@@ -36,7 +36,7 @@ class StdioIOInterface : public IOInterfaces
     virtual void   *Open( const char *filename, const char *access ) const;
     virtual uint64  Seek( void *io_handle, uint64 offset, int whence ) const;
     virtual uint64  Tell( void *io_handle ) const;
-    virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_handle ) const;
+    virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_hanle ) const;
     virtual uint64  Write( const void *buffer, uint64 size, uint64 nmemb, void *io_handle ) const;
     virtual int     Eof( void *io_handle ) const;
     virtual int     Flush( void *io_handle ) const;
@@ -48,6 +48,7 @@ class StdioIOInterface : public IOInterfaces
 typedef struct {
     FILE   *fp;
     uint64 offset;
+    bool   last_op_write;
 } FileInfo;
 
 /************************************************************************/
@@ -90,6 +91,7 @@ StdioIOInterface::Open( const char *filename, const char *access ) const
     FileInfo *fi = new FileInfo();
     fi->fp = fp;
     fi->offset = 0;
+    fi->last_op_write = false;
 
     return fi;
 }
@@ -123,6 +125,8 @@ StdioIOInterface::Seek( void *io_handle, uint64 offset, int whence ) const
     else if( whence == SEEK_CUR )
         fi->offset += offset;
 
+    fi->last_op_write = false;
+
     return result;
 }
 
@@ -150,6 +154,19 @@ uint64 StdioIOInterface::Read( void *buffer, uint64 size, uint64 nmemb,
 
     errno = 0;
 
+/* -------------------------------------------------------------------- */
+/*      If a fwrite() is followed by an fread(), the POSIX rules are    */
+/*      that some of the write may still be buffered and lost.  We      */
+/*      are required to do a seek between to force flushing.   So we    */
+/*      keep careful track of what happened last to know if we          */
+/*      skipped a flushing seek that we may need to do now.             */
+/* -------------------------------------------------------------------- */
+    if( fi->last_op_write )
+        fseek( fi->fp, fi->offset, SEEK_SET );
+
+/* -------------------------------------------------------------------- */
+/*      Do the read.                                                    */
+/* -------------------------------------------------------------------- */
     uint64 result = fread( buffer, size, nmemb, fi->fp );
 
     if( errno != 0 && result == 0 && nmemb != 0 )
@@ -158,6 +175,7 @@ uint64 StdioIOInterface::Read( void *buffer, uint64 size, uint64 nmemb,
                               LastError() );
 
     fi->offset += size*result;
+    fi->last_op_write = false;
 
     return result;
 }
@@ -182,6 +200,7 @@ uint64 StdioIOInterface::Write( const void *buffer, uint64 size, uint64 nmemb,
                               LastError() );
 
     fi->offset += size*result;
+    fi->last_op_write = true;
 
     return result;
 }
