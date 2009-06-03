@@ -70,6 +70,14 @@ For tiled files it is a tile.
 @return returns the height of a block in pixels.
 
 
+******************************************************************************
+\fn int PCIDSK::PCIDSKChannel::GetBlockCount()
+  
+\brief Fetch image block count.
+
+@return returns the number of blocks in a channel.
+
+
 
 ******************************************************************************
 \fn eChanType PCIDSK::PCIDSKChannel::GetType();

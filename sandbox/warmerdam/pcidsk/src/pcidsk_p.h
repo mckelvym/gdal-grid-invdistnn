@@ -237,6 +237,7 @@ public:
 
     virtual int GetBlockWidth() { return block_width; }
     virtual int GetBlockHeight() { return block_height; }
+    virtual int GetBlockCount();
 
     virtual int GetWidth() { return width; }
     virtual int GetHeight() { return height; }

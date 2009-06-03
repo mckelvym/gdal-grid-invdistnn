@@ -142,7 +142,7 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
         pixel_group_size = 
             channels[0] + channels[1]*2 + channels[2]*2 + channels[3]*4;
         line_size = ((pixel_group_size * pixels + 511) / 512) * 512;
-        image_data_size = ((uint64)line_size) * lines;
+        image_data_size = (((uint64)line_size) * lines) / 512;
 
         // TODO: Old code enforces a 1TB limit for some reason.
     }

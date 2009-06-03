@@ -50,8 +50,8 @@ class PCIDSKChannel;
 //! Channel pixel data types.
 typedef enum {
     CHN_8U=0,     /*!< 8 bit unsigned byte */
-    CHN_16U=1,    /*!< 16 bit unsigned integer */
-    CHN_16S=2,    /*!< 16 bit signed integer */
+    CHN_16S=1,    /*!< 16 bit signed integer */
+    CHN_16U=2,    /*!< 16 bit unsigned integer */
     CHN_32R=3,    /*!< 32 bit ieee floating point */
     CHN_UNKNOWN=99 /*!< unknown channel type */
 } eChanType;
@@ -198,6 +198,7 @@ public:
     virtual ~PCIDSKChannel() {};
     virtual int GetBlockWidth() = 0;
     virtual int GetBlockHeight() = 0;
+    virtual int GetBlockCount() = 0;
     virtual int GetWidth() = 0;
     virtual int GetHeight() = 0;
     virtual eChanType GetType() = 0;
