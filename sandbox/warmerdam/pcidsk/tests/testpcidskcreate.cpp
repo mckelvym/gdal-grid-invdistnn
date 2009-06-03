@@ -8,6 +8,7 @@ class PCIDSKCreateTest : public CppUnit::TestFixture
     CPPUNIT_TEST_SUITE( PCIDSKCreateTest );
  
     CPPUNIT_TEST( simplePixelInterleaved );
+    CPPUNIT_TEST( testErrors );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -15,6 +16,7 @@ public:
     void setUp();
     void tearDown();
     void simplePixelInterleaved();
+    void testErrors();
 };
 
 // Registers the fixture into the 'registry'
@@ -28,16 +30,60 @@ void PCIDSKCreateTest::tearDown()
 {
 }
 
+/************************************************************************/
+/*                       simplePixelInterleaved()                       */
+/************************************************************************/
 void PCIDSKCreateTest::simplePixelInterleaved()
 {
     PCIDSKFile *pixel_file;
-    int channels[4] = {3, 0, 0, 1};
+    eChanType channel_types[4] = {CHN_8U, CHN_8U, CHN_8U, CHN_32R};
 
-    pixel_file = PCIDSK::Create( "pixel_file.pix", 300, 200, channels, 
+    pixel_file = PCIDSK::Create( "pixel_file.pix", 300, 200, 4, channel_types,
                                  "PIXEL", NULL );
 
     CPPUNIT_ASSERT( pixel_file != NULL );
 
     delete pixel_file;
+
+    unlink( "pixel_file.pix" );
+}
+
+/************************************************************************/
+/*                             testErrors()                             */
+/************************************************************************/
+
+void PCIDSKCreateTest::testErrors()
+{
+    PCIDSKFile *pixel_file;
+
+/* -------------------------------------------------------------------- */
+/*      Illegal order for mixture of pixel types.                       */
+/* -------------------------------------------------------------------- */
+    try
+    {
+        eChanType channel_types[4] = {CHN_8U, CHN_8U, CHN_32R,CHN_8U};
+
+        pixel_file = PCIDSK::Create( "pixel_file.pix", 300, 200, 
+                                     4, channel_types, "PIXEL", NULL );
+        CPPUNIT_ASSERT( false );
+    }
+    catch( PCIDSKException &ex )
+    {
+        CPPUNIT_ASSERT( strstr(ex.what(),"mixture") != NULL );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Illegal options.                                                */
+/* -------------------------------------------------------------------- */
+    try
+    {
+        pixel_file = PCIDSK::Create( "pixel_file.pix", 300, 200, 
+                                     4, NULL, "SOMETILES", NULL );
+        CPPUNIT_ASSERT( false );
+    }
+    catch( PCIDSKException &ex )
+    {
+        CPPUNIT_ASSERT( strstr(ex.what(),"options") != NULL );
+    }
 }
 

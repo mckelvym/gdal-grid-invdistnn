@@ -40,9 +40,9 @@ void PCIDSKUpdateTest::updateBandInterleaved()
 /*      Create a simple pcidsk file.                                    */
 /* -------------------------------------------------------------------- */
     PCIDSKFile *band_file;
-    int channels[4] = {3, 0, 0, 1};
+    eChanType channel_types[4] = {CHN_8U, CHN_8U, CHN_8U, CHN_32R};
 
-    band_file = PCIDSK::Create( "band_update.pix", 300, 200, channels, 
+    band_file = PCIDSK::Create( "band_update.pix", 300, 200, 4, channel_types, 
                                  "BAND", NULL );
 
     CPPUNIT_ASSERT( band_file != NULL );
@@ -112,9 +112,9 @@ void PCIDSKUpdateTest::updatePixelInterleaved()
 /*      Create a simple pcidsk file.                                    */
 /* -------------------------------------------------------------------- */
     PCIDSKFile *pixel_file;
-    int channels[4] = {3, 0, 0, 1};
+    eChanType channel_types[4] = {CHN_8U, CHN_8U, CHN_8U, CHN_32R};
 
-    pixel_file = PCIDSK::Create( "pixel_update.pix", 300, 200, channels, 
+    pixel_file = PCIDSK::Create( "pixel_update.pix", 300, 200, 4, channel_types,
                                  "PIXEL", NULL );
 
     CPPUNIT_ASSERT( pixel_file != NULL );

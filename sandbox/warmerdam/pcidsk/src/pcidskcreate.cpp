@@ -40,7 +40,9 @@ using namespace PCIDSK;
  * @param filename the name of the PCIDSK file to create.
  * @param pixel the width of the new file in pixels.
  * @param lines the height of the new file in scanlines.
- * @param channels the number of channels to create of each channel type.
+ * @param channel_count the number of channels to create.
+ * @param channel_types an array of types for all the channels, or NULL for
+ * all CHN_8U channels.
  * @param option creation options (interleaving, etc)
  * @param interfaces Either NULL to use default interfaces, or a pointer
  * to a populated interfaces object. 
@@ -50,8 +52,8 @@ using namespace PCIDSK;
 
 PCIDSKFile PCIDSK_DLL *
 PCIDSK::Create( const char *filename, int pixels, int lines,
-                int *channels, const char *options,
-                const PCIDSKInterfaces *interfaces )
+                int channel_count, eChanType *channel_types,
+                const char *options, const PCIDSKInterfaces *interfaces )
 
 {
 /* -------------------------------------------------------------------- */
@@ -62,9 +64,19 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
         interfaces = &default_interfaces;
 
 /* -------------------------------------------------------------------- */
+/*      Default the channel types to all 8U if not provided.            */
+/* -------------------------------------------------------------------- */
+    std::vector<eChanType> default_channel_types;
+
+    if( channel_types == NULL )
+    {
+        default_channel_types.resize( channel_count, CHN_8U );
+        channel_types = &(default_channel_types[0]);
+    }
+   
+/* -------------------------------------------------------------------- */
 /*      Validate parameters.                                            */
 /* -------------------------------------------------------------------- */
-    int channel_count = channels[0] + channels[1] + channels[2] + channels[3];
     const char *interleaving;
     bool nozero = false;
 
@@ -81,6 +93,30 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
 
     if( strstr(options,"NOZERO") != NULL )
         nozero = true;
+
+/* -------------------------------------------------------------------- */
+/*      Validate the channel types.                                     */
+/* -------------------------------------------------------------------- */
+    int channels[4] = {0,0,0,0};
+    int chan_index;
+    bool regular = true;
+
+    for( chan_index=0; chan_index < channel_count; chan_index++ )
+    {
+        if( chan_index > 0 
+            && ((int) channel_types[chan_index]) 
+                < ((int) channel_types[chan_index-1]) )
+            regular = false;
+        
+        channels[((int) channel_types[chan_index])]++;
+    }
+    
+    if( !regular && strcmp(interleaving,"FILE") != 0 )
+    {
+        ThrowPCIDSKException( 
+           "Requested mixture of band types not supported for interleaving=%s.",
+           interleaving );
+    }
     
 /* -------------------------------------------------------------------- */
 /*      Create the file.                                                */
@@ -259,7 +295,6 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
 /*      Write out the image headers.                                    */
 /* ==================================================================== */
     PCIDSKBuffer ih( 1024 );
-    int chan_index;
 
     ih.Put( " ", 0, 1024 );
 
@@ -280,13 +315,13 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
 
     for( chan_index = 0; chan_index < channel_count; chan_index++ )
     {
-        if( chan_index < channels[0] )
+        if( channel_types[chan_index] == CHN_8U )
             ih.Put( "8U", 160, 8 );
-        else if( chan_index < channels[0] + channels[1] )
+        else if( channel_types[chan_index] == CHN_16S )
             ih.Put( "16S", 160, 8 );
-        else if( chan_index < channels[0]+channels[1]+channels[2])
+        else if( channel_types[chan_index] == CHN_16U )
             ih.Put( "16U", 160, 8 );
-        else if( chan_index < channels[0]+channels[1]+channels[2]+channels[3])
+        else if( channel_types[chan_index] == CHN_32R )
             ih.Put( "32R", 160, 8 );
 
         interfaces->io->Write( ih.buffer, 1024, 1, io_handle );

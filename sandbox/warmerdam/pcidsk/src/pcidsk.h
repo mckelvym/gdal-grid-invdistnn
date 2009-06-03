@@ -49,11 +49,11 @@ class PCIDSKChannel;
 
 //! Channel pixel data types.
 typedef enum {
-    CHN_8U,     /*!< 8 bit unsigned byte */
-    CHN_16U,    /*!< 16 bit unsigned integer */
-    CHN_16S,    /*!< 16 bit signed integer */
-    CHN_32R,    /*!< 32 bit ieee floating point */
-    CHN_UNKNOWN /*!< unknown channel type */
+    CHN_8U=0,     /*!< 8 bit unsigned byte */
+    CHN_16U=1,    /*!< 16 bit unsigned integer */
+    CHN_16S=2,    /*!< 16 bit signed integer */
+    CHN_32R=3,    /*!< 32 bit ieee floating point */
+    CHN_UNKNOWN=99 /*!< unknown channel type */
 } eChanType;
 
 //! Segment types.
@@ -258,7 +258,8 @@ public:
 PCIDSKFile PCIDSK_DLL *Open( const char *filename, const char *access,  
                              const PCIDSKInterfaces *interfaces );
 PCIDSKFile PCIDSK_DLL *Create( const char *filename, int pixels, int lines,
-                               int *channels, const char *options,
+                               int channel_count, eChanType *channel_types, 
+                               const char *options,
                                const PCIDSKInterfaces *interfaces );
 
 int PCIDSK_DLL DataTypeSize( eChanType );
