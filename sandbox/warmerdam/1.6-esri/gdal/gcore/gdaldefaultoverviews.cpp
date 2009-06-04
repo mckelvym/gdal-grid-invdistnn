@@ -267,6 +267,31 @@ int GDALOvLevelAdjust( int nOvLevel, int nXSize )
     
     return (int) (0.5 + nXSize / (double) nOXSize);
 }
+
+/************************************************************************/
+/*                           CleanOverviews()                           */
+/*                                                                      */
+/*      Remove all existing overviews.                                  */
+/************************************************************************/
+
+CPLErr GDALDefaultOverviews::CleanOverviews()
+
+{
+    // Anything to do?
+    if( poODS == NULL )
+        return CE_None;
+        
+    GDALDriver *poOvrDriver;
+
+    poOvrDriver = poODS->GetDriver();
+    GDALClose( poODS );
+    poODS = NULL;
+
+    if( poOvrDriver != NULL )
+        return poOvrDriver->Delete( osOvrFilename );
+    else
+        return CE_None;
+}
     
 /************************************************************************/
 /*                     GDALDefaultBuildOverviews()                      */
@@ -284,6 +309,9 @@ GDALDefaultOverviews::BuildOverviews(
     GDALRasterBand **pahBands;
     CPLErr       eErr;
     int          i;
+
+    if( nOverviews == 0 )
+        return CleanOverviews();
 
 /* -------------------------------------------------------------------- */
 /*      If we don't already have an overview file, we need to decide    */

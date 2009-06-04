@@ -164,6 +164,8 @@ typedef struct {
     /** UTM, or State Plane Zone number, zero if not known. */
     int		Zone;
 
+    double invFlattening;
+
 } GTIFDefn;
 
 int CPL_DLL GTIFGetPCSInfo( int nPCSCode, char **ppszEPSGName,
