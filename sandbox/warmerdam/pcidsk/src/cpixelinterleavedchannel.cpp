@@ -162,6 +162,9 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
 int CPixelInterleavedChannel::WriteBlock( int block_index, void *buffer )
 
 {
+    if( !file->GetUpdatable() )
+        throw PCIDSKException( "File not open for update in WriteBlock()" );
+
 /* -------------------------------------------------------------------- */
 /*      Work out sizes and offsets.                                     */
 /* -------------------------------------------------------------------- */

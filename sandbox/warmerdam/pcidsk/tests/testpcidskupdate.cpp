@@ -9,6 +9,7 @@ class PCIDSKUpdateTest : public CppUnit::TestFixture
  
     CPPUNIT_TEST( updateBandInterleaved );
     CPPUNIT_TEST( updatePixelInterleaved );
+    CPPUNIT_TEST( testReadonly );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -17,6 +18,7 @@ public:
     void tearDown();
     void updateBandInterleaved();
     void updatePixelInterleaved();
+    void testReadonly();
 };
 
 // Registers the fixture into the 'registry'
@@ -172,5 +174,30 @@ void PCIDSKUpdateTest::updatePixelInterleaved()
     delete pixel_file;
 
     unlink( "pixel_update.pix" );
+}
+
+/************************************************************************/
+/*                            testReadonly()                            */
+/************************************************************************/
+
+void PCIDSKUpdateTest::testReadonly()
+{
+    PCIDSKFile *file = PCIDSK::Open( "eltoro.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( !file->GetUpdatable() );
+
+    try 
+    {
+        uint8 line_buffer[1024];
+
+        file->GetChannel(1)->WriteBlock( 1, line_buffer );
+        CPPUNIT_ASSERT( false );
+    } 
+    catch( PCIDSK::PCIDSKException ex )
+    {
+        CPPUNIT_ASSERT( strstr(ex.what(),"update") != NULL );
+    }
+
+    delete file;
 }
 

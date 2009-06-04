@@ -185,6 +185,9 @@ int CBandInterleavedChannel::WriteBlock( int block_index, void *buffer )
 {
     PCIDSKInterfaces *interfaces = file->GetInterfaces();
 
+    if( !file->GetUpdatable() )
+        throw PCIDSKException( "File not open for update in WriteBlock()" );
+
 /* -------------------------------------------------------------------- */
 /*      Establish region to read.                                       */
 /* -------------------------------------------------------------------- */

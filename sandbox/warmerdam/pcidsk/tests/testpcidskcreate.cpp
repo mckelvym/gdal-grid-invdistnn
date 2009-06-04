@@ -42,6 +42,7 @@ void PCIDSKCreateTest::simplePixelInterleaved()
                                  "PIXEL", NULL );
 
     CPPUNIT_ASSERT( pixel_file != NULL );
+    CPPUNIT_ASSERT( pixel_file->GetUpdatable() );
 
     delete pixel_file;
 

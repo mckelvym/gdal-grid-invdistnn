@@ -89,6 +89,13 @@ closed (deleted).
 tiled files will be reported as "FILE" interleaving.
 
 
+\fn bool PCIDSK::PCIDSKFile::Updatable() const 
+
+\brief Check readonly/update status.
+
+@return true if the file is open for update, or false if it is read-only.
+
+
 \fn void PCIDSK::PCIDSKFile::WriteToFile( const void *buffer, uint64 offset, uint64 size);
 
 \brief Write data to file.

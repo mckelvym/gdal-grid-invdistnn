@@ -47,6 +47,7 @@ void PCIDSKFileTest::testOpenEltoro()
     eltoro = PCIDSK::Open( "eltoro.pix", "r", NULL );
 
     CPPUNIT_ASSERT( eltoro != NULL );
+    CPPUNIT_ASSERT( !eltoro->GetUpdatable() );
 
     CPPUNIT_ASSERT( eltoro->GetWidth() == 1024 );
     CPPUNIT_ASSERT( eltoro->GetHeight() == 1024 );

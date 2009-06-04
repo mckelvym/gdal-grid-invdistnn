@@ -87,6 +87,9 @@ PCIDSKFile *PCIDSK::Open( const char *filename, const char *access,
     file->io_handle = io_handle;
     file->io_mutex = interfaces->CreateMutex();
 
+    if( strstr(access,"+") != NULL )
+        file->updatable = true;
+
 /* -------------------------------------------------------------------- */
 /*      Initialize it from the header.                                  */
 /* -------------------------------------------------------------------- */

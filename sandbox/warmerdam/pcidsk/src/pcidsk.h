@@ -169,6 +169,7 @@ public:
     virtual int GetHeight() const = 0;
     virtual int GetChannels() const = 0;
     virtual const char *GetInterleaving() const = 0;
+    virtual bool GetUpdatable() const = 0;
 
     // the following are only for pixel interleaved IO
     virtual int    GetPixelGroupSize() const = 0;

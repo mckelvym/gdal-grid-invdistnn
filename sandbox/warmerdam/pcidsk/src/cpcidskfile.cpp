@@ -39,6 +39,7 @@ CPCIDSKFile::CPCIDSKFile()
 {
     io_handle = NULL;
     io_mutex = NULL;
+    updatable = false;
 
 /* -------------------------------------------------------------------- */
 /*      Initialize the metadata object, but do not try to load till     */
@@ -404,6 +405,9 @@ void CPCIDSKFile::ReadFromFile( void *buffer, uint64 offset, uint64 size )
 void CPCIDSKFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
 
 {
+    if( !GetUpdatable() )
+        throw PCIDSKException( "File not open for update in WriteToFile()" );
+
     MutexHolder oHolder( io_mutex );
 
     interfaces.io->Seek( io_handle, offset, SEEK_SET );
@@ -488,6 +492,9 @@ void CPCIDSKFile::UnlockBlock( bool mark_dirty )
 void CPCIDSKFile::WriteBlock( int block_index, void *buffer )
 
 {
+    if( !GetUpdatable() )
+        throw PCIDSKException( "File not open for update in WriteBlock()" );
+
     if( last_block_data == NULL )
         ThrowPCIDSKException( "WriteBlock() called on a file that is not pixel interleaved." );
 

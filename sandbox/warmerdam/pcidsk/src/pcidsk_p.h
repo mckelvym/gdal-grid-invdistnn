@@ -155,6 +155,7 @@ private:
 
     void        *io_handle;
     Mutex       *io_mutex;
+    bool         updatable;
 
     // register of open external raw files.
     std::vector<ProtectedFile>  file_list;
@@ -177,6 +178,7 @@ public:
     int       GetHeight() const { return height; }
     int       GetChannels() const { return channel_count; }
     const char *GetInterleaving() const { return interleaving.c_str(); }
+    bool      GetUpdatable() const { return updatable; } 
     
     // the following are only for pixel interleaved IO
     int       GetPixelGroupSize() const { return pixel_group_size; }
