@@ -240,6 +240,7 @@ void CPCIDSKFile::InitializeFromHeader()
     width = atoi(fh.Get(384,8));
     height = atoi(fh.Get(392,8));
     channel_count = atoi(fh.Get(376,8));
+    file_size = fh.GetUInt64(16,16);
 
     uint64 ih_start_block = atouint64(fh.Get(336,16));
     uint64 image_start_block = atouint64(fh.Get(304,16));
@@ -718,16 +719,8 @@ int CPCIDSKFile::CreateSegment( const char *name, const char *description,
 /* -------------------------------------------------------------------- */
     if( seg_start == 0 )
     {
-        MutexHolder oHolder( io_mutex );
-        uint64 file_length;
-
-        interfaces.io->Seek( io_handle, 0, SEEK_END );
-        file_length = interfaces.io->Tell( io_handle );
-        seg_start = (file_length + 511) / 512;
-
-        interfaces.io->Seek( io_handle, (seg_start+data_blocks+2)*512-1, 
-                             SEEK_SET);
-        interfaces.io->Write( "\0", 1, 1, io_handle );
+        seg_start = GetFileSize();
+        ExtendFile( data_blocks + 2 );
     }
 
 /* -------------------------------------------------------------------- */
@@ -759,7 +752,9 @@ int CPCIDSKFile::CreateSegment( const char *name, const char *description,
 /*      Prepare segment header.                                         */
 /* -------------------------------------------------------------------- */
     PCIDSKBuffer sh(1024);
-    static const char default_time[] = "15:13 08May2009 ";
+
+    char current_time[17];
+    GetCurrentDateTime( current_time );
 
     sh.Put( " ", 0, 1024 );
 
@@ -767,10 +762,10 @@ int CPCIDSKFile::CreateSegment( const char *name, const char *description,
     sh.Put( description, 0, 64 );
 
     // SH3 - Creation time/date
-    sh.Put( default_time, 128, 16 );
+    sh.Put( current_time, 128, 16 );
 
     // SH4 - Last Update time/date
-    sh.Put( default_time, 144, 16 );
+    sh.Put( current_time, 144, 16 );
 
 /* -------------------------------------------------------------------- */
 /*      Write segment header.                                           */
@@ -778,4 +773,40 @@ int CPCIDSKFile::CreateSegment( const char *name, const char *description,
     WriteToFile( sh.buffer, seg_start * 512, 1024 );
 
     return segment;
+}
+
+/************************************************************************/
+/*                             ExtendFile()                             */
+/************************************************************************/
+
+void CPCIDSKFile::ExtendFile( uint64 blocks_requested, bool prezero )
+
+{
+    if( prezero )
+    {
+        std::vector<uint8> zeros;
+        uint64 blocks_to_zero = blocks_requested;
+        
+        zeros.resize( 512 * 32 );
+        
+        while( blocks_to_zero > 0 )
+        {
+            uint64 this_time = blocks_to_zero;
+            if( this_time > 32 )
+                this_time = 32;
+
+            WriteToFile( &(zeros[0]), file_size * 512, this_time*512 );
+            blocks_to_zero -= this_time;
+            file_size += this_time;
+        }
+    }
+    else
+    {
+        WriteToFile( "\0", (file_size + blocks_requested) * 512 - 1, 1 );
+        file_size += blocks_requested;
+    }
+
+    PCIDSKBuffer fh3( 16 );
+    fh3.Put( file_size, 0, 16 );
+    WriteToFile( fh3.buffer, 16, 16 );
 }

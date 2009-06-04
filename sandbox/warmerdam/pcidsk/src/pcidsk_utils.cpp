@@ -149,3 +149,44 @@ const char *PCIDSK::SegmentTypeName( eSegType type )
         return "UNKNOWN";
     }
 }
+
+/************************************************************************/
+/*                         GetCurrentDateTime()                         */
+/************************************************************************/
+
+// format we want: "HH:MM DDMMMYYYY \0"
+
+#include <time.h>
+#include <sys/types.h>
+
+void	PCIDSK::GetCurrentDateTime( char *out_time )
+
+{
+    time_t	    clock;
+    char            ctime_out[25];
+
+    time( &clock );
+    strncpy( ctime_out, ctime(&clock), 24 ); // TODO: reentrance issue?
+
+    // ctime() products: "Wed Jun 30 21:49:08 1993\n"
+
+    ctime_out[24] = '\0';
+
+    out_time[0] = ctime_out[11];
+    out_time[1] = ctime_out[12];
+    out_time[2] = ':';
+    out_time[3] = ctime_out[14];
+    out_time[4] = ctime_out[15];
+    out_time[5] = ' ';
+    out_time[6] = ctime_out[8];
+    out_time[7] = ctime_out[9];
+    out_time[8] = ctime_out[4];
+    out_time[9] = ctime_out[5];
+    out_time[10] = ctime_out[6];
+    out_time[11] = ctime_out[20];
+    out_time[12] = ctime_out[21];
+    out_time[13] = ctime_out[22];
+    out_time[14] = ctime_out[23];
+    out_time[15] = ' ';
+    out_time[16] = '\0';
+}

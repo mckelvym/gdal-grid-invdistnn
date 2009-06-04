@@ -161,6 +161,8 @@ private:
     Mutex       *io_mutex;
     bool         updatable;
 
+    uint64       file_size; // in blocks.
+    
     // register of open external raw files.
     std::vector<ProtectedFile>  file_list;
 
@@ -203,6 +205,10 @@ public:
 		{ return metadata.GetMetadataValue(key); }
     std::vector<std::string> GetMetadataKeys() 
         	{ return metadata.GetMetadataKeys(); }
+
+    // not exposed to applications.
+    void      ExtendFile( uint64 blocks_requested, bool prezero = false );
+    uint64    GetFileSize() const { return file_size; }
 };
 
 /************************************************************************/
@@ -577,6 +583,7 @@ public:
 uint64 atouint64( const char *);
 int64  atoint64( const char *);
 void   SwapData( void *data, int value_size, int value_count );
+void   GetCurrentDateTime( char *out_datetime );
 
 }; // end of PCIDSK namespace
 

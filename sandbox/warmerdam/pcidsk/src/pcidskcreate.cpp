@@ -189,7 +189,9 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
 /*      Prepare the file header.                                        */
 /* ==================================================================== */
     PCIDSKBuffer fh(512);
-    static const char default_time[] = "15:13 08May2009 ";
+
+    char current_time[17];
+    GetCurrentDateTime( current_time );
 
     // Initialize everything to spaces.
     fh.Put( "", 0, 512 );
@@ -204,8 +206,8 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
     // FH2 - TODO: Allow caller to pass this in.
     fh.Put( "SDK V1.0", 8, 8 );
 
-    // FH3 - TODO: fill in file size later.
-    fh.Put( "", 16, 16 );
+    // FH3 - file size later.
+    fh.Put( (image_data_start + image_data_size), 16, 16 );
     
     // FH4 - 16 characters reserved - spaces.
 
@@ -218,10 +220,10 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
     // FH7.1 / FH7.2 - left blank (64+64 bytes @ 144)
 
     // FH8 Creation date/time
-    fh.Put( default_time, 272, 16 );
+    fh.Put( current_time, 272, 16 );
 
     // FH9 Update date/time
-    fh.Put( default_time, 288, 16 );
+    fh.Put( current_time, 288, 16 );
 
 /* -------------------------------------------------------------------- */
 /*      Image Data                                                      */
@@ -306,10 +308,10 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
         ih.Put( "<unintialized>", 64, 64 );
     
     // IHi.3 - Creation time and date.
-    ih.Put( default_time, 128, 16 );
+    ih.Put( current_time, 128, 16 );
 
     // IHi.4 - Creation time and date.
-    ih.Put( default_time, 144, 16 );
+    ih.Put( current_time, 144, 16 );
 
     interfaces->io->Seek( io_handle, image_header_start*512, SEEK_SET );
 
