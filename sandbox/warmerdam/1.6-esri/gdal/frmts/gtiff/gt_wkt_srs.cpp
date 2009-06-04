@@ -604,8 +604,9 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
             break;
         
           case CT_Equirectangular:
-            oSRS.SetEquirectangular( adfParm[0], adfParm[1],
-                                     adfParm[5], adfParm[6] );
+            oSRS.SetEquirectangular2( adfParm[0], adfParm[1],
+                                      adfParm[2],
+                                      adfParm[5], adfParm[6] );
             break;
         
           case CT_Gnomonic:
@@ -1339,6 +1340,9 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
 
         GTIFKeySet(psGTIF, ProjCenterLongGeoKey, TYPE_DOUBLE, 1,
                    poSRS->GetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 0.0 ) );
+        
+        GTIFKeySet(psGTIF, ProjStdParallel1GeoKey, TYPE_DOUBLE, 1,
+                   poSRS->GetNormProjParm( SRS_PP_STANDARD_PARALLEL_1, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
                    poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
