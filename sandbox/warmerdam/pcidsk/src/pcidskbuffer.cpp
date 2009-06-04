@@ -202,7 +202,7 @@ void PCIDSKBuffer::Put( const char *value, int offset, int size )
 }
 
 /************************************************************************/
-/*                             PutUInt64()                              */
+/*                             Put(uint64)                              */
 /************************************************************************/
 
 void PCIDSKBuffer::Put( uint64 value, int offset, int size )
@@ -213,6 +213,27 @@ void PCIDSKBuffer::Put( uint64 value, int offset, int size )
 
     sprintf( fmt, "%%%d%sd", size, PCIDSK_FRMT_64_WITHOUT_PREFIX );
     sprintf( wrk, fmt, value );
+
+    Put( wrk, offset, size );
+}
+
+/************************************************************************/
+/*                             Put(double)                              */
+/************************************************************************/
+
+void PCIDSKBuffer::Put( double value, int offset, int size, 
+                        const char *fmt )
+
+{
+    if( fmt == NULL )
+        fmt = "%g";
+
+    char wrk[128];
+    snprintf( wrk, 127, fmt, value );
+
+    char *exponent = strstr(wrk,"E");
+    if( exponent != NULL )
+        *exponent = 'D';
 
     Put( wrk, offset, size );
 }

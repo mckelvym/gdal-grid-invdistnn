@@ -72,6 +72,9 @@ public:
 
     void        Put( const char *value,  int offset, int size );
     void        Put( uint64 value, int offset, int size );
+    void        Put( double value, int offset, int size, const char *fmt=NULL );
+    void        Put( int value, int offset, int size ) 
+        { Put( (uint64) value, offset, size ); }
 
     void        SetSize( int size );
 };
@@ -137,6 +140,7 @@ private:
     std::vector<PCIDSKChannel*> channels;
 
     int          segment_count;
+    uint64       segment_pointers_offset;
     PCIDSKBuffer segment_pointers;
 
     std::vector<PCIDSKSegment*> segments;
@@ -173,6 +177,8 @@ public:
     std::vector<PCIDSK::PCIDSKSegment *> GetSegments();
 
     PCIDSK::PCIDSKSegment  *GetSegment( int type, const char *name );
+    int  CreateSegment( const char *name, const char *description,
+                        eSegType seg_type, int data_blocks );
 
     int       GetWidth() const { return width; }
     int       GetHeight() const { return height; }
@@ -455,6 +461,10 @@ public:
     void        GetTransform( double &a1, double &a2, double &xrot, 
                               double &b1, double &yrot, double &b3 );
     const char *GetGeosys();
+
+    void        WriteSimple( const char *geosys, 
+                             double a1, double a2, double xrot, 
+                             double b1, double yrot, double b3 );
 };
 
 /************************************************************************/

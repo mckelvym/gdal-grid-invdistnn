@@ -261,8 +261,8 @@ void CPCIDSKFile::InitializeFromHeader()
     
     segment_count = (segment_block_count * 512) / 32;
     segment_pointers.SetSize( segment_block_count * 512 );
-    ReadFromFile( segment_pointers.buffer, 
-                  atouint64(fh.Get(440,16)) * 512 - 512, 
+    segment_pointers_offset = atouint64(fh.Get(440,16)) * 512 - 512;
+    ReadFromFile( segment_pointers.buffer, segment_pointers_offset,
                   segment_block_count * 512 );
 
     segments.resize( segment_count + 1 );
@@ -581,4 +581,201 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 
     *io_handle_pp = &(file_list[file_list.size()-1].io_handle);
     *io_mutex_pp  = &(file_list[file_list.size()-1].io_mutex);
+}
+
+/************************************************************************/
+/*                           CreateSegment()                            */
+/************************************************************************/
+
+int CPCIDSKFile::CreateSegment( const char *name, const char *description,
+                                eSegType seg_type, int data_blocks )
+
+{
+#ifdef notdef
+/* -------------------------------------------------------------------- */
+/*	Set the size of fixed length segments.				*/
+/* -------------------------------------------------------------------- */
+    switch( type )
+    {
+      case SEG_LUT:
+	nBlocks = 4;
+	break;
+
+      case SEG_PCT:
+	nBlocks = 8;
+	break;
+
+      case SEG_SIG:
+	nBlocks = 14;
+	break;
+
+      case SEG_GCP:
+	// nBlocks = 67;
+	// Change seg type to new GCP segment type
+	nBlocks = 131;
+	type = SEG_GCP2;
+	break;
+	
+      case SEG_GEO:
+	nBlocks = 8;
+	break;
+
+/* -------------------------------------------------------------------- */
+/*      We do some complicated stuff here to avoid exceeding the        */
+/*      largest number representable in a int32 (2GB).                  */
+/* -------------------------------------------------------------------- */
+      case SEG_BIT:
+        {
+            int	  nBlocksPerScanline, nExtraPixels;
+            int   nBlocksPerPixel, nExtraScanlines;
+            
+            nExtraScanlines = IDB->lines % 4096;
+            nBlocksPerPixel = IDB->lines / 4096;
+            
+            nExtraPixels = IDB->pixels % 4096;
+            nBlocksPerScanline = IDB->pixels / 4096;
+            
+            nBlocks = (nExtraPixels * nExtraScanlines + 4095) / 4096
+                + nBlocksPerScanline * IDB->lines
+                + nBlocksPerPixel * nExtraPixels
+                + 2;
+
+	    if ((double)IDB->pixels * (double)IDB->lines/8.0 > (double)512*(double)2147483647)
+		IMPError( 68, ERRTYP_UFATAL,
+                      MkName(NLSLookup("@CantCreatePCIDSKWithBMPlarger1024GcurrentBMP_NUM_NUM_NUM_:Cannot "
+		      "create PCIDSK with a bitmap larger than 1024GB in size.\n"
+                      "The bitmap is %dp x %dl~= %6.1fMB.\n"),
+                      IDB->pixels, IDB->lines , 
+                      IDB->pixels * (double) IDB->lines
+                      / 1000000.0 ));
+        }
+        break;
+
+      case SEG_TEX:
+        if( nBlocks < 66 )
+            nBlocks = 66;
+        break;
+    }
+#endif
+
+/* -------------------------------------------------------------------- */
+/*      Find an empty Segment Pointer.  For System segments we start    */
+/*      at the end, instead of the beginning to avoid using up          */
+/*      segment numbers that the user would notice.                     */
+/* -------------------------------------------------------------------- */
+    int segment = 1;
+    int64 seg_start = -1;
+    PCIDSKBuffer segptr( 32 );
+
+#ifdef notdef    
+    TODO
+    if( seg_type == SEG_SYS )
+    {
+        for( segment=IDB->blkptr*16; segment >= 0 && seg_start < 0; segment-- )
+        {
+            idbSegUpdate( idb_fp, segment );
+            if( IDB->LastFlag == 'D' && IDB->LastSize == nBlocks
+                && nBlocks > 2 )
+                seg_start = IDB->LastStart;
+            else if( IDB->LastFlag == ' ' )
+                seg_start = 0;
+            else if( IDB->LastFlag == 'D' && IDB->LastSize == 0 )
+                seg_start = 0;
+        }
+        segment += 2;
+    }
+    else
+#endif
+    {
+        for( segment=1; segment <= segment_count; segment++ )
+        {
+            memcpy( segptr.buffer, segment_pointers.buffer+(segment-1)*32, 32);
+
+            uint64 this_seg_size = segptr.GetUInt64(23,9);
+            char flag = (char) segptr.buffer[0];
+
+            if( flag == 'D' 
+                && (uint64) data_blocks+2 == this_seg_size 
+                && this_seg_size > 0 )
+                seg_start = segptr.GetUInt64(12,11) - 1;
+            else if( flag == ' ' )
+                seg_start = 0;
+            else if( flag && this_seg_size == 0 )
+                seg_start = 0;
+
+            if( seg_start != -1 )
+                break;
+        }
+    }
+    
+    if( segment > segment_count )
+        ThrowPCIDSKException( "All %d segment pointers in use.", segment_count);
+
+/* -------------------------------------------------------------------- */
+/*      If the segment does not have a data area already, identify      */
+/*      it's location at the end of the file, and extend the file to    */
+/*      the desired length.                                             */
+/* -------------------------------------------------------------------- */
+    if( seg_start == 0 )
+    {
+        MutexHolder oHolder( io_mutex );
+        uint64 file_length;
+
+        interfaces.io->Seek( io_handle, 0, SEEK_END );
+        file_length = interfaces.io->Tell( io_handle );
+        seg_start = (file_length + 511) / 512;
+
+        interfaces.io->Seek( io_handle, (seg_start+data_blocks+2)*512-1, 
+                             SEEK_SET);
+        interfaces.io->Write( "\0", 1, 1, io_handle );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Update the segment pointer information.                         */
+/* -------------------------------------------------------------------- */
+    // SP1.1 - Flag
+    segptr.Put( "A", 0, 1 );
+
+    // SP1.2 - Type
+    segptr.Put( (int) seg_type, 1, 3 );
+
+    // SP1.3 - Name
+    segptr.Put( name, 4, 8 );
+    
+    // SP1.4 - start block
+    segptr.Put( (uint64) (seg_start + 1), 12, 11 );
+    
+    // SP1.5 - data blocks.
+    segptr.Put( data_blocks+2, 23, 9 );
+
+    // Update in memory copy of segment pointers.
+    memcpy( segment_pointers.buffer+(segment-1)*32, segptr.buffer, 32);
+
+    // Update on disk. 
+    WriteToFile( segptr.buffer, 
+                 segment_pointers_offset + (segment-1)*32, 32 );
+    
+/* -------------------------------------------------------------------- */
+/*      Prepare segment header.                                         */
+/* -------------------------------------------------------------------- */
+    PCIDSKBuffer sh(1024);
+    static const char default_time[] = "15:13 08May2009 ";
+
+    sh.Put( " ", 0, 1024 );
+
+    // SH1 - segment content description
+    sh.Put( description, 0, 64 );
+
+    // SH3 - Creation time/date
+    sh.Put( default_time, 128, 16 );
+
+    // SH4 - Last Update time/date
+    sh.Put( default_time, 144, 16 );
+
+/* -------------------------------------------------------------------- */
+/*      Write segment header.                                           */
+/* -------------------------------------------------------------------- */
+    WriteToFile( sh.buffer, seg_start * 512, 1024 );
+
+    return segment;
 }

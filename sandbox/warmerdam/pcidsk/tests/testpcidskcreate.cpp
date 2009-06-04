@@ -44,6 +44,21 @@ void PCIDSKCreateTest::simplePixelInterleaved()
     CPPUNIT_ASSERT( pixel_file != NULL );
     CPPUNIT_ASSERT( pixel_file->GetUpdatable() );
 
+    PCIDSKGeoref *geo = dynamic_cast<PCIDSKGeoref*>(pixel_file->GetSegment(1));
+
+    CPPUNIT_ASSERT( geo != NULL );
+    CPPUNIT_ASSERT( strcmp(geo->GetGeosys(),"PIXEL") == 0 );
+    
+    double a1, a2, a3, b1, b2, b3;
+    geo->GetTransform( a1, a2, a3, b1, b2, b3 );
+
+    CPPUNIT_ASSERT( a1 == 0.0 );
+    CPPUNIT_ASSERT( a2 == 1.0 );
+    CPPUNIT_ASSERT( a3 == 0.0 );
+    CPPUNIT_ASSERT( b1 == 0.0 );
+    CPPUNIT_ASSERT( b2 == 0.0 );
+    CPPUNIT_ASSERT( b3 == 1.0 );
+
     delete pixel_file;
 
     unlink( "pixel_file.pix" );

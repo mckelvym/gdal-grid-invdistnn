@@ -145,3 +145,48 @@ void CPCIDSKGeoref::GetTransform( double &a1, double &a2, double &xrot,
     b3   = this->b3;
 }
 
+/************************************************************************/
+/*                            WriteSimple()                             */
+/************************************************************************/
+
+void CPCIDSKGeoref::WriteSimple( const char *geosys, 
+                                 double a1, double a2, double xrot, 
+                                 double b1, double yrot, double b3 )
+
+{
+    loaded = false;
+
+/* -------------------------------------------------------------------- */
+/*      Handle simple case of a POLYNOMIAL.                             */
+/* -------------------------------------------------------------------- */
+    seg_data.SetSize( 6 * 512 );
+
+    seg_data.Put( " ", 0, seg_data.buffer_size );
+
+    // SD.GEO.P1
+    seg_data.Put( "POLYNOMIAL", 0, 16 );
+    
+    // SD.GEO.P2
+    seg_data.Put( "PIXEL", 16, 16 );
+    
+    // SD.GEO.P3
+    seg_data.Put( geosys, 32, 16 );
+
+    // SD.GEO.P4
+    seg_data.Put( 3, 48, 8 );
+    
+    // SD.GEO.P5
+    seg_data.Put( 3, 56, 8 );
+
+    // SD.GEO.P7
+    seg_data.Put( a1,   212 + 0*26, 26, "%26.18E" );
+    seg_data.Put( a2,   212 + 1*26, 26, "%26.18E" );
+    seg_data.Put( xrot, 212 + 2*26, 26, "%26.18E" );
+    
+    // SD.GEO.P8
+    seg_data.Put( b1,   1642 + 0*26, 26, "%26.18E" );
+    seg_data.Put( yrot, 1642 + 1*26, 26, "%26.18E" );
+    seg_data.Put( b3,   1642 + 2*26, 26, "%26.18E" );
+
+    WriteToFile( seg_data.buffer, 0, seg_data.buffer_size );
+}

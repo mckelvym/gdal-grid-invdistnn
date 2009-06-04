@@ -171,6 +171,9 @@ public:
     virtual const char *GetInterleaving() const = 0;
     virtual bool GetUpdatable() const = 0;
 
+    virtual int  CreateSegment( const char *name, const char *description,
+                                eSegType seg_type, int data_blocks ) = 0;
+
     // the following are only for pixel interleaved IO
     virtual int    GetPixelGroupSize() const = 0;
     virtual void *ReadAndLockBlock( int block_index, int xoff=-1, int xsize=-1) = 0;
@@ -251,6 +254,10 @@ public:
     virtual void GetTransform( double &a1, double &a2, double &xrot, 
                                double &b1, double &yrot, double &b3 ) = 0;
     virtual const char *GetGeosys() = 0;
+    
+    virtual void WriteSimple( const char *geosys, 
+                              double a1, double a2, double xrot, 
+                              double b1, double yrot, double b3 ) = 0;
 };
 
 /************************************************************************/

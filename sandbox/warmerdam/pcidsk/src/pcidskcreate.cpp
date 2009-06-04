@@ -128,7 +128,7 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
 /* ==================================================================== */
 /*      Establish some key file layout information.                     */
 /* ==================================================================== */
-    int image_header_start = 2, image_header_size; // in blocks
+    int image_header_start = 1, image_header_size; // in blocks
     uint64 image_data_start, image_data_size;      // in blocks
     uint64 segment_ptr_start, segment_ptr_size=64; // in blocks
     int pixel_group_size, line_size;               // in bytes
@@ -349,6 +349,20 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
 /*      Close the raw file, and reopen as a pcidsk file.                */
 /* -------------------------------------------------------------------- */
     interfaces->io->Close( io_handle );
-    
-    return Open( filename, "r+", interfaces );
+
+    PCIDSKFile *file = Open( filename, "r+", interfaces );
+
+/* -------------------------------------------------------------------- */
+/*      Create a default georeferencing segment.                        */
+/* -------------------------------------------------------------------- */
+    int segment = file->CreateSegment( "GEOref", 
+                                       "Master Georeferencing Segment for File",
+                                       SEG_GEO, 6 );
+
+    PCIDSKSegment *geo_seg = file->GetSegment( segment );
+    PCIDSKGeoref *geo = dynamic_cast<PCIDSKGeoref*>( geo_seg );
+
+    geo->WriteSimple( "PIXEL", 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 );
+
+    return file;
 }
