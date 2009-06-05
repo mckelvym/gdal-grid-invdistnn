@@ -25,6 +25,7 @@ OBJ	=	cpl_conv.obj \
 		cpl_recode_stub.obj \
 		cpl_quad_tree.obj \
 		cpl_vsil_gzip.obj \
+		cpl_vsil_subfile.obj \
 		cpl_minizip_ioapi.obj \
 		cpl_minizip_unzip.obj \
 		$(ODBC_OBJ) 
