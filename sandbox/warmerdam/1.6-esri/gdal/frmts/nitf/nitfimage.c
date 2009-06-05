@@ -66,7 +66,8 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     int        nOffset, iBand, i;
     int        nIGEOLOGCPCount = 4;
     double     adfGeoTransform[6] = { 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };	
-    GDAL_GCP   *psIGEOLOGCPs;
+    GDAL_GCP   *psIGEOLOGCPs = NULL;
+    int        nNICOM;
     
 /* -------------------------------------------------------------------- */
 /*      Verify segment, and return existing image accessor if there     */
@@ -86,16 +87,30 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /* -------------------------------------------------------------------- */
 /*      Read the image subheader.                                       */
 /* -------------------------------------------------------------------- */
-    pachHeader = (char*) CPLMalloc(psSegInfo->nSegmentHeaderSize);
+    if (psSegInfo->nSegmentHeaderSize < 370 + 1)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                    "Image header too small");
+        return NULL;
+    }
+
+    pachHeader = (char*) VSIMalloc(psSegInfo->nSegmentHeaderSize);
+    if (pachHeader == NULL)
+    {
+        CPLError(CE_Failure, CPLE_OutOfMemory, "Cannot allocate memory for segment header");
+        return NULL;
+    }
+
     if( VSIFSeekL( psFile->fp, psSegInfo->nSegmentHeaderStart, 
                   SEEK_SET ) != 0 
         || VSIFReadL( pachHeader, 1, psSegInfo->nSegmentHeaderSize, 
                      psFile->fp ) != psSegInfo->nSegmentHeaderSize )
     {
         CPLError( CE_Failure, CPLE_FileIO, 
-                  "Failed to read %d byte image subheader from %d.",
+                  "Failed to read %u byte image subheader from " CPL_FRMT_GUIB ".",
                   psSegInfo->nSegmentHeaderSize,
                   psSegInfo->nSegmentHeaderStart );
+        CPLFree(pachHeader);
         return NULL;
     }
 
@@ -167,6 +182,8 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
         
         if( EQUALN(pachHeader+284,"999998",6) )
         {
+            if (psSegInfo->nSegmentHeaderSize < 370 + 40 + 1)
+                goto header_too_small;
             GetMD( psImage, pachHeader, 290,  40, ISDEVT );
             nOffset += 40;
         }
@@ -195,6 +212,9 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /* -------------------------------------------------------------------- */
     if( !EQUALN(psFile->szVersion,"NITF01.",7) )
     {
+        if (psSegInfo->nSegmentHeaderSize < nOffset + 35+2)
+            goto header_too_small;
+
         psImage->nRows = atoi(NITFGetField(szTemp,pachHeader,nOffset,8));
         psImage->nCols = atoi(NITFGetField(szTemp,pachHeader,nOffset+8,8));
         
@@ -215,6 +235,8 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /*      means UTM (north).  So for 2.0 products we change 'N' to ' '    */
 /*      to conform to 2.1 conventions.                                  */
 /* -------------------------------------------------------------------- */
+    if (psSegInfo->nSegmentHeaderSize < nOffset + 1)
+        goto header_too_small;
     psImage->chICORDS = pachHeader[nOffset++];
     psImage->bHaveIGEOLO = FALSE;
 
@@ -234,6 +256,9 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
         int iCoord;
 
         psImage->bHaveIGEOLO = TRUE;
+        if (psSegInfo->nSegmentHeaderSize < nOffset + 4 * 15)
+            goto header_too_small;
+
         for( iCoord = 0; iCoord < 4; iCoord++ )
         {
             const char *pszCoordPair = pachHeader + nOffset + iCoord*15;
@@ -313,9 +338,12 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /*      Read the image comments.                                        */
 /* -------------------------------------------------------------------- */
     {
-        int nNICOM;
+        if (psSegInfo->nSegmentHeaderSize < nOffset + 1 )
+            goto header_too_small;
 
         nNICOM = atoi(NITFGetField( szTemp, pachHeader, nOffset++, 1));
+        if (psSegInfo->nSegmentHeaderSize < nOffset + 1 + 80 * nNICOM )
+            goto header_too_small;
 
         psImage->pszComments = (char *) CPLMalloc(nNICOM*80+1);
         NITFGetField( psImage->pszComments, pachHeader,
@@ -326,36 +354,66 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /* -------------------------------------------------------------------- */
 /*      Read more stuff.                                                */
 /* -------------------------------------------------------------------- */
+    if (psSegInfo->nSegmentHeaderSize < nOffset + 2 )
+        goto header_too_small;
+
     NITFGetField( psImage->szIC, pachHeader, nOffset, 2 );
     nOffset += 2;
 
     if( psImage->szIC[0] != 'N' )
     {
+        if (psSegInfo->nSegmentHeaderSize < nOffset + 4 )
+            goto header_too_small;
+
         NITFGetField( psImage->szCOMRAT, pachHeader, nOffset, 4 );
         nOffset += 4;
     }
 
     /* NBANDS */
+    if (psSegInfo->nSegmentHeaderSize < nOffset + 1 )
+        goto header_too_small;
     psImage->nBands = atoi(NITFGetField(szTemp,pachHeader,nOffset,1));
     nOffset++;
 
     /* XBANDS */
     if( psImage->nBands == 0 )
     {
+        if (psSegInfo->nSegmentHeaderSize < nOffset + 5 )
+            goto header_too_small;
         psImage->nBands = atoi(NITFGetField(szTemp,pachHeader,nOffset,5));
         nOffset += 5;
+    }
+
+    if (psImage->nBands <= 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid band number");
+        NITFImageDeaccess(psImage);
+        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
+        CPLFree( psIGEOLOGCPs );
+        return NULL;
     }
 
 /* -------------------------------------------------------------------- */
 /*      Read per-band information.                                      */
 /* -------------------------------------------------------------------- */
     psImage->pasBandInfo = (NITFBandInfo *) 
-        CPLCalloc(sizeof(NITFBandInfo),psImage->nBands);
-    
+        VSICalloc(sizeof(NITFBandInfo),psImage->nBands);
+    if (psImage->pasBandInfo == NULL)
+    {
+        CPLError(CE_Failure, CPLE_OutOfMemory, "Cannot allocate memory for band info");
+        NITFImageDeaccess(psImage);
+        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
+        CPLFree( psIGEOLOGCPs );
+        return NULL;
+    }
+
     for( iBand = 0; iBand < psImage->nBands; iBand++ )
     {
         NITFBandInfo *psBandInfo = psImage->pasBandInfo + iBand;
         int nLUTS;
+
+        if (psSegInfo->nSegmentHeaderSize < nOffset + 2 + 6 + 4 + 1 + 5)
+            goto header_too_small;
 
         NITFTrimWhite(
             NITFGetField( psBandInfo->szIREPBAND, pachHeader, nOffset, 2 ) );
@@ -377,7 +435,8 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
             atoi(NITFGetField( szTemp, pachHeader, nOffset, 5 ));
         nOffset += 5;
 
-        if (psBandInfo->nSignificantLUTEntries > 256)
+        if (psBandInfo->nSignificantLUTEntries < 0 ||
+            psBandInfo->nSignificantLUTEntries > 256)
         {
             CPLError( CE_Warning, CPLE_AppDefined,
                       "LUT for band %d is corrupted : nSignificantLUTEntries=%d. Truncating to 256",
@@ -388,16 +447,25 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
         psBandInfo->nLUTLocation = nOffset + psSegInfo->nSegmentHeaderStart;
 
         psBandInfo->pabyLUT = (unsigned char *) CPLCalloc(768,1);
+        if (psSegInfo->nSegmentHeaderSize < nOffset + psBandInfo->nSignificantLUTEntries )
+            goto header_too_small;
+
         memcpy( psBandInfo->pabyLUT, pachHeader + nOffset, 
                 psBandInfo->nSignificantLUTEntries );
         nOffset += psBandInfo->nSignificantLUTEntries;
 
         if( nLUTS == 3 )
         {
+            if (psSegInfo->nSegmentHeaderSize < nOffset + psBandInfo->nSignificantLUTEntries )
+                goto header_too_small;
+
             memcpy( psBandInfo->pabyLUT+256, pachHeader + nOffset, 
                     psBandInfo->nSignificantLUTEntries );
             nOffset += psBandInfo->nSignificantLUTEntries;
-            
+
+            if (psSegInfo->nSegmentHeaderSize < nOffset + psBandInfo->nSignificantLUTEntries )
+                goto header_too_small;
+
             memcpy( psBandInfo->pabyLUT+512, pachHeader + nOffset, 
                     psBandInfo->nSignificantLUTEntries );
             nOffset += psBandInfo->nSignificantLUTEntries;
@@ -473,6 +541,25 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
         nOffset += 4;                   /* IMAG */
     }
 
+    if (psImage->nBitsPerSample <= 0 ||
+        psImage->nBlocksPerRow <= 0 ||
+        psImage->nBlocksPerColumn <= 0 ||
+        psImage->nBlockWidth <= 0 ||
+        psImage->nBlockHeight <= 0 ||
+        psImage->nBlocksPerRow > INT_MAX / psImage->nBlockWidth ||
+        psImage->nBlocksPerColumn > INT_MAX / psImage->nBlockHeight ||
+        psImage->nCols > psImage->nBlocksPerRow * psImage->nBlockWidth ||
+        psImage->nRows > psImage->nBlocksPerColumn * psImage->nBlockHeight ||
+        psImage->nBlocksPerRow > INT_MAX / psImage->nBlocksPerColumn ||
+        psImage->nBlocksPerRow * psImage->nBlocksPerColumn > INT_MAX / psImage->nBands)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid values for block dimension/number");
+        NITFImageDeaccess(psImage);
+        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
+        CPLFree( psIGEOLOGCPs );
+        return NULL;
+    }
+
 /* -------------------------------------------------------------------- */
 /*      Override nCols and nRows for NITF 1.1 (not sure why!)           */
 /* -------------------------------------------------------------------- */
@@ -495,8 +582,11 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
         nUserTREBytes = atoi(NITFGetField( szTemp, pachHeader, nOffset, 5 ));
         nOffset += 5;
 
-        if( nUserTREBytes > 0 )
+        if( nUserTREBytes > 3 )
         {
+            if (psSegInfo->nSegmentHeaderSize < nOffset + nUserTREBytes )
+                goto header_too_small;
+
             psImage->nTREBytes = nUserTREBytes - 3;
             psImage->pachTRE = (char *) CPLMalloc(psImage->nTREBytes);
             memcpy( psImage->pachTRE, pachHeader + nOffset + 3,
@@ -513,11 +603,16 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /* -------------------------------------------------------------------- */
 /*      Are there managed TRE bytes to recognise?                       */
 /* -------------------------------------------------------------------- */
+        if (psSegInfo->nSegmentHeaderSize < nOffset + 5 )
+            goto header_too_small;
         nExtendedTREBytes = atoi(NITFGetField(szTemp,pachHeader,nOffset,5));
         nOffset += 5;
 
-        if( nExtendedTREBytes != 0 )
+        if( nExtendedTREBytes > 3 )
         {
+            if (psSegInfo->nSegmentHeaderSize < nOffset + nExtendedTREBytes )
+                goto header_too_small;
+
             psImage->pachTRE = (char *) 
                 CPLRealloc( psImage->pachTRE, 
                             psImage->nTREBytes + nExtendedTREBytes - 3 );
@@ -589,9 +684,19 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /* -------------------------------------------------------------------- */
 /*      Setup block map.                                                */
 /* -------------------------------------------------------------------- */
-    psImage->panBlockStart = (GUInt32 *) 
-        CPLCalloc( psImage->nBlocksPerRow * psImage->nBlocksPerColumn 
-                   * psImage->nBands, sizeof(GUInt32) );
+
+    /* Int overflow already checked above */
+    psImage->panBlockStart = (GUIntBig *) 
+        VSICalloc( psImage->nBlocksPerRow * psImage->nBlocksPerColumn 
+                   * psImage->nBands, sizeof(GUIntBig) );
+    if (psImage->panBlockStart == NULL)
+    {
+        CPLError(CE_Failure, CPLE_OutOfMemory, "Cannot allocate block map");
+        NITFImageDeaccess(psImage);
+        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
+        CPLFree( psIGEOLOGCPs );
+        return NULL;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Offsets to VQ compressed tiles are based on a fixed block       */
@@ -601,7 +706,7 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /* -------------------------------------------------------------------- */
     if( EQUAL(psImage->szIC,"C4") )
     {
-        GUInt32  nLocBase = psSegInfo->nSegmentStart;
+        GUIntBig  nLocBase = psSegInfo->nSegmentStart;
 
         for( i = 0; i < psImage->nLocCount; i++ )
         {
@@ -694,11 +799,12 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
                 * psImage->nBlocksPerColumn; 
             int iBand;
 
-            VSIFReadL( psImage->panBlockStart, 4, nStoredBlocks, psFile->fp );
-
             for( i = 0; i < nStoredBlocks; i++ )
             {
-                CPL_MSBPTR32( psImage->panBlockStart + i );
+                GUInt32 nOffset;
+                VSIFReadL( &nOffset, 4, 1, psFile->fp );
+                CPL_MSBPTR32( &nOffset );
+                psImage->panBlockStart[i] = nOffset;
                 if( psImage->panBlockStart[i] != 0xffffffff )
                 {
                     psImage->panBlockStart[i] 
@@ -722,10 +828,12 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
         else if( nBMRLNTH == 4 )
         {
             int isM4 = EQUAL(psImage->szIC,"M4");
-            VSIFReadL( psImage->panBlockStart, 4, nBlockCount, psFile->fp );
             for( i=0; i < nBlockCount; i++ )
             {
-                CPL_MSBPTR32( psImage->panBlockStart + i );
+                GUInt32 nOffset;
+                VSIFReadL( &nOffset, 4, 1, psFile->fp );
+                CPL_MSBPTR32( &nOffset );
+                psImage->panBlockStart[i] = nOffset;
                 if( psImage->panBlockStart[i] != 0xffffffff )
                 {
                     if (isM4 && (psImage->panBlockStart[i] % 6144) != 0)
@@ -755,10 +863,13 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
                                        (nTPXCDLNTH+7)/8 +
                                        1, /* MAGIC here ! One byte shift... */
                             SEEK_SET );
-                VSIFReadL( psImage->panBlockStart, 4, nBlockCount, psFile->fp );
+
                 for( i=0; i < nBlockCount; i++ )
                 {
-                    CPL_MSBPTR32( psImage->panBlockStart + i );
+                    GUInt32 nOffset;
+                    VSIFReadL( &nOffset, 4, 1, psFile->fp );
+                    CPL_MSBPTR32( &nOffset );
+                    psImage->panBlockStart[i] = nOffset;
                     if( psImage->panBlockStart[i] != 0xffffffff )
                     {
                         if ((psImage->panBlockStart[i] % 6144) != 0)
@@ -950,6 +1061,18 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     NITFLoadVQTables( psImage );
 
     return psImage;
+
+
+header_too_small:
+
+    CPLError(CE_Failure, CPLE_AppDefined, "Image header too small");
+    NITFImageDeaccess(psImage);
+    if (psIGEOLOGCPs)
+    {
+        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
+        CPLFree( psIGEOLOGCPs );
+    }
+    return NULL;
 }
 
 /************************************************************************/
@@ -966,8 +1089,11 @@ void NITFImageDeaccess( NITFImage *psImage )
 
     psImage->psFile->pasSegmentInfo[psImage->iSegment].hAccess = NULL;
 
-    for( iBand = 0; iBand < psImage->nBands; iBand++ )
-        CPLFree( psImage->pasBandInfo[iBand].pabyLUT );
+    if ( psImage->pasBandInfo)
+    {
+        for( iBand = 0; iBand < psImage->nBands; iBand++ )
+            CPLFree( psImage->pasBandInfo[iBand].pabyLUT );
+    }
     CPLFree( psImage->pasBandInfo );
     CPLFree( psImage->panBlockStart );
     CPLFree( psImage->pszComments );
@@ -1102,7 +1228,7 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
                                psImage->psFile->fp ) != nWrkBufSize )
         {
             CPLError( CE_Failure, CPLE_FileIO, 
-                      "Unable to read %d byte block from %d.", 
+                      "Unable to read %d byte block from " CPL_FRMT_GUIB ".", 
                       nWrkBufSize, psImage->panBlockStart[iFullBlock] );
             return BLKREAD_FAIL;
         }
@@ -1132,7 +1258,8 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
                 {
                     CPLError( CE_Failure, CPLE_FileIO, 
                               "Unable to read %d byte block from %d.", 
-                              nWrkBufSize, psImage->panBlockStart[iFullBlock] );
+                              (int) nWrkBufSize, 
+                              (int) psImage->panBlockStart[iFullBlock] );
                     return BLKREAD_FAIL;
                 }
 
@@ -1147,8 +1274,15 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
 /* -------------------------------------------------------------------- */
     if( psImage->szIC[0] == 'N' )
     {
-        GByte *pabyWrkBuf = (GByte *) CPLMalloc(nWrkBufSize);
+        GByte *pabyWrkBuf = (GByte *) VSIMalloc(nWrkBufSize);
         int   iPixel, iLine;
+
+        if (pabyWrkBuf == NULL)
+        {
+            CPLError( CE_Failure, CPLE_OutOfMemory, 
+                      "Cannot allocate working buffer" );
+            return BLKREAD_FAIL;
+        }
 
         /* read all the data needed to get our requested band-block */
         if( VSIFSeekL( psImage->psFile->fp, psImage->panBlockStart[iFullBlock], 
@@ -1157,8 +1291,9 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
                                psImage->psFile->fp ) != nWrkBufSize )
         {
             CPLError( CE_Failure, CPLE_FileIO, 
-                      "Unable to read %d byte block from %d.", 
+                      "Unable to read %d byte block from " CPL_FRMT_GUIB ".", 
                       nWrkBufSize, psImage->panBlockStart[iFullBlock] );
+            CPLFree( pabyWrkBuf );
             return BLKREAD_FAIL;
         }
 
@@ -1212,7 +1347,7 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
                          psImage->psFile->fp ) != sizeof(abyVQCoded) )
         {
             CPLError( CE_Failure, CPLE_FileIO, 
-                      "Unable to read %d byte block from %d.", 
+                      "Unable to read %d byte block from " CPL_FRMT_GUIB ".", 
                       (int) sizeof(abyVQCoded), 
                       psImage->panBlockStart[iFullBlock] );
             return BLKREAD_FAIL;
@@ -1233,6 +1368,14 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
         int success;
         GByte *pabyRawData;
 
+        if (psImage->nBitsPerSample != 8)
+        {
+            CPLError( CE_Failure, CPLE_AppDefined, 
+                      "Unsupported bits per sample value (%d) for C2/M2 compression",
+                      psImage->nBitsPerSample);
+            return BLKREAD_FAIL;
+        }
+
         if( iFullBlock < psImage->nBlocksPerRow * psImage->nBlocksPerColumn-1 )
             nRawBytes = psImage->panBlockStart[iFullBlock+1] 
                 - psImage->panBlockStart[iFullBlock];
@@ -1243,8 +1386,14 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
                 - psImage->panBlockStart[iFullBlock];
         }
 
-        pabyRawData = (GByte *) CPLMalloc( nRawBytes );
-        
+        pabyRawData = (GByte *) VSIMalloc( nRawBytes );
+        if (pabyRawData == NULL)
+        {
+            CPLError( CE_Failure, CPLE_OutOfMemory, 
+                      "Cannot allocate working buffer" );
+            return BLKREAD_FAIL;
+        }
+
         /* Read the codewords */
         if( VSIFSeekL(psImage->psFile->fp, psImage->panBlockStart[iFullBlock], 
                       SEEK_SET ) != 0 
@@ -1252,12 +1401,13 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
             nRawBytes )
         {
             CPLError( CE_Failure, CPLE_FileIO, 
-                      "Unable to read %d byte block from %d.", 
+                      "Unable to read %d byte block from " CPL_FRMT_GUIB ".", 
                       nRawBytes, psImage->panBlockStart[iFullBlock] );
+            CPLFree( pabyRawData );
             return BLKREAD_FAIL;
         }
         
-        success = NITFUncompressARIDPCM( psImage, pabyRawData, pData );
+        success = NITFUncompressARIDPCM( psImage, pabyRawData, nRawBytes, pData );
         
         CPLFree( pabyRawData );
 
@@ -1277,6 +1427,14 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
         int success;
         GByte *pabyRawData;
 
+        if (psImage->nBitsPerSample != 1)
+        {
+            CPLError( CE_Failure, CPLE_AppDefined, 
+                      "Invalid bits per sample value (%d) for C1/M1 compression",
+                      psImage->nBitsPerSample);
+            return BLKREAD_FAIL;
+        }
+
         if( iFullBlock < psImage->nBlocksPerRow * psImage->nBlocksPerColumn-1 )
             nRawBytes = psImage->panBlockStart[iFullBlock+1] 
                 - psImage->panBlockStart[iFullBlock];
@@ -1287,8 +1445,14 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
                 - psImage->panBlockStart[iFullBlock];
         }
 
-        pabyRawData = (GByte *) CPLMalloc( nRawBytes );
-        
+        pabyRawData = (GByte *) VSIMalloc( nRawBytes );
+        if (pabyRawData == NULL)
+        {
+            CPLError( CE_Failure, CPLE_OutOfMemory, 
+                      "Cannot allocate working buffer" );
+            return BLKREAD_FAIL;
+        }
+
         /* Read the codewords */
         if( VSIFSeekL(psImage->psFile->fp, psImage->panBlockStart[iFullBlock], 
                       SEEK_SET ) != 0 
@@ -1296,7 +1460,7 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
             nRawBytes )
         {
             CPLError( CE_Failure, CPLE_FileIO, 
-                      "Unable to read %d byte block from %d.", 
+                      "Unable to read %d byte block from " CPL_FRMT_GUIB ".", 
                       nRawBytes, psImage->panBlockStart[iFullBlock] );
             return BLKREAD_FAIL;
         }
@@ -1368,7 +1532,7 @@ int NITFWriteImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
                                 psImage->psFile->fp ) != nWrkBufSize )
         {
             CPLError( CE_Failure, CPLE_FileIO, 
-                      "Unable to write %d byte block from %d.", 
+                      "Unable to write %d byte block from " CPL_FRMT_GUIB ".", 
                       nWrkBufSize, psImage->panBlockStart[iFullBlock] );
             return BLKREAD_FAIL;
         }
@@ -1402,7 +1566,8 @@ int NITFWriteImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
 int NITFReadImageLine( NITFImage *psImage, int nLine, int nBand, void *pData )
 
 {
-    int   nLineOffsetInFile, nLineSize;
+    GUIntBig   nLineOffsetInFile;
+    int        nLineSize;
     unsigned char *pabyLineBuf;
 
     if( nBand == 0 )
@@ -1454,7 +1619,14 @@ int NITFReadImageLine( NITFImage *psImage, int nLine, int nBand, void *pData )
 /*      Allocate a buffer for all the interleaved data, and read        */
 /*      it.                                                             */
 /* -------------------------------------------------------------------- */
-    pabyLineBuf = (unsigned char *) CPLMalloc(nLineSize);
+    pabyLineBuf = (unsigned char *) VSIMalloc(nLineSize);
+    if (pabyLineBuf == NULL)
+    {
+        CPLError( CE_Failure, CPLE_OutOfMemory, 
+                "Cannot allocate working buffer" );
+        return BLKREAD_FAIL;
+    }
+
     VSIFReadL( pabyLineBuf, 1, nLineSize, psImage->psFile->fp );
 
 /* -------------------------------------------------------------------- */
@@ -1492,7 +1664,8 @@ int NITFReadImageLine( NITFImage *psImage, int nLine, int nBand, void *pData )
 int NITFWriteImageLine( NITFImage *psImage, int nLine, int nBand, void *pData )
 
 {
-    int   nLineOffsetInFile, nLineSize;
+    GUIntBig   nLineOffsetInFile;
+    int        nLineSize;
     unsigned char *pabyLineBuf;
 
     if( nBand == 0 )
@@ -1549,7 +1722,14 @@ int NITFWriteImageLine( NITFImage *psImage, int nLine, int nBand, void *pData )
 /*      Allocate a buffer for all the interleaved data, and read        */
 /*      it.                                                             */
 /* -------------------------------------------------------------------- */
-    pabyLineBuf = (unsigned char *) CPLMalloc(nLineSize);
+    pabyLineBuf = (unsigned char *) VSIMalloc(nLineSize);
+    if (pabyLineBuf == NULL)
+    {
+        CPLError( CE_Failure, CPLE_OutOfMemory, 
+                "Cannot allocate working buffer" );
+        return BLKREAD_FAIL;
+    }
+
     VSIFReadL( pabyLineBuf, 1, nLineSize, psImage->psFile->fp );
 
 /* -------------------------------------------------------------------- */
@@ -1934,6 +2114,7 @@ int NITFReadRPC00B( NITFImage *psImage, NITFRPC00BInfo *psRPC )
     char szTemp[100];
     int  i;
     int  bRPC00A = FALSE;
+    int  nRemainingBytes;
 
     psRPC->SUCCESS = 0;
 
@@ -1953,6 +2134,14 @@ int NITFReadRPC00B( NITFImage *psImage, NITFRPC00BInfo *psRPC )
 
     if( pachTRE == NULL )
     {
+        return FALSE;
+    }
+
+    nRemainingBytes = psImage->nTREBytes - (pachTRE - psImage->pachTRE);
+    if (nRemainingBytes < 801 + 19*12 + 12)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Cannot read RPC00A/RPC00B TRE. Not enough bytes");
         return FALSE;
     }
 
@@ -2013,6 +2202,7 @@ int NITFReadICHIPB( NITFImage *psImage, NITFICHIPBInfo *psICHIP )
 {
     const char *pachTRE;
     char szTemp[32];
+    int nRemainingBytes;
 
 /* -------------------------------------------------------------------- */
 /*      Do we have the TRE?                                             */
@@ -2031,6 +2221,13 @@ int NITFReadICHIPB( NITFImage *psImage, NITFICHIPBInfo *psICHIP )
         return FALSE;
     }
 
+    nRemainingBytes = psImage->nTREBytes - (pachTRE - psImage->pachTRE);
+    if (nRemainingBytes < 2)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Cannot read ICHIPA/ICHIPB TRE. Not enough bytes");
+        return FALSE;
+    }
 /* -------------------------------------------------------------------- */
 /*      Parse out field values.                                         */
 /* -------------------------------------------------------------------- */
@@ -2038,6 +2235,13 @@ int NITFReadICHIPB( NITFImage *psImage, NITFICHIPBInfo *psICHIP )
 
     if ( psICHIP->XFRM_FLAG == 0 )
     {
+        if (nRemainingBytes < 216 + 8)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                    "Cannot read ICHIPA/ICHIPB TRE. Not enough bytes");
+            return FALSE;
+        }
+
         psICHIP->SCALE_FACTOR = atof(NITFGetField(szTemp, pachTRE, 2, 10 ));
         psICHIP->ANAMORPH_CORR = atoi(NITFGetField(szTemp, pachTRE, 12, 2 ));
         psICHIP->SCANBLK_NUM = atoi(NITFGetField(szTemp, pachTRE, 14, 2 ));
@@ -2089,6 +2293,7 @@ char **NITFReadUSE00A( NITFImage *psImage )
     const char *pachTRE;
     int  nTRESize;
     char **papszMD = NULL;
+    int nRemainingBytes;
 
 
 /* -------------------------------------------------------------------- */
@@ -2107,6 +2312,13 @@ char **NITFReadUSE00A( NITFImage *psImage )
         return NULL;
     }
 
+    nRemainingBytes = psImage->nTREBytes - (pachTRE - psImage->pachTRE);
+    if (nRemainingBytes < 107)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                "Cannot read USE00A TRE. Not enough bytes");
+        return FALSE;
+    }
 /* -------------------------------------------------------------------- */
 /*      Parse out field values.                                         */
 /* -------------------------------------------------------------------- */
@@ -2154,6 +2366,7 @@ char **NITFReadBLOCKA( NITFImage *psImage )
     char **papszMD = NULL;
     int nBlockaCount = 0;
     char szTemp[128];
+    int nRemainingBytes;
 
     while ( TRUE )
     {
@@ -2171,6 +2384,14 @@ char **NITFReadBLOCKA( NITFImage *psImage )
         {
             CPLError( CE_Warning, CPLE_AppDefined, 
                       "BLOCKA TRE wrong size, ignoring." );
+            break;
+        }
+
+        nRemainingBytes = psImage->nTREBytes - (pachTRE - psImage->pachTRE);
+        if (nRemainingBytes < 123)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                    "Cannot read BLOCKA TRE. Not enough bytes");
             break;
         }
 
@@ -2282,6 +2503,7 @@ int NITFReadBLOCKA_GCPs( NITFImage *psImage, GDAL_GCP *psIGEOLOGCPs )
     int        nTRESize;
     int        nBlockaLines;
     char       szTemp[128];
+    int        nRemainingBytes;
 
 /* -------------------------------------------------------------------- */
 /*      Do we have the TRE?                                             */
@@ -2297,6 +2519,13 @@ int NITFReadBLOCKA_GCPs( NITFImage *psImage, GDAL_GCP *psIGEOLOGCPs )
         return FALSE;
     }
 
+    nRemainingBytes = psImage->nTREBytes - (pachTRE - psImage->pachTRE);
+    if (nRemainingBytes < 123)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                "Cannot read BLOCKA TRE. Not enough bytes");
+        return FALSE;
+    }
 /* -------------------------------------------------------------------- */
 /*      Parse out field values.                                         */
 /* -------------------------------------------------------------------- */
@@ -2514,7 +2743,7 @@ static void NITFLoadSubframeMaskTable( NITFImage *psImage )
     int i;
     NITFFile *psFile = psImage->psFile;
     NITFSegmentInfo *psSegInfo = psFile->pasSegmentInfo + psImage->iSegment;
-    GUInt32  nLocBaseSpatialDataSubsection = psSegInfo->nSegmentStart;
+    GUIntBig  nLocBaseSpatialDataSubsection = psSegInfo->nSegmentStart;
     GUInt32  nLocBaseMaskSubsection = 0;
     GUInt16 subframeSequenceRecordLength, transparencySequenceRecordLength, transparencyOutputPixelCodeLength;
 
@@ -2606,24 +2835,54 @@ static void NITFLoadLocationTable( NITFImage *psImage )
     const char *pszTRE;
     int nHeaderOffset = 0;
     int i;
+    int nRemainingBytes;
 
     pszTRE = NITFFindTRE(psImage->pachTRE, psImage->nTREBytes, "RPFIMG", NULL);
     if( pszTRE == NULL )
         return;
 
+    nRemainingBytes = psImage->nTREBytes - (pszTRE - psImage->pachTRE);
+
     pszTRE += 6;
+    nRemainingBytes -= 6;
+
+    if (nRemainingBytes < 2)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Cannot read location table. Not enough bytes");
+        return;
+    }
 
     memcpy( &nLocCount, pszTRE, 2 );
     nLocCount = CPL_MSBWORD16( nLocCount );
 
     psImage->nLocCount = nLocCount;
+    if (psImage->nLocCount == 0)
+        return;
 
     psImage->pasLocations = (NITFLocation *) 
-        CPLCalloc(sizeof(NITFLocation), nLocCount);
+        VSICalloc(sizeof(NITFLocation), nLocCount);
+    if (psImage->pasLocations == NULL)
+    {
+        CPLError(CE_Failure, CPLE_OutOfMemory,
+                 "Cannot allocate memory for location table");
+        psImage->nLocCount = 0;
+        return;
+    }
 
     pszTRE += 8;
+    nRemainingBytes -= 8;
 
-    
+    if (nRemainingBytes < nLocCount * 10)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Cannot read location table. Not enough bytes");
+        CPLFree(psImage->pasLocations);
+        psImage->pasLocations = NULL;
+        psImage->nLocCount = 0;
+        return;
+    }
+
 /* -------------------------------------------------------------------- */
 /*      Process the locations.                                          */
 /* -------------------------------------------------------------------- */
@@ -2632,6 +2891,7 @@ static void NITFLoadLocationTable( NITFImage *psImage )
     {
         unsigned char *pabyEntry = (unsigned char *) pszTRE;
         pszTRE += 10;
+        nRemainingBytes -= 10;
 
         psImage->pasLocations[iLoc].nLocId = pabyEntry[0] * 256 + pabyEntry[1];
 
@@ -2771,6 +3031,7 @@ char **NITFReadSTDIDC( NITFImage *psImage )
     const char *pachTRE;
     int  nTRESize;
     char **papszMD = NULL;
+    int nRemainingBytes;
 
 /* -------------------------------------------------------------------- */
 /*      Do we have the TRE?                                             */
@@ -2785,6 +3046,14 @@ char **NITFReadSTDIDC( NITFImage *psImage )
     {
         CPLError( CE_Warning, CPLE_AppDefined, 
                   "STDIDC TRE wrong size, ignoring." );
+        return NULL;
+    }
+
+    nRemainingBytes = psImage->nTREBytes - (pachTRE - psImage->pachTRE);
+    if (nRemainingBytes < 89)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                "Cannot read STDIDC TRE. Not enough bytes");
         return NULL;
     }
 
@@ -2913,17 +3182,22 @@ int NITFRPCGeoToImage( NITFRPC00BInfo *psRPC,
 /*      in this image header.  Only implemented for selected fields.    */
 /************************************************************************/
 
-GUInt32 NITFIHFieldOffset( NITFImage *psImage, const char *pszFieldName )
+GUIntBig NITFIHFieldOffset( NITFImage *psImage, const char *pszFieldName )
 
 {
     char szTemp[128];
     int nNICOM;
-    GUInt32 nWrkOffset;
-    GUInt32 nIMOffset =
+    GUIntBig nWrkOffset;
+    GUIntBig nIMOffset =
         psImage->psFile->pasSegmentInfo[psImage->iSegment].nSegmentHeaderStart;
 
     // We only support files we created.
-    CPLAssert( EQUALN(psImage->psFile->szVersion,"NITF02.1",8) );
+    if( !EQUALN(psImage->psFile->szVersion,"NITF02.1",8) )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "NITFIHFieldOffset() only works with NITF 2.1 images");
+        return 0;
+    }
 
     if( EQUAL(pszFieldName,"IM") )
         return nIMOffset;
