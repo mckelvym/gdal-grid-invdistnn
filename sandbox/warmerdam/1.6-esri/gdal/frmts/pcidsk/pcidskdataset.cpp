@@ -1015,11 +1015,6 @@ GDALDataset *PCIDSKDataset::Open( GDALOpenInfo * poOpenInfo )
     }
     
 /* -------------------------------------------------------------------- */
-/*      Open overviews.                                                 */
-/* -------------------------------------------------------------------- */
-    poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename );
-
-/* -------------------------------------------------------------------- */
 /*      Initialize any PAM information.                                 */
 /* -------------------------------------------------------------------- */
     poDS->SetDescription( poOpenInfo->pszFilename );
@@ -1028,6 +1023,11 @@ GDALDataset *PCIDSKDataset::Open( GDALOpenInfo * poOpenInfo )
     // reads georeferencing from world file
     if( !poDS->bGeoTransformValid )
         poDS->bGeoTransformValid = GDALReadWorldFile( poOpenInfo->pszFilename, "pxw", poDS->adfGeoTransform );
+
+/* -------------------------------------------------------------------- */
+/*      Open overviews.                                                 */
+/* -------------------------------------------------------------------- */
+    poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename );
 
     return( poDS );
 }

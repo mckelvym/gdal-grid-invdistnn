@@ -1366,9 +1366,6 @@ CPLErr GDALDataset::IBuildOverviews( const char *pszResampling,
                                      void * pProgressData )
     
 {
-    if( pfnProgress == NULL )
-        pfnProgress = GDALDummyProgress;
-
     if( oOvManager.IsInitialized() )
         return oOvManager.BuildOverviews( NULL, pszResampling, 
                                           nOverviews, panOverviewList,

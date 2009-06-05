@@ -68,10 +68,10 @@ class NITFDataset : public GDALPamDataset
     NITFFile    *psFile;
     NITFImage   *psImage;
 
-    GDALDataset *poJ2KDataset;
+    GDALPamDataset *poJ2KDataset;
     int         bJP2Writing;
 
-    GDALDataset *poJPEGDataset;
+    GDALPamDataset *poJPEGDataset;
 
     int         bGotGeoTransform;
     double      adfGeoTransform[6];
@@ -845,7 +845,7 @@ void NITFDataset::FlushCache()
     // If the JPEG dataset has dirty pam info, then we should consider 
     // ourselves to as well.
     if( poJPEGDataset != NULL 
-        && (((GDALPamDataset *) poJPEGDataset)->GetPamFlags() & GPF_DIRTY) )
+        && (poJPEGDataset->GetPamFlags() & GPF_DIRTY) )
         MarkPamDirty();
 
     GDALPamDataset::FlushCache();
@@ -1008,13 +1008,13 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo )
     
         if( poWritableJ2KDataset != NULL )
         {
-            poDS->poJ2KDataset = poWritableJ2KDataset; 
+            poDS->poJ2KDataset = (GDALPamDataset *) poWritableJ2KDataset; 
             poDS->bJP2Writing = TRUE;
             poWritableJ2KDataset = NULL;
         }
         else
         {
-            poDS->poJ2KDataset = (GDALDataset *) 
+            poDS->poJ2KDataset = (GDALPamDataset *) 
                 GDALOpen( osDSName, GA_ReadOnly );
         }
 
@@ -1086,7 +1086,7 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo )
         CPLDebug( "GDAL", 
                   "NITFDataset::Open() as IC=C3 (JPEG compressed)\n");
 
-        poDS->poJPEGDataset = (GDALDataset *) GDALOpen( osDSName, GA_ReadOnly);
+        poDS->poJPEGDataset = (GDALPamDataset*) GDALOpen(osDSName,GA_ReadOnly);
         if( poDS->poJPEGDataset == NULL )
         {
             CPLError( CE_Failure, CPLE_AppDefined, 
@@ -1731,11 +1731,6 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo )
     }
 
 /* -------------------------------------------------------------------- */
-/*      Check for overviews.                                            */
-/* -------------------------------------------------------------------- */
-    poDS->oOvManager.Initialize( poDS, pszFilename );
-
-/* -------------------------------------------------------------------- */
 /*      Initialize any PAM information.                                 */
 /* -------------------------------------------------------------------- */
     poDS->SetDescription( poOpenInfo->pszFilename );
@@ -1750,6 +1745,30 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo )
     }
 
     poDS->TryLoadXML();
+
+/* -------------------------------------------------------------------- */
+/*      If we have jpeg, or jpeg2000 bands we may need to clear         */
+/*      their PAM dirty flag too.                                       */
+/* -------------------------------------------------------------------- */
+    if( poDS->poJ2KDataset != NULL )
+        poDS->poJ2KDataset->SetPamFlags( 
+            poDS->poJ2KDataset->GetPamFlags() & ~GPF_DIRTY );
+    if( poDS->poJPEGDataset != NULL )
+        poDS->poJPEGDataset->SetPamFlags( 
+            poDS->poJPEGDataset->GetPamFlags() & ~GPF_DIRTY );
+
+/* -------------------------------------------------------------------- */
+/*      Check for overviews.                                            */
+/* -------------------------------------------------------------------- */
+    if( !EQUAL(poOpenInfo->pszFilename,pszFilename) )
+        poDS->oOvManager.Initialize( poDS, ":::VIRTUAL:::" );
+    else
+        poDS->oOvManager.Initialize( poDS, pszFilename );
+
+/* -------------------------------------------------------------------- */
+/*      Check for overviews.                                            */
+/* -------------------------------------------------------------------- */
+    poDS->oOvManager.Initialize( poDS, pszFilename );
 
     return( poDS );
 }

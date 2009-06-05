@@ -3051,6 +3051,8 @@ GDALDataset *HDF4ImageDataset::Open( GDALOpenInfo * poOpenInfo )
 
     poDS->TryLoadXML();
 
+    poDS->oOvManager.Initialize( poDS, ":::VIRTUAL:::" );
+
     return( poDS );
 }
 

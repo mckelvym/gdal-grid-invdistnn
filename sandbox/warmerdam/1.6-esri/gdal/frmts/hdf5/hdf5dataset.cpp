@@ -80,7 +80,6 @@ HDF5Dataset::HDF5Dataset()
     papszSubDatasets    = NULL;
     papszMetadata       = NULL;
     poH5RootGroup       = NULL;
-    pszFilename         = NULL;
     nSubDataCount       = 0;
     hHDF5               = -1;
     hDatasetID          = -1;
@@ -94,16 +93,12 @@ HDF5Dataset::HDF5Dataset()
 /************************************************************************/
 HDF5Dataset::~HDF5Dataset()
 {
-    if( papszMetadata )
-	CSLDestroy( papszMetadata );
+    CSLDestroy( papszMetadata );
     if( hHDF5 > 0 )
 	H5Fclose( hHDF5 );
     if( hGroupID > 0 )
 	H5Gclose( hGroupID );
-    if( papszSubDatasets )
-	CSLDestroy( papszSubDatasets );
-    if( pszFilename != NULL )
-	CPLFree( pszFilename );
+    CSLDestroy( papszSubDatasets );
     if( poH5RootGroup != NULL ){
 	DestroyH5Objects( poH5RootGroup );
 	CPLFree( poH5RootGroup->pszName );
@@ -199,18 +194,6 @@ const char *HDF5Dataset::GetDataTypeName(hid_t TypeID)
 }
 
 /************************************************************************/
-/*                            GetMetadata()                             */
-/************************************************************************/
-char **HDF5Dataset::GetMetadata( const char *pszDomain )
-{
-    if( pszDomain != NULL && EQUALN( pszDomain, "SUBDATASETS", 11 ) )
-        return papszSubDatasets;
-    else
-        return GDALDataset::GetMetadata( pszDomain );
-}
-
- 
-/************************************************************************/
 /*                                Open()                                */
 /************************************************************************/
 GDALDataset *HDF5Dataset::Open( GDALOpenInfo * poOpenInfo )
@@ -235,11 +218,8 @@ GDALDataset *HDF5Dataset::Open( GDALOpenInfo * poOpenInfo )
 /*      Create datasource.                                              */
 /* -------------------------------------------------------------------- */
     poDS = new HDF5Dataset();
-    
-    poDS->fp = poOpenInfo->fp;
-    poOpenInfo->fp = NULL;
-    
-    poDS->pszFilename = strdup( poOpenInfo->pszFilename );
+
+    poDS->SetDescription( poOpenInfo->pszFilename );
 
 /* -------------------------------------------------------------------- */
 /*      Try opening the dataset.                                        */
@@ -264,8 +244,23 @@ GDALDataset *HDF5Dataset::Open( GDALOpenInfo * poOpenInfo )
 
     poDS->SetMetadata( poDS->papszMetadata  );
     
-    if ( CSLCount( poDS->papszSubDatasets ) / 2 >= 2 )
-      poDS->SetMetadata( poDS->papszSubDatasets, "SUBDATASETS" );
+    if ( CSLCount( poDS->papszSubDatasets ) / 2 >= 1 )
+        poDS->SetMetadata( poDS->papszSubDatasets, "SUBDATASETS" );
+
+    // Make sure we don't try to do any pam stuff with this dataset.
+    poDS->nPamFlags |= GPF_NOSAVE;
+
+/* -------------------------------------------------------------------- */
+/*      If we have single subdataset only, open it immediately          */
+/* -------------------------------------------------------------------- */
+    int nSubDatasets = CSLCount( poDS->papszSubDatasets ) / 2;
+    if( nSubDatasets == 1 )
+    {
+        CPLString osDSName = CSLFetchNameValue( poDS->papszSubDatasets,
+                                                "SUBDATASET_1_NAME" );
+        delete poDS;
+        return (GDALDataset *) GDALOpen( osDSName, poOpenInfo->eAccess );
+    }
 
     return( poDS );
 }
@@ -854,7 +849,7 @@ CPLErr HDF5Dataset::HDF5ListGroupObjects( HDF5GroupObjects *poRootGroup,
 	poDS->papszSubDatasets =
 	    CSLSetNameValue( poDS->papszSubDatasets, szTemp,
 			    CPLSPrintf( "HDF5:\"%s\":%s",
-					poDS->pszFilename,
+					poDS->GetDescription(),
 					poRootGroup->pszUnderscorePath ) );
 	
 	sprintf(  szTemp, "SUBDATASET_%d_DESC", poDS->nSubDataCount );

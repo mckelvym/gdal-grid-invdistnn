@@ -126,7 +126,9 @@ class CPL_DLL GDALPamDataset : public GDALDataset
     void   PamClear();
 
     void   SetPhysicalFilename( const char * );
+    const char *GetPhysicalFilename();
     void   SetSubdatasetName( const char *);
+    const char *GetSubdatasetName();
 
   public:
     virtual     ~GDALPamDataset();
@@ -150,10 +152,19 @@ class CPL_DLL GDALPamDataset : public GDALDataset
     virtual CPLErr      SetMetadataItem( const char * pszName,
                                          const char * pszValue,
                                          const char * pszDomain = "" );
+    virtual char      **GetMetadata( const char * pszDomain = "" );
+    virtual const char *GetMetadataItem( const char * pszName,
+                                         const char * pszDomain = "" );
 
     virtual char      **GetFileList(void);
 
     virtual CPLErr CloneInfo( GDALDataset *poSrcDS, int nCloneInfoFlags );
+
+    virtual CPLErr IBuildOverviews( const char *pszResampling, 
+                                    int nOverviews, int *panOverviewList, 
+                                    int nListBands, int *panBandList,
+                                    GDALProgressFunc pfnProgress, 
+                                    void * pProgressData );
 
 
     // "semi private" methods.
