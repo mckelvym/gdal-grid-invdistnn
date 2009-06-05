@@ -560,7 +560,6 @@ gdaltest_list = [
     test_gdal_translate_12,
     test_gdal_translate_13,
     test_gdal_translate_14,
-    test_gdal_translate_15,
     test_gdal_translate_16,
     test_gdal_translate_17,
     test_gdal_translate_18,

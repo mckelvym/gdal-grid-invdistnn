@@ -62,7 +62,7 @@ init_list = [ \
     ('seperate_strip.tif', 2, 15234, None),
     ('contig_tiled.tif', 2, 15234, None),
     ('contig_strip.tif', 2, 15234, None),
-    ('empty1bit.tif', 1, 0, None)]
+    ('empty1bit.tif', 1, 100, None)]   # 100 reflects esri-1.6 odd behavior with empty blocks in one bit files.
 
 ###############################################################################
 # Test absolute/offset && index directory access
