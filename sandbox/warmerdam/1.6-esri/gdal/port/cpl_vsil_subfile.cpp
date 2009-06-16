@@ -202,7 +202,7 @@ VSISubFileFilesystemHandler::~VSISubFileFilesystemHandler()
 /************************************************************************/
 /*                           DecomposePath()                            */
 /*                                                                      */
-/*      Parse a path like /vsisubfile/1000_2000/data/abc.tif into an    */
+/*      Parse a path like /vsisubfile/1000_2000,data/abc.tif into an    */
 /*      offset (1000), a size (2000) and a path (data/abc.tif).         */
 /************************************************************************/
 
@@ -222,20 +222,20 @@ VSISubFileFilesystemHandler::DecomposePath( const char *pszPath,
     if( strncmp(pszPath,"/vsisubfile/",12) != 0 )
         return FALSE;
 
-    nSubFileOffset = atoi(pszPath+12);
+    nSubFileOffset = CPLScanUIntBig(pszPath+12, strlen(pszPath + 12));
     for( i = 12; pszPath[i] != '\0'; i++ )
     {
         if( pszPath[i] == '_' && nSubFileSize == 0 )
-            nSubFileSize = atoi(pszPath + i + 1);
-        else if( strncmp(pszPath+i,"/root/",6) == 0 )
+            nSubFileSize = CPLScanUIntBig(pszPath + i + 1, strlen(pszPath + i + 1));
+        else if( pszPath[i] == ',' )
         {
-            osFilename = pszPath + i + 5;
+            osFilename = pszPath + i + 1;
             return TRUE;
         }
         else if( pszPath[i] == '/' )
         {
-            osFilename = pszPath + i + 1;
-            return TRUE;
+            // missing comma!
+            return FALSE;
         }
     }
 
@@ -361,6 +361,35 @@ char **VSISubFileFilesystemHandler::ReadDir( const char *pszPath )
 /************************************************************************/
 /*                 VSIInstallSubFileFilesystemHandler()                 */
 /************************************************************************/
+
+/**
+ * Install /vsisubfile/ virtual file handler. 
+ *
+ * This virtual file system handler allows access to subregions of 
+ * files, treating them as a file on their own to the virtual file 
+ * system functions (VSIFOpenL(), etc). 
+ *
+ * A special form of the filename is used to indicate a subportion
+ * of another file:
+ *
+ *   /vsisubfile/<offset>[_<size>],<filename>
+ *
+ * The size parameter is optional.  Without it the remainder of the
+ * file from the start offset as treated as part of the subfile.  Otherwise
+ * only <size> bytes from <offset> are treated as part of the subfile. 
+ * The <filename> portion may be a relative or absolute path using normal 
+ * rules.   The <offset> and <size> values are in bytes. 
+ *
+ * eg. 
+ *   /vsisubfile/1000_3000,/data/abc.ntf
+ *   /vsisubfile/5000,../xyz/raw.dat
+ *
+ * Unlike the /vsimem/ or conventional file system handlers, there
+ * is no meaningful support for filesystem operations for creating new
+ * files, traversing directories, and deleting files within the /vsisubfile/
+ * area.  Only the VSIStatL(), VSIFOpenL() and operations based on the file
+ * handle returned by VSIFOpenL() operate properly. 
+ */
 
 void VSIInstallSubFileHandler()
 {

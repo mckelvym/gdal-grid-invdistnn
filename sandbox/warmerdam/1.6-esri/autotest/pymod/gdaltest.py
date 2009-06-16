@@ -41,12 +41,22 @@ cur_name = 'default'
 
 success_counter = 0
 failure_counter = 0
+expected_failure_counter = 0
 blow_counter = 0
 skip_counter = 0
 failure_summary = []
 
 reason = None
 count_skipped_tests = 0
+
+jp2kak_drv = None
+jpeg2000_drv = None
+jp2ecw_drv = None
+jp2mrsid_drv = None
+jp2kak_drv_unregistered = False
+jpeg2000_drv_unregistered = False
+jp2ecw_drv_unregistered = False
+jp2mrsid_drv_unregistered = False
 
 # Process commandline arguments for stuff like --debug, --locale, --config
 
@@ -61,7 +71,7 @@ def setup_run( name ):
 ###############################################################################
 
 def run_tests( test_list ):
-    global success_counter, failure_counter, blow_counter, skip_counter
+    global success_counter, failure_counter, expected_failure_counter, blow_counter, skip_counter
     global reason, failure_summary, cur_name
 
     had_errors_this_script = 0
@@ -113,6 +123,8 @@ def run_tests( test_list ):
 
         if result == 'success':
             success_counter = success_counter + 1
+        elif result == 'expected_fail':
+            expected_failure_counter = expected_failure_counter + 1
         elif result == 'fail':
             failure_counter = failure_counter + 1
         elif result == 'skip':
@@ -140,6 +152,7 @@ def summarize():
     print 'Failed:    %d (%d blew exceptions)' \
           % (failure_counter+blow_counter, blow_counter)
     print 'Skipped:   %d' % skip_counter
+    print 'Expected fail:%d' % expected_failure_counter
     if count_skipped_tests != 0:
         print 'As GDAL_DOWNLOAD_TEST_DATA environment variable is not defined, %d tests relying on data to downloaded from the Web have been skipped' % count_skipped_tests
     print
@@ -883,10 +896,16 @@ def download_file(url, filename, download_size = -1):
             val = None
             try:
                 handle = urllib2.urlopen(url)
-                print 'Downloading %s...' % (url)
                 if download_size == -1:
+                    try:
+                        handle_info = handle.info()
+                        content_length = handle_info['content-length']
+                        print 'Downloading %s (length = %s bytes)...' % (url, content_length)
+                    except:
+                        print 'Downloading %s...' % (url)
                     val = handle.read()
                 else:
+                    print 'Downloading %d bytes from %s...' % (download_size, url)
                     val = handle.read(download_size)
             except urllib2.HTTPError, e:
                 print 'HTTP service for %s is down (HTTP Error: %d)' % (url, e.code)
@@ -912,33 +931,184 @@ def download_file(url, filename, download_size = -1):
             count_skipped_tests = count_skipped_tests + 1
             return False
 
+
+###############################################################################
+# GDAL data type to python struct format
+def gdal_data_type_to_python_struct_format(datatype):
+    type_char = 'B'
+    if datatype == gdal.GDT_Int16:
+        type_char = 'h'
+    elif datatype == gdal.GDT_UInt16:
+        type_char = 'H'
+    elif datatype == gdal.GDT_Int32:
+        type_char = 'i'
+    elif datatype == gdal.GDT_UInt32:
+        type_char = 'I'
+    elif datatype == gdal.GDT_Float32:
+        type_char = 'f'
+    elif datatype == gdal.GDT_Float64:
+        type_char = 'd'
+    return type_char
+
 ###############################################################################
 # Compare the values of the pixels
 
-def compare_ds(ds1, ds2):
+def compare_ds(ds1, ds2, xoff = 0, yoff = 0, width = 0, height = 0, verbose=1):
     import struct
 
-    width = ds1.RasterXSize
-    height = ds1.RasterYSize
-    data1 = ds1.GetRasterBand(1).ReadRaster(0, 0, width, height)
-    byte_array1 = struct.unpack('B' * width * height, data1)
+    if width == 0:
+        width = ds1.RasterXSize
+    if height == 0:
+        height = ds1.RasterYSize
+    data1 = ds1.GetRasterBand(1).ReadRaster(xoff, yoff, width, height)
+    type_char = gdal_data_type_to_python_struct_format(ds1.GetRasterBand(1).DataType)
+    val_array1 = struct.unpack(type_char * width * height, data1)
 
-    data2 = ds2.GetRasterBand(1).ReadRaster(0, 0, width, height)
-    byte_array2 = struct.unpack('B' * width * height, data2)
+    data2 = ds2.GetRasterBand(1).ReadRaster(xoff, yoff, width, height)
+    type_char = gdal_data_type_to_python_struct_format(ds2.GetRasterBand(1).DataType)
+    val_array2 = struct.unpack(type_char * width * height, data2)
 
     maxdiff = 0
     ndiffs = 0
     for i in range(width*height):
-        diff = byte_array1[i] - byte_array2[i]
+        diff = val_array1[i] - val_array2[i]
         if diff != 0:
             ndiffs = ndiffs + 1
             if abs(diff) > maxdiff:
                 maxdiff = abs(diff)
-                print "Diff at pixel (%d, %d) : %d" % (i % width, i / width, diff)
+                if verbose:
+                    print "Diff at pixel (%d, %d) : %d" % (i % width, i / width, diff)
             elif ndiffs < 10:
-                print "Diff at pixel (%d, %d) : %d" % (i % width, i / width, diff)
-    if maxdiff != 0:
+                if verbose:
+                    print "Diff at pixel (%d, %d) : %d" % (i % width, i / width, diff)
+    if maxdiff != 0 and verbose:
         print "Max diff : %d" % (maxdiff)
         print "Number of diffs : %d" % (ndiffs)
 
     return maxdiff
+
+
+
+###############################################################################
+# Deregister all JPEG2000 drivers, except the one passed as an argument
+
+def deregister_all_jpeg2000_drivers_but(name_of_driver_to_keep):
+    global jp2kak_drv, jpeg2000_drv, jp2ecw_drv, jp2mrsid_drv
+    global jp2kak_drv_unregistered,jpeg2000_drv_unregistered,jp2ecw_drv_unregistered,jp2mrsid_drv_unregistered
+
+    # Deregister other potential conflicting JPEG2000 drivers that will
+    # be re-registered in the cleanup
+    try:
+        jp2kak_drv = gdal.GetDriverByName('JP2KAK')
+        if name_of_driver_to_keep != 'JP2KAK' and jp2kak_drv:
+            print 'Deregistering JP2KAK'
+            jp2kak_drv.Deregister()
+            jp2kak_drv_unregistered = True
+    except:
+        pass
+
+    try:
+        jpeg2000_drv = gdal.GetDriverByName('JPEG2000')
+        if name_of_driver_to_keep != 'JPEG2000' and jpeg2000_drv:
+            print 'Deregistering JPEG2000'
+            jpeg2000_drv.Deregister()
+            jpeg2000_drv_unregistered = True
+    except:
+        pass
+
+    try:
+        jp2ecw_drv = gdal.GetDriverByName('JP2ECW')
+        if name_of_driver_to_keep != 'JP2ECW' and jp2ecw_drv:
+            print 'Deregistering JP2ECW'
+            jp2ecw_drv.Deregister()
+            jp2ecw_drv_unregistered = True
+    except:
+        pass
+
+    try:
+        jp2mrsid_drv = gdal.GetDriverByName('JP2MrSID')
+        if name_of_driver_to_keep != 'JP2MrSID' and jp2mrsid_drv:
+            print 'Deregistering JP2MrSID'
+            jp2mrsid_drv.Deregister()
+            jp2mrsid_drv_unregistered = True
+    except:
+        pass
+
+    return True
+
+###############################################################################
+# Re-register all JPEG2000 drivers previously disabled by
+# deregister_all_jpeg2000_drivers_but
+
+def reregister_all_jpeg2000_drivers():
+    global jp2kak_drv, jpeg2000_drv, jp2ecw_drv, jp2mrsid_drv
+    global jp2kak_drv_unregistered,jpeg2000_drv_unregistered,jp2ecw_drv_unregistered,jp2mrsid_drv_unregistered
+
+    try:
+        if jp2kak_drv_unregistered:
+            jp2kak_drv.Register()
+            jp2kak_drv_unregistered = False
+            print 'Registering JP2KAK'
+    except:
+        pass
+
+    try:
+        if jpeg2000_drv_unregistered:
+            jpeg2000_drv.Register()
+            jpeg2000_drv_unregistered = False
+            print 'Registering JPEG2000'
+    except:
+        pass
+
+    try:
+        if jp2ecw_drv_unregistered:
+            jp2ecw_drv.Register()
+            jp2ecw_drv_unregistered = False
+            print 'Registering JP2ECW'
+    except:
+        pass
+
+    try:
+        if jp2mrsid_drv_unregistered:
+            jp2mrsid_drv.Register()
+            jp2mrsid_drv_unregistered = False
+            print 'Registering JP2MrSID'
+    except:
+        pass
+
+    return True
+
+###############################################################################
+# Determine if the filesystem supports sparse files.
+# Currently, this will only work on Linux (or any *NIX that has the stat
+# command line utility)
+
+def filesystem_supports_sparse_files(path):
+
+    (child_stdin, child_stdout, child_stderr) = os.popen3('stat -f -c "%T" ' + path)
+    ret = child_stdout.read()
+    err = child_stderr.read()
+    child_stdin.close()
+    child_stdout.close()
+    child_stderr.close()
+
+    if err != '':
+        post_reason('Cannot determine if filesystem supports sparse files')
+        return False
+
+    if ret.find('fat32') != -1:
+        post_reason('File system does not support sparse files')
+        return False
+
+    # Add here any missing filesystem supporting sparse files
+    # See http://en.wikipedia.org/wiki/Comparison_of_file_systems
+    if ret.find('ext3') == -1 and \
+        ret.find('ext4') == -1 and \
+        ret.find('reiser') == -1 and \
+        ret.find('xfs') == -1 and \
+        ret.find('jfs') == -1 and \
+        ret.find('ntfs') == -1 :
+        post_reason('Filesystem %s is not believed to support sparse files' % ret)
+        return False
+
+    return True

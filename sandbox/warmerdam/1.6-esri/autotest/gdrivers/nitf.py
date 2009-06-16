@@ -33,6 +33,7 @@ import sys
 import gdal
 import array
 import string
+import struct
 
 sys.path.append( '../pymod' )
 
@@ -519,22 +520,86 @@ def nitf_27():
 
 
 ###############################################################################
-# Test Create() with IC=C8 compression
+# Test Create() with IC=C8 compression with the JP2ECW driver
 
-def nitf_28():
+def nitf_28_jp2ecw():
+    gdaltest.nitf_28_jp2ecw_is_ok = False
     try:
         jp2ecw_drv = gdal.GetDriverByName( 'JP2ECW' )
     except:
         jp2ecw_drv = None
-        return 'skip'
 
     if jp2ecw_drv is None:
         return 'skip'
 
-    if nitf_create([ 'ICORDS=G', 'IC=C8' ]) != 'success':
-        return 'fail'
+    # Deregister other potential conflicting JPEG2000 drivers
+    gdaltest.deregister_all_jpeg2000_drivers_but('JP2ECW')
 
-    return nitf_check_created_file(32398, 42502, 38882)
+    if nitf_create([ 'ICORDS=G', 'IC=C8' ]) == 'success':
+        ret = nitf_check_created_file(32398, 42502, 38882)
+        if ret == 'success':
+            gdaltest.nitf_28_jp2ecw_is_ok = True
+    else:
+        ret = 'fail'
+
+    gdaltest.reregister_all_jpeg2000_drivers()
+
+    return ret
+
+###############################################################################
+# Test reading the previously create file with the JP2MrSID driver
+# (The NITF driver only looks for the JP2ECW driver when creating IC=C8 NITF files,
+#  but allows any GDAL driver to open the JP2 stream inside it)
+
+def nitf_28_jp2mrsid():
+    if not gdaltest.nitf_28_jp2ecw_is_ok:
+        return 'skip'
+
+    try:
+        jp2mrsid_drv = gdal.GetDriverByName( 'JP2MrSID' )
+    except:
+        jp2mrsid_drv = None
+
+    if jp2mrsid_drv is None:
+        return 'skip'
+
+    # Deregister other potential conflicting JPEG2000 drivers
+    gdaltest.deregister_all_jpeg2000_drivers_but('JP2MrSID')
+
+    ret = nitf_check_created_file(32398, 42502, 38882)
+
+    gdaltest.reregister_all_jpeg2000_drivers()
+
+    return ret
+
+
+###############################################################################
+# Test reading the previously create file with the JP2KAK driver
+# (The NITF driver only looks for the JP2ECW driver when creating IC=C8 NITF files,
+#  but allows any GDAL driver to open the JP2 stream inside it)
+#
+# Note: I (E. Rouault) haven't been able to check that this test actually works.
+
+def nitf_28_jp2kak():
+    if not gdaltest.nitf_28_jp2ecw_is_ok:
+        return 'skip'
+
+    try:
+        jp2kak_drv = gdal.GetDriverByName( 'JP2KAK' )
+    except:
+        jp2kak_drv = None
+
+    if jp2kak_drv is None:
+        return 'skip'
+
+    # Deregister other potential conflicting JPEG2000 drivers
+    gdaltest.deregister_all_jpeg2000_drivers_but('JP2KAK')
+
+    ret = nitf_check_created_file(32398, 42502, 38882)
+
+    gdaltest.reregister_all_jpeg2000_drivers()
+
+    return ret
 
 ###############################################################################
 # Test Create() with a LUT
@@ -724,6 +789,167 @@ with a newline."""
 
     gdal.GetDriverByName('NITF').Delete( 'tmp/nitf_35.ntf' )
     return 'success'
+
+###############################################################################
+# Create and read a JPEG encoded NITF file (C3) with several blocks
+
+def nitf_36():
+
+    src_ds = gdal.Open( 'data/rgbsmall.tif' )
+    ds = gdal.GetDriverByName('NITF').CreateCopy( 'tmp/nitf36.ntf', src_ds,
+                                                  options = ['IC=C3', 'BLOCKSIZE=32', 'QUALITY=100'] )
+    src_ds = None
+    ds = None
+
+    ds = gdal.Open( 'tmp/nitf36.ntf' )
+    
+    (exp_mean, exp_stddev) = (65.4208, 47.254550335)
+    (mean, stddev) = ds.GetRasterBand(1).ComputeBandStats()
+    
+    if abs(exp_mean-mean) > 0.01 or abs(exp_stddev-stddev) > 0.01:
+        print mean, stddev
+        gdaltest.post_reason( 'did not get expected mean or standard dev.' )
+        return 'fail'
+
+    md = ds.GetMetadata('IMAGE_STRUCTURE')
+    if md['COMPRESSION'] != 'JPEG':
+        gdaltest.post_reason( 'Did not get expected compression value.' )
+        return 'fail'
+
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Create and read a NITF file with 69999 bands
+
+def nitf_37():
+    ds = gdal.GetDriverByName('NITF').Create( 'tmp/nitf37.ntf', 1, 1, 69999)
+    ds = None
+
+    ds = gdal.Open( 'tmp/nitf37.ntf' )
+    if ds.RasterCount != 69999:
+        return 'fail'
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Create and read a NITF file with 999 images
+
+def nitf_38():
+
+    ds = gdal.Open('data/byte.tif')
+    nXSize = ds.RasterXSize
+    nYSize = ds.RasterYSize
+    data =  ds.GetRasterBand(1).ReadRaster(0, 0, nXSize, nYSize)
+    cs = ds.GetRasterBand(1).Checksum()
+
+    ds = gdal.GetDriverByName('NITF').Create( 'tmp/nitf38.ntf', nXSize, nYSize, 1, options = [ 'NUMI=999' ])
+    ds = None
+
+    ds = gdal.Open('NITF_IM:998:tmp/nitf38.ntf', gdal.GA_Update)
+    ds.GetRasterBand(1).WriteRaster(0, 0, nXSize, nYSize, data)
+    ds = None
+
+    ds = gdal.Open( 'NITF_IM:0:tmp/nitf38.ntf' )
+    if ds.GetRasterBand(1).Checksum() != 0:
+        return 'fail'
+    ds = None
+
+    ds = gdal.Open( 'NITF_IM:998:tmp/nitf38.ntf' )
+    if cs != ds.GetRasterBand(1).Checksum():
+        return 'fail'
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Create and read a JPEG encoded NITF file (M3) with several blocks
+
+def nitf_39():
+
+    src_ds = gdal.Open( 'data/rgbsmall.tif' )
+    ds = gdal.GetDriverByName('NITF').CreateCopy( 'tmp/nitf39.ntf', src_ds,
+                                                  options = ['IC=M3', 'BLOCKSIZE=32', 'QUALITY=100'] )
+    src_ds = None
+    ds = None
+
+    ds = gdal.Open( 'tmp/nitf39.ntf' )
+    
+    (exp_mean, exp_stddev) = (65.4208, 47.254550335)
+    (mean, stddev) = ds.GetRasterBand(1).ComputeBandStats()
+    
+    if abs(exp_mean-mean) > 0.01 or abs(exp_stddev-stddev) > 0.01:
+        print mean, stddev
+        gdaltest.post_reason( 'did not get expected mean or standard dev.' )
+        return 'fail'
+
+    md = ds.GetMetadata('IMAGE_STRUCTURE')
+    if md['COMPRESSION'] != 'JPEG':
+        gdaltest.post_reason( 'Did not get expected compression value.' )
+        return 'fail'
+
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Create a 10 GB NITF file
+
+def nitf_40():
+
+    # Determine if the filesystem supports sparse files (we don't want to create a real 10 GB
+    # file !
+    if (gdaltest.filesystem_supports_sparse_files('tmp') == False):
+        return 'skip'
+
+    width = 99000
+    height = 99000
+    x = width - 1
+    y = height - 1
+
+    ds = gdal.GetDriverByName('NITF').Create('tmp/nitf40.ntf', width, height)
+    data = struct.pack('B' * 1, 123)
+
+    # Write a non NULL byte at the bottom right corner of the image (around 10 GB offset)
+    ds.GetRasterBand(1).WriteRaster(x, y, 1, 1, data)
+    ds = None
+
+    # Check that we can fetch it at the right value
+    ds = gdal.Open('tmp/nitf40.ntf')
+    if ds.GetRasterBand(1).ReadRaster(x, y, 1, 1) != data:
+        return 'fail'
+    ds = None
+
+    # Check that it is indeed at a very far offset, and that the NITF driver hasn't
+    # put it somewhere else due to unvoluntary cast to 32bit integer...
+    blockWidth = 256
+    blockHeight = 256
+    nBlockx = ((width+blockWidth-1)/blockWidth)
+    iBlockx = x / blockWidth
+    iBlocky = y / blockHeight
+    ix = x % blockWidth
+    iy = y % blockHeight
+    offset = 843 + (iBlocky * nBlockx + iBlockx) * blockWidth * blockHeight + (iy * blockWidth + ix)
+
+    try:
+        os.SEEK_SET
+    except AttributeError:
+        os.SEEK_SET, os.SEEK_CUR, os.SEEK_END = range(3)
+
+    fd = open('tmp/nitf40.ntf', 'rb')
+    fd.seek(offset, os.SEEK_SET)
+    bytes_read = fd.read(1)
+    fd.close()
+
+    val = struct.unpack('B' * 1, bytes_read)[0]
+    if val != 123:
+        gdaltest.post_reason('Bad value at offset %d : %d' % (offset, val))
+        return 'fail'
+
+    return 'success'
+
 
 ###############################################################################
 # Test NITF21_CGM_ANNO_Uncompressed_unmasked.ntf for bug #1313 and #1714
@@ -1050,6 +1276,31 @@ def nitf_cleanup():
     except:
         pass
 
+    try:
+        gdal.GetDriverByName('NITF').Delete( 'tmp/nitf36.ntf' )
+    except:
+        pass
+
+    try:
+        gdal.GetDriverByName('NITF').Delete( 'tmp/nitf37.ntf' )
+    except:
+        pass
+
+    try:
+        gdal.GetDriverByName('NITF').Delete( 'tmp/nitf38.ntf' )
+    except:
+        pass
+
+    try:
+        gdal.GetDriverByName('NITF').Delete( 'tmp/nitf39.ntf' )
+    except:
+        pass
+
+    try:
+        gdal.GetDriverByName('NITF').Delete( 'tmp/nitf40.ntf' )
+    except:
+        pass
+
     return 'success'
 
 gdaltest_list = [
@@ -1080,7 +1331,9 @@ gdaltest_list = [
     nitf_25,
     nitf_26,
     nitf_27,
-    nitf_28,
+    nitf_28_jp2ecw,
+    nitf_28_jp2mrsid,
+    nitf_28_jp2kak,
     nitf_29,
     nitf_30,
     nitf_31,
@@ -1088,6 +1341,11 @@ gdaltest_list = [
     nitf_33,
     nitf_34,
     nitf_35,
+    nitf_36,
+    nitf_37,
+    nitf_38,
+    nitf_39,
+    nitf_40,
     nitf_online_1,
     nitf_online_2,
     nitf_online_3,
