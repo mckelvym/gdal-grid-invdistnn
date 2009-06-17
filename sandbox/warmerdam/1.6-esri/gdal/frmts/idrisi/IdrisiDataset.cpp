@@ -903,8 +903,8 @@ GDALDataset *IdrisiDataset::CreateCopy( const char *pszFilename,
     GDALRasterBand *poBand = poSrcDS->GetRasterBand( 1 );
     GDALDataType eType = poBand->GetRasterDataType();
 
-	int bSuccessMin = FALSE;
-	int bSuccessMax = FALSE;
+  int bSuccessMin = FALSE;
+  int bSuccessMax = FALSE;
 
     double dfMin;
     double dfMax;
@@ -914,8 +914,8 @@ GDALDataset *IdrisiDataset::CreateCopy( const char *pszFilename,
 
     if( ! ( bSuccessMin && bSuccessMax ) )
     {
-	    poBand->GetStatistics( false, false, &dfMin, &dfMax, NULL, NULL );
-	}
+      poBand->GetStatistics( false, false, &dfMin, &dfMax, NULL, NULL );
+  }
 
     if(!( ( eType == GDT_Byte ) || 
           ( eType == GDT_Int16 ) || 
@@ -962,8 +962,8 @@ GDALDataset *IdrisiDataset::CreateCopy( const char *pszFilename,
     double adfGeoTransform[6];
 
     poDS->SetProjection( poSrcDS->GetProjectionRef() );
-    poSrcDS->GetGeoTransform( adfGeoTransform );
-    poDS->SetGeoTransform( adfGeoTransform );
+    if( poSrcDS->GetGeoTransform( adfGeoTransform ) == CE_None )
+        poDS->SetGeoTransform( adfGeoTransform );
 
     // --------------------------------------------------------------------
     //      Copy information to the raster band
@@ -981,28 +981,18 @@ GDALDataset *IdrisiDataset::CreateCopy( const char *pszFilename,
         if( poDS->nBands == 1 )
         {
             poBand->SetUnitType( poSrcBand->GetUnitType() );
+            poBand->SetColorTable( poSrcBand->GetColorTable() );
+            poBand->SetCategoryNames( poSrcBand->GetCategoryNames() );
 
             const GDALRasterAttributeTable *poRAT = poSrcBand->GetDefaultRAT();
 
             if( poRAT != NULL )
-            {
                 poBand->SetDefaultRAT( poRAT );
-            }
-            else
-            {
-                poBand->SetCategoryNames( poSrcBand->GetCategoryNames() );
-            }
-
-            if( poDS->poColorTable->GetColorEntryCount() == 0 )
-            {
-                poBand->SetColorTable( poSrcBand->GetColorTable() );
-            }
-
         }
 
-		dfMin = poSrcBand->GetMinimum( NULL );
-		dfMax = poSrcBand->GetMaximum( NULL );
-  		poBand->SetStatistics( dfMin, dfMax, 0.0, 0.0 );
+        dfMin = poSrcBand->GetMinimum( NULL );
+        dfMax = poSrcBand->GetMaximum( NULL );
+        poBand->SetStatistics( dfMin, dfMax, 0.0, 0.0 );
         dfNoDataValue = poSrcBand->GetNoDataValue( &bHasNoDataValue );
         if( bHasNoDataValue )
             poBand->SetNoDataValue( dfNoDataValue );
@@ -1161,6 +1151,14 @@ CPLErr  IdrisiDataset::GetGeoTransform( double * padfTransform )
     if( GDALPamDataset::GetGeoTransform( padfTransform ) != CE_None )
     {
         memcpy( padfTransform, adfGeoTransform, sizeof( double ) * 6 );
+
+        if( adfGeoTransform[0] == 0.0
+        &&  adfGeoTransform[1] == 1.0
+        &&  adfGeoTransform[2] == 0.0
+        &&  adfGeoTransform[3] == 0.0
+        &&  adfGeoTransform[4] == 0.0
+        &&  adfGeoTransform[5] == 1.0 )
+            return CE_Failure;
     }
 
     return CE_None;
@@ -1490,9 +1488,9 @@ double IdrisiRasterBand::GetMinimum( int *pbSuccess )
         &adfMinValue[0], &adfMinValue[1], &adfMinValue[2] );
 
     if( pbSuccess )
-	{
+  {
         *pbSuccess = true;
-	}
+  }
 
     return adfMinValue[this->nBand - 1];
 }
@@ -1510,9 +1508,9 @@ double IdrisiRasterBand::GetMaximum( int *pbSuccess )
         &adfMaxValue[0], &adfMaxValue[1], &adfMaxValue[2] );
 
     if( pbSuccess )
-	{
+  {
         *pbSuccess = true;
-	}
+  }
 
     return adfMaxValue[this->nBand - 1];
 }
@@ -1838,14 +1836,18 @@ CPLErr IdrisiRasterBand::SetDefaultRAT( const GDALRasterAttributeTable *poRAT )
     int iRed   = poRAT->GetColOfUsage( GFU_Red );
     int iGreen = poRAT->GetColOfUsage( GFU_Green );
     int iBlue  = poRAT->GetColOfUsage( GFU_Blue );
-    int iName  = poRAT->GetColOfUsage( GFU_Name );
+    int iName  = -1;
     int i;
+
+    GDALColorTable *poCT = NULL;
+    char **papszNames = NULL;
+
+    int nFact  = 1;
 
     // ----------------------------------------------------------
     // Seek for "Value" field index (AGIS standards field name)
     // ----------------------------------------------------------
-
-    if( iValue == -1 )
+    if( GetColorTable() == 0 || GetColorTable()->GetColorEntryCount() == 0 )
     {
         for( i = 0; i < poRAT->GetColumnCount(); i++ )
         {
@@ -1855,98 +1857,84 @@ CPLErr IdrisiRasterBand::SetDefaultRAT( const GDALRasterAttributeTable *poRAT )
                 break;
             }
         }
-    }
 
-    /* if still can't find it use the first Integer column */
-
-    if( iValue == -1 )
-    {   
-        for( i = 1; i < poRAT->GetColumnCount(); i++ )
+        if( iRed != -1 && iGreen != -1 && iBlue != -1 )
         {
-            if( poRAT->GetTypeOfCol( i ) == GFT_Integer )
-            {
-                iValue = i;
-                break;
-            }
+            poCT  = new GDALColorTable();
+            nFact = poRAT->GetTypeOfCol( iRed ) == GFT_Real ? 255 : 1;
         }
     }
 
     // ----------------------------------------------------------
     // Seek for Name field index
     // ----------------------------------------------------------
-
-    if( iName == -1 )
+    if( GetCategoryNames() == 0 || CSLCount( GetCategoryNames() ) == 0 )
     {
-        for( i = 0; i < poRAT->GetColumnCount(); i++ )
+        iName  = poRAT->GetColOfUsage( GFU_Name );
+        if( iName == -1 )
         {
-            if EQUALN( "Class_Name", poRAT->GetNameOfCol( i ), 10 )
+            for( i = 0; i < poRAT->GetColumnCount(); i++ )
             {
-                iName = i;
-                break;
-            } 
-            else if EQUALN( "Categor", poRAT->GetNameOfCol( i ), 7 )
-            {
-                iName = i;
-                break;
-            } 
-            else if EQUALN( "Name",  poRAT->GetNameOfCol( i ), 4 )
-            {
-                iName = i;
-                break;
+                if EQUALN( "Class_Name", poRAT->GetNameOfCol( i ), 10 )
+                {
+                    iName = i;
+                    break;
+                } 
+                else if EQUALN( "Categor", poRAT->GetNameOfCol( i ), 7 )
+                {
+                    iName = i;
+                    break;
+                } 
+                else if EQUALN( "Name",  poRAT->GetNameOfCol( i ), 4 )
+                {
+                    iName = i;
+                    break;
+                }
             }
         }
-    }
 
-    /* if still can't find it use the first String column */
+        /* if still can't find it use the first String column */
 
-    if( iName == -1 )
-    {   
-        for( i = 0; i < poRAT->GetColumnCount(); i++ )
-        {
-            if( poRAT->GetTypeOfCol( i ) == GFT_String )
+        if( iName == -1 )
+        {   
+            for( i = 0; i < poRAT->GetColumnCount(); i++ )
             {
-                iName = i;
-                break;
+                if( poRAT->GetTypeOfCol( i ) == GFT_String )
+                {
+                    iName = i;
+                    break;
+                }
             }
         }
-    }
 
-    // ----------------------------------------------------------
-    // Incomplete Attribute Table;
-    // ----------------------------------------------------------
+        // ----------------------------------------------------------
+        // Incomplete Attribute Table;
+        // ----------------------------------------------------------
 
-    if( iName == -1 )
-    {
-        iName = iValue;
+        if( iName == -1 )
+        {
+            iName = iValue;
+        }
     }
 
     // ----------------------------------------------------------
     // Initialization
     // ----------------------------------------------------------
 
-    GDALColorTable *poCT = NULL;
-    char **papszNames = NULL;
-
-	double dRed     = 0.0;
-	double dGreen   = 0.0;
-	double dBlue    = 0.0;
-    int nFact       = 1;
-
-    if( iRed != -1 && iGreen != -1 && iBlue != -1 )
-    {
-        poCT  = new GDALColorTable();
-        nFact = poRAT->GetTypeOfCol( iRed ) == GFT_Real ? 255 : 1;
-    }
+    double dRed     = 0.0;
+    double dGreen   = 0.0;
+    double dBlue    = 0.0;
 
     // ----------------------------------------------------------
     // Load values
     // ----------------------------------------------------------
-
     GDALColorEntry  sColor;
     int iEntry      = 0;
     int iOut        = 0;
     int nEntryCount = poRAT->GetRowCount();
-    int nValue      = poRAT->GetValueAsInt( iEntry, iValue );
+    int nValue      = 0;
+    if( iValue != -1 )
+      nValue = poRAT->GetValueAsInt( iEntry, iValue );
 
     for( iOut = 0; iOut < 65535 && ( iEntry < nEntryCount ); iOut++ )
     {
@@ -1954,23 +1942,30 @@ CPLErr IdrisiRasterBand::SetDefaultRAT( const GDALRasterAttributeTable *poRAT )
         {
             if( poCT )
             {
-			    dRed    = poRAT->GetValueAsDouble( iEntry, iRed );
-			    dGreen  = poRAT->GetValueAsDouble( iEntry, iGreen );
-			    dBlue   = poRAT->GetValueAsDouble( iEntry, iBlue );
+                dRed    = poRAT->GetValueAsDouble( iEntry, iRed );
+                dGreen  = poRAT->GetValueAsDouble( iEntry, iGreen );
+                dBlue   = poRAT->GetValueAsDouble( iEntry, iBlue );
                 sColor.c1  = (short) ( dRed   * nFact );
                 sColor.c2  = (short) ( dGreen * nFact );
                 sColor.c3  = (short) ( dBlue  * nFact );
                 sColor.c4  = (short) ( 255    / nFact );    
                 poCT->SetColorEntry( iEntry, &sColor );
             }
-    	    papszNames = CSLAddString( papszNames, 
-                poRAT->GetValueAsString( iEntry, iName ) );
+
+            if( iName != -1 )
+            {
+                papszNames = CSLAddString( papszNames, 
+                    poRAT->GetValueAsString( iEntry, iName ) );
+            }
 
             /* Advance on the table */
 
             if( ( ++iEntry ) < nEntryCount )
             {
-                nValue = poRAT->GetValueAsInt( iEntry, iValue );
+                if( iValue != -1 )
+                    nValue = poRAT->GetValueAsInt( iEntry, iValue );
+                else
+                    nValue = iEntry;
             }
         }
         else if( iOut < nValue )
@@ -1983,9 +1978,11 @@ CPLErr IdrisiRasterBand::SetDefaultRAT( const GDALRasterAttributeTable *poRAT )
                 sColor.c4  = (short) 255;    
                 poCT->SetColorEntry( iEntry, &sColor );
             }
-        	papszNames = CSLAddString( papszNames, "" );
+
+            if( iName != -1 )
+                papszNames = CSLAddString( papszNames, "" );
         }
-	}
+    }
 
     // ----------------------------------------------------------
     // Set Color Table
@@ -2000,9 +1997,11 @@ CPLErr IdrisiRasterBand::SetDefaultRAT( const GDALRasterAttributeTable *poRAT )
     // ----------------------------------------------------------
     // Update Category Names
     // ----------------------------------------------------------
-
-    SetCategoryNames( papszNames );
-    CSLDestroy( papszNames );
+    if( papszNames )
+    {
+        SetCategoryNames( papszNames );
+        CSLDestroy( papszNames );
+    }
 
     // ----------------------------------------------------------
     // Update Attribute Table
@@ -2090,7 +2089,7 @@ const GDALRasterAttributeTable *IdrisiRasterBand::GetDefaultRAT()
         poDefaultRAT->SetValue( iRows, iName, poGDS->papszCategories[iEntry] );
         iRows++;
     }
-	
+  
     return poDefaultRAT;
 }
 
@@ -3007,7 +3006,7 @@ void FormatCRLF( const char *pszFilename )
 
     while( VSIFEof( fpIn ) == FALSE )
     {
-	if( ch == '\012' )
+  if( ch == '\012' )
         {
             VSIFPutc( '\015', fpOut );
         }     
