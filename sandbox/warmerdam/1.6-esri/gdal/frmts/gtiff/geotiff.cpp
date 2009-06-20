@@ -115,6 +115,10 @@ class GTiffDataset : public GDALPamDataset
     CPLErr      FlushBlockBuf();
 
     char	*pszProjection;
+    int         bLookedForProjection;
+
+    void        LookForProjection();
+
     double	adfGeoTransform[6];
     int		bGeoTransformValid;
 
@@ -2163,6 +2167,7 @@ GTiffDataset::GTiffDataset()
     bNoDataSet = FALSE;
     dfNoDataValue = -9999.0;
     pszProjection = CPLStrdup("");
+    bLookedForProjection = FALSE;
     bBase = TRUE;
     bCloseTIFFHandle = FALSE;
     bTreatAsRGBA = FALSE;
@@ -2774,11 +2779,14 @@ CPLErr GTiffDataset::CleanOverviews()
 {
     CPLAssert( bBase );
 
+    FlushDirectory();
+    *ppoActiveDSRef = NULL;
+
 /* -------------------------------------------------------------------- */
 /*      Cleanup overviews objects, and get offsets to all overview      */
 /*      directories.                                                    */
 /* -------------------------------------------------------------------- */
-    std::vector<uint64>  anOvDirOffsets;
+    std::vector<toff_t>  anOvDirOffsets;
     int i;
 
     for( i = 0; i < nOverviewCount; i++ )
@@ -3316,6 +3324,16 @@ void GTiffDataset::WriteGeoTIFFInfo()
         bNeedsRewrite = TRUE;
 
 /* -------------------------------------------------------------------- */
+/*      Clear old tags to ensure we don't end up with conflicting       */
+/*      information. (#2625)                                            */
+/* -------------------------------------------------------------------- */
+#ifdef HAVE_UNSETFIELD
+        TIFFUnsetField( hTIFF, TIFFTAG_GEOPIXELSCALE );
+        TIFFUnsetField( hTIFF, TIFFTAG_GEOTIEPOINTS );
+        TIFFUnsetField( hTIFF, TIFFTAG_GEOTRANSMATRIX );
+#endif
+
+/* -------------------------------------------------------------------- */
 /*      Write the transform.  If we have a normal north-up image we     */
 /*      use the tiepoint plus pixelscale otherwise we use a matrix.     */
 /* -------------------------------------------------------------------- */
@@ -3505,6 +3523,8 @@ static void WriteMDMetadata( GDALMultiDomainMetadata *poMDMD, TIFF *hTIFF,
 {
     int iDomain;
     char **papszDomainList;
+
+    (void) pszProfile;
 
 /* ==================================================================== */
 /*      Process each domain.                                            */
@@ -4151,6 +4171,67 @@ GDALDataset *GTiffDataset::Open( GDALOpenInfo * poOpenInfo )
 }
 
 /************************************************************************/
+/*                         LookForProjection()                          */
+/************************************************************************/
+
+void GTiffDataset::LookForProjection()
+
+{
+    if( bLookedForProjection )
+        return;
+
+    bLookedForProjection = TRUE;
+    SetDirectory();
+
+/* -------------------------------------------------------------------- */
+/*      Capture the GeoTIFF projection, if available.                   */
+/* -------------------------------------------------------------------- */
+    GTIF 	*hGTIF;
+    GTIFDefn	sGTIFDefn;
+
+    CPLFree( pszProjection );
+    pszProjection = NULL;
+    
+    hGTIF = GTIFNew(hTIFF);
+
+    if ( !hGTIF )
+    {
+        CPLError( CE_Warning, CPLE_AppDefined,
+                  "GeoTIFF tags apparently corrupt, they are being ignored." );
+    }
+    else
+    {
+        if( GTIFGetDefn( hGTIF, &sGTIFDefn ) )
+        {
+            pszProjection = GTIFGetOGISDefn( hGTIF, &sGTIFDefn );
+        }
+
+        // Is this a pixel-is-point dataset?
+        short nRasterType;
+
+        if( GTIFKeyGet(hGTIF, GTRasterTypeGeoKey, &nRasterType, 
+                       0, 1 ) == 1 )
+        {
+            int bMetadataChangedSaved = bMetadataChanged;
+            if( nRasterType == (short) RasterPixelIsPoint )
+                SetMetadataItem( GDALMD_AREA_OR_POINT, GDALMD_AOP_POINT );
+            else
+                SetMetadataItem( GDALMD_AREA_OR_POINT, GDALMD_AOP_AREA );
+            bMetadataChanged = bMetadataChangedSaved;
+        }
+
+        GTIFFree( hGTIF );
+    }
+
+    if( pszProjection == NULL )
+    {
+        pszProjection = CPLStrdup( "" );
+    }
+
+    bGeoTIFFInfoChanged = FALSE;
+}
+
+/************************************************************************/
 /*                            ApplyPamInfo()                            */
 /*                                                                      */
 /*      PAM Information, if available, overrides the GeoTIFF            */
@@ -4178,6 +4259,7 @@ void GTiffDataset::ApplyPamInfo()
     {
         CPLFree( pszProjection );
         pszProjection = CPLStrdup( pszPamSRS );
+        bLookedForProjection= TRUE;
     }
 
 /* -------------------------------------------------------------------- */
@@ -4651,11 +4733,36 @@ CPLErr GTiffDataset::OpenOffset( TIFF *hTIFFIn,
         }
 
 /* -------------------------------------------------------------------- */
+/*      Otherwise try looking for a .tfw, .tifw or .wld file.           */
+/* -------------------------------------------------------------------- */
+        else
+        {
+            bGeoTransformValid = 
+                GDALReadWorldFile( osFilename, NULL, adfGeoTransform );
+
+            if( !bGeoTransformValid )
+            {
+                bGeoTransformValid = 
+                    GDALReadWorldFile( osFilename, "wld", adfGeoTransform );
+            }
+
+            if( !bGeoTransformValid )
+            {
+                int bTabFileOK = 
+                    GDALReadTabFile( osFilename, adfGeoTransform, 
+                                     &pszTabWKT, &nGCPCount, &pasGCPList );
+
+                if( bTabFileOK && nGCPCount == 0 )
+                    bGeoTransformValid = TRUE;
+            }
+        }
+
+/* -------------------------------------------------------------------- */
 /*      Check for GCPs.  Note, we will allow there to be GCPs and a     */
 /*      transform in some circumstances.                                */
 /* -------------------------------------------------------------------- */
-        else if( TIFFGetField(hTIFF,TIFFTAG_GEOTIEPOINTS,&nCount,&padfTiePoints )
-                 && nCount >= 12 )
+        if( TIFFGetField(hTIFF,TIFFTAG_GEOTIEPOINTS,&nCount,&padfTiePoints )
+            && !bGeoTransformValid )
         {
             nGCPCount = nCount / 6;
             pasGCPList = (GDAL_GCP *) CPLCalloc(sizeof(GDAL_GCP),nGCPCount);
@@ -4676,76 +4783,8 @@ CPLErr GTiffDataset::OpenOffset( TIFF *hTIFFIn,
         }
 
 /* -------------------------------------------------------------------- */
-/*      Otherwise try looking for a .tfw, .tifw or .wld file.           */
-/* -------------------------------------------------------------------- */
-        else
-        {
-            bGeoTransformValid = 
-                GDALReadWorldFile( GetDescription(), "tfw", adfGeoTransform );
-
-            if( !bGeoTransformValid )
-            {
-                bGeoTransformValid = 
-                    GDALReadWorldFile( GetDescription(), "tifw", adfGeoTransform );
-            }
-            if( !bGeoTransformValid )
-            {
-                bGeoTransformValid = 
-                    GDALReadWorldFile( GetDescription(), "wld", adfGeoTransform );
-            }
-            if( !bGeoTransformValid )
-            {
-                int bTabFileOK = 
-                    GDALReadTabFile( GetDescription(), adfGeoTransform, 
-                                     &pszTabWKT, &nGCPCount, &pasGCPList );
-
-                if( bTabFileOK && nGCPCount == 0 )
-                    bGeoTransformValid = TRUE;
-            }
-        }
-
-/* -------------------------------------------------------------------- */
-/*      Capture the GeoTIFF projection, if available.                   */
-/* -------------------------------------------------------------------- */
-        GTIF 	*hGTIF;
-        GTIFDefn	sGTIFDefn;
-
-        CPLFree( pszProjection );
-        pszProjection = NULL;
-    
-        hGTIF = GTIFNew(hTIFF);
-
-        if ( !hGTIF )
-        {
-            CPLError( CE_Warning, CPLE_AppDefined,
-                      "GeoTIFF tags apparently corrupt, they are being ignored." );
-        }
-        else
-        {
-            if( GTIFGetDefn( hGTIF, &sGTIFDefn ) )
-            {
-                pszProjection = GTIFGetOGISDefn( hGTIF, &sGTIFDefn );
-            }
-
-            // Is this a pixel-is-point dataset?
-            short nRasterType;
-            
-
-            if( GTIFKeyGet(hGTIF, GTRasterTypeGeoKey, &nRasterType, 
-                           0, 1 ) == 1 )
-            {
-                if( nRasterType == (short) RasterPixelIsPoint )
-                    SetMetadataItem( GDALMD_AREA_OR_POINT, GDALMD_AOP_POINT );
-                else
-                    SetMetadataItem( GDALMD_AREA_OR_POINT, GDALMD_AOP_AREA );
-            }
-
-            GTIFFree( hGTIF );
-        }
-        
-/* -------------------------------------------------------------------- */
-/*      If we didn't get a geotiff projection definition, but we did    */
-/*      get one from the .tab file, use that instead.                   */
+/*      Did we find a tab file?  If so we will use it's coordinate      */
+/*      system and give it precidence.                                  */
 /* -------------------------------------------------------------------- */
         if( pszTabWKT != NULL 
             && (pszProjection == NULL || pszProjection[0] == '\0') )
@@ -4753,16 +4792,10 @@ CPLErr GTiffDataset::OpenOffset( TIFF *hTIFFIn,
             CPLFree( pszProjection );
             pszProjection = pszTabWKT;
             pszTabWKT = NULL;
+            bLookedForProjection = TRUE;
         }
         
-        if( pszProjection == NULL )
-        {
-            pszProjection = CPLStrdup( "" );
-        }
-        
-        if( pszTabWKT != NULL )
-            CPLFree( pszTabWKT );
-
+        CPLFree( pszTabWKT );
         bGeoTIFFInfoChanged = FALSE;
     }
 
@@ -4914,7 +4947,7 @@ CPLErr GTiffDataset::OpenOffset( TIFF *hTIFFIn,
         {
             const char *pszKey, *pszValue, *pszRole, *pszDomain; 
             char *pszUnescapedValue;
-            int nBand;
+            int nBand, bIsXML = FALSE;
 
             if( psItem->eType != CXT_Element
                 || !EQUAL(psItem->pszValue,"Item") )
@@ -4929,7 +4962,6 @@ CPLErr GTiffDataset::OpenOffset( TIFF *hTIFFIn,
             if( pszKey == NULL || pszValue == NULL )
                 continue;
 
-            int bIsXML = FALSE;
             if( EQUALN(pszDomain,"xml:",4) )
                 bIsXML = TRUE;
 
@@ -5803,12 +5835,16 @@ GDALDataset *GTiffDataset::Create( const char * pszFilename,
     poDS->poActiveDS = poDS;
     poDS->ppoActiveDSRef = &(poDS->poActiveDS);
 
-    poDS->osFilename = pszFilename;
     poDS->nRasterXSize = nXSize;
     poDS->nRasterYSize = nYSize;
     poDS->eAccess = GA_Update;
     poDS->bCrystalized = FALSE;
     poDS->nSamplesPerPixel = (uint16) nBands;
+    poDS->osFilename = pszFilename;
+
+    /* Avoid premature crystalization that will cause directory re-writting */
+    /* if GetProjectionRef() or GetGeoTransform() are called on the newly created GeoTIFF */
+    poDS->bLookedForProjection = TRUE;
 
     TIFFGetField( hTIFF, TIFFTAG_SAMPLEFORMAT, &(poDS->nSampleFormat) );
     TIFFGetField( hTIFF, TIFFTAG_PLANARCONFIG, &(poDS->nPlanarConfig) );
@@ -6389,6 +6425,10 @@ GTiffDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         GTiffDataset::WriteMetadata( poDS, hTIFF, TRUE, pszProfile,
                                      pszFilename, papszOptions, TRUE /* don't write RPC and IMG file again */);
 
+    /* To avoid unnecessary directory rewriting */
+    poDS->bMetadataChanged = FALSE;
+    poDS->bGeoTIFFInfoChanged = FALSE;
+
     /* We must re-set the compression level at this point, since it has */
     /* been lost a few lines above when closing the newly create TIFF file */
     /* The TIFFTAG_ZIPQUALITY & TIFFTAG_JPEGQUALITY are not store in the TIFF file. */
@@ -6441,6 +6481,8 @@ const char *GTiffDataset::GetProjectionRef()
 {
     if( nGCPCount == 0 )
     {
+        LookForProjection();
+
         if( EQUAL(pszProjection,"") )
             return GDALPamDataset::GetProjectionRef();
         else
@@ -6457,6 +6499,8 @@ const char *GTiffDataset::GetProjectionRef()
 CPLErr GTiffDataset::SetProjection( const char * pszNewProjection )
 
 {
+    LookForProjection();
+
     if( !EQUALN(pszNewProjection,"GEOGCS",6)
         && !EQUALN(pszNewProjection,"PROJCS",6)
         && !EQUALN(pszNewProjection,"LOCAL_CS",6)
@@ -6534,9 +6578,12 @@ const char *GTiffDataset::GetGCPProjection()
 
 {
     if( nGCPCount > 0 )
+    {
+        LookForProjection();
         return pszProjection;
+    }
     else
-        return "";
+        return GDALPamDataset::GetGCPProjection();
 }
 
 /************************************************************************/
@@ -6558,6 +6605,8 @@ CPLErr GTiffDataset::SetGCPs( int nGCPCount, const GDAL_GCP *pasGCPList,
 {
     if( GetAccess() == GA_Update )
     {
+        bLookedForProjection = TRUE;
+
         if( this->nGCPCount > 0 )
         {
             GDALDeinitGCPs( this->nGCPCount, this->pasGCPList );
