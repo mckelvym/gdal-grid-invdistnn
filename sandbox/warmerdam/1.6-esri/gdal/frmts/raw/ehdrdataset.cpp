@@ -155,9 +155,10 @@ EHdrRasterBand::EHdrRasterBand( GDALDataset *poDS,
   dfMax(0),
   minmaxmeanstddev(0)
 {
+    EHdrDataset* poEDS = (EHdrDataset*)poDS;
+
     if (nBits < 8)
     {
-        EHdrDataset* poEDS = (EHdrDataset*)poDS;
         nStartBit = atoi(poEDS->GetKeyValue("SKIPBYTES")) * 8;
         if (nBand >= 2)
         {
@@ -180,6 +181,11 @@ EHdrRasterBand::EHdrRasterBand( GDALDataset *poDS,
                          CPLString().Printf( "%ld", nBits ),
                          "IMAGE_STRUCTURE" );
     }
+
+    if( eDataType == GDT_Byte 
+        && EQUAL(poEDS->GetKeyValue("PIXELTYPE",""),"SIGNEDINT") )
+        SetMetadataItem( "PIXELTYPE", "SIGNEDBYTE",
+                         "IMAGE_STRUCTURE" );
 }
 
 /************************************************************************/
@@ -1647,7 +1653,14 @@ GDALDataset *EHdrDataset::Create( const char * pszFilename,
         nBits = atoi(CSLFetchNameValue( papszParmList, "NBITS" ));
 
     nRowBytes = (nBits * nXSize + 7) / 8;
-    
+
+/* -------------------------------------------------------------------- */
+/*      Check for signed byte.                                          */
+/* -------------------------------------------------------------------- */
+    const char *pszPixelType = CSLFetchNameValue( papszParmList, "PIXELTYPE" );
+    if( pszPixelType == NULL )
+        pszPixelType = "";
+
 /* -------------------------------------------------------------------- */
 /*      Write out the raw definition for the dataset as a whole.        */
 /* -------------------------------------------------------------------- */
@@ -1663,6 +1676,8 @@ GDALDataset *EHdrDataset::Create( const char * pszFilename,
     if( eType == GDT_Float32 )
         VSIFPrintfL( fp, "PIXELTYPE      FLOAT\n");
     else if( eType == GDT_Int16 || eType == GDT_Int32 )
+        VSIFPrintfL( fp, "PIXELTYPE      SIGNEDINT\n");
+    else if( eType == GDT_Byte && EQUAL(pszPixelType,"SIGNEDBYTE") )
         VSIFPrintfL( fp, "PIXELTYPE      SIGNEDINT\n");
     else
         VSIFPrintfL( fp, "PIXELTYPE      UNSIGNEDINT\n");
@@ -1699,6 +1714,9 @@ GDALDataset *EHdrDataset::CreateCopy( const char * pszFilename,
         return NULL;
     }
 
+/* -------------------------------------------------------------------- */
+/*      Ensure we pass on NBITS and PIXELTYPE structure information.    */
+/* -------------------------------------------------------------------- */
     if( poSrcDS->GetRasterBand(1)->GetMetadataItem( "NBITS", 
                                                     "IMAGE_STRUCTURE" ) !=NULL
         && CSLFetchNameValue( papszOptions, "NBITS" ) == NULL )
@@ -1709,6 +1727,20 @@ GDALDataset *EHdrDataset::CreateCopy( const char * pszFilename,
                              poSrcDS->GetRasterBand(1)->GetMetadataItem("NBITS","IMAGE_STRUCTURE") );
     }
     
+    if( poSrcDS->GetRasterBand(1)->GetMetadataItem( "PIXELTYPE", 
+                                                    "IMAGE_STRUCTURE" ) !=NULL
+        && CSLFetchNameValue( papszOptions, "PIXELTYPE" ) == NULL )
+    {
+        papszAdjustedOptions = 
+            CSLSetNameValue( papszAdjustedOptions, 
+                             "PIXELTYPE", 
+                             poSrcDS->GetRasterBand(1)->GetMetadataItem("PIXELTYPE","IMAGE_STRUCTURE") );
+    }
+    
+/* -------------------------------------------------------------------- */
+/*      Proceed with normal copying using the default createcopy        */
+/*      operators.                                                      */
+/* -------------------------------------------------------------------- */
     GDALDriver	*poDriver = (GDALDriver *) GDALGetDriverByName( "EHdr" );
 
     poOutDS = poDriver->DefaultCreateCopy( pszFilename, poSrcDS, bStrict,
@@ -1856,6 +1888,7 @@ void GDALRegister_EHdr()
         poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST, 
 "<CreationOptionList>"
 "   <Option name='NBITS' type='int' description='Special pixel bits (1-7)'/>"
+"   <Option name='PIXELTYPE' type='string' description='By setting this to SIGNEDBYTE, a new Byte file can be forced to be written as signed byte'/>"
 "</CreationOptionList>" );
 
         poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
