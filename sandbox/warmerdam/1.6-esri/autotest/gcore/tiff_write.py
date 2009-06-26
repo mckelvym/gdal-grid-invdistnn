@@ -1776,6 +1776,63 @@ def tiff_write_55():
     return 'success'
 
 
+###############################################################################
+# Verify we can write 12bit jpeg encoded tiff. 
+
+def tiff_write_74():
+
+    old_accum = gdal.GetConfigOption( 'CPL_ACCUM_ERROR_MSG', '' )
+    gdal.SetConfigOption( 'CPL_ACCUM_ERROR_MSG', 'ON' )
+    gdal.ErrorReset()
+    gdal.PushErrorHandler( 'CPLQuietErrorHandler' )
+        
+    try:
+        ds = gdal.Open('data/mandrilmini_12bitjpeg.tif')
+        ds.GetRasterBand(1).ReadRaster(0,0,1,1)
+    except:
+        ds = None
+
+    gdal.PopErrorHandler()
+    gdal.SetConfigOption( 'CPL_ACCUM_ERROR_MSG', old_accum )
+    
+    if string.find(gdal.GetLastErrorMsg(),
+                   'Unsupported JPEG data precision 12') != -1:
+        sys.stdout.write('(12bit jpeg not available) ... ')
+        return 'skip'
+
+    drv = gdal.GetDriverByName('GTiff')
+    dst_ds = drv.CreateCopy( 'tmp/test_74.tif', ds,
+                             options = ['COMPRESS=JPEG', 'NBITS=12',
+                                        'PHOTOMETRIC=YCBCR'] )
+
+    ds = None
+    dst_ds = None
+
+    dst_ds = gdal.Open( 'tmp/test_74.tif' )
+    stats = dst_ds.GetRasterBand(1).GetStatistics( 0, 1 )
+
+    if stats[2] < 2150 or stats[2] > 2180:
+        gdaltest.post_reason( 'did not get expected mean for band1.')
+        print stats
+        return 'fail'
+
+    compression = dst_ds.GetMetadataItem('COMPRESSION','IMAGE_STRUCTURE')
+    if compression != 'YCbCr JPEG':
+        gdaltest.post_reason( 'did not get expected COMPRESSION value' )
+        print 'COMPRESSION="%s"' % compression
+        return 'fail'
+    
+    if dst_ds.GetRasterBand(3).GetMetadataItem('NBITS','IMAGE_STRUCTURE') != '12':
+        gdaltest.post_reason( 'did not get expected NBITS value' )
+        return 'fail'
+    
+    dst_ds = None
+
+    #drv.Delete( 'tmp/test_74.tif' )
+    
+    return 'success'
+
+###############################################################################
 def tiff_write_cleanup():
     gdaltest.tiff_drv = None
 
@@ -1837,6 +1894,7 @@ gdaltest_list = [
     tiff_write_53,
     tiff_write_54,
     tiff_write_55,
+    tiff_write_74,
     tiff_write_cleanup ]
 
 if __name__ == '__main__':

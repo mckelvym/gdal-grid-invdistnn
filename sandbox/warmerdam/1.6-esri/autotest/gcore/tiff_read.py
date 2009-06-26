@@ -235,6 +235,45 @@ def tiff_multi_images():
     return 'success'
 
 
+###############################################################################
+# Test reading a 12bit jpeg compressed geotiff.
+
+def tiff_12bitjpeg():
+
+    old_accum = gdal.GetConfigOption( 'CPL_ACCUM_ERROR_MSG', '' )
+    gdal.SetConfigOption( 'CPL_ACCUM_ERROR_MSG', 'ON' )
+    gdal.ErrorReset()
+    gdal.PushErrorHandler( 'CPLQuietErrorHandler' )
+    try:
+        ds = gdal.Open('data/mandrilmini_12bitjpeg.tif')
+        ds.GetRasterBand(1).ReadRaster(0,0,1,1)
+    except:
+        ds = None
+
+    gdal.PopErrorHandler()
+    gdal.SetConfigOption( 'CPL_ACCUM_ERROR_MSG', old_accum )
+
+    if string.find(gdal.GetLastErrorMsg(),
+                   'Unsupported JPEG data precision 12') != -1:
+        sys.stdout.write('(12bit jpeg not available) ... ')
+        return 'skip'
+    elif ds is None:
+        gdaltest.post_reason( 'failed to open 12bit jpeg file with unexpected error' )
+        return 'fail'
+
+    try:
+        stats = ds.GetRasterBand(1).GetStatistics( 0, 1 )
+    except:
+        pass
+    
+    if stats[2] < 2150 or stats[2] > 2180 or str(stats[2]) == 'nan':
+        gdaltest.post_reason( 'did not get expected mean for band1.')
+        print stats
+        return 'fail'
+    ds = None
+
+    return 'success'
+
 for item in init_list:
     ut = gdaltest.GDALTest( 'GTiff', item[0], item[1], item[2] )
     if ut is None:
@@ -250,6 +289,7 @@ gdaltest_list.append( (tiff_read_zip_2) )
 gdaltest_list.append( (tiff_grads) )
 gdaltest_list.append( (tiff_g4_split) )
 gdaltest_list.append( (tiff_multi_images) )
+gdaltest_list.append( (tiff_12bitjpeg) )
 
 if __name__ == '__main__':
 
