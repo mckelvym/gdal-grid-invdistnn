@@ -120,6 +120,7 @@ GDALDataset *XPMDataset::Open( GDALOpenInfo * poOpenInfo )
                   poOpenInfo->pszFilename );
         return NULL;
     }
+    pszFileContents[nFileSize] = '\0';
     
     VSIFSeek( poOpenInfo->fp, 0, SEEK_SET );
 
@@ -180,7 +181,12 @@ GDALDataset *XPMDataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->SetDescription( poOpenInfo->pszFilename );
     poDS->TryLoadXML();
 
-    return poDS;
+ /* -------------------------------------------------------------------- */
+/*      Check for overviews.                                            */
+/* -------------------------------------------------------------------- */
+    poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename );
+
+   return poDS;
 }
 
 /************************************************************************/
@@ -479,6 +485,12 @@ ParseXPM( const char *pszInput, int *pnXSize, int *pnYSize,
 
             while( pszNext[i] != '\0' && pszNext[i] != '"' )
                 i++;
+
+            if( pszNext[i] == '\0' )
+            {
+                CSLDestroy( papszXPMList );
+                return NULL;
+            }
 
             pszLine = (char *) CPLMalloc(i+1);
             strncpy( pszLine, pszNext, i );
