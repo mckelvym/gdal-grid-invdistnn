@@ -1147,18 +1147,6 @@ OGRErr OGRSpatialReference::morphFromESRI()
     }
 
 /* -------------------------------------------------------------------- */
-/*      Remap Equidistant_Cylindrical parameter. It is same as          */
-/*      Stereographic                                                   */
-/* -------------------------------------------------------------------- */
-    if( pszProjection != NULL && EQUAL(pszProjection,"Equidistant_Cylindrical") )
-        GetRoot()->applyRemapper( 
-            "PARAMETER", 
-            (char **)apszPolarStereographicMapping + 0, 
-            (char **)apszPolarStereographicMapping + 1, 2 );
-
-
-
-/* -------------------------------------------------------------------- */
 /*      Translate PROJECTION keywords that are misnamed.                */
 /* -------------------------------------------------------------------- */
     GetRoot()->applyRemapper( "PROJECTION", 
@@ -1869,6 +1857,7 @@ void RemapProjection( OGRSpatialReference* pOgr )
 /*      Remap parameters used for Albers and Mercator.                  */
 /* -------------------------------------------------------------------- */
     pszProjection = pOgr->GetAttrValue("PROJECTION");
+    OGR_SRSNode *poProjCS = pOgr->GetAttrNode( "PROJCS" );
     if(!pszProjection)
       return;
     if( EQUAL(pszProjection,"Albers") )
@@ -1899,13 +1888,15 @@ void RemapProjection( OGRSpatialReference* pOgr )
             (char **)apszPolarStereographicMapping + 0, 2 );
 
     else if( EQUAL(pszProjection,"Plate_Carree") )
-        pOgr->GetRoot()->applyRemapper( 
+    {
+        if(pOgr->FindProjParm( SRS_PP_STANDARD_PARALLEL_1, poProjCS ) < 0)
+          pOgr->GetRoot()->applyRemapper( 
             "PARAMETER", 
             (char **)apszPolarStereographicMapping + 1, 
             (char **)apszPolarStereographicMapping + 0, 2 );
+    }
 
     // special for Lambert_Conformal_Conic
-    OGR_SRSNode *poProjCS = pOgr->GetAttrNode( "PROJCS" );
     int iChild;
     if(EQUAL(pszProjection,"Lambert_Conformal_Conic"))
     {

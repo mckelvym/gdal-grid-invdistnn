@@ -376,6 +376,7 @@ static const char *apszDeleteParametersBasedOnProjection[] = {
 "Mercator", "scale_factor",
 "Miller_Cylindrical", "latitude_of_center",
 "Equidistant_Cylindrical", "pseudo_standard_parallel_1", 
+"Equidistant_Cylindrical", "latitude_of_origin", 
 "Plate_Carree", "latitude_of_origin",
 "Plate_Carree", "pseudo_standard_parallel_1",
 "Plate_Carree", "standard_parallel_1",
