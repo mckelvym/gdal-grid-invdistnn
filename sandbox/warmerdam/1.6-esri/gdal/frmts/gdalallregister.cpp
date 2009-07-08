@@ -251,6 +251,10 @@ void CPL_STDCALL GDALAllRegister()
     GDALRegister_PDS();
 #endif
 
+#ifdef FRMT_til
+    GDALRegister_TIL();
+#endif
+
 #ifdef FRMT_ers
     GDALRegister_ERS();
 #endif
@@ -382,7 +386,7 @@ void CPL_STDCALL GDALAllRegister()
 #endif
 
 /* -------------------------------------------------------------------- */
-/*      EHdr conflicts with other formats if a .hdr file exists
+/*      EHdr conflicts with other formats if a .hdr file exists         */
 /* -------------------------------------------------------------------- */
 
 #ifdef FRMT_raw
