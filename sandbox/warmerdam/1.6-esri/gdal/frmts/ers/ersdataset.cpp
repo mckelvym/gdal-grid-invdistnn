@@ -981,6 +981,7 @@ GDALDataset *ERSDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Initialize any PAM information.                                 */
 /* -------------------------------------------------------------------- */
+    poDS->SetDescription( poOpenInfo->pszFilename );
     poDS->TryLoadXML();
 
     // if no SR in xml, try aux
