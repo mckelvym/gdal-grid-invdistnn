@@ -3285,6 +3285,11 @@ GDALDataset *HFADataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->TryLoadXML();
 
 /* -------------------------------------------------------------------- */
+/*      Check for external overviews.                                   */
+/* -------------------------------------------------------------------- */
+    poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename );
+    
+/* -------------------------------------------------------------------- */
 /*      Clear dirty metadata flags.                                     */
 /* -------------------------------------------------------------------- */
     for( i = 0; i < poDS->nBands; i++ )
