@@ -2694,6 +2694,7 @@ void GTiffDataset::FlushCache()
     nLoadedBlock = -1;
     bLoadedBlockDirty = FALSE;
 
+    SetDirectory();
     FlushDirectory();
 }
 
