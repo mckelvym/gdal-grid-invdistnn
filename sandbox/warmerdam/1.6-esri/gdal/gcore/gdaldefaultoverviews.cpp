@@ -587,8 +587,8 @@ GDALDefaultOverviews::BuildOverviews(
                     || nOvFactor == GDALOvLevelAdjust( -panOverviewList[i], 
                                                        poBand->GetXSize() ) )
                 {
-                    //panOverviewList[i] *= -1;
                     papoOverviewBands[nNewOverviews++] = poOverview;
+                    break;
                 }
             }
         }

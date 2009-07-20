@@ -472,7 +472,8 @@ CPLErr GTiffRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     int			nBlockBufSize, nBlockId, nBlockIdBand0;
     CPLErr		eErr = CE_None;
 
-    poGDS->SetDirectory();
+    if (!poGDS->SetDirectory())
+        return CE_Failure;
 
     if( TIFFIsTiled(poGDS->hTIFF) )
         nBlockBufSize = TIFFTileSize( poGDS->hTIFF );
@@ -693,7 +694,8 @@ CPLErr GTiffRasterBand::IWriteBlock( int nBlockXOff, int nBlockYOff,
     int		nBlockId;
     CPLErr      eErr = CE_None;
 
-    poGDS->SetDirectory();
+    if (!poGDS->SetDirectory())
+        return CE_Failure;
 
     CPLAssert( poGDS != NULL
                && nBlockXOff >= 0
@@ -980,7 +982,10 @@ CPLErr GTiffRasterBand::SetColorTable( GDALColorTable * poCT )
 /*      prematurely crystalizing the directory.  (#2820)                */
 /* -------------------------------------------------------------------- */
     if( poGDS->bCrystalized )
-        poGDS->SetDirectory();
+    {
+        if (!poGDS->SetDirectory())
+            return CE_Failure;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Is this really a request to clear the color table?              */
@@ -1100,7 +1105,8 @@ CPLErr GTiffRasterBand::SetNoDataValue( double dfNoData )
     if( poGDS->bNoDataSet && poGDS->dfNoDataValue == dfNoData )
         return CE_None;
 
-    poGDS->SetDirectory();  // needed to call TIFFSetField().
+    if (!poGDS->SetDirectory())  // needed to call TIFFSetField().
+        return CE_Failure;
 
     poGDS->bNoDataSet = TRUE;
     poGDS->dfNoDataValue = dfNoData;
@@ -1305,7 +1311,8 @@ CPLErr GTiffRGBABand::IReadBlock( int nBlockXOff, int nBlockYOff,
     int			nBlockBufSize, nBlockId;
     CPLErr		eErr = CE_None;
 
-    poGDS->SetDirectory();
+    if (!poGDS->SetDirectory())
+        return CE_Failure;
 
     nBlockBufSize = 4 * nBlockXSize * nBlockYSize;
     nBlockId = nBlockXOff + nBlockYOff * nBlocksPerRow;
@@ -1465,7 +1472,8 @@ CPLErr GTiffOddBitsBand::IWriteBlock( int nBlockXOff, int nBlockYOff,
     int		nBlockId;
     CPLErr      eErr = CE_None;
 
-    poGDS->SetDirectory();
+    if (!poGDS->SetDirectory())
+        return CE_Failure;
 
     CPLAssert( poGDS != NULL
                && nBlockXOff >= 0
@@ -1712,7 +1720,8 @@ CPLErr GTiffOddBitsBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     int			nBlockId;
     CPLErr		eErr = CE_None;
 
-    poGDS->SetDirectory();
+    if (!poGDS->SetDirectory())
+        return CE_Failure;
 
     nBlockId = nBlockXOff + nBlockYOff * nBlocksPerRow;
 
@@ -2089,7 +2098,8 @@ CPLErr GTiffSplitBitmapBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 {
     GByte              *pabyLineBuf;
 
-    poGDS->SetDirectory();
+    if (!poGDS->SetDirectory())
+        return CE_Failure;
 
     pabyLineBuf = (GByte *) CPLMalloc(TIFFScanlineSize(poGDS->hTIFF));
 
@@ -2297,7 +2307,8 @@ void GTiffDataset::FillEmptyTiles()
     toff_t *panByteCounts = NULL;
     int    nBlockCount, iBlock;
 
-    SetDirectory();
+    if (!SetDirectory())
+        return;
 
 /* -------------------------------------------------------------------- */
 /*      How many blocks are there in this file?                         */
@@ -2453,7 +2464,8 @@ CPLErr GTiffDataset::FlushBlockBuf()
 
     bLoadedBlockDirty = FALSE;
 
-    SetDirectory();
+    if (!SetDirectory())
+        return CE_Failure;
 
     eErr = WriteEncodedTileOrStrip(nLoadedBlock, pabyBlockBuf, TRUE);
     if (eErr != CE_None)
@@ -2694,7 +2706,8 @@ void GTiffDataset::FlushCache()
     nLoadedBlock = -1;
     bLoadedBlockDirty = FALSE;
 
-    SetDirectory();
+    if (!SetDirectory())
+        return;
     FlushDirectory();
 }
 
@@ -2709,7 +2722,8 @@ void GTiffDataset::FlushDirectory()
     {
         if( bMetadataChanged )
         {
-            SetDirectory();
+            if (!SetDirectory())
+                return;
             bNeedsRewrite = 
                 WriteMetadata( this, hTIFF, TRUE, osProfile, osFilename,
                                papszCreationOptions );
@@ -2718,7 +2732,8 @@ void GTiffDataset::FlushDirectory()
         
         if( bGeoTIFFInfoChanged )
         {
-            SetDirectory();
+            if (!SetDirectory())
+                return;
             WriteGeoTIFFInfo();
         }
 
@@ -2727,7 +2742,8 @@ void GTiffDataset::FlushDirectory()
 #if defined(TIFFLIB_VERSION)
 /* We need at least TIFF 3.7.0 for TIFFGetSizeProc and TIFFClientdata */
 #if  TIFFLIB_VERSION > 20041016
-            SetDirectory();
+            if (!SetDirectory())
+                return;
 
             TIFFSizeProc pfnSizeProc = TIFFGetSizeProc( hTIFF );
 
@@ -2739,7 +2755,8 @@ void GTiffDataset::FlushDirectory()
 
             TIFFSetSubDirectory( hTIFF, nDirOffset );
 #elif  TIFFLIB_VERSION > 20010925 && TIFFLIB_VERSION != 20011807
-            SetDirectory();
+            if (!SetDirectory())
+                return;
 
             TIFFRewriteDirectory( hTIFF );
 #endif
@@ -2934,7 +2951,8 @@ CPLErr GTiffDataset::IBuildOverviews(
 /* -------------------------------------------------------------------- */
 /*      Move to the directory for this dataset.                         */
 /* -------------------------------------------------------------------- */
-    SetDirectory();
+    if (!SetDirectory())
+        return CE_Failure;
     FlushDirectory();
 
 /* -------------------------------------------------------------------- */
@@ -4025,6 +4043,8 @@ int GTiffDataset::SetDirectory( toff_t nNewOffset )
     (*ppoActiveDSRef) = this;
 
     int nSetDirResult = TIFFSetSubDirectory( hTIFF, nNewOffset );
+    if (!nSetDirResult)
+        return nSetDirResult;
 
 /* -------------------------------------------------------------------- */
 /*      YCbCr JPEG compressed images should be translated on the fly    */
@@ -4455,7 +4475,8 @@ CPLErr GTiffDataset::OpenOffset( TIFF *hTIFFIn,
 
     nDirOffset = nDirOffsetIn;
 
-    SetDirectory( nDirOffsetIn );
+    if (!SetDirectory( nDirOffsetIn ))
+        return CE_Failure;
 
     bBase = bBaseIn;
 
@@ -6786,8 +6807,12 @@ CPLErr GTiffDataset::CreateMaskBand(int nFlags)
         }
 
         if (poBaseDS)
-            poBaseDS->SetDirectory();
-        SetDirectory();
+        {
+            if (!poBaseDS->SetDirectory())
+                return CE_Failure;
+        }
+        if (!SetDirectory())
+            return CE_Failure;
 
         if( TIFFGetField(hTIFF, TIFFTAG_SUBFILETYPE, &nSubType))
         {
