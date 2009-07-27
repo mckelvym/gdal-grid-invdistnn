@@ -758,6 +758,181 @@ def hfa_unique_values_color_table():
     return 'success'
 
 ###############################################################################
+# Verify "unique values" based histogram.
+
+def hfa_unique_values_hist():
+
+    ds = gdal.Open( 'data/i8u_c_i.img' )
+
+    md = ds.GetRasterBand(1).GetMetadata()
+
+    expected = '12603|1|0|0|45|1|0|0|0|0|656|177|0|0|5026|1062|0|0|2|0|0|0|0|0|0|0|0|0|0|0|0|0|75|1|0|0|207|158|0|0|8|34|0|0|0|0|538|57|0|10|214|20|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|31|0|0|9|625|67|0|0|118|738|117|3004|1499|491|187|1272|513|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|16|3|0|0|283|123|5|1931|835|357|332|944|451|80|40|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|12|5|0|0|535|1029|118|0|33|246|342|0|0|10|8|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|169|439|0|0|6|990|329|0|0|120|295|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|164|42|0|0|570|966|0|0|18|152|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|45|106|0|0|16|16517|'
+    if md['STATISTICS_HISTOBINVALUES'] != expected:
+        print md['STATISTICS_HISTOBINVALUES']
+        gdaltest.post_reason( 'Unexpected HISTOBINVALUES.' )
+        return 'fail'
+
+    if md['STATISTICS_HISTOMIN'] != '0' \
+       or md['STATISTICS_HISTOMAX'] != '255':
+        print md
+        gdaltest.post_reason( "unexpected histomin/histomax value." )
+        return 'fail'
+
+    # lets also check the RAT to ensure it has the BinValues column added.
+
+    rat = ds.GetRasterBand(1).GetDefaultRAT()
+
+    if rat.GetColumnCount() != 6 \
+       or rat.GetTypeOfCol(0) != gdal.GFT_Real \
+       or rat.GetUsageOfCol(0) != gdal.GFU_MinMax:
+        print rat.GetColumnCount()
+        print rat.GetTypeOfCol(0)
+        print rat.GetUsageOfCol(0)
+        gdaltest.post_reason( 'BinValues column wrong.')
+        return 'fail'
+
+    if rat.GetValueAsInt( 2, 0 ) != 4:
+        print rat.GetValueAsInt( 2, 0 )
+        gdaltest.post_reason( 'BinValues value wrong.' )
+        return 'fail'
+
+    rat = None
+    
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Verify reading of 3rd order XFORM polynomials.
+
+def hfa_xforms_3rd():
+
+    ds = gdal.Open( 'data/42BW_420730_VT2.aux' )
+
+    check_list = [
+        ('XFORM_STEPS', 2),
+        ('XFORM0_POLYCOEFMTX[3]', -0.151286406053458),
+        ('XFORM0_POLYCOEFVECTOR[1]', 401692.559078924),
+        ('XFORM1_ORDER', 3),
+        ('XFORM1_FWD_POLYCOEFMTX[0]', -0.560405515080768),
+        ('XFORM1_FWD_POLYCOEFMTX[17]', -1.01593898110617e-08),
+        ('XFORM1_REV_POLYCOEFMTX[17]', 4.01319402177037e-09),
+        ('XFORM1_REV_POLYCOEFVECTOR[0]', 2605.41812438735) ]
+
+    xform_md = ds.GetMetadata( 'XFORMS' )
+
+    for check_item in check_list:
+        try:
+            value = float(xform_md[check_item[0]])
+        except:
+            gdaltest.post_reason( 'metadata item %d missing' % check_item[0])
+            return 'fail'
+
+        if abs(value - check_item[1]) > abs(value/100000.0):
+            gdaltest.post_reason( 'metadata item %s has wrong value: %.15g' % \
+                                  (check_item[0], value) )
+            return 'fail'
+
+    # Check that the GCPs are as expected implying that the evaluation
+    # function for XFORMs if working ok.
+    
+    gcps = ds.GetGCPs()
+
+    if gcps[0].GCPPixel != 0.5 \
+       or gcps[0].GCPLine != 0.5 \
+       or abs(gcps[0].GCPX - 1667635.007) > 0.001 \
+       or abs(gcps[0].GCPY - 2620003.171) > 0.001:
+        print gcps[0].GCPPixel, gcps[0].GCPLine, gcps[0].GCPX, gcps[0].GCPY
+        gdaltest.post_reason( 'GCP 0 value wrong.' )
+        return 'fail'
+    
+    if abs(gcps[14].GCPPixel - 1769.7) > 0.1 \
+       or abs(gcps[14].GCPLine  - 2124.9) > 0.1 \
+       or abs(gcps[14].GCPX - 1665221.064) > 0.001 \
+       or abs(gcps[14].GCPY - 2632414.379) > 0.001:
+        print gcps[14].GCPPixel, gcps[14].GCPLine, gcps[14].GCPX, gcps[14].GCPY
+        gdaltest.post_reason( 'GCP 14 value wrong.' )
+        return 'fail'
+    
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Verify that we can clear an existing color table
+
+def hfa_delete_colortable():
+    # copy a file to tmp dir to modify.
+    open('tmp/i8u.img','wb').write(open('data/i8u_c_i.img', 'rb').read())
+
+    # clear color table.
+    ds = gdal.Open( 'tmp/i8u.img', gdal.GA_Update )
+
+    try:
+        ds.GetRasterBand(1).SetColorTable
+    except:
+        # OG python bindings don't have SetColorTable, and if we use
+        # SetRasterColorTable, it doesn't work either as None isn't a valid
+        # value for them
+        ds = None
+        gdal.GetDriverByName('HFA').Delete('tmp/i8u.img')
+        return 'skip'
+
+    ds.GetRasterBand(1).SetColorTable(None)
+    ds = None
+
+    # check color table gone.
+    ds = gdal.Open( 'tmp/i8u.img' )
+    if ds.GetRasterBand(1).GetColorTable() != None:
+        gdaltest.post_reason( 'failed to remove color table' )
+        return 'fail'
+
+    ds = None
+
+    gdal.GetDriverByName('HFA').Delete('tmp/i8u.img')
+
+    return 'success'
+
+###############################################################################
+# Verify that we can clear an existing color table (#2842)
+
+def hfa_delete_colortable2():
+
+    # copy a file to tmp dir to modify.
+    src_ds = gdal.Open('../gcore/data/8bit_pal.bmp')
+    ds = gdal.GetDriverByName('HFA').CreateCopy('tmp/hfa_delete_colortable2.img', src_ds)
+    src_ds = None
+    ds = None
+
+    # clear color table.
+    ds = gdal.Open( 'tmp/hfa_delete_colortable2.img', gdal.GA_Update )
+
+    try:
+        ds.GetRasterBand(1).SetColorTable
+    except:
+        # OG python bindings don't have SetColorTable, and if we use
+        # SetRasterColorTable, it doesn't work either as None isn't a valid
+        # value for them
+        ds = None
+        gdal.GetDriverByName('HFA').Delete('tmp/hfa_delete_colortable2.img')
+        return 'skip'
+
+    ds.GetRasterBand(1).SetColorTable(None)
+    ds = None
+
+    # check color table gone.
+    ds = gdal.Open( 'tmp/hfa_delete_colortable2.img' )
+    if ds.GetRasterBand(1).GetColorTable() != None:
+        gdaltest.post_reason( 'failed to remove color table' )
+        return 'fail'
+
+    ds = None
+
+    gdal.GetDriverByName('HFA').Delete('tmp/hfa_delete_colortable2.img')
+
+    return 'success'
+
+###############################################################################
 #
 
 gdaltest_list = [
@@ -784,7 +959,11 @@ gdaltest_list = [
     hfa_vsimem,
     hfa_proName,
     hfa_read_empty_compressed,
-    hfa_unique_values_color_table
+    hfa_unique_values_color_table,
+    hfa_unique_values_hist,
+    hfa_xforms_3rd,
+    hfa_delete_colortable,
+    hfa_delete_colortable2
     ]
 
 if __name__ == '__main__':
