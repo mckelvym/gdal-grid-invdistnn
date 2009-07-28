@@ -729,6 +729,8 @@ void HFARasterBand::ReadHistogramMetadata()
     {
         CPLError( CE_Failure, CPLE_FileIO, 
                   "Cannot read histogram values." );
+        CPLFree( panHistValues );
+        CPLFree( pabyWorkBuf );
         return;
     }
 
@@ -747,6 +749,7 @@ void HFARasterBand::ReadHistogramMetadata()
     }
 
     CPLFree( pabyWorkBuf );
+    pabyWorkBuf = NULL;
 
 /* -------------------------------------------------------------------- */
 /*      Do we have unique values for the bins?                          */
@@ -796,6 +799,9 @@ void HFARasterBand::ReadHistogramMetadata()
         SetMetadataItem( "STATISTICS_HISTOMIN", "0" );
         SetMetadataItem( "STATISTICS_HISTOMAX", 
                          CPLString().Printf("%d", nMaxValue ) );
+
+        CPLFree(padfBinValues);
+        padfBinValues = NULL;
     }
 
 /* -------------------------------------------------------------------- */
@@ -827,6 +833,7 @@ void HFARasterBand::ReadHistogramMetadata()
     }
 
     SetMetadataItem( "STATISTICS_HISTOBINVALUES", pszBinValues );
+    CPLFree( panHistValues );
     CPLFree( pszBinValues );
 }
 
@@ -1539,15 +1546,23 @@ GDALRasterAttributeTable *HFARasterBand::ReadNamedRAT( const char *pszName )
         if( EQUAL(pszType,"real") )
         {
             double *padfColData = (double*)VSIMalloc(nRowCount*sizeof(double));
-            if (padfColData == NULL)
+            if (nRowCount != 0 && padfColData == NULL)
             {
                 CPLError( CE_Failure, CPLE_OutOfMemory,
                  "HFARasterBand::ReadNamedRAT : Out of memory\n");
+                delete poRAT;
                 return NULL;
             }
 
             VSIFSeekL( hHFA->fp, nOffset, SEEK_SET );
-            VSIFReadL( padfColData, nRowCount, sizeof(double), hHFA->fp );
+            if ((int)VSIFReadL( padfColData, sizeof(double), nRowCount, hHFA->fp ) != nRowCount)
+            {
+                CPLError( CE_Failure, CPLE_AppDefined,
+                            "HFARasterBand::ReadNamedRAT : Cannot read values");
+                CPLFree(padfColData);
+                delete poRAT;
+                return NULL;
+            }
 #ifdef CPL_MSB
             GDALSwapWords( padfColData, 8, nRowCount, 8 );
 #endif
@@ -1565,11 +1580,19 @@ GDALRasterAttributeTable *HFARasterBand::ReadNamedRAT( const char *pszName )
             {
                 CPLError( CE_Failure, CPLE_OutOfMemory,
                  "HFARasterBand::ReadNamedRAT : Out of memory\n");
+                delete poRAT;
                 return NULL;
             }
 
             VSIFSeekL( hHFA->fp, nOffset, SEEK_SET );
-            VSIFReadL( pachColData, nRowCount, nMaxNumChars, hHFA->fp );
+            if ((int)VSIFReadL( pachColData, nMaxNumChars, nRowCount, hHFA->fp ) != nRowCount)
+            {
+                CPLError( CE_Failure, CPLE_AppDefined,
+                            "HFARasterBand::ReadNamedRAT : Cannot read values");
+                CPLFree(pachColData);
+                delete poRAT;
+                return NULL;
+            }
 
             poRAT->CreateColumn(poDTChild->GetName(),GFT_String,eType);
             for( i = 0; i < nRowCount; i++ )
@@ -1586,15 +1609,23 @@ GDALRasterAttributeTable *HFARasterBand::ReadNamedRAT( const char *pszName )
         else if( EQUALN(pszType,"int",3) )
         {
             GInt32 *panColData = (GInt32*)VSIMalloc(nRowCount*sizeof(GInt32));
-            if (panColData == NULL)
+            if (nRowCount != 0 && panColData == NULL)
             {
                 CPLError( CE_Failure, CPLE_OutOfMemory,
                  "HFARasterBand::ReadNamedRAT : Out of memory\n");
+                delete poRAT;
                 return NULL;
             }
 
             VSIFSeekL( hHFA->fp, nOffset, SEEK_SET );
-            VSIFReadL( panColData, nRowCount, sizeof(GInt32), hHFA->fp );
+            if ((int)VSIFReadL( panColData, sizeof(GInt32), nRowCount, hHFA->fp ) != nRowCount)
+            {
+                CPLError( CE_Failure, CPLE_AppDefined,
+                            "HFARasterBand::ReadNamedRAT : Cannot read values");
+                CPLFree(panColData);
+                delete poRAT;
+                return NULL;
+            }
 #ifdef CPL_MSB
             GDALSwapWords( panColData, 4, nRowCount, 4 );
 #endif
