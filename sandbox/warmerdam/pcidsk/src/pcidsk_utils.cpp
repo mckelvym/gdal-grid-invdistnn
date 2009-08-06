@@ -72,8 +72,7 @@ int PCIDSK::DataTypeSize( eChanType chan_type )
  *
  * @param chan_type the channel type enumeration value to be translated.
  *
- * @return an internal string representing the data type.  The string should
- * not be altered or freed.
+ * @return a string representing the data type.
  */
 
 std::string PCIDSK::DataTypeName( eChanType chan_type )
@@ -106,8 +105,7 @@ std::string PCIDSK::DataTypeName( eChanType chan_type )
  * 
  * @param type the segment type code.
  *
- * @return the internal string for the segment type.  The string should
- * not be altered or freed.
+ * @return the string for the segment type.
  */
 
 std::string PCIDSK::SegmentTypeName( eSegType type )

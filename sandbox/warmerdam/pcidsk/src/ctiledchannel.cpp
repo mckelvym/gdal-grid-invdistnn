@@ -267,11 +267,10 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
     {
         RLEDecompressBlock( oCompressedData, oUncompressedData );
     }
-#ifdef notdef
     else if( compression == "JPEG" )
     {
+        JPEGDecompressBlock( oCompressedData, oUncompressedData );
     }
-#endif
     else
     {
         ThrowPCIDSKException( 
@@ -441,3 +440,20 @@ void CTiledChannel::RLEDecompressBlock( PCIDSKBuffer &oCompressedData,
     }
 }
 
+/************************************************************************/
+/*                        JPEGDecompressBlock()                         */
+/************************************************************************/
+
+void CTiledChannel::JPEGDecompressBlock( PCIDSKBuffer &oCompressedData,
+                                         PCIDSKBuffer &oDecompressedData )
+
+                               
+{
+    if( file->GetInterfaces()->JPEGDecompressBlock == NULL )
+        ThrowPCIDSKException( "JPEG decompression not enabled in the PCIDSKInterfaces of this build." );
+
+    file->GetInterfaces()->JPEGDecompressBlock( 
+        (uint8 *) oCompressedData.buffer, oCompressedData.buffer_size,
+        (uint8 *) oDecompressedData.buffer, oDecompressedData.buffer_size,
+        GetBlockWidth(), GetBlockHeight(), GetType() );
+}

@@ -25,7 +25,7 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "pcidsk.h"
+#include "pcidsk_p.h"
 
 using namespace PCIDSK;
 
@@ -41,5 +41,11 @@ PCIDSKInterfaces::PCIDSKInterfaces()
 {
     io = GetDefaultIOInterfaces();
     CreateMutex = DefaultCreateMutex;
+
+#if defined(HAVE_LIBJPEG)
+    JPEGDecompressBlock = LibJPEG_DecompressBlock;
+#else
+    JPEGDecompressBlock = NULL;
+#endif
 }
 

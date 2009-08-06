@@ -374,6 +374,8 @@ private:
     void                     EstablishAccess();
     void                     RLEDecompressBlock( PCIDSKBuffer &oCompressed,
                                                  PCIDSKBuffer &oDecompressed );
+    void                     JPEGDecompressBlock( PCIDSKBuffer &oCompressed,
+                                                  PCIDSKBuffer &oDecompressed );
 
 public:
     CTiledChannel( PCIDSKBuffer &image_header, 
@@ -586,6 +588,10 @@ uint64 atouint64( const char *);
 int64  atoint64( const char *);
 void   SwapData( void *data, int value_size, int value_count );
 void   GetCurrentDateTime( char *out_datetime );
+
+void LibJPEG_DecompressBlock(
+    uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes,
+    int xsize, int ysize, eChanType pixel_type );
 
 }; // end of PCIDSK namespace
 

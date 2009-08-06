@@ -144,9 +144,9 @@ int main( int argc, char **argv)
                     {
                         printf( "Segment %d/%s of type %d/%s.\n",
                                 segment, 
-                                segobj->GetName(), 
+                                segobj->GetName().c_str(), 
                                 segobj->GetSegmentType(),
-                                PCIDSK::SegmentTypeName(segobj->GetSegmentType()) );
+                                PCIDSK::SegmentTypeName(segobj->GetSegmentType()).c_str() );
                         keys = segobj->GetMetadataKeys();  
                         
                         if( keys.size() > 0 )
@@ -155,7 +155,7 @@ int main( int argc, char **argv)
                         {
                             printf( "    %s: %s\n", 
                                     keys[i_key].c_str(), 
-                                    segobj->GetMetadataValue( keys[i_key].c_str() ) );
+                                    segobj->GetMetadataValue( keys[i_key].c_str() ).c_str() );
                         }
                     }
                 }
@@ -192,7 +192,7 @@ int main( int argc, char **argv)
             
                 printf( "Process %d blocks on channel %d (%s)...",
                         block_count, channel_index,
-                        PCIDSK::DataTypeName( channel->GetType()) );
+                        PCIDSK::DataTypeName( channel->GetType()).c_str() );
                 fflush(stdout);
             
                 for( i_block = 0; i_block < block_count; i_block++ )
@@ -283,7 +283,7 @@ int main( int argc, char **argv)
             int block_size = (int) file->GetPixelGroupSize() * file->GetWidth();
             int block_count = x_block_count * y_block_count;
 
-            if( strcmp(file->GetInterleaving(),"PIXEL   ") != 0 )
+            if( file->GetInterleaving() == "PIXEL" )
             {
                 fprintf( stderr, 
                          "Pixel Interleaved access only possible on pixel interleaved files.\n" );

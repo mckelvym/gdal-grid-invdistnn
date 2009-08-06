@@ -4,7 +4,7 @@ CXXFLAGS = -g -Wall -I../src -I/usr/local/include
 OBJ =   test_main.o testpcidskexception.o testpcidskfile.o testsegments.o \
 	testpcidskcreate.o testpcidskupdate.o
 
-LIBS =	../src/pcidsk.a -L/usr/local/lib -lcppunit -ldl 
+LIBS =	../src/pcidsk.a -L/usr/local/lib -ljpeg -lcppunit -ldl 
 
 default:	test_main pcidsk_read pcidsk2pcidsk
 

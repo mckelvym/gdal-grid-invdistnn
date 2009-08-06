@@ -144,7 +144,13 @@ class PCIDSK_DLL PCIDSKInterfaces
     PCIDSKInterfaces();
 
     const IOInterfaces 	*io;
+
     Mutex               *(*CreateMutex)(void);
+
+    void                (*JPEGDecompressBlock)
+        ( uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes,
+          int xsize, int ysize, eChanType pixel_type );
+
 //    DBInterfaces 	db_interfaces;
 };
 
