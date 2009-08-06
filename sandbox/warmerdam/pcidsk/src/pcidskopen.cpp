@@ -48,7 +48,7 @@ using namespace PCIDSK;
  * @return a pointer to a file object for accessing the PCIDSK file. 
  */
 
-PCIDSKFile *PCIDSK::Open( const char *filename, const char *access,
+PCIDSKFile *PCIDSK::Open( std::string filename, std::string access,
                           const PCIDSKInterfaces *interfaces )
 
 {
@@ -74,7 +74,7 @@ PCIDSKFile *PCIDSK::Open( const char *filename, const char *access,
     {
         interfaces->io->Close( io_handle );
         ThrowPCIDSKException( "File %s does not appear to be PCIDSK format.",
-                              filename );
+                              filename.c_str() );
     }
 
 /* -------------------------------------------------------------------- */
@@ -87,7 +87,7 @@ PCIDSKFile *PCIDSK::Open( const char *filename, const char *access,
     file->io_handle = io_handle;
     file->io_mutex = interfaces->CreateMutex();
 
-    if( strstr(access,"+") != NULL )
+    if( strstr(access.c_str(),"+") != NULL )
         file->updatable = true;
 
 /* -------------------------------------------------------------------- */

@@ -529,7 +529,7 @@ void CPCIDSKFile::FlushBlock()
 
 void CPCIDSKFile::GetIODetails( void ***io_handle_pp, 
                                 Mutex ***io_mutex_pp, 
-                                const char *filename )
+                                std::string filename )
 
 {
     *io_handle_pp = NULL;
@@ -538,7 +538,7 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 /* -------------------------------------------------------------------- */
 /*      Does this reference the PCIDSK file itself?                     */
 /* -------------------------------------------------------------------- */
-    if( filename == NULL || strlen(filename) == 0 )
+    if( filename.size() == 0 )
     {
         *io_handle_pp = &io_handle;
         *io_mutex_pp = &io_mutex;
@@ -552,7 +552,7 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 
     for( i = 0; i < file_list.size(); i++ )
     {
-        if( strcmp(file_list[i].filename.c_str(),filename) == 0 )
+        if( file_list[i].filename == filename )
         {
             *io_handle_pp = &(file_list[i].io_handle);
             *io_mutex_pp = &(file_list[i].io_mutex);
@@ -569,7 +569,7 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
     new_file.io_handle = interfaces.io->Open( filename, "r" );
     if( new_file.io_handle == NULL )
         ThrowPCIDSKException( "Unable to open file '%s'.", 
-                                   filename );
+                              filename.c_str() );
 
 /* -------------------------------------------------------------------- */
 /*      Push the new file into the list of files managed for this       */
@@ -588,7 +588,7 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 /*                           CreateSegment()                            */
 /************************************************************************/
 
-int CPCIDSKFile::CreateSegment( const char *name, const char *description,
+int CPCIDSKFile::CreateSegment( std::string name, std::string description,
                                 eSegType seg_type, int data_blocks )
 
 {
@@ -733,7 +733,7 @@ int CPCIDSKFile::CreateSegment( const char *name, const char *description,
     segptr.Put( (int) seg_type, 1, 3 );
 
     // SP1.3 - Name
-    segptr.Put( name, 4, 8 );
+    segptr.Put( name.c_str(), 4, 8 );
     
     // SP1.4 - start block
     segptr.Put( (uint64) (seg_start + 1), 12, 11 );
@@ -759,7 +759,7 @@ int CPCIDSKFile::CreateSegment( const char *name, const char *description,
     sh.Put( " ", 0, 1024 );
 
     // SH1 - segment content description
-    sh.Put( description, 0, 64 );
+    sh.Put( description.c_str(), 0, 64 );
 
     // SH3 - Creation time/date
     sh.Put( current_time, 128, 16 );

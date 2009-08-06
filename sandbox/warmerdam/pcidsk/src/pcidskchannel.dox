@@ -162,7 +162,7 @@ associated with each may be fetched with GetMetadataValue().
 @see GetMetadataValue()
 
 ******************************************************************************
-\fn const char *PCIDSK::PCIDSKChannel::GetMetadataValue( const char *key );
+\fn std::string PCIDSK::PCIDSKChannel::GetMetadataValue( std::string key );
 
 \brief Fetch metadata value
 
@@ -171,8 +171,8 @@ invalid if another thread modifies the metadata for this object.
 
 @param key the key to fetch the value for.
 
-@return the value of the indicated metadata item, or NULL if it does not 
-exist on the target object.
+@return the value of the indicated metadata item, or an empty string if it
+does not exist on the target object.
 
 @see GetMetadataKeys()
 

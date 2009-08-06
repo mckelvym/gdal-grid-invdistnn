@@ -120,7 +120,7 @@ class IOInterfaces
 {
 public:
     virtual ~IOInterfaces() {}
-    virtual void   *Open( const char *filename, const char *access ) const = 0;
+    virtual void   *Open( std::string filename, std::string access ) const = 0;
     virtual uint64  Seek( void *io_handle, uint64 offset, int whence ) const = 0;
     virtual uint64  Tell( void *io_handle ) const = 0;
     virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_handle ) const = 0;
@@ -168,10 +168,10 @@ public:
     virtual int GetWidth() const = 0;
     virtual int GetHeight() const = 0;
     virtual int GetChannels() const = 0;
-    virtual const char *GetInterleaving() const = 0;
+    virtual std::string GetInterleaving() const = 0;
     virtual bool GetUpdatable() const = 0;
 
-    virtual int  CreateSegment( const char *name, const char *description,
+    virtual int  CreateSegment( std::string name, std::string description,
                                 eSegType seg_type, int data_blocks ) = 0;
 
     // the following are only for pixel interleaved IO
@@ -184,9 +184,9 @@ public:
     virtual void ReadFromFile( void *buffer, uint64 offset, uint64 size ) = 0;
 
     virtual void GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
-                            const char *filename = "" ) = 0;
+                               std::string filename = "" ) = 0;
 
-    virtual const char *GetMetadataValue( const char *key ) = 0;
+    virtual std::string GetMetadataValue( std::string key ) = 0;
     virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 
@@ -213,7 +213,7 @@ public:
     virtual int GetOverviewCount() = 0;
     virtual PCIDSKChannel *GetOverview( int i ) = 0;
 
-    virtual const char *GetMetadataValue( const char *key ) = 0;
+    virtual std::string GetMetadataValue( std::string key ) = 0;
     virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 
@@ -232,11 +232,11 @@ public:
     virtual void ReadFromFile( void *buffer, uint64 offset, uint64 size ) = 0;
 
     virtual eSegType    GetSegmentType() = 0;
-    virtual const char *GetName() = 0;
-    virtual const char *GetDescription() = 0;
+    virtual std::string GetName() = 0;
+    virtual std::string GetDescription() = 0;
     virtual int         GetSegmentNumber() = 0;
 
-    virtual const char *GetMetadataValue( const char *key ) = 0;
+    virtual std::string GetMetadataValue( std::string key ) = 0;
     virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 
@@ -253,9 +253,9 @@ public:
 
     virtual void GetTransform( double &a1, double &a2, double &xrot, 
                                double &b1, double &yrot, double &b3 ) = 0;
-    virtual const char *GetGeosys() = 0;
+    virtual std::string GetGeosys() = 0;
     
-    virtual void WriteSimple( const char *geosys, 
+    virtual void WriteSimple( std::string geosys, 
                               double a1, double a2, double xrot, 
                               double b1, double yrot, double b3 ) = 0;
 };
@@ -264,16 +264,16 @@ public:
 /*                        Supporting functions.                         */
 /************************************************************************/
 
-PCIDSKFile PCIDSK_DLL *Open( const char *filename, const char *access,  
+PCIDSKFile PCIDSK_DLL *Open( std::string filename, std::string access,  
                              const PCIDSKInterfaces *interfaces );
-PCIDSKFile PCIDSK_DLL *Create( const char *filename, int pixels, int lines,
+PCIDSKFile PCIDSK_DLL *Create( std::string filename, int pixels, int lines,
                                int channel_count, eChanType *channel_types, 
-                               const char *options,
+                               std::string options,
                                const PCIDSKInterfaces *interfaces );
 
 int PCIDSK_DLL DataTypeSize( eChanType );
-const char PCIDSK_DLL *DataTypeName( eChanType );
-const char PCIDSK_DLL *SegmentTypeName( eSegType );
+std::string PCIDSK_DLL DataTypeName( eChanType );
+std::string PCIDSK_DLL SegmentTypeName( eSegType );
 
 }; // end of PCIDSK namespace
 

@@ -53,7 +53,7 @@ CBandInterleavedChannel::CBandInterleavedChannel( PCIDSKBuffer &image_header,
 /* -------------------------------------------------------------------- */
 /*      Establish the data layout.                                      */
 /* -------------------------------------------------------------------- */
-    if( strcmp(file->GetInterleaving(),"FILE") == 0 )
+    if( strcmp(file->GetInterleaving().c_str(),"FILE") == 0 )
     {
         start_byte = atouint64(image_header.Get( 168, 16 ));
         pixel_offset = atouint64(image_header.Get( 184, 8 ));

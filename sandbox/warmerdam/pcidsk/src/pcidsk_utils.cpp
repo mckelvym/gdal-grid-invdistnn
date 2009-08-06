@@ -76,7 +76,7 @@ int PCIDSK::DataTypeSize( eChanType chan_type )
  * not be altered or freed.
  */
 
-const char *PCIDSK::DataTypeName( eChanType chan_type )
+std::string PCIDSK::DataTypeName( eChanType chan_type )
 
 {
     switch( chan_type )
@@ -110,7 +110,7 @@ const char *PCIDSK::DataTypeName( eChanType chan_type )
  * not be altered or freed.
  */
 
-const char *PCIDSK::SegmentTypeName( eSegType type )
+std::string PCIDSK::SegmentTypeName( eSegType type )
 
 {
     switch( type )

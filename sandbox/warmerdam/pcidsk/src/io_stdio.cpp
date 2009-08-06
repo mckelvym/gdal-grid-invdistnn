@@ -33,7 +33,7 @@ using namespace PCIDSK;
 
 class StdioIOInterface : public IOInterfaces
 {
-    virtual void   *Open( const char *filename, const char *access ) const;
+    virtual void   *Open( std::string filename, std::string access ) const;
     virtual uint64  Seek( void *io_handle, uint64 offset, int whence ) const;
     virtual uint64  Tell( void *io_handle ) const;
     virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_hanle ) const;
@@ -75,18 +75,18 @@ const IOInterfaces *PCIDSK::GetDefaultIOInterfaces()
 /************************************************************************/
 
 void *
-StdioIOInterface::Open( const char *filename, const char *access ) const
+StdioIOInterface::Open( std::string filename, std::string access ) const
 
 {
     std::string adjusted_access = access;
 
     adjusted_access += "b";
 
-    FILE *fp = fopen( filename, adjusted_access.c_str() );
+    FILE *fp = fopen( filename.c_str(), adjusted_access.c_str() );
 
     if( fp == NULL )
         ThrowPCIDSKException( "Failed to open %s: %s", 
-                              filename, LastError() );
+                              filename.c_str(), LastError() );
 
     FileInfo *fi = new FileInfo();
     fi->fp = fp;

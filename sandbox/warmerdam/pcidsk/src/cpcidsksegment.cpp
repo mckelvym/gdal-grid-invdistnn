@@ -121,7 +121,7 @@ void CPCIDSKSegment::WriteToFile( const void *buffer, uint64 offset, uint64 size
 /*                           GetDescription()                           */
 /************************************************************************/
 
-const char *CPCIDSKSegment::GetDescription()
+std::string CPCIDSKSegment::GetDescription()
 
 {
     return "";

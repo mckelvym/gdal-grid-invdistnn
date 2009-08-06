@@ -1,4 +1,4 @@
-CXXFLAGS = -g -Wall
+CXXFLAGS = -g -Wall -fPIC
 
 OBJ =   io_stdio.o pthread_mutex.o pcidskinterfaces.o \
 	pcidskexception.o cpcidskfile.o pcidskbuffer.o pcidsk_utils.o \

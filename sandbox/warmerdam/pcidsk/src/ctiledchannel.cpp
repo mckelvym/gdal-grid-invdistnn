@@ -227,31 +227,70 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
     }
 
 /* -------------------------------------------------------------------- */
-/*      For now we do not support compression.                          */
-/* -------------------------------------------------------------------- */
-    if( compression != "NONE" )
-    {
-        ThrowPCIDSKException( "Compression type '%s' is not currently supported.", compression.c_str() );
-    }
-
-/* -------------------------------------------------------------------- */
 /*      Load uncompressed data, one scanline at a time, into the        */
 /*      target buffer.                                                  */
 /* -------------------------------------------------------------------- */
-    int iy;
-
-    for( iy = 0; iy < ysize; iy++ )
+    if( compression == "NONE" )
     {
-        vfile->ReadFromFile( ((uint8 *) buffer) 
-                             + iy * xsize * pixel_size,
-                             tile_offsets[block_index] 
-                             + ((iy+yoff)*block_width + xoff) * pixel_size,
-                             xsize * pixel_size );
+        int iy;
+
+        for( iy = 0; iy < ysize; iy++ )
+        {
+            vfile->ReadFromFile( ((uint8 *) buffer) 
+                                 + iy * xsize * pixel_size,
+                                 tile_offsets[block_index] 
+                                 + ((iy+yoff)*block_width + xoff) * pixel_size,
+                                 xsize * pixel_size );
+        }
+        
+        // Do byte swapping if needed.
+        if( needs_swap )
+            SwapData( buffer, pixel_size, xsize * ysize );
+        
+        return 1;
     }
 
-    // Do byte swapping if needed.
-    if( needs_swap )
-        SwapData( buffer, pixel_size, xsize * ysize );
+/* -------------------------------------------------------------------- */
+/*      Load the whole compressed data into a working buffer.           */
+/* -------------------------------------------------------------------- */
+    PCIDSKBuffer oCompressedData( tile_sizes[block_index] );
+    PCIDSKBuffer oUncompressedData( pixel_size * block_width * block_height );
+
+    vfile->ReadFromFile( oCompressedData.buffer, 
+                         tile_offsets[block_index], 
+                         tile_sizes[block_index] );
+    
+/* -------------------------------------------------------------------- */
+/*      Handle decompression.                                           */
+/* -------------------------------------------------------------------- */
+    if( compression == "RLE" )
+    {
+        RLEDecompressBlock( oCompressedData, oUncompressedData );
+    }
+#ifdef notdef
+    else if( compression == "JPEG" )
+    {
+    }
+#endif
+    else
+    {
+        ThrowPCIDSKException( 
+            "Unable to read tile of unsupported compression type: %s",
+            compression.c_str() );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Copy out the desired subwindow.                                 */
+/* -------------------------------------------------------------------- */
+    int iy;
+    
+    for( iy = 0; iy < ysize; iy++ )
+    {
+        memcpy( ((uint8 *) buffer) + iy * xsize * pixel_size,
+                oUncompressedData.buffer 
+                + ((iy+yoff)*block_width + xoff) * pixel_size,
+                xsize * pixel_size );
+    }
 
     return 1;
 }
@@ -326,5 +365,79 @@ eChanType CTiledChannel::GetType()
         EstablishAccess();
 
     return CPCIDSKChannel::GetType();
+}
+
+/************************************************************************/
+/*                         RLEDecompressBlock()                         */
+/************************************************************************/
+
+void CTiledChannel::RLEDecompressBlock( PCIDSKBuffer &oCompressedData,
+                                        PCIDSKBuffer &oDecompressedData )
+
+                               
+{
+    int    src_offset=0, dst_offset=0;
+    uint8  *src = (uint8 *) oCompressedData.buffer;
+    uint8  *dst = (uint8 *) oDecompressedData.buffer;
+    int    pixel_size = DataTypeSize(GetType());
+
+/* -------------------------------------------------------------------- */
+/*      Process till we are out of source data, or our destination      */
+/*      buffer is full.  These conditions should be satisified at       */
+/*      the same time!                                                  */
+/* -------------------------------------------------------------------- */
+    while( src_offset + 1 + pixel_size <= oCompressedData.buffer_size
+           && dst_offset < oDecompressedData.buffer_size )
+    {
+/* -------------------------------------------------------------------- */
+/*      Extract a repeat run                                            */
+/* -------------------------------------------------------------------- */
+        if( src[src_offset] > 127 )
+        {
+            int count = src[src_offset++] - 128;
+            int i;
+
+            if( dst_offset + count * pixel_size > oDecompressedData.buffer_size)
+            {
+                ThrowPCIDSKException( "RLE compressed tile corrupt, overrun avoided." );
+            }
+
+            while( count-- > 0 )
+            {
+                for( i = 0; i < pixel_size; i++ )
+                    dst[dst_offset++] = src[src_offset+i];
+            }
+            src_offset += pixel_size;
+        }
+
+/* -------------------------------------------------------------------- */
+/*      Extract a literal run.                                          */
+/* -------------------------------------------------------------------- */
+        else 
+        {
+            int count = src[src_offset++];
+
+            if( dst_offset + count*pixel_size > oDecompressedData.buffer_size
+                || src_offset + count*pixel_size > oCompressedData.buffer_size)
+            {
+                ThrowPCIDSKException( "RLE compressed tile corrupt, overrun avoided." );
+            }
+
+            memcpy( dst + dst_offset, src + src_offset, 
+                    pixel_size * count );
+            src_offset += pixel_size * count;
+            dst_offset += pixel_size * count;
+        }
+
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Final validation.                                               */
+/* -------------------------------------------------------------------- */
+    if( src_offset != oCompressedData.buffer_size 
+        || dst_offset != oDecompressedData.buffer_size ) 
+    {
+        ThrowPCIDSKException( "RLE compressed tile corrupt, result incomplete." );
+    }
 }
 

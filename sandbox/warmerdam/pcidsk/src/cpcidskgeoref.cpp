@@ -120,11 +120,11 @@ void CPCIDSKGeoref::Load()
 /*                             GetGeosys()                              */
 /************************************************************************/
 
-const char *CPCIDSKGeoref::GetGeosys()
+std::string CPCIDSKGeoref::GetGeosys()
 
 {
     Load();
-    return geosys.c_str();
+    return geosys;
 }
 
 /************************************************************************/
@@ -149,7 +149,7 @@ void CPCIDSKGeoref::GetTransform( double &a1, double &a2, double &xrot,
 /*                            WriteSimple()                             */
 /************************************************************************/
 
-void CPCIDSKGeoref::WriteSimple( const char *geosys, 
+void CPCIDSKGeoref::WriteSimple( std::string geosys, 
                                  double a1, double a2, double xrot, 
                                  double b1, double yrot, double b3 )
 
@@ -170,7 +170,7 @@ void CPCIDSKGeoref::WriteSimple( const char *geosys,
     seg_data.Put( "PIXEL", 16, 16 );
     
     // SD.GEO.P3
-    seg_data.Put( geosys, 32, 16 );
+    seg_data.Put( geosys.c_str(), 32, 16 );
 
     // SD.GEO.P4
     seg_data.Put( 3, 48, 8 );

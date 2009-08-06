@@ -118,9 +118,9 @@ void CPCIDSKChannel::EstablishOverviewInfo()
         if( strncmp(keys[i].c_str(),"_Overview_",10) != 0 )
             continue;
 
-        const char *value = GetMetadataValue( keys[i].c_str() );
+        std::string value = GetMetadataValue( keys[i] );
 
-        overview_infos.push_back( std::string(value) );
+        overview_infos.push_back( value );
         overview_bands.push_back( NULL );
     }
 }

@@ -51,9 +51,9 @@ using namespace PCIDSK;
  */
 
 PCIDSKFile PCIDSK_DLL *
-PCIDSK::Create( const char *filename, int pixels, int lines,
+PCIDSK::Create( std::string filename, int pixels, int lines,
                 int channel_count, eChanType *channel_types,
-                const char *options, const PCIDSKInterfaces *interfaces )
+                std::string options, const PCIDSKInterfaces *interfaces )
 
 {
 /* -------------------------------------------------------------------- */
@@ -80,18 +80,18 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
     const char *interleaving;
     bool nozero = false;
 
-    if(strncmp(options,"PIXEL",5) == 0 )
+    if(strncmp(options.c_str(),"PIXEL",5) == 0 )
         interleaving = "PIXEL";
-    else if( strncmp(options,"BAND",4) == 0 )
+    else if( strncmp(options.c_str(),"BAND",4) == 0 )
         interleaving = "BAND";
-    else if( strncmp(options,"TILED",5) == 0 
-             || strncmp(options,"FILE",4) == 0 )
+    else if( strncmp(options.c_str(),"TILED",5) == 0 
+             || strncmp(options.c_str(),"FILE",4) == 0 )
         interleaving = "FILE";
     else
         ThrowPCIDSKException( "PCIDSK::Create() options '%s' not recognised.", 
-                              options );
+                              options.c_str() );
 
-    if( strstr(options,"NOZERO") != NULL )
+    if( strstr(options.c_str(),"NOZERO") != NULL )
         nozero = true;
 
 /* -------------------------------------------------------------------- */
@@ -212,7 +212,7 @@ PCIDSK::Create( const char *filename, int pixels, int lines,
     // FH4 - 16 characters reserved - spaces.
 
     // FH5 - Description
-    fh.Put( filename, 48, 64 );
+    fh.Put( filename.c_str(), 48, 64 );
 
     // FH6 - Facility
     fh.Put( "PCI Inc., Richmond Hill, Canada", 112, 32 );

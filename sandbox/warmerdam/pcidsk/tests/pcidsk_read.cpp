@@ -62,7 +62,7 @@ int main( int argc, char **argv)
 
         printf( "File: %dC x %dR x %dC (%s)\n", 
                 file->GetWidth(), file->GetHeight(), file->GetChannels(),
-                file->GetInterleaving() );
+                file->GetInterleaving().c_str() );
 
 /* -------------------------------------------------------------------- */
 /*      Report file level metadata if there is any.                     */
@@ -76,7 +76,7 @@ int main( int argc, char **argv)
         {
             printf( "    %s: %s\n", 
                     keys[i_key].c_str(), 
-                    file->GetMetadataValue( keys[i_key].c_str() ) );
+                    file->GetMetadataValue(keys[i_key].c_str()).c_str() );
         }
 
 /* -------------------------------------------------------------------- */
@@ -97,7 +97,8 @@ int main( int argc, char **argv)
                 PCIDSK::PCIDSKChannel *chanobj = file->GetChannel( channel );
 
                 printf( "Channel %d of type %s.\n",
-                        channel, PCIDSK::DataTypeName(chanobj->GetType()) );;
+                        channel, 
+                        PCIDSK::DataTypeName(chanobj->GetType()).c_str() );;
 
                 keys = chanobj->GetMetadataKeys();  
 
@@ -107,7 +108,7 @@ int main( int argc, char **argv)
                 {
                     printf( "    %s: %s\n", 
                             keys[i_key].c_str(), 
-                            chanobj->GetMetadataValue( keys[i_key].c_str() ) );
+                            chanobj->GetMetadataValue(keys[i_key].c_str()).c_str() );
                 }
 
                 if( chanobj->GetOverviewCount() > 0 )

@@ -100,11 +100,11 @@ public:
     MetadataSet();
     ~MetadataSet();
 
-    void        Initialize( CPCIDSKFile *file, const char *group, int id );
-    const char *GetMetadataValue( const char *key );
+    void        Initialize( CPCIDSKFile *file, std::string group, int id );
+    std::string GetMetadataValue( std::string key );
     std::vector<std::string> GetMetadataKeys();
     
-    void        SetMetadataValue( const char *key, const char *value );
+    void        SetMetadataValue( std::string key, std::string value );
 };
 
 /************************************************************************/
@@ -123,8 +123,8 @@ class ProtectedFile
 /************************************************************************/
 class CPCIDSKFile : public PCIDSKFile
 {
-    friend PCIDSKFile PCIDSK_DLL *Open( const char *filename, 
-                                        const char *access,  
+    friend PCIDSKFile PCIDSK_DLL *Open( std::string filename, 
+                                        std::string access,  
                                         const PCIDSKInterfaces *interfaces );
 
 private:
@@ -179,13 +179,13 @@ public:
     std::vector<PCIDSK::PCIDSKSegment *> GetSegments();
 
     PCIDSK::PCIDSKSegment  *GetSegment( int type, const char *name );
-    int  CreateSegment( const char *name, const char *description,
+    int  CreateSegment( std::string name, std::string description,
                         eSegType seg_type, int data_blocks );
 
     int       GetWidth() const { return width; }
     int       GetHeight() const { return height; }
     int       GetChannels() const { return channel_count; }
-    const char *GetInterleaving() const { return interleaving.c_str(); }
+    std::string GetInterleaving() const { return interleaving; }
     bool      GetUpdatable() const { return updatable; } 
     
     // the following are only for pixel interleaved IO
@@ -199,9 +199,9 @@ public:
     void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
 
     void      GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
-                            const char *filename = "" );
+                            std::string filename = "" );
 
-    const char *GetMetadataValue( const char *key ) 
+    std::string GetMetadataValue( std::string key ) 
 		{ return metadata.GetMetadataValue(key); }
     std::vector<std::string> GetMetadataKeys() 
         	{ return metadata.GetMetadataKeys(); }
@@ -262,7 +262,7 @@ public:
 
     int         GetChannelNumber() { return channel_number; }
 
-    const char *GetMetadataValue( const char *key ) 
+    std::string GetMetadataValue( std::string key ) 
 		{ return metadata.GetMetadataValue(key); }
     std::vector<std::string> GetMetadataKeys() 
         	{ return metadata.GetMetadataKeys(); }
@@ -372,6 +372,8 @@ private:
     std::vector<int>         tile_sizes;
 
     void                     EstablishAccess();
+    void                     RLEDecompressBlock( PCIDSKBuffer &oCompressed,
+                                                 PCIDSKBuffer &oDecompressed );
 
 public:
     CTiledChannel( PCIDSKBuffer &image_header, 
@@ -433,11 +435,11 @@ public:
     void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
 
     eSegType    GetSegmentType() { return segment_type; }
-    const char *GetName() { return segment_name.c_str(); }
-    const char *GetDescription();
+    std::string GetName() { return segment_name; }
+    std::string GetDescription();
     int         GetSegmentNumber() { return segment; }
 
-    const char *GetMetadataValue( const char *key ) 
+    std::string GetMetadataValue( std::string key ) 
 		{ return metadata.GetMetadataValue(key); }
     std::vector<std::string> GetMetadataKeys() 
         	{ return metadata.GetMetadataKeys(); }
@@ -466,9 +468,9 @@ public:
 
     void        GetTransform( double &a1, double &a2, double &xrot, 
                               double &b1, double &yrot, double &b3 );
-    const char *GetGeosys();
+    std::string GetGeosys();
 
-    void        WriteSimple( const char *geosys, 
+    void        WriteSimple( std::string geosys, 
                              double a1, double a2, double xrot, 
                              double b1, double yrot, double b3 );
 };

@@ -131,7 +131,7 @@ associated with each may be fetched with GetMetadataValue().
 @see GetMetadataValue()
 
 ******************************************************************************
-\fn const char *PCIDSK::PCIDSKSegment::GetMetadataValue( const char *key );
+\fn std::string PCIDSK::PCIDSKSegment::GetMetadataValue( std::string key );
 
 \brief Fetch metadata value
 

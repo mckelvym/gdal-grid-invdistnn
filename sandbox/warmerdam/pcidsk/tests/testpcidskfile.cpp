@@ -52,7 +52,7 @@ void PCIDSKFileTest::testOpenEltoro()
     CPPUNIT_ASSERT( eltoro->GetWidth() == 1024 );
     CPPUNIT_ASSERT( eltoro->GetHeight() == 1024 );
     CPPUNIT_ASSERT( eltoro->GetChannels() == 1 );
-    CPPUNIT_ASSERT( strcmp(eltoro->GetInterleaving(),"BAND") == 0 );
+    CPPUNIT_ASSERT( eltoro->GetInterleaving() == "BAND" );
 
     delete eltoro;
 }
@@ -93,7 +93,7 @@ void PCIDSKFileTest::testReadPixelInterleavedImage()
     irvine = PCIDSK::Open( "irvine.pix", "r", NULL );
 
     CPPUNIT_ASSERT( irvine != NULL );
-    CPPUNIT_ASSERT( strcmp(irvine->GetInterleaving(),"PIXEL") == 0 );
+    CPPUNIT_ASSERT( irvine->GetInterleaving() == "PIXEL" );
 
     channel = irvine->GetChannel(2);
     channel->ReadBlock( 511, data_line );
@@ -137,7 +137,7 @@ void PCIDSKFileTest::testReadTiledImage()
     irvine = PCIDSK::Open( "irvtiled.pix", "r", NULL );
 
     CPPUNIT_ASSERT( irvine != NULL );
-    CPPUNIT_ASSERT( strcmp(irvine->GetInterleaving(),"FILE") == 0 );
+    CPPUNIT_ASSERT( irvine->GetInterleaving() == "FILE" );
 
     channel = irvine->GetChannel(1);
 
@@ -174,8 +174,7 @@ void PCIDSKFileTest::testMetadata()
     keys = irvine->GetMetadataKeys();
     CPPUNIT_ASSERT( keys.size() == 1 );
     CPPUNIT_ASSERT( keys[0] == "_DBLayout" );
-    CPPUNIT_ASSERT( strcmp(irvine->GetMetadataValue(keys[0].c_str()),
-                           "TILED") == 0 );
+    CPPUNIT_ASSERT( irvine->GetMetadataValue(keys[0]) == "TILED" );
 
     channel = irvine->GetChannel(1);
 
@@ -183,16 +182,15 @@ void PCIDSKFileTest::testMetadata()
     CPPUNIT_ASSERT( keys.size() == 3 );
     CPPUNIT_ASSERT( keys[0] == "_Overview_3" );
     CPPUNIT_ASSERT( keys[2] == "testname" );
-    CPPUNIT_ASSERT( strcmp(channel->GetMetadataValue("testname"),
-                           "image test metadata") == 0 );
+    CPPUNIT_ASSERT( channel->GetMetadataValue("testname") 
+                    == "image test metadata" );
 
     segment = irvine->GetSegment(2);
 
     keys = segment->GetMetadataKeys();
     CPPUNIT_ASSERT( keys.size() == 1 );
     CPPUNIT_ASSERT( keys[0] == "testname" );
-    CPPUNIT_ASSERT( strcmp(segment->GetMetadataValue("testname"),
-                           "lut segment") == 0 );
+    CPPUNIT_ASSERT( segment->GetMetadataValue("testname") == "lut segment" );
 
     delete irvine;
 }

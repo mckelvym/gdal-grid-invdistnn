@@ -42,14 +42,14 @@ void SegmentsTest::testEltoro()
 
     CPPUNIT_ASSERT( seg != NULL );
     CPPUNIT_ASSERT( seg->GetSegmentType() == SEG_GEO );
-    CPPUNIT_ASSERT( strcmp(seg->GetName(),"GEOref") == 0 );
+    CPPUNIT_ASSERT( seg->GetName() == "GEOref" );
     CPPUNIT_ASSERT( seg->GetSegmentNumber() == 1 );
 
     seg = eltoro->GetSegment( 3 );
 
     CPPUNIT_ASSERT( seg != NULL );
     CPPUNIT_ASSERT( seg->GetSegmentType() == SEG_LUT );
-    CPPUNIT_ASSERT( strcmp(seg->GetName(),"Equal") == 0 );
+    CPPUNIT_ASSERT( seg->GetName() == "Equal" );
     CPPUNIT_ASSERT( seg->GetSegmentNumber() == 3 );
 
     delete eltoro;
@@ -71,7 +71,7 @@ void SegmentsTest::testGeoref()
 
     CPPUNIT_ASSERT( georef != NULL );
 
-    CPPUNIT_ASSERT( strcmp(georef->GetGeosys(),"UTM    11 S E000") == 0 );
+    CPPUNIT_ASSERT( georef->GetGeosys() == "UTM    11 S E000" );
 
     double a1, a2, xrot, b1, yrot, b3;
 

@@ -60,7 +60,7 @@ MetadataSet::~MetadataSet()
 /*                             Initialize()                             */
 /************************************************************************/
 
-void MetadataSet::Initialize( CPCIDSKFile *file, const char *group, int id )
+void MetadataSet::Initialize( CPCIDSKFile *file, std::string group, int id )
 
 {
     this->file = file;
@@ -99,18 +99,16 @@ void MetadataSet::Load()
 /*                          GetMetadataValue()                          */
 /************************************************************************/
 
-const char *MetadataSet::GetMetadataValue( const char *key )
+std::string MetadataSet::GetMetadataValue( std::string key )
 
 {
-    std::string o_key = key;
-
     if( !loaded )
         Load();
 
-    if( md_set.count(o_key) == 0 )
-        return NULL;
+    if( md_set.count(key) == 0 )
+        return "";
     else
-        return md_set[o_key].c_str();
+        return md_set[key];
 }
 
 /************************************************************************/
