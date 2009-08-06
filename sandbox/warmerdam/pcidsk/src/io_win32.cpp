@@ -37,7 +37,7 @@ using namespace PCIDSK;
 
 class Win32IOInterface : public IOInterfaces
 {
-    virtual void   *Open( const char *filename, const char *access ) const;
+    virtual void   *Open( std::string filename, std::string access ) const;
     virtual uint64  Seek( void *io_handle, uint64 offset, int whence ) const;
     virtual uint64  Tell( void *io_handle ) const;
     virtual uint64  Read( void *buffer, uint64 size, uint64 nmemb, void *io_handle ) const;
@@ -70,18 +70,18 @@ const IOInterfaces *PCIDSK::GetDefaultIOInterfaces()
 /************************************************************************/
 
 void *
-Win32IOInterface::Open( const char *filename, const char *access ) const
+Win32IOInterface::Open( std::string filename, std::string access ) const
 
 {
     DWORD dwDesiredAccess, dwCreationDisposition, dwFlagsAndAttributes;
     HANDLE hFile;
 
-    if( strchr(access, '+') != NULL || strchr(access, 'w') != 0 )
+    if( strchr(access.c_str(),'+') != NULL || strchr(access.c_str(),'w') != 0 )
         dwDesiredAccess = GENERIC_READ | GENERIC_WRITE;
     else
         dwDesiredAccess = GENERIC_READ;
 
-    if( strstr(access, "w") != NULL )
+    if( strstr(access.c_str(), "w") != NULL )
         dwCreationDisposition = CREATE_ALWAYS;
     else
         dwCreationDisposition = OPEN_EXISTING;
@@ -89,14 +89,14 @@ Win32IOInterface::Open( const char *filename, const char *access ) const
     dwFlagsAndAttributes = (dwDesiredAccess == GENERIC_READ) ? 
                 FILE_ATTRIBUTE_READONLY : FILE_ATTRIBUTE_NORMAL, 
     
-    hFile = CreateFile( filename, dwDesiredAccess, 
+    hFile = CreateFile( filename.c_str(), dwDesiredAccess, 
                         FILE_SHARE_READ | FILE_SHARE_WRITE, 
                         NULL, dwCreationDisposition,  dwFlagsAndAttributes, NULL );
 
     if( hFile == INVALID_HANDLE_VALUE )
     {
         ThrowPCIDSKException( "Open(%s,%s) failed:\n%s", 
-                              filename, access, LastError() );
+                              filename.c_str(), access.c_str(), LastError() );
     }
     
     FileInfo *fi = new FileInfo();
