@@ -49,3 +49,38 @@ PCIDSKInterfaces::PCIDSKInterfaces()
 #endif
 }
 
+/**
+ 
+\var const IOInterfaces *PCIDSKInterfaces::io;
+
+\brief Pointer to IO Interfaces.
+
+***************************************************************************/
+
+/**
+
+\var Mutex *(*PCIDSKInterfaces::CreateMutex)(void);
+
+\brief Function to create a mutex
+
+***************************************************************************/
+
+/**
+
+\var void (*PCIDSKInterfaces::JPEGDecompressBlock)(uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes, int xsize, int ysize, eChanType pixel_type);
+
+\brief Function to decompress a jpeg block
+
+This function may be NULL if there is no jpeg interface available. 
+
+The default implementation is implemented using libjpeg.
+
+The function decodes the jpeg compressed image in src_data (src_bytes long) 
+into dst_data (dst_bytes long) as image data.  The result should be exactly
+dst_bytes long, and will be an image of xsize x ysize of type pixel_type 
+(currently on CHN_8U is allowed). 
+
+Errors should be thrown as exceptions.
+
+***************************************************************************/
+
