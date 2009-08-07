@@ -209,11 +209,21 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
     }
 
 /* -------------------------------------------------------------------- */
+/*      Does this tile exist?  If not return a zeroed buffer.           */
+/* -------------------------------------------------------------------- */
+    if( tile_sizes[block_index] == 0 )
+    {
+        memset( buffer, 0, GetBlockWidth() * GetBlockHeight() * pixel_size );
+        return 1;
+    }
+
+/* -------------------------------------------------------------------- */
 /*      The simpliest case it an uncompressed direct and complete       */
 /*      tile read into the destination buffer.                          */
 /* -------------------------------------------------------------------- */
     if( xoff == 0 && xsize == GetBlockWidth() 
         && yoff == 0 && ysize == GetBlockHeight() 
+        && tile_sizes[block_index] == xsize * ysize * pixel_size 
         && compression == "NONE" )
     {
         vfile->ReadFromFile( buffer, 
@@ -301,7 +311,44 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
 int CTiledChannel::WriteBlock( int block_index, void *buffer )
 
 {
-    ThrowPCIDSKException( "WriteBlock not implemented yet." );
+    if( !vfile )
+        EstablishAccess();
+
+    int pixel_size = DataTypeSize(GetType());
+    int pixel_count = GetBlockWidth() * GetBlockHeight();
+
+    if( block_index < 0 || block_index >= (int) tile_offsets.size() )
+    {
+        ThrowPCIDSKException( "Requested non-existant block (%d)", 
+                              block_index );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      The simpliest case it an uncompressed direct and complete       */
+/*      tile read into the destination buffer.                          */
+/* -------------------------------------------------------------------- */
+    if( compression == "NONE" 
+        && tile_sizes[block_index] == pixel_count * pixel_size )
+    {
+        // Do byte swapping if needed.
+        if( needs_swap )
+            SwapData( buffer, pixel_size, pixel_count );
+
+        vfile->WriteToFile( buffer, 
+                            tile_offsets[block_index], 
+                            tile_sizes[block_index] );
+
+        if( needs_swap )
+            SwapData( buffer, pixel_size, pixel_count );
+
+        return 1;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Report failure.                                                 */
+/* -------------------------------------------------------------------- */
+    ThrowPCIDSKException( "Attempt to write to missing tile, or in compressed form - currently unsupported." );
+
     return 0;
 }
 
