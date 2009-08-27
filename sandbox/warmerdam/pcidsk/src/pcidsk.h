@@ -150,6 +150,9 @@ class PCIDSK_DLL PCIDSKInterfaces
     void                (*JPEGDecompressBlock)
         ( uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes,
           int xsize, int ysize, eChanType pixel_type );
+    void                (*JPEGCompressBlock)
+        ( uint8 *src_data, int src_bytes, uint8 *dst_data, int &dst_bytes,
+          int xsize, int ysize, eChanType pixel_type, int quality );
 
 //    DBInterfaces 	db_interfaces;
 };
@@ -171,11 +174,16 @@ public:
     virtual PCIDSKSegment  *GetSegment( int segment ) = 0;
     virtual std::vector<PCIDSKSegment *> GetSegments() = 0;
 
+    virtual PCIDSK::PCIDSKSegment *GetSegment( int type, 
+                                               std::string name,
+                                               int previous = 0 ) = 0;
+
     virtual int GetWidth() const = 0;
     virtual int GetHeight() const = 0;
     virtual int GetChannels() const = 0;
     virtual std::string GetInterleaving() const = 0;
     virtual bool GetUpdatable() const = 0;
+    virtual uint64 GetFileSize() const = 0; 
 
     virtual int  CreateSegment( std::string name, std::string description,
                                 eSegType seg_type, int data_blocks ) = 0;
@@ -241,6 +249,8 @@ public:
     virtual std::string GetName() = 0;
     virtual std::string GetDescription() = 0;
     virtual int         GetSegmentNumber() = 0;
+    virtual uint64      GetContentSize() = 0;
+    virtual bool        IsAtEOF() = 0;
 
     virtual std::string GetMetadataValue( std::string key ) = 0;
     virtual std::vector<std::string> GetMetadataKeys() = 0;

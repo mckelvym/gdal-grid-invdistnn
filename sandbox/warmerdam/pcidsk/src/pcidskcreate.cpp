@@ -78,14 +78,25 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /*      Validate parameters.                                            */
 /* -------------------------------------------------------------------- */
     const char *interleaving;
+    std::string compression;
     bool nozero = false;
 
     if(strncmp(options.c_str(),"PIXEL",5) == 0 )
         interleaving = "PIXEL";
     else if( strncmp(options.c_str(),"BAND",4) == 0 )
         interleaving = "BAND";
-    else if( strncmp(options.c_str(),"TILED",5) == 0 
-             || strncmp(options.c_str(),"FILE",4) == 0 )
+    else if( strncmp(options.c_str(),"TILED",5) == 0 )
+    {
+        interleaving = "FILE";
+        if( options.c_str()[5] == ' ' )
+        {
+            compression = options.c_str() + 6;
+            // TODO Add validation of compression scheme.
+        }
+        else
+            compression = "NONE";
+    }
+    else if( strncmp(options.c_str(),"FILE",4) == 0 )
         interleaving = "FILE";
     else
         ThrowPCIDSKException( "PCIDSK::Create() options '%s' not recognised.", 
@@ -304,7 +315,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
     ih.Put( "Contents Not Specified", 0, 64 );
 
     // IHi.2 - Filename storing image.
-    if( strcmp(interleaving,"FILE") == 0 )
+    if( strncmp(interleaving,"FILE",4) == 0 )
         ih.Put( "<unintialized>", 64, 64 );
     
     // IHi.3 - Creation time and date.
@@ -326,6 +337,13 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
         else if( channel_types[chan_index] == CHN_32R )
             ih.Put( "32R", 160, 8 );
 
+        if( strncmp("TILED",options.c_str(),5) == 0 )
+        {
+            char sis_filename[65];
+            sprintf( sis_filename, "/SIS=%d", chan_index );
+            ih.Put( sis_filename, 64, 64 );
+        }
+
         interfaces->io->Write( ih.buffer, 1024, 1, io_handle );
     }
 
@@ -343,9 +361,12 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /*      Ensure we write out something at the end of the image data      */
 /*      to force the file size.                                         */
 /* -------------------------------------------------------------------- */
-    interfaces->io->Seek( io_handle, (image_data_start + image_data_size)*512-1,
-                          SEEK_SET );
-    interfaces->io->Write( "\0", 1, 1, io_handle );
+    if( image_data_size > 0 )
+    {
+        interfaces->io->Seek( io_handle, (image_data_start + image_data_size)*512-1,
+                              SEEK_SET );
+        interfaces->io->Write( "\0", 1, 1, io_handle );
+    }
     
 /* -------------------------------------------------------------------- */
 /*      Close the raw file, and reopen as a pcidsk file.                */
@@ -365,6 +386,28 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
     PCIDSKGeoref *geo = dynamic_cast<PCIDSKGeoref*>( geo_seg );
 
     geo->WriteSimple( "PIXEL", 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 );
+
+/* -------------------------------------------------------------------- */
+/*      If the dataset is tiled, create the file band data.             */
+/* -------------------------------------------------------------------- */
+    if( strncmp(options.c_str(),"TILED",5) == 0 )
+    {
+        int segment = file->CreateSegment( "SysBMDir", 
+                                           "System Block Map Directory - Do not modify.",
+                                           SEG_SYS, 0 );
+        
+        SysBlockMap *bm = 
+            dynamic_cast<SysBlockMap *>(file->GetSegment( segment ));
+
+        bm->Initialize();
+        
+        for( chan_index = 0; chan_index < channel_count; chan_index++ )
+        {
+            bm->CreateVirtualImageFile( pixels, lines, 127, 127, 
+                                        channel_types[chan_index], 
+                                        compression );
+        }
+    }
 
     return file;
 }

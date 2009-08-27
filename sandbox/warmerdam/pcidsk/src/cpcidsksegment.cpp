@@ -112,7 +112,21 @@ void CPCIDSKSegment::ReadFromFile( void *buffer, uint64 offset, uint64 size )
 void CPCIDSKSegment::WriteToFile( const void *buffer, uint64 offset, uint64 size )
 
 {
-    // we need to add stuff about growing the segment, etc.
+    if( offset+size > data_size-1024 )
+    {
+        if( !IsAtEOF() )
+            ThrowPCIDSKException( 
+                "Attempt to extend segment %d not supported as it is not at the end of the file (TODO).", segment );
+
+        uint64 blocks_to_add = 
+            ((offset+size+511) - (data_size - 1024)) / 512;
+
+        // prezero if we aren't directly writing all the new blocks.
+        file->ExtendSegment( segment, blocks_to_add, 
+                             !(offset == data_size - 1024
+                               && size == blocks_to_add * 512) );
+        data_size += blocks_to_add * 512;
+    }
 
     return file->WriteToFile( buffer, offset + data_offset + 1024, size );
 }
@@ -125,4 +139,17 @@ std::string CPCIDSKSegment::GetDescription()
 
 {
     return "";
+}
+
+/************************************************************************/
+/*                              IsAtEOF()                               */
+/************************************************************************/
+
+bool CPCIDSKSegment::IsAtEOF()
+
+{
+    if( 512 * file->GetFileSize() == data_offset + data_size )
+        return true;
+    else
+        return false;
 }

@@ -2,13 +2,10 @@
  *
  * Purpose:  Implementation of the MetadataSegment class.
  *
- * This class is used to manage access to the SYS virtual block map segment
- * (named SysBMap).  This segment is used to keep track of one or more 
- * virtual files stored in SysBData segments.  These virtual files are normally
- * used to hold tiled images for primary bands or overviews.  
+ * This class is used to manage access to the SYS METADATA segment.  This
+ * segment holds all the metadata for objects in the PCIDSK file.
  *
- * This class is closely partnered with the SysVirtualFile class, and the
- * primary client is the CTiledChannel class. 
+ * This class is closely partnered with the MetadataSet class. 
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -39,7 +36,7 @@
 using namespace PCIDSK;
 
 /************************************************************************/
-/*                            SysBlockMap()                             */
+/*                          MetadataSegment()                           */
 /************************************************************************/
 
 MetadataSegment::MetadataSegment( CPCIDSKFile *file, int segment,
@@ -51,7 +48,7 @@ MetadataSegment::MetadataSegment( CPCIDSKFile *file, int segment,
 }
 
 /************************************************************************/
-/*                            ~SysBlockMap()                            */
+/*                          ~MetadataSegment()                          */
 /************************************************************************/
 
 MetadataSegment::~MetadataSegment()

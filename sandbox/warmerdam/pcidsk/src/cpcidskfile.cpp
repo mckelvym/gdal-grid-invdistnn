@@ -185,22 +185,25 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
 /*      Find segment by type/name.                                      */
 /************************************************************************/
 
-PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int type, const char *name )
+PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int type, std::string name, 
+                                                int previous )
 
 {
     int  i;
     char type_str[4];
 
+    name += "        "; // white space pad name.
+
     sprintf( type_str, "%03d", type );
 
-    for( i = 0; i < segment_count; i++ )
+    for( i = previous; i < segment_count; i++ )
     {
         if( type != SEG_UNKNOWN 
             && strncmp(segment_pointers.buffer+i*32+1,type_str,3) != 0 )
             continue;
 
-        if( name != NULL 
-            && strncmp(segment_pointers.buffer+i*32+4,name,8) != 0 )
+        if( name != "        " 
+            && strncmp(segment_pointers.buffer+i*32+4,name.c_str(),8) != 0 )
             continue;
 
         return GetSegment(i+1);
@@ -668,25 +671,29 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
     int64 seg_start = -1;
     PCIDSKBuffer segptr( 32 );
 
-#ifdef notdef    
-    TODO
     if( seg_type == SEG_SYS )
     {
-        for( segment=IDB->blkptr*16; segment >= 0 && seg_start < 0; segment-- )
+        for( segment=segment_count; segment >= 1; segment-- )
         {
-            idbSegUpdate( idb_fp, segment );
-            if( IDB->LastFlag == 'D' && IDB->LastSize == nBlocks
-                && nBlocks > 2 )
-                seg_start = IDB->LastStart;
-            else if( IDB->LastFlag == ' ' )
+            memcpy( segptr.buffer, segment_pointers.buffer+(segment-1)*32, 32);
+
+            uint64 this_seg_size = segptr.GetUInt64(23,9);
+            char flag = (char) segptr.buffer[0];
+
+            if( flag == 'D' 
+                && (uint64) data_blocks+2 == this_seg_size 
+                && this_seg_size > 0 )
+                seg_start = segptr.GetUInt64(12,11) - 1;
+            else if( flag == ' ' )
                 seg_start = 0;
-            else if( IDB->LastFlag == 'D' && IDB->LastSize == 0 )
+            else if( flag && this_seg_size == 0 )
                 seg_start = 0;
+
+            if( seg_start != -1 )
+                break;
         }
-        segment += 2;
     }
     else
-#endif
     {
         for( segment=1; segment <= segment_count; segment++ )
         {
@@ -810,3 +817,28 @@ void CPCIDSKFile::ExtendFile( uint64 blocks_requested, bool prezero )
     fh3.Put( file_size, 0, 16 );
     WriteToFile( fh3.buffer, 16, 16 );
 }
+
+/************************************************************************/
+/*                           ExtendSegment()                            */
+/************************************************************************/
+
+void CPCIDSKFile::ExtendSegment( int segment, uint64 blocks_requested,
+                                 bool prezero )
+
+{
+    // for now we take it for granted that the segment is valid and at th
+    // end of the file - later we should support moving it. 
+
+    ExtendFile( blocks_requested, prezero );
+
+    // Update the block count. 
+    segment_pointers.Put( 
+        segment_pointers.GetUInt64((segment-1)*32+23,9) + blocks_requested,
+        (segment-1)*32+23, 9 );
+
+    // write the updated segment pointer back to the file. 
+    WriteToFile( segment_pointers.buffer + (segment-1)*32, 
+                 segment_pointers_offset + (segment-1)*32, 
+                 32 );
+}
+

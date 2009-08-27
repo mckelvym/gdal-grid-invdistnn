@@ -35,7 +35,7 @@
 using namespace PCIDSK;
 
 /************************************************************************/
-/*                      CTiledChannel()                                 */
+/*                           CTiledChannel()                            */
 /************************************************************************/
 
 CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header, 
@@ -46,6 +46,8 @@ CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header,
         : CPCIDSKChannel( image_header, file, pixel_type, channelnum )
 
 {
+    tile_info_dirty = false;
+
 /* -------------------------------------------------------------------- */
 /*      Establish the virtual file we will be accessing.                */
 /* -------------------------------------------------------------------- */
@@ -80,6 +82,7 @@ CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header,
 CTiledChannel::~CTiledChannel()
 
 {
+    Sync();
 }
 
 /************************************************************************/
@@ -99,9 +102,9 @@ void CTiledChannel::EstablishAccess()
         file->GetSegment( SEG_SYS, "SysBMDir" ));
 
     if( bmap == NULL )
-        ThrowPCIDSKException( "Unable to find SysBMap segmet." );
+        ThrowPCIDSKException( "Unable to find SysBMDir segment." );
 
-    vfile = bmap->GetImageSysFile( image );
+    vfile = bmap->GetVirtualFile( image );
 
 /* -------------------------------------------------------------------- */
 /*      Parse the header.                                               */
@@ -154,6 +157,8 @@ void CTiledChannel::EstablishAccess()
         tile_sizes[i] = tmap.GetInt( tile_count*12 + i*8, 8 );
     }
 
+    tile_info_dirty = false;
+
 /* -------------------------------------------------------------------- */
 /*      Establish byte swapping.  Tiled data files are always big       */
 /*      endian, regardless of what the headers might imply.             */
@@ -164,6 +169,37 @@ void CTiledChannel::EstablishAccess()
         needs_swap = pixel_type != CHN_8U;
     else
         needs_swap = false;
+}
+
+/************************************************************************/
+/*                                Sync()                                */
+/*                                                                      */
+/*      Flush updated blockmap to disk if it is dirty.                  */
+/************************************************************************/
+
+void CTiledChannel::Sync()
+
+{
+    if( !tile_info_dirty )
+        return;
+
+    int tiles_per_row = (width + block_width - 1) / block_width;
+    int tiles_per_col = (height + block_height - 1) / block_height;
+    int tile_count = tiles_per_row * tiles_per_col;
+    int i;
+
+    PCIDSKBuffer tmap( tile_count * 20 );
+
+    for( i = 0; i < tile_count; i++ )
+    {
+        if( tile_offsets[i] == (uint64) -1 || tile_offsets[i] == 0 )
+            tmap.Put( -1, i*12 + 0, 12 );
+        else
+            tmap.Put( tile_offsets[i], i*12 + 0, 12 );
+        tmap.Put( tile_sizes[i], tile_count*12 + i*8, 8 );
+    }
+
+    vfile->WriteToFile( tmap.buffer, 128, tile_count*20 );
 }
 
 /************************************************************************/
@@ -277,7 +313,7 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
     {
         RLEDecompressBlock( oCompressedData, oUncompressedData );
     }
-    else if( compression == "JPEG" )
+    else if( strncmp(compression.c_str(),"JPEG",4) == 0 )
     {
         JPEGDecompressBlock( oCompressedData, oUncompressedData );
     }
@@ -345,11 +381,66 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
     }
 
 /* -------------------------------------------------------------------- */
-/*      Report failure.                                                 */
+/*      Copy the uncompressed data into a PCIDSKBuffer.                 */
 /* -------------------------------------------------------------------- */
-    ThrowPCIDSKException( "Attempt to write to missing tile, or in compressed form - currently unsupported." );
+    PCIDSKBuffer oUncompressedData( pixel_size * block_width * block_height );
 
-    return 0;
+    memcpy( oUncompressedData.buffer, buffer, 
+            oUncompressedData.buffer_size );
+
+/* -------------------------------------------------------------------- */
+/*      Compress the imagery.                                           */
+/* -------------------------------------------------------------------- */
+    PCIDSKBuffer oCompressedData;
+
+    if( compression == "NONE" )
+    {
+        oCompressedData = oUncompressedData;
+    }
+    else if( compression == "RLE" )
+    {
+        RLECompressBlock( oUncompressedData, oCompressedData );
+    }
+    else if( strncmp(compression.c_str(),"JPEG",4) == 0 )
+    {
+        JPEGCompressBlock( oUncompressedData, oCompressedData );
+    }
+    else
+    {
+        ThrowPCIDSKException( 
+            "Unable to write tile of unsupported compression type: %s",
+            compression.c_str() );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      If this fits in the existing space, just write it directly.     */
+/* -------------------------------------------------------------------- */
+    if( oCompressedData.buffer_size <= tile_sizes[block_index] )
+    {
+        vfile->WriteToFile( oCompressedData.buffer,
+                            tile_offsets[block_index], 
+                            oCompressedData.buffer_size );
+        tile_sizes[block_index] = oCompressedData.buffer_size;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Otherwise we try and write it at the end of the virtual file.   */
+/* -------------------------------------------------------------------- */
+    else
+    {
+        uint64 new_offset = vfile->GetLength();
+        
+        vfile->WriteToFile( oCompressedData.buffer, 
+                            new_offset, oCompressedData.buffer_size );
+
+        tile_offsets[block_index] = new_offset;
+        tile_sizes[block_index] = oCompressedData.buffer_size;
+
+    }
+
+    tile_info_dirty = true;
+
+    return 1;
 }
 
 /************************************************************************/
@@ -488,6 +579,123 @@ void CTiledChannel::RLEDecompressBlock( PCIDSKBuffer &oCompressedData,
 }
 
 /************************************************************************/
+/*                         RLECompressBlock()                           */
+/*                                                                      */
+/*      TODO: There does not seem to be any byte order logic in here!   */
+/************************************************************************/
+
+void CTiledChannel::RLECompressBlock( PCIDSKBuffer &oUncompressedData,
+                                      PCIDSKBuffer &oCompressedData )
+
+                               
+{
+    int    src_bytes = oUncompressedData.buffer_size;
+    int    pixel_size = DataTypeSize(GetType());
+    int    src_offset = 0, dst_offset = 0;
+    int    i;
+    uint8  *src = (uint8 *) oUncompressedData.buffer;
+
+/* -------------------------------------------------------------------- */
+/*      Loop till input exausted.                                       */
+/* -------------------------------------------------------------------- */
+    while( src_offset < src_bytes )
+    {
+        bool	bGotARun = false;
+        
+/* -------------------------------------------------------------------- */
+/*	Establish the run length, and emit if greater than 3. 		*/
+/* -------------------------------------------------------------------- */
+        if( src_offset + 3*pixel_size < src_bytes )
+        {
+            int		count = 1;
+
+            while( count < 127
+                   && src_offset + count*pixel_size < src_bytes )
+            {
+                bool	bWordMatch = true;
+
+                for( i = 0; i < pixel_size; i++ )
+                {
+                    if( src[src_offset+i] 
+                        != src[src_offset+i+count*pixel_size] )
+                        bWordMatch = false;
+                }
+
+                if( !bWordMatch )
+                    break;
+
+                count++;
+            }
+
+            if( count >= 3 )
+            {
+                if( oCompressedData.buffer_size < dst_offset + pixel_size+1 )
+                    oCompressedData.SetSize( oCompressedData.buffer_size*2+100);
+
+                oCompressedData.buffer[dst_offset++] = count+128;
+
+                for( i = 0; i < pixel_size; i++ )
+                    oCompressedData.buffer[dst_offset++] = src[src_offset+i];
+
+                src_offset += count * pixel_size;
+
+                bGotARun = true;
+            }
+            else
+                bGotARun = false;
+        }
+        
+/* -------------------------------------------------------------------- */
+/*      Otherwise emit a literal till we encounter at least a three	*/
+/*	word series.							*/
+/* -------------------------------------------------------------------- */
+        if( !bGotARun )
+        {
+            int		count = 1;
+            int		match_count = 0;
+
+            while( count < 127
+                   && src_offset + count*pixel_size < src_bytes )
+            {
+                bool	bWordMatch = true;
+
+                for( i = 0; i < pixel_size; i++ )
+                {
+                    if( src[src_offset+i]
+                        != src[src_offset+i+count*pixel_size] )
+                        bWordMatch = false;
+                }
+
+                if( bWordMatch )
+                    match_count++;
+                else
+                    match_count = 0;
+
+                if( match_count > 2 )
+                    break;
+
+                count++;
+            }
+            
+            assert( src_offset + count*pixel_size <= src_bytes );
+
+            while( oCompressedData.buffer_size 
+                   < dst_offset + count*pixel_size+1 )
+                oCompressedData.SetSize( oCompressedData.buffer_size*2+100 );
+
+            oCompressedData.buffer[dst_offset++] = count;
+            memcpy( oCompressedData.buffer + dst_offset, 
+                    src + src_offset, 
+                    count * pixel_size );
+            src_offset += count * pixel_size;
+            dst_offset += count * pixel_size;
+        }
+    }
+
+    oCompressedData.buffer_size = dst_offset;
+}
+
+/************************************************************************/
 /*                        JPEGDecompressBlock()                         */
 /************************************************************************/
 
@@ -504,3 +712,41 @@ void CTiledChannel::JPEGDecompressBlock( PCIDSKBuffer &oCompressedData,
         (uint8 *) oDecompressedData.buffer, oDecompressedData.buffer_size,
         GetBlockWidth(), GetBlockHeight(), GetType() );
 }
+
+/************************************************************************/
+/*                         JPEGCompressBlock()                          */
+/************************************************************************/
+
+void CTiledChannel::JPEGCompressBlock( PCIDSKBuffer &oDecompressedData,
+                                       PCIDSKBuffer &oCompressedData )
+                                       
+
+                               
+{
+    if( file->GetInterfaces()->JPEGCompressBlock == NULL )
+        ThrowPCIDSKException( "JPEG compression not enabled in the PCIDSKInterfaces of this build." );
+
+/* -------------------------------------------------------------------- */
+/*      What quality should we be using?                                */
+/* -------------------------------------------------------------------- */
+    int quality = 75;
+
+    if( compression.c_str()[4] >= '1' 
+        && compression.c_str()[4] <= '0' )
+        quality = atoi(compression.c_str() + 4);
+
+/* -------------------------------------------------------------------- */
+/*      Make the output buffer plent big to hold any conceivable        */
+/*      result.                                                         */
+/* -------------------------------------------------------------------- */
+    oCompressedData.SetSize( oDecompressedData.buffer_size * 2 + 1000 );
+
+/* -------------------------------------------------------------------- */
+/*      invoke.                                                         */
+/* -------------------------------------------------------------------- */
+    file->GetInterfaces()->JPEGCompressBlock( 
+        (uint8 *) oDecompressedData.buffer, oDecompressedData.buffer_size,
+        (uint8 *) oCompressedData.buffer, oCompressedData.buffer_size,
+        GetBlockWidth(), GetBlockHeight(), GetType(), 75 );
+}
+

@@ -8,6 +8,9 @@ class PCIDSKCreateTest : public CppUnit::TestFixture
     CPPUNIT_TEST_SUITE( PCIDSKCreateTest );
  
     CPPUNIT_TEST( simplePixelInterleaved );
+    CPPUNIT_TEST( tiled );
+    CPPUNIT_TEST( tiledRLE );
+    CPPUNIT_TEST( tiledJPEG );
     CPPUNIT_TEST( testErrors );
 
     CPPUNIT_TEST_SUITE_END();
@@ -16,6 +19,9 @@ public:
     void setUp();
     void tearDown();
     void simplePixelInterleaved();
+    void tiled();
+    void tiledRLE();
+    void tiledJPEG();
     void testErrors();
 };
 
@@ -62,6 +68,148 @@ void PCIDSKCreateTest::simplePixelInterleaved()
     delete pixel_file;
 
     unlink( "pixel_file.pix" );
+}
+
+/************************************************************************/
+/*                               tiled()                                */
+/************************************************************************/
+
+void PCIDSKCreateTest::tiled()
+{
+    PCIDSKFile *file;
+    PCIDSKChannel *channel;
+    eChanType channel_types[4] = {CHN_8U, CHN_32R};
+    uint8 data[127*127*4];
+
+    file = PCIDSK::Create( "tiled_file.pix", 600, 700, 2, channel_types,
+                           "TILED", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+    CPPUNIT_ASSERT( file->GetUpdatable() );
+    CPPUNIT_ASSERT( file->GetInterleaving() == "FILE" );
+
+    delete file;
+
+    file = PCIDSK::Open( "tiled_file.pix", "r+", NULL );
+
+    CPPUNIT_ASSERT( file->GetUpdatable() );
+
+    channel = file->GetChannel(1);
+    channel->ReadBlock( 2, data );
+
+    CPPUNIT_ASSERT( data[500] == 0 );
+
+    data[500] = 221;
+
+    channel->WriteBlock( 2, data );
+
+    delete file;
+
+    file = PCIDSK::Open( "tiled_file.pix", "r", NULL );
+
+    channel = file->GetChannel(1);
+    channel->ReadBlock( 2, data );
+
+    CPPUNIT_ASSERT( data[500] == 221 );
+    CPPUNIT_ASSERT( data[501] == 0 );
+
+    delete file;
+
+    unlink( "tiled_file.pix" );
+}
+
+/************************************************************************/
+/*                               tiledRLE()                             */
+/************************************************************************/
+
+void PCIDSKCreateTest::tiledRLE()
+{
+    PCIDSKFile *file;
+    PCIDSKChannel *channel;
+    eChanType channel_types[4] = {CHN_8U, CHN_32R};
+    uint8 data[127*127*4];
+
+    file = PCIDSK::Create( "tiledrle_file.pix", 600, 700, 2, channel_types,
+                           "TILED RLE", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+    CPPUNIT_ASSERT( file->GetUpdatable() );
+    CPPUNIT_ASSERT( file->GetInterleaving() == "FILE" );
+
+    delete file;
+
+    file = PCIDSK::Open( "tiledrle_file.pix", "r+", NULL );
+
+    CPPUNIT_ASSERT( file->GetUpdatable() );
+
+    channel = file->GetChannel(1);
+    channel->ReadBlock( 2, data );
+
+    CPPUNIT_ASSERT( data[500] == 0 );
+
+    data[500] = 221;
+
+    channel->WriteBlock( 2, data );
+
+    delete file;
+
+    file = PCIDSK::Open( "tiledrle_file.pix", "r", NULL );
+
+    channel = file->GetChannel(1);
+    channel->ReadBlock( 2, data );
+
+    CPPUNIT_ASSERT( data[500] == 221 );
+    CPPUNIT_ASSERT( data[501] == 0 );
+
+    delete file;
+
+    unlink( "tiledrle_file.pix" );
+}
+
+/************************************************************************/
+/*                             tiledJPEG()                              */
+/************************************************************************/
+
+void PCIDSKCreateTest::tiledJPEG()
+{
+    PCIDSKFile *file;
+    PCIDSKChannel *channel;
+    eChanType channel_types[1] = {CHN_8U};
+    uint8 data[127*127*4];
+
+    file = PCIDSK::Create( "tiledjpeg_file.pix", 600, 700, 1, channel_types,
+                           "TILED JPEG60", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    delete file;
+
+    file = PCIDSK::Open( "tiledjpeg_file.pix", "r+", NULL );
+
+    CPPUNIT_ASSERT( file->GetUpdatable() );
+
+    channel = file->GetChannel(1);
+    channel->ReadBlock( 2, data );
+
+    CPPUNIT_ASSERT( data[500] == 0 );
+
+    data[500] = 221;
+
+    channel->WriteBlock( 2, data );
+
+    delete file;
+
+    file = PCIDSK::Open( "tiledjpeg_file.pix", "r", NULL );
+
+    channel = file->GetChannel(1);
+    channel->ReadBlock( 2, data );
+
+    CPPUNIT_ASSERT( data[500] > 128 );
+    CPPUNIT_ASSERT( data[503] < 32 );
+
+    delete file;
+
+    unlink( "tiledjpeg_file.pix" );
 }
 
 /************************************************************************/

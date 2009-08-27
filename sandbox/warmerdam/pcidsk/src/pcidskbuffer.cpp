@@ -75,15 +75,18 @@ PCIDSKBuffer::~PCIDSKBuffer()
 void PCIDSKBuffer::SetSize( int size )
 
 {
-    if( buffer != NULL )
-        free( buffer );
-
     buffer_size = size;
-    buffer = (char *) malloc(size+1);
+    if( buffer == NULL )
+        buffer = (char *) malloc(size+1);
+    else
+        buffer = (char *) realloc(buffer,size+1);
 
     if( buffer == NULL )
+    {
+        buffer_size = 0;
         ThrowPCIDSKException( "Out of memory allocating %d byte PCIDSKBuffer.",
                                size );
+    }
 
     buffer[size] = '\0';
 }
@@ -236,4 +239,17 @@ void PCIDSKBuffer::Put( double value, int offset, int size,
         *exponent = 'D';
 
     Put( wrk, offset, size );
+}
+
+/************************************************************************/
+/*                             operator=()                              */
+/************************************************************************/
+
+PCIDSKBuffer &PCIDSKBuffer::operator=( const PCIDSKBuffer &src )
+
+{
+    SetSize( src.buffer_size );
+    memcpy( buffer, src.buffer, buffer_size );
+
+    return *this;
 }

@@ -62,6 +62,8 @@ public:
     char	*buffer;
     int         buffer_size;
 
+    PCIDSKBuffer &operator=(const PCIDSKBuffer& src);
+
     const char *Get( int offset, int size );
     void        Get( int offset, int size, std::string &target, int unpad=1 );
 
@@ -178,7 +180,8 @@ public:
     PCIDSK::PCIDSKSegment   *GetSegment( int segment );
     std::vector<PCIDSK::PCIDSKSegment *> GetSegments();
 
-    PCIDSK::PCIDSKSegment  *GetSegment( int type, const char *name );
+    PCIDSK::PCIDSKSegment  *GetSegment( int type, std::string name,
+                                        int previous = 0 );
     int  CreateSegment( std::string name, std::string description,
                         eSegType seg_type, int data_blocks );
 
@@ -187,6 +190,7 @@ public:
     int       GetChannels() const { return channel_count; }
     std::string GetInterleaving() const { return interleaving; }
     bool      GetUpdatable() const { return updatable; } 
+    uint64    GetFileSize() const { return file_size; }
     
     // the following are only for pixel interleaved IO
     int       GetPixelGroupSize() const { return pixel_group_size; }
@@ -208,7 +212,8 @@ public:
 
     // not exposed to applications.
     void      ExtendFile( uint64 blocks_requested, bool prezero = false );
-    uint64    GetFileSize() const { return file_size; }
+    void      ExtendSegment( int segment, uint64 blocks_to_add,
+                             bool prezero = false );
 };
 
 /************************************************************************/
@@ -370,12 +375,17 @@ private:
 
     std::vector<uint64>      tile_offsets;
     std::vector<int>         tile_sizes;
+    bool                     tile_info_dirty;
 
     void                     EstablishAccess();
     void                     RLEDecompressBlock( PCIDSKBuffer &oCompressed,
                                                  PCIDSKBuffer &oDecompressed );
+    void                     RLECompressBlock( PCIDSKBuffer &oUncompressed,
+                                               PCIDSKBuffer &oCompressed );
     void                     JPEGDecompressBlock( PCIDSKBuffer &oCompressed,
                                                   PCIDSKBuffer &oDecompressed );
+    void                     JPEGCompressBlock( PCIDSKBuffer &oDecompressed,
+                                                PCIDSKBuffer &oCompressed );
 
 public:
     CTiledChannel( PCIDSKBuffer &image_header, 
@@ -395,6 +405,8 @@ public:
                            int xoff=-1, int yoff=-1,
                            int xsize=-1, int ysize=-1 );
     virtual int WriteBlock( int block_index, void *buffer );
+
+    void        Sync();
 };
 
 /************************************************************************/
@@ -440,6 +452,8 @@ public:
     std::string GetName() { return segment_name; }
     std::string GetDescription();
     int         GetSegmentNumber() { return segment; }
+    uint64      GetContentSize() { return data_size - 1024; }
+    bool        IsAtEOF();
 
     std::string GetMetadataValue( std::string key ) 
 		{ return metadata.GetMetadataValue(key); }
@@ -485,8 +499,10 @@ class SysBlockMap : public CPCIDSKSegment
 {
 private:
     bool         loaded;
+    bool         dirty;
 
     void         Load();
+    void         AllocateBlocks();
 
     PCIDSKBuffer seg_data;
 
@@ -496,14 +512,26 @@ private:
     int          block_map_offset;
     int          layer_list_offset;
 
+    int          growing_segment;
+
     std::vector<SysVirtualFile*> virtual_files;
 
 public:
     SysBlockMap( CPCIDSKFile *file, int segment,const char *segment_pointer );
 
-    virtual     ~SysBlockMap();
+    virtual        ~SysBlockMap();
 
-    SysVirtualFile *GetImageSysFile( int image );
+    SysVirtualFile *GetVirtualFile( int image );
+    int             CreateVirtualFile();
+    int             CreateVirtualImageFile( int width, int height, 
+                                            int block_width, int block_height,
+                                            eChanType chan_type,
+                                            std::string compression );
+    void            Sync();
+    void            Initialize();
+    int             GrowVirtualFile( int image, int &last_block,
+                                     int &block_segment_ret );
+    void            SetVirtualFileSize( int image, uint64 file_length );
 };
 
 /************************************************************************/
@@ -556,10 +584,13 @@ class PCIDSK_DLL MutexHolder
 
 class SysVirtualFile
 {
-private:
+public:
     static const int       block_size = 8192;
 
+private:
     CPCIDSKFile           *file;
+    SysBlockMap           *sysblockmap;
+    int                    image_index;
 
     uint64                 file_length;
 
@@ -568,16 +599,23 @@ private:
 
     int                    loaded_block;
     uint8                  block_data[block_size];
+    bool                   loaded_block_dirty;
+
+    int                    last_bm_index;
 
     void                   LoadBlock( int requested_block );
 
 public:
     SysVirtualFile( CPCIDSKFile *file, int start_block, uint64 image_length,
-                    PCIDSKBuffer &block_map_data );
+                    PCIDSKBuffer &block_map_data, SysBlockMap *sysblockmap,
+                    int image_index );
     ~SysVirtualFile();
 
     void      WriteToFile( const void *buffer, uint64 offset, uint64 size );
     void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
+
+    uint64    GetLength() { return file_length; }
+
 };
 
 /************************************************************************/
@@ -592,6 +630,9 @@ void   GetCurrentDateTime( char *out_datetime );
 void LibJPEG_DecompressBlock(
     uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes,
     int xsize, int ysize, eChanType pixel_type );
+void LibJPEG_CompressBlock(
+    uint8 *src_data, int src_bytes, uint8 *dst_data, int &dst_bytes,
+    int xsize, int ysize, eChanType pixel_type, int quality );
 
 }; // end of PCIDSK namespace
 

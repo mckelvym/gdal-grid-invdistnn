@@ -131,4 +131,67 @@ void PCIDSK::LibJPEG_DecompressBlock(
     jpeg_destroy_decompress( &sJCompInfo );
 }
 
+/************************************************************************/
+/*                      LibJPEG_CompressBlock()                         */
+/************************************************************************/
+
+void PCIDSK::LibJPEG_CompressBlock(
+    uint8 *src_data, int src_bytes, uint8 *dst_data, int &dst_bytes,
+    int xsize, int ysize, eChanType pixel_type, int quality )
+
+{
+    struct jpeg_compress_struct	sJCompInfo;
+    struct jpeg_destination_mgr	sDstMgr;
+    struct jpeg_error_mgr	sErrMgr;
+
+    int		i;
+
+/* -------------------------------------------------------------------- */
+/*      Setup the buffer we will compress into.                         */
+/* -------------------------------------------------------------------- */
+    sDstMgr.next_output_byte = dst_data;
+    sDstMgr.free_in_buffer = dst_bytes;
+    sDstMgr.init_destination = _DummyMgrMethod;
+    sDstMgr.empty_output_buffer = (boolean (*)(j_compress_ptr))
+        						_DummyMgrMethod;
+    sDstMgr.term_destination = _DummyMgrMethod;
+    
+/* -------------------------------------------------------------------- */
+/*      Setup JPEG Compression                                          */
+/* -------------------------------------------------------------------- */
+    jpeg_create_compress(&sJCompInfo);
+
+    sJCompInfo.dest = &sDstMgr;
+    sJCompInfo.err = jpeg_std_error(&sErrMgr);
+    sJCompInfo.err->output_message = JpegError;
+    
+    sJCompInfo.image_width = xsize;
+    sJCompInfo.image_height = ysize;
+    sJCompInfo.input_components = 1;
+    sJCompInfo.in_color_space = JCS_GRAYSCALE;
+
+    jpeg_set_defaults(&sJCompInfo);
+    jpeg_set_quality(&sJCompInfo, quality, TRUE );
+    jpeg_start_compress(&sJCompInfo, TRUE );
+    
+/* -------------------------------------------------------------------- */
+/*	Write all the scanlines at once.				*/
+/* -------------------------------------------------------------------- */
+    for( i = 0; i < ysize; i++ )
+    {
+        uint8	*pabyLine = src_data + i*xsize;
+        
+        jpeg_write_scanlines( &sJCompInfo, (JSAMPARRAY)&pabyLine, 1 );
+    }
+    
+/* -------------------------------------------------------------------- */
+/*	Cleanup.							*/
+/* -------------------------------------------------------------------- */
+    jpeg_finish_compress( &sJCompInfo );
+
+    dst_bytes = dst_bytes - sDstMgr.free_in_buffer;
+    
+    jpeg_destroy_compress( &sJCompInfo );
+}
+
 #endif /* defined(HAVE_LIBJPEG) */
