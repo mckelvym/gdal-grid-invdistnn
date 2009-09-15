@@ -214,6 +214,7 @@ public:
     void      ExtendFile( uint64 blocks_requested, bool prezero = false );
     void      ExtendSegment( int segment, uint64 blocks_to_add,
                              bool prezero = false );
+    void      MoveSegmentToEOF( int segment );
 };
 
 /************************************************************************/

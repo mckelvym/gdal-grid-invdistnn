@@ -88,9 +88,10 @@ void SysBlockMap::Initialize()
     init_data.Put( -1, 26, 8 );
 
     WriteToFile( init_data.buffer, 0, init_data.buffer_size );
-
+#ifdef notdef
     // arbitrarily grow the segment a bit to avoid having to move it too soon.
-    WriteToFile( "\0", 8191, 1 );
+    WriteToFile( "\0", 8191, 1 );				       
+#endif
 }
 
 /************************************************************************/
@@ -389,7 +390,7 @@ int SysBlockMap::CreateVirtualFile()
     dirty = true;
 
     seg_data.Put( 2, layer_list_offset + 24*layer_index + 0, 4 );
-    seg_data.Put( -1, layer_list_offset + 24*layer_index + 4, 4 );
+    seg_data.Put( -1, layer_list_offset + 24*layer_index + 4, 8 );
     seg_data.Put( 0, layer_list_offset + 24*layer_index + 12, 12 );
 
     return layer_index;

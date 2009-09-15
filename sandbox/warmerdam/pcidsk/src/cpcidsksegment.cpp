@@ -115,8 +115,7 @@ void CPCIDSKSegment::WriteToFile( const void *buffer, uint64 offset, uint64 size
     if( offset+size > data_size-1024 )
     {
         if( !IsAtEOF() )
-            ThrowPCIDSKException( 
-                "Attempt to extend segment %d not supported as it is not at the end of the file (TODO).", segment );
+            file->MoveSegmentToEOF( segment );
 
         uint64 blocks_to_add = 
             ((offset+size+511) - (data_size - 1024)) / 512;

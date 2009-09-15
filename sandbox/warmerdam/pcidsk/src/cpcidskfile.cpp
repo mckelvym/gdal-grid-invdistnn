@@ -842,3 +842,64 @@ void CPCIDSKFile::ExtendSegment( int segment, uint64 blocks_requested,
                  32 );
 }
 
+/************************************************************************/
+/*                          MoveSegmentToEOF()                          */
+/************************************************************************/
+
+void CPCIDSKFile::MoveSegmentToEOF( int segment )
+
+{
+    int segptr_off = (segment - 1) * 32;
+    uint64 seg_start, seg_size;
+    uint64 new_seg_start;
+
+    seg_start = segment_pointers.GetUInt64( segptr_off + 12, 11 );
+    seg_size = segment_pointers.GetUInt64( segptr_off + 23, 9 );
+
+    // Are we already at the end of the file?
+    if( (seg_start + seg_size - 1) == file_size )
+        return;
+
+    new_seg_start = file_size + 1;
+
+    // Grow the file to hold the segment at the end.
+    ExtendFile( seg_size * 512, false );
+
+    // Move the segment data to the new location.
+    uint8 copy_buf[16384];
+    uint64 srcoff, dstoff, bytes_to_go;
+
+    bytes_to_go = seg_size * 512;
+    srcoff = (seg_start - 1) * 512;
+    dstoff = (new_seg_start - 1) * 512;
+
+    while( bytes_to_go > 0 )
+    {
+        uint64 bytes_this_chunk = sizeof(copy_buf);
+        if( bytes_to_go < bytes_this_chunk )
+            bytes_this_chunk = bytes_to_go;
+
+        ReadFromFile( copy_buf, srcoff, bytes_this_chunk );
+        WriteToFile( copy_buf, dstoff, bytes_this_chunk );
+
+        srcoff += bytes_this_chunk;
+        dstoff += bytes_this_chunk;
+        bytes_to_go -= bytes_this_chunk;
+    }
+
+    // Update segment pointer in memory and on disk. 
+    segment_pointers.Put( new_seg_start, segptr_off + 12, 11 );
+
+    WriteToFile( segment_pointers.buffer + segptr_off, 
+                 segment_pointers_offset + segptr_off, 
+                 32 );
+    
+    // Update the segments own information.
+    if( segments[segment] != NULL )
+    {
+        CPCIDSKSegment *seg = 
+            dynamic_cast<CPCIDSKSegment *>( segments[segment] );
+
+        seg->LoadSegmentPointer( segment_pointers.buffer + segptr_off );
+    }
+}
