@@ -325,6 +325,15 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
     }
 
 /* -------------------------------------------------------------------- */
+/*      Swap if necessary.  TODO: there is some reason to doubt that    */
+/*      the old implementation properly byte swapped compressed         */
+/*      data.  Perhaps this should be conditional?                      */
+/* -------------------------------------------------------------------- */
+    if( needs_swap )
+        SwapData( oUncompressedData.buffer, pixel_size, 
+                  GetBlockWidth() * GetBlockHeight() );
+
+/* -------------------------------------------------------------------- */
 /*      Copy out the desired subwindow.                                 */
 /* -------------------------------------------------------------------- */
     int iy;
@@ -381,12 +390,16 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
     }
 
 /* -------------------------------------------------------------------- */
-/*      Copy the uncompressed data into a PCIDSKBuffer.                 */
+/*      Copy the uncompressed data into a PCIDSKBuffer, and byte        */
+/*      swap if needed.                                                 */
 /* -------------------------------------------------------------------- */
     PCIDSKBuffer oUncompressedData( pixel_size * block_width * block_height );
 
     memcpy( oUncompressedData.buffer, buffer, 
             oUncompressedData.buffer_size );
+
+    if( needs_swap )
+        SwapData( oUncompressedData.buffer, pixel_size, pixel_count );
 
 /* -------------------------------------------------------------------- */
 /*      Compress the imagery.                                           */
