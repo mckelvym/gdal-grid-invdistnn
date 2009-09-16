@@ -33,6 +33,7 @@
 
 
 
+******************************************************************************
 
 \fn PCIDSKChannel *PCIDSK::PCIDSKFile::GetChannel( int band );
 
@@ -46,6 +47,7 @@ closed (deleted).
 
 @return pointer to internally managed channel object.
 
+******************************************************************************
 
 \fn PCIDSKSegment *PCIDSK::PCIDSKFile::GetSegment( int segment );
 
@@ -59,6 +61,30 @@ closed (deleted).
 
 @return pointer to internally managed segment object.
 
+******************************************************************************
+
+\fn PCIDSKSegment *PCIDSK::PCIDSKFile::GetSegment( int type, std::string name, int previous = 0 );
+
+\brief Fetch segment interface object.
+
+If available, a segment of the specified type and name is returned.  The 
+search is started after segment "previous" if none-zero.   
+
+The returned segment object remains owned by the PCIDSKFile and should
+not be deleted by the caller, and will become invalid after the PCIDSKFile is
+closed (deleted).
+
+@param type the segment type desired, or SEG_UNKNOWN for any type.
+
+@param name the segment name or "" for any name.
+
+@param previous segment after which the search should start or 0 (default) to
+start from the start.
+
+@return pointer to internally managed segment object or NULL if none correspond
+to the request.
+
+******************************************************************************
 
 \fn int PCIDSK::PCIDSKFile::GetWidth() const 
 
@@ -66,6 +92,7 @@ closed (deleted).
 
 @return the width of the file in pixels.
 
+******************************************************************************
 
 \fn int PCIDSK::PCIDSKFile::GetHeight() const 
 
@@ -73,6 +100,7 @@ closed (deleted).
 
 @return the height of the file in pixels.
 
+******************************************************************************
 
 \fn int PCIDSK::PCIDSKFile::GetChannels() const 
 
@@ -80,6 +108,7 @@ closed (deleted).
 
 @return the number of channels on this file.
 
+******************************************************************************
 
 \fn const char *PCIDSK::PCIDSKFile::GetInterleaving() const 
 
@@ -88,13 +117,24 @@ closed (deleted).
 @return the interleaving name, one of "PIXEL", "BAND" or "FILE".  Note that 
 tiled files will be reported as "FILE" interleaving.
 
+******************************************************************************
 
-\fn bool PCIDSK::PCIDSKFile::Updatable() const 
+\fn bool PCIDSK::PCIDSKFile::GetUpdatable() const 
 
 \brief Check readonly/update status.
 
 @return true if the file is open for update, or false if it is read-only.
 
+******************************************************************************
+
+\fn uint64 PCIDSK::PCIDSKFile::GetFileSize() const 
+
+\brief Fetch file size.
+
+@return returns the size of the PCIDSK file in bytes, as recorded in the 
+file header.
+
+******************************************************************************
 
 \fn void PCIDSK::PCIDSKFile::WriteToFile( const void *buffer, uint64 offset, uint64 size);
 
@@ -110,6 +150,7 @@ PCIDSK::PCIDSKSegment methods for updating segment data.
 @param offset the byte offset in the file (zero based) at which to write the data.
 @param size the number of bytes from buffer to write.
 
+******************************************************************************
 
 \fn void PCIDSK::PCIDSKFile::ReadFromFile( void *buffer, uint64 offset, uint64 size);
 
@@ -123,6 +164,8 @@ PCIDSK::PCIDSKSegment methods for reading segment data.
 @param buffer pointer to the buffer into which the data should be read.
 @param offset the byte offset in the file (zero based) at which to read the data.
 @param size the number of bytes from the file to read.
+
+******************************************************************************
 
 \fn void PCIDSK::PCIDSKFile::GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp, const char *filename = "" );
 
@@ -140,6 +183,7 @@ file) are returned.
 @param filename the name of the file to access or an empty string for the PCIDSK
 file itself.
 
+******************************************************************************
 
 \fn int PCIDSK::PCIDSKFile::GetPixelGroupSize() const;
 
@@ -153,6 +197,8 @@ consists of the values for all the channels in the file in order.
 @return the size of a pixel group in bytes.
 
 @see ReadAndLockBlock()
+
+******************************************************************************
 
 \fn uint8 *PCIDSK::PCIDSKFile::ReadAndLockBlock( int block_index, int win_xoff=-1, int win_xsize=-1 );
 
@@ -180,6 +226,7 @@ optimized access for this one case.
 
 @return pointer to an internal buffer with pixel data in it.
 
+******************************************************************************
 
 \fn void PCIDSK::PCIDSKFile::UnlockBlock( bool mark_dirty=false);
 
@@ -195,6 +242,7 @@ the argument "mark_dirty" should be passed in as true.
 
 @see ReadAndLockBlock()
 
+******************************************************************************
 
 \fn void PCIDSK::PCIDSKFile::FlushBlock();
 
@@ -230,8 +278,8 @@ associated with each may be fetched with GetMetadataValue().
 
 \brief Fetch metadata value
 
-Note that the returned pointer is to an internal structure and it may become 
-invalid if another thread modifies the metadata for this object.
+Fetch the metadata value associated with the passed key on this object.  If 
+there is no such item an empty string is returned.
 
 @param key the key to fetch the value for.
 
@@ -239,6 +287,46 @@ invalid if another thread modifies the metadata for this object.
 does not exist on the target object.
 
 @see GetMetadataKeys()
+
+******************************************************************************
+\fn void PCIDSK::PCIDSKFile::SetMetadataValue( std::string key, std::string value );
+
+\brief Set metadata value
+
+Assign  the metadata value associated with the passed key on this object.  
+The file needs to be open for update.  Note that keys should be well formed
+tokens (no special characters, spaces, etc).
+
+@param key the key to fetch the value for.  
+
+@param value the value to assign to the key.
+
+@see GetMetadataValue()
+
+******************************************************************************
+\fn void PCIDSK::PCIDSKFile::CreateOverviews( int chan_count, int *chan_list, int factor, std::string resampling );
+
+\brief Create an overview level
+
+An overview is created on the indicated list of channels.  If chan_count is 
+zero, then it will be created for all channels on the file.  The overview will
+have a size determined by dividing the base image level by "factor".   The
+file needs to be open in update mode.
+
+If the requested overview level already exists an exception will be thrown.
+
+While this function creates the overview level, and records the resampling
+method in metadata, it does not actually compute and assign imagery to the
+overview.  This must be done externally by the application.  Overview 
+computation is not a function of the PCIDSK SDK.
+
+@param chan_count the number of channels listed in chan_list.
+
+@param chan_list the channels for which the overview level should be created.
+
+@param factor the overview decimation factor. 
+
+@param resampling the resampling to be used for this overview - one of "NEAREST", "AVERAGE" or "MODE".
 
 */
 
