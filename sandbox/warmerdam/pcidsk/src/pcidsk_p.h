@@ -104,9 +104,8 @@ public:
 
     void        Initialize( CPCIDSKFile *file, std::string group, int id );
     std::string GetMetadataValue( std::string key );
-    std::vector<std::string> GetMetadataKeys();
-    
     void        SetMetadataValue( std::string key, std::string value );
+    std::vector<std::string> GetMetadataKeys();
 };
 
 /************************************************************************/
@@ -184,6 +183,8 @@ public:
                                         int previous = 0 );
     int  CreateSegment( std::string name, std::string description,
                         eSegType seg_type, int data_blocks );
+    void CreateOverviews( int chan_count, int *chan_list, 
+                          int factor, std::string resampling );
 
     int       GetWidth() const { return width; }
     int       GetHeight() const { return height; }
@@ -207,6 +208,8 @@ public:
 
     std::string GetMetadataValue( std::string key ) 
 		{ return metadata.GetMetadataValue(key); }
+    void        SetMetadataValue( std::string key, std::string value ) 
+                { return metadata.SetMetadataValue(key,value); }
     std::vector<std::string> GetMetadataKeys() 
         	{ return metadata.GetMetadataKeys(); }
 
@@ -270,8 +273,13 @@ public:
 
     std::string GetMetadataValue( std::string key ) 
 		{ return metadata.GetMetadataValue(key); }
+    void        SetMetadataValue( std::string key, std::string value ) 
+                { return metadata.SetMetadataValue(key,value); }
     std::vector<std::string> GetMetadataKeys() 
         	{ return metadata.GetMetadataKeys(); }
+
+    // Just for CPCIDSKFile.
+    void      InvalidateOverviewInfo();
 };
 
 /************************************************************************/
@@ -458,6 +466,8 @@ public:
 
     std::string GetMetadataValue( std::string key ) 
 		{ return metadata.GetMetadataValue(key); }
+    void        SetMetadataValue( std::string key, std::string value ) 
+                { return metadata.SetMetadataValue(key,value); }
     std::vector<std::string> GetMetadataKeys() 
         	{ return metadata.GetMetadataKeys(); }
 };
@@ -545,8 +555,11 @@ private:
     bool         loaded;
 
     void         Load();
+    void         Save();
 
     PCIDSKBuffer seg_data;
+
+    std::map<std::string,std::string> update_list;
 
 public:
     MetadataSegment( CPCIDSKFile *file, int segment,
@@ -555,6 +568,8 @@ public:
 
     void         FetchMetadata( const char *group, int id, 
                                 std::map<std::string,std::string> &md_set );
+    void         SetMetadataValue( const char *group, int id,
+                                   std::string key, std::string value );
 };
 
 /************************************************************************/
@@ -623,10 +638,14 @@ public:
 /*                          Utility functions.                          */
 /************************************************************************/
 
+std::string &UCaseStr( std::string & );
 uint64 atouint64( const char *);
 int64  atoint64( const char *);
 void   SwapData( void *data, int value_size, int value_count );
 void   GetCurrentDateTime( char *out_datetime );
+
+void   ParseTileFormat( std::string full_text, int &block_size, 
+                        std::string &compression );
 
 void LibJPEG_DecompressBlock(
     uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes,

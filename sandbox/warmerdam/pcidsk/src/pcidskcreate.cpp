@@ -78,8 +78,11 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /*      Validate parameters.                                            */
 /* -------------------------------------------------------------------- */
     const char *interleaving;
-    std::string compression;
+    std::string compression = "NONE";
     bool nozero = false;
+    int  blocksize = 127;
+
+    UCaseStr( options );
 
     if(strncmp(options.c_str(),"PIXEL",5) == 0 )
         interleaving = "PIXEL";
@@ -88,13 +91,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
     else if( strncmp(options.c_str(),"TILED",5) == 0 )
     {
         interleaving = "FILE";
-        if( options.c_str()[5] == ' ' )
-        {
-            compression = options.c_str() + 6;
-            // TODO Add validation of compression scheme.
-        }
-        else
-            compression = "NONE";
+        ParseTileFormat( options, blocksize, compression );
     }
     else if( strncmp(options.c_str(),"FILE",4) == 0 )
         interleaving = "FILE";
@@ -392,6 +389,8 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /* -------------------------------------------------------------------- */
     if( strncmp(options.c_str(),"TILED",5) == 0 )
     {
+        file->SetMetadataValue( "_DBLayout", options );
+
         int segment = file->CreateSegment( "SysBMDir", 
                                            "System Block Map Directory - Do not modify.",
                                            SEG_SYS, 0 );
@@ -403,7 +402,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
         
         for( chan_index = 0; chan_index < channel_count; chan_index++ )
         {
-            bm->CreateVirtualImageFile( pixels, lines, 127, 127, 
+            bm->CreateVirtualImageFile( pixels, lines, blocksize, blocksize,
                                         channel_types[chan_index], 
                                         compression );
         }
@@ -411,3 +410,59 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 
     return file;
 }
+
+/************************************************************************/
+/*                          ParseTileFormat()                           */
+/*                                                                      */
+/*      Parse blocksize and compression out of a TILED interleaving     */
+/*      string as passed to the Create() function or stored in          */
+/*      _DBLayout metadata.                                             */
+/************************************************************************/
+
+void PCIDSK::ParseTileFormat( std::string full_text, 
+                              int &block_size, std::string &compression )
+
+{
+    compression = "NONE";
+    block_size = 127;
+
+    UCaseStr( full_text );
+
+/* -------------------------------------------------------------------- */
+/*      Only operate on tiled stuff.                                    */
+/* -------------------------------------------------------------------- */
+    if( strncmp(full_text.c_str(),"TILED",5) != 0 )
+        return;
+
+/* -------------------------------------------------------------------- */
+/*      Do we have a block size?                                        */
+/* -------------------------------------------------------------------- */
+    const char *next_text = full_text.c_str() + 5;
+
+    if( isdigit(*next_text) )
+    {
+        block_size = atoi(next_text);
+        while( isdigit(*next_text) )
+            next_text++;
+    }
+    
+    while( *next_text == ' ' )
+        next_text++;
+
+/* -------------------------------------------------------------------- */
+/*      Do we have a compression type?                                  */
+/* -------------------------------------------------------------------- */
+    if( *next_text != '\0' )
+    {
+        compression = next_text;
+        if( compression != "RLE"
+            && strncmp(compression.c_str(),"JPEG",4) != 0 
+            && compression != "NONE"
+            && compression != "QUADTREE" )
+        {
+            ThrowPCIDSKException( "Unsupported tile compression scheme '%s' requested.",
+                                  compression.c_str() );
+        }
+    }    
+}
+                      

@@ -112,6 +112,33 @@ std::string MetadataSet::GetMetadataValue( std::string key )
 }
 
 /************************************************************************/
+/*                          SetMetadataValue()                          */
+/************************************************************************/
+
+void MetadataSet::SetMetadataValue( std::string key, std::string value )
+
+{
+    if( !loaded )
+        Load();
+
+    md_set[key] = value;
+
+    PCIDSKSegment *seg = file->GetSegment( SEG_SYS , "METADATA");
+
+    if( seg == NULL )
+    {
+        file->CreateSegment( "METADATA", 
+                             "Please do not modify this metadata segment.", 
+                             SEG_SYS, 0 );
+        seg = file->GetSegment( SEG_SYS , "METADATA");
+    }
+
+    MetadataSegment *md_seg = dynamic_cast<MetadataSegment *>( seg );
+
+    md_seg->SetMetadataValue( group.c_str(), id, key, value );
+}
+
+/************************************************************************/
 /*                          GetMetadataKeys()                           */
 /************************************************************************/
 

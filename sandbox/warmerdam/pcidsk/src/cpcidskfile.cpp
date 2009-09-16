@@ -903,3 +903,131 @@ void CPCIDSKFile::MoveSegmentToEOF( int segment )
         seg->LoadSegmentPointer( segment_pointers.buffer + segptr_off );
     }
 }
+
+/************************************************************************/
+/*                          CreateOverviews()                           */
+/************************************************************************/
+/*
+ const char *pszResampling;
+ 	     Either "NEAREST" for Nearest Neighbour resampling (the fastest),
+             "AVERAGE" for block averaging or "MODE" for block mode.  This
+             establishing the type of resampling to be applied when preparing
+             the decimated overviews.  
+*/
+
+void CPCIDSKFile::CreateOverviews( int chan_count, int *chan_list, 
+                                   int factor, std::string resampling )
+
+{
+    std::vector<int> default_chan_list;
+
+/* -------------------------------------------------------------------- */
+/*      Validate resampling method.                                     */
+/* -------------------------------------------------------------------- */
+    UCaseStr( resampling );
+
+    if( resampling != "NEAREST" 
+        && resampling != "AVERAGE"
+        && resampling != "MODE" )
+    {
+        ThrowPCIDSKException( "Requested overview resampling '%s' not supported.\nUse one of NEAREST, AVERAGE or MODE.",
+                              resampling.c_str() );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Default to processing all bands.                                */
+/* -------------------------------------------------------------------- */
+    if( chan_count == 0 )
+    {
+        chan_count = channel_count;
+        default_chan_list.resize( chan_count );
+
+        for( int i = 0; i < chan_count; i++ )
+            default_chan_list[i] = i+1;
+
+        chan_list = &(default_chan_list[0]);
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Work out the creation options that should apply for the         */
+/*      overview.                                                       */
+/* -------------------------------------------------------------------- */
+    std::string layout = GetMetadataValue( "_DBLayout" );
+    int         blocksize = 127;
+    std::string compression = "NONE";
+
+    if( strncmp( layout.c_str(), "TILED", 5 ) == 0 )
+    {
+        ParseTileFormat( layout, blocksize, compression );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Make sure we have a blockmap segment for managing the tiled     */
+/*      layers.                                                         */
+/* -------------------------------------------------------------------- */
+    PCIDSKSegment *bm_seg = GetSegment( SEG_SYS, "SysBMDir" );
+    SysBlockMap *bm;
+
+    if( bm_seg == NULL )
+    {
+        CreateSegment( "SysBMDir", 
+                       "System Block Map Directory - Do not modify.",
+                       SEG_SYS, 0 );
+        bm_seg = GetSegment( SEG_SYS, "SysBMDir" );
+        bm = dynamic_cast<SysBlockMap *>(bm_seg);
+        bm->Initialize();
+    }
+    else
+        bm = dynamic_cast<SysBlockMap *>(bm_seg);
+        
+/* ==================================================================== */
+/*      Loop over the channels.                                         */
+/* ==================================================================== */
+    for( int chan_index = 0; chan_index < chan_count; chan_index++ )
+    {
+        int channel_number = chan_list[chan_index];
+        PCIDSKChannel *channel = GetChannel( channel_number );
+        
+/* -------------------------------------------------------------------- */
+/*      Do we have a preexisting overview that corresponds to this      */
+/*      factor?  If so, throw an exception.  Would it be better to      */
+/*      just return quietly?                                            */
+/* -------------------------------------------------------------------- */
+        for( int i = channel->GetOverviewCount()-1; i >= 0; i-- )
+        {
+            PCIDSKChannel *overview = channel->GetOverview( i );
+ 
+            if( overview->GetWidth() == channel->GetWidth() / factor
+                && overview->GetHeight() == channel->GetHeight() / factor )
+            {
+                ThrowPCIDSKException( "Channel %d already has a factor %d overview.",
+                                      channel_number, factor );
+            }
+        }
+
+/* -------------------------------------------------------------------- */
+/*      Create the overview as a tiled image layer.                     */
+/* -------------------------------------------------------------------- */
+        int virtual_image = 
+            bm->CreateVirtualImageFile( channel->GetWidth() / factor, 
+                                        channel->GetHeight() / factor,
+                                        blocksize, blocksize, 
+                                        channel->GetType(), compression );
+
+/* -------------------------------------------------------------------- */
+/*      Attach reference to this overview as metadata.                  */
+/* -------------------------------------------------------------------- */
+        char overview_md_value[128];
+        char overview_md_key[128];
+
+        sprintf( overview_md_key, "_Overview_%d", factor );
+        sprintf( overview_md_value, "%d 0 %s",virtual_image,resampling.c_str());
+                 
+        channel->SetMetadataValue( overview_md_key, overview_md_value );
+
+/* -------------------------------------------------------------------- */
+/*      Force channel to invalidate it's loaded overview list.          */
+/* -------------------------------------------------------------------- */
+        dynamic_cast<CPCIDSKChannel *>(channel)->InvalidateOverviewInfo();
+    }
+}

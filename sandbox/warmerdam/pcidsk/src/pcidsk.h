@@ -187,6 +187,8 @@ public:
 
     virtual int  CreateSegment( std::string name, std::string description,
                                 eSegType seg_type, int data_blocks ) = 0;
+    virtual void CreateOverviews( int chan_count, int *chan_list, 
+                                  int factor, std::string resampling ) = 0;
 
     // the following are only for pixel interleaved IO
     virtual int    GetPixelGroupSize() const = 0;
@@ -201,6 +203,7 @@ public:
                                std::string filename = "" ) = 0;
 
     virtual std::string GetMetadataValue( std::string key ) = 0;
+    virtual void SetMetadataValue( std::string key, std::string value ) = 0;
     virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 
@@ -228,6 +231,7 @@ public:
     virtual PCIDSKChannel *GetOverview( int i ) = 0;
 
     virtual std::string GetMetadataValue( std::string key ) = 0;
+    virtual void SetMetadataValue( std::string key, std::string value ) = 0;
     virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 
@@ -253,6 +257,7 @@ public:
     virtual bool        IsAtEOF() = 0;
 
     virtual std::string GetMetadataValue( std::string key ) = 0;
+    virtual void SetMetadataValue( std::string key, std::string value ) = 0;
     virtual std::vector<std::string> GetMetadataKeys() = 0;
 };
 

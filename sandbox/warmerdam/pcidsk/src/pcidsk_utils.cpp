@@ -188,3 +188,21 @@ void	PCIDSK::GetCurrentDateTime( char *out_time )
     out_time[15] = ' ';
     out_time[16] = '\0';
 }
+
+/************************************************************************/
+/*                              UCaseStr()                              */
+/*                                                                      */
+/*      Force a string into upper case "in place".                      */
+/************************************************************************/
+
+std::string &PCIDSK::UCaseStr( std::string &target )
+
+{
+    for( unsigned int i = 0; i < target.size(); i++ )
+    {
+        if( islower(target[i]) )
+            target[i] = toupper(target[i]);
+    }
+    
+    return target;
+}

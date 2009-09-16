@@ -54,6 +54,8 @@ MetadataSegment::MetadataSegment( CPCIDSKFile *file, int segment,
 MetadataSegment::~MetadataSegment()
 
 {
+    if( loaded && update_list.size() > 0 )
+        Save();
 }
 
 /************************************************************************/
@@ -74,6 +76,8 @@ void MetadataSegment::Load()
     seg_data.SetSize( data_size - 1024 );
 
     ReadFromFile( seg_data.buffer, 0, data_size - 1024 );
+
+    loaded = true;
 }
 
 /************************************************************************/
@@ -146,4 +150,118 @@ void MetadataSegment::FetchMetadata( const char *group, int id,
         while( *pszNext == 10 || *pszNext == 12 )
             pszNext++;
     }
+}
+
+/************************************************************************/
+/*                          SetMetadataValue()                          */
+/************************************************************************/
+
+void MetadataSegment::SetMetadataValue( const char *group, int id,
+                                        std::string key, std::string value )
+
+{
+    Load();
+
+    char key_prefix[200];
+
+    sprintf( key_prefix, "METADATA_%s_%d_", group, id );
+
+    std::string full_key;
+
+    full_key = key_prefix;
+    full_key += key;
+
+    update_list[full_key] = value;
+}
+
+/************************************************************************/
+/*                                Save()                                */
+/*                                                                      */
+/*      When saving we first need to merge in any updates.  We put      */
+/*      this off since scanning and updating the metadata doc could     */
+/*      be epxensive if done for each item.                             */
+/************************************************************************/
+
+void MetadataSegment::Save()
+
+{
+    std::string new_data;
+
+/* -------------------------------------------------------------------- */
+/*      Process all the metadata entries in this segment, searching     */
+/*      for those that match our prefix.                                */
+/* -------------------------------------------------------------------- */
+    const char *pszNext;
+
+    for( pszNext = (const char *) seg_data.buffer; *pszNext != '\0'; )
+    {
+/* -------------------------------------------------------------------- */
+/*      Identify the end of this line, and the split character (:).     */
+/* -------------------------------------------------------------------- */
+        int i_split = -1, i;
+
+        for( i=0; 
+             pszNext[i] != 10 && pszNext[i] != 12 && pszNext[i] != 0; 
+             i++) 
+        {
+            if( i_split == -1 && pszNext[i] == ':' )
+                i_split = i;
+        }
+
+        if( pszNext[i] == '\0' )
+            break;
+
+/* -------------------------------------------------------------------- */
+/*      If we have a new value for this key, do not copy over the       */
+/*      old value.  Otherwise append the old value to our new image.    */
+/* -------------------------------------------------------------------- */
+        std::string full_key;
+
+        full_key.assign( pszNext, i_split );
+        
+        if( update_list.count(full_key) == 1 )
+            /* do not transfer - we will append later */;
+        else
+            new_data.append( pszNext, i );
+
+/* -------------------------------------------------------------------- */
+/*      Advance to start of next line.                                  */
+/* -------------------------------------------------------------------- */
+        pszNext = pszNext + i;
+        while( *pszNext == 10 || *pszNext == 12 )
+            pszNext++;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Append all the update items with non-empty values.              */
+/* -------------------------------------------------------------------- */
+    std::map<std::string,std::string>::iterator it;
+
+    for( it = update_list.begin(); it != update_list.end(); it++ )
+    {
+        std::string line;
+
+        line = it->first;
+        line += ": ";
+        line += it->second;
+        line += "\n";
+
+        new_data += line;
+    }
+
+    update_list.clear();
+
+/* -------------------------------------------------------------------- */
+/*      Move the new value into our buffer, and write to disk.          */
+/* -------------------------------------------------------------------- */
+    if( new_data.size() % 512 != 0 ) // zero fill the last block.
+    {
+        new_data.resize( new_data.size() + (512 - (new_data.size() % 512)), 
+                         '\0' );
+    }
+
+    seg_data.SetSize( new_data.size() );
+    memcpy( seg_data.buffer, new_data.c_str(), new_data.size() );
+
+    WriteToFile( seg_data.buffer, 0, seg_data.buffer_size );
 }

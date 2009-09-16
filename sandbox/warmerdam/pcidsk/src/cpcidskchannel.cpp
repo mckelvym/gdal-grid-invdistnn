@@ -88,6 +88,19 @@ CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header,
 CPCIDSKChannel::~CPCIDSKChannel()
 
 {
+    InvalidateOverviewInfo();
+}
+
+/************************************************************************/
+/*                       InvalidateOverviewInfo()                       */
+/*                                                                      */
+/*      This is called when CreateOverviews() creates overviews - we    */
+/*      invalidate our loaded info and re-establish on a next request.  */
+/************************************************************************/
+
+void CPCIDSKChannel::InvalidateOverviewInfo()
+
+{
     for( size_t io=0; io < overview_bands.size(); io++ )
     {
         if( overview_bands[io] != NULL )
@@ -96,6 +109,11 @@ CPCIDSKChannel::~CPCIDSKChannel()
             overview_bands[io] = NULL;
         }
     }
+
+    overview_infos.clear();
+    overview_bands.clear();
+
+    overviews_initialized = false;
 }
 
 /************************************************************************/
