@@ -283,7 +283,7 @@ int main( int argc, char **argv)
             int block_size = (int) file->GetPixelGroupSize() * file->GetWidth();
             int block_count = x_block_count * y_block_count;
 
-            if( file->GetInterleaving() == "PIXEL" )
+            if( file->GetInterleaving() != "PIXEL" )
             {
                 fprintf( stderr, 
                          "Pixel Interleaved access only possible on pixel interleaved files.\n" );
