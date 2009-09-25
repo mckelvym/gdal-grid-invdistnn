@@ -6,13 +6,16 @@ OBJ =   test_main.obj testpcidskexception.obj testpcidskfile.obj
 
 LIBS =	../src/pcidsk.lib
 
-default:	pcidsk_read.exe
+default:	pcidsk_read.exe pcidsk2pcidsk.exe
 
 test_main.exe:	$(OBJ) ../src/pcidsk.lib
 	cl $(OBJ) $(LIBS)
 
 pcidsk_read.exe:	pcidsk_read.obj ../src/pcidsk.lib
 	cl $(CXXFLAGS) pcidsk_read.obj $(LIBS)
+
+pcidsk2pcidsk.exe:	pcidsk2pcidsk.obj ../src/pcidsk.lib
+	cl $(CXXFLAGS) pcidsk2pcidsk.obj $(LIBS)
 
 ../src/pcidsk.lib:
 	(cd ../src ; $(MAKE))
