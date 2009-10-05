@@ -56,6 +56,7 @@ Win32Mutex::Win32Mutex()
 
 {
     hMutex = CreateMutex( NULL, 1, NULL );
+    Release(); // it is created acquired, but we want it free.
 }
 
 /************************************************************************/
