@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary include file for PCIDSK SDK.
+ * Purpose:  Declaration of hookable interfaces for the library
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -25,58 +25,38 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef PCIDSK_CONFIG_H_INCLUDED
-#define PCIDSK_CONFIG_H_INCLUDED
+#ifndef __INCLUDE_PCIDSK_INTERFACES_H
+#define __INCLUDE_PCIDSK_INTERFACES_H
 
-namespace PCIDSK {
+#include "pcidsk_io.h"
+#include "pcidsk_mutex.h"
 
-    typedef unsigned char uint8;
-    typedef int           int32;
-    typedef unsigned int  uint32;
-    
-#if defined(_MSC_VER)  
-    typedef __int64          int64;
-    typedef unsigned __int64 uint64;
-#else
-    typedef long long          int64;
-    typedef unsigned long long uint64;
-#endif
+namespace PCIDSK
+{
+    /************************************************************************/
+    /*                           PCIDSKInterfaces                           */
+    /************************************************************************/
 
-};
+    //! Collection of PCIDSK hookable interfaces.
 
-#ifndef PCIDSK_DLL
-#if defined(_MSC_VER) 
-#  define PCIDSK_DLL     __declspec(dllexport)
-#else
-#  define PCIDSK_DLL
-#endif
-#endif
+    class PCIDSK_DLL PCIDSKInterfaces 
+    {
+      public:
+        PCIDSKInterfaces();
 
-#if defined(__MSVCRT__) || defined(_MSC_VER)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "I64"
-#elif defined(HAVE_LONG_LONG)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
-#else
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "l"
-#endif
+        const IOInterfaces 	*io;
 
-// #define MISSING_VSNPRINTF
+        Mutex               *(*CreateMutex)(void);
 
-/**
- * Versioning in the PCIDSK SDK
- * The version number for the PCIDSK SDK is to be used as follows:
- *  <ul>
- *  <li> If minor changes to the underlying fundamental classes are made,
- *          but no linkage-breaking changes are made, increment the minor
- *          number.
- *  <li> If major changes are made to the underlying interfaces that will
- *          break linkage, increment the major number.
- *  </ul>
- */
-#define PCIDSK_SDK_MAJOR_VERSION    0
-#define PCIDSK_SDK_MINOR_VERSION    1
+        void                (*JPEGDecompressBlock)
+            ( uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes,
+              int xsize, int ysize, eChanType pixel_type );
+        void                (*JPEGCompressBlock)
+            ( uint8 *src_data, int src_bytes, uint8 *dst_data, int &dst_bytes,
+              int xsize, int ysize, eChanType pixel_type, int quality );
 
-#endif // PCIDSK_CONFIG_H_INCLUDED
+    //    DBInterfaces 	db_interfaces;
+    };
+}; // end namespace PCIDSK
 
-
-
+#endif // __INCLUDE_PCIDSK_INTERFACES_H

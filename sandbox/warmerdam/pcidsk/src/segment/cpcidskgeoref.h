@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary public include file for PCIDSK SDK.
+ * Purpose:  Declaration of the CPCIDSKGeoref class.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -24,42 +24,50 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
-
-/**
- * \file pcidsk.h
- *
- * Public PCIDSK library classes and functions.
- */
-
-#ifndef PCIDSK_H_INCLUDED
-#define PCIDSK_H_INCLUDED
+#ifndef __INCLUDE_SEGMENT_PCIDSKGEOREF_H
+#define __INCLUDE_SEGMENT_PCIDSKGEOREF_H
 
 #include "pcidsk_config.h"
 #include "pcidsk_types.h"
-#include "pcidsk_file.h"
-#include "pcidsk_channel.h"
-#include "pcidsk_buffer.h"
-#include "pcidsk_mutex.h"
-#include "pcidsk_exception.h"
-#include "pcidsk_interfaces.h"
-#include "pcidsk_segment.h"
-#include "pcidsk_io.h"
 #include "pcidsk_georef.h"
+#include "pcidsk_buffer.h"
+#include "segment/cpcidsksegment.h"
 
-//! Namespace for all PCIDSK Library classes and functions.
+#include <string>
 
-namespace PCIDSK {
-/************************************************************************/
-/*                      PCIDSK Access Functions                         */
-/************************************************************************/
-PCIDSKFile PCIDSK_DLL *Open( std::string filename, std::string access,  
-                             const PCIDSKInterfaces *interfaces );
-PCIDSKFile PCIDSK_DLL *Create( std::string filename, int pixels, int lines,
-                               int channel_count, eChanType *channel_types, 
-                               std::string options,
-                               const PCIDSKInterfaces *interfaces );
+namespace PCIDSK
+{
+    class PCIDSKFile;
+    
+    /************************************************************************/
+    /*                            CPCIDSKGeoref                             */
+    /************************************************************************/
 
+    class CPCIDSKGeoref : public CPCIDSKSegment, 
+                          public PCIDSKGeoref
+    {
+    public:
+        CPCIDSKGeoref( PCIDSKFile *file, int segment,const char *segment_pointer );
 
-}; // end of PCIDSK namespace
+        virtual     ~CPCIDSKGeoref();
 
-#endif // PCIDSK_H_INCLUDED
+        void        GetTransform( double &a1, double &a2, double &xrot, 
+                                  double &b1, double &yrot, double &b3 );
+        std::string GetGeosys();
+
+        void        WriteSimple( std::string geosys, 
+                                 double a1, double a2, double xrot, 
+                                 double b1, double yrot, double b3 );
+     private:
+         bool         loaded;
+
+         std::string  geosys;
+         double       a1, a2, xrot, b1, yrot, b3;
+
+         void         Load();
+
+         PCIDSKBuffer seg_data;
+    };
+}; // end namespace PCIDSK
+
+#endif // __INCLUDE_SEGMENT_PCIDSKGEOREF_H

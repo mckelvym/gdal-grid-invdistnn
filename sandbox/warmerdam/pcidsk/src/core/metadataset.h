@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary include file for PCIDSK SDK.
+ * Purpose:  Declaration of the MetadataSet class.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -24,59 +24,44 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
+#ifndef __INCLUDE_PRIV_METADATASET_H
+#define __INCLUDE_PRIV_METADATASET_H
 
-#ifndef PCIDSK_CONFIG_H_INCLUDED
-#define PCIDSK_CONFIG_H_INCLUDED
+#include "pcidsk_config.h"
+#include "pcidsk_file.h"
+#include <vector>
+#include <string>
+#include <map>
 
-namespace PCIDSK {
+namespace PCIDSK
+{
+    class CPCIDSKFile;
+    /************************************************************************/
+    /*                             MetadataSet                              */
+    /************************************************************************/
 
-    typedef unsigned char uint8;
-    typedef int           int32;
-    typedef unsigned int  uint32;
+    class MetadataSet 
+    {									
+    public:
+        MetadataSet();
+        ~MetadataSet();
+
+        void        Initialize( PCIDSKFile *file, std::string group, int id );
+        std::string GetMetadataValue( std::string key );
+        void        SetMetadataValue( std::string key, std::string value );
+        std::vector<std::string> GetMetadataKeys();
     
-#if defined(_MSC_VER)  
-    typedef __int64          int64;
-    typedef unsigned __int64 uint64;
-#else
-    typedef long long          int64;
-    typedef unsigned long long uint64;
-#endif
+    private:
+        PCIDSKFile  *file;
 
-};
+        bool         loaded;
+        std::map<std::string,std::string> md_set;
 
-#ifndef PCIDSK_DLL
-#if defined(_MSC_VER) 
-#  define PCIDSK_DLL     __declspec(dllexport)
-#else
-#  define PCIDSK_DLL
-#endif
-#endif
+        std::string  group;
+        int          id;
 
-#if defined(__MSVCRT__) || defined(_MSC_VER)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "I64"
-#elif defined(HAVE_LONG_LONG)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
-#else
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "l"
-#endif
-
-// #define MISSING_VSNPRINTF
-
-/**
- * Versioning in the PCIDSK SDK
- * The version number for the PCIDSK SDK is to be used as follows:
- *  <ul>
- *  <li> If minor changes to the underlying fundamental classes are made,
- *          but no linkage-breaking changes are made, increment the minor
- *          number.
- *  <li> If major changes are made to the underlying interfaces that will
- *          break linkage, increment the major number.
- *  </ul>
- */
-#define PCIDSK_SDK_MAJOR_VERSION    0
-#define PCIDSK_SDK_MINOR_VERSION    1
-
-#endif // PCIDSK_CONFIG_H_INCLUDED
-
-
-
+        void         Load();
+    };
+    
+}; // end namespace PCIDSK
+#endif // __INCLUDE_PRIV_METADATASET_H

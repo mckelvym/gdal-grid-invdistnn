@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary include file for PCIDSK SDK.
+ * Purpose:  Declaration of the CPixelInterleavedChannel class.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -24,59 +24,42 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
+#ifndef __INCLUDE_CHANNEL_CPIXELINTERLEAVEDCHANNEL_H
+#define __INCLUDE_CHANNEL_CPIXELINTERLEAVEDCHANNEL_H
 
-#ifndef PCIDSK_CONFIG_H_INCLUDED
-#define PCIDSK_CONFIG_H_INCLUDED
+#include "pcidsk_config.h"
+#include "pcidsk_types.h"
+#include "pcidsk_buffer.h"
+#include "channel/cpcidskchannel.h"
 
-namespace PCIDSK {
-
-    typedef unsigned char uint8;
-    typedef int           int32;
-    typedef unsigned int  uint32;
+namespace PCIDSK
+{
+    class CPCIDSKFile;
     
-#if defined(_MSC_VER)  
-    typedef __int64          int64;
-    typedef unsigned __int64 uint64;
-#else
-    typedef long long          int64;
-    typedef unsigned long long uint64;
-#endif
-
-};
-
-#ifndef PCIDSK_DLL
-#if defined(_MSC_VER) 
-#  define PCIDSK_DLL     __declspec(dllexport)
-#else
-#  define PCIDSK_DLL
-#endif
-#endif
-
-#if defined(__MSVCRT__) || defined(_MSC_VER)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "I64"
-#elif defined(HAVE_LONG_LONG)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
-#else
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "l"
-#endif
-
-// #define MISSING_VSNPRINTF
-
-/**
- * Versioning in the PCIDSK SDK
- * The version number for the PCIDSK SDK is to be used as follows:
- *  <ul>
- *  <li> If minor changes to the underlying fundamental classes are made,
- *          but no linkage-breaking changes are made, increment the minor
- *          number.
- *  <li> If major changes are made to the underlying interfaces that will
- *          break linkage, increment the major number.
- *  </ul>
- */
-#define PCIDSK_SDK_MAJOR_VERSION    0
-#define PCIDSK_SDK_MINOR_VERSION    1
-
-#endif // PCIDSK_CONFIG_H_INCLUDED
+/************************************************************************/
+/*                       CPixelInterleavedChannel                       */
+/************************************************************************/
+    class CPixelInterleavedChannel : public CPCIDSKChannel
+    {
 
 
+    public:
+        CPixelInterleavedChannel( PCIDSKBuffer &image_header, 
+            PCIDSKBuffer &file_header, 
+            int channelnum,
+            CPCIDSKFile *file,
+            int image_offset,
+            eChanType pixel_type );
+        virtual ~CPixelInterleavedChannel();
 
+        virtual int ReadBlock( int block_index, void *buffer,
+            int xoff=-1, int yoff=-1,
+            int xsize=-1, int ysize=-1 );
+
+        virtual int WriteBlock( int block_index, void *buffer );
+    private:
+        int      image_offset;
+    };
+}; // end namespace PCIDSK
+
+#endif // __INCLUDE_CHANNEL_CPIXELINTERLEAVEDCHANNEL_H

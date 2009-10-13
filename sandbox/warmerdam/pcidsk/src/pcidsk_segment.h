@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary include file for PCIDSK SDK.
+ * Purpose:  Primary public include file for PCIDSK SDK.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -24,59 +24,43 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
+ 
+#ifndef __INCLUDE_SEGMENT_PCIDSKSEGMENT_H
+#define __INCLUDE_SEGMENT_PCIDSKSEGMENT_H
 
-#ifndef PCIDSK_CONFIG_H_INCLUDED
-#define PCIDSK_CONFIG_H_INCLUDED
+#include "pcidsk_config.h"
+#include "pcidsk_types.h"
+#include <string>
+#include <vector>
 
-namespace PCIDSK {
+namespace PCIDSK
+{
+/************************************************************************/
+/*                            PCIDSKSegment                             */
+/************************************************************************/
 
-    typedef unsigned char uint8;
-    typedef int           int32;
-    typedef unsigned int  uint32;
-    
-#if defined(_MSC_VER)  
-    typedef __int64          int64;
-    typedef unsigned __int64 uint64;
-#else
-    typedef long long          int64;
-    typedef unsigned long long uint64;
-#endif
+//! Public tnterface for the PCIDSK Segment Type
 
-};
+    class PCIDSKSegment 
+    {
+    public:
+        virtual	~PCIDSKSegment() {}
 
-#ifndef PCIDSK_DLL
-#if defined(_MSC_VER) 
-#  define PCIDSK_DLL     __declspec(dllexport)
-#else
-#  define PCIDSK_DLL
-#endif
-#endif
+        virtual void WriteToFile( const void *buffer, uint64 offset, uint64 size)=0;
+        virtual void ReadFromFile( void *buffer, uint64 offset, uint64 size ) = 0;
 
-#if defined(__MSVCRT__) || defined(_MSC_VER)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "I64"
-#elif defined(HAVE_LONG_LONG)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
-#else
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "l"
-#endif
+        virtual eSegType    GetSegmentType() = 0;
+        virtual std::string GetName() = 0;
+        virtual std::string GetDescription() = 0;
+        virtual int         GetSegmentNumber() = 0;
+        virtual uint64      GetContentSize() = 0;
+        virtual bool        IsAtEOF() = 0;
 
-// #define MISSING_VSNPRINTF
+        virtual std::string GetMetadataValue( std::string key ) = 0;
+        virtual void SetMetadataValue( std::string key, std::string value ) = 0;
+        virtual std::vector<std::string> GetMetadataKeys() = 0;
+    };
 
-/**
- * Versioning in the PCIDSK SDK
- * The version number for the PCIDSK SDK is to be used as follows:
- *  <ul>
- *  <li> If minor changes to the underlying fundamental classes are made,
- *          but no linkage-breaking changes are made, increment the minor
- *          number.
- *  <li> If major changes are made to the underlying interfaces that will
- *          break linkage, increment the major number.
- *  </ul>
- */
-#define PCIDSK_SDK_MAJOR_VERSION    0
-#define PCIDSK_SDK_MINOR_VERSION    1
+}; // end namespace PCIDSK
 
-#endif // PCIDSK_CONFIG_H_INCLUDED
-
-
-
+#endif // __INCLUDE_SEGMENT_PCIDSKSEGMENT_H

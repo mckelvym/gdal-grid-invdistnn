@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary public include file for PCIDSK SDK.
+ * Purpose:  Declaration of the PCIDSKChannel interface.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -24,42 +24,42 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
+#ifndef __INCLUDE_PCIDSK_CHANNEL_H
+#define __INCLUDE_PCIDSK_CHANNEL_H
 
-/**
- * \file pcidsk.h
- *
- * Public PCIDSK library classes and functions.
- */
-
-#ifndef PCIDSK_H_INCLUDED
-#define PCIDSK_H_INCLUDED
-
-#include "pcidsk_config.h"
 #include "pcidsk_types.h"
-#include "pcidsk_file.h"
-#include "pcidsk_channel.h"
-#include "pcidsk_buffer.h"
-#include "pcidsk_mutex.h"
-#include "pcidsk_exception.h"
-#include "pcidsk_interfaces.h"
-#include "pcidsk_segment.h"
-#include "pcidsk_io.h"
-#include "pcidsk_georef.h"
+#include <string>
+#include <vector>
 
-//! Namespace for all PCIDSK Library classes and functions.
-
-namespace PCIDSK {
+namespace PCIDSK
+{
 /************************************************************************/
-/*                      PCIDSK Access Functions                         */
+/*                            PCIDSKChannel                             */
 /************************************************************************/
-PCIDSKFile PCIDSK_DLL *Open( std::string filename, std::string access,  
-                             const PCIDSKInterfaces *interfaces );
-PCIDSKFile PCIDSK_DLL *Create( std::string filename, int pixels, int lines,
-                               int channel_count, eChanType *channel_types, 
-                               std::string options,
-                               const PCIDSKInterfaces *interfaces );
 
+//! Interface to one PCIDSK channel (band).
 
-}; // end of PCIDSK namespace
+    class PCIDSK_DLL PCIDSKChannel 
+    {
+    public:
+        virtual ~PCIDSKChannel() {};
+        virtual int GetBlockWidth() = 0;
+        virtual int GetBlockHeight() = 0;
+        virtual int GetBlockCount() = 0;
+        virtual int GetWidth() = 0;
+        virtual int GetHeight() = 0;
+        virtual eChanType GetType() = 0;
+        virtual int ReadBlock( int block_index, void *buffer,
+            int win_xoff=-1, int win_yoff=-1,
+            int win_xsize=-1, int win_ysize=-1 ) = 0;
+        virtual int WriteBlock( int block_index, void *buffer ) = 0;
+        virtual int GetOverviewCount() = 0;
+        virtual PCIDSKChannel *GetOverview( int i ) = 0;
 
-#endif // PCIDSK_H_INCLUDED
+        virtual std::string GetMetadataValue( std::string key ) = 0;
+        virtual void SetMetadataValue( std::string key, std::string value ) = 0;
+        virtual std::vector<std::string> GetMetadataKeys() = 0;
+    };
+}; // end namespace PCIDSK
+
+#endif // __INCLUDE_PCIDSK_CHANNEL_H

@@ -1,29 +1,38 @@
 
 # Comment out to skip use of libjpeg
-JPEG_FLAGS = -I/home/warmerda/libjpeg -DHAVE_LIBJPEG
+JPEG_FLAGS =
 
 CXXFLAGS = -g -Wall -fPIC $(JPEG_FLAGS)
 
-OBJ =   io_stdio.o pthread_mutex.o pcidskinterfaces.o \
-	pcidskexception.o cpcidskfile.o pcidskbuffer.o pcidsk_utils.o \
-	cpcidskchannel.o cbandinterleavedchannel.o cpixelinterleavedchannel.o \
-	cpcidsksegment.o cpcidskgeoref.o sysblockmap.o sysvirtualfile.o \
-	ctiledchannel.o pcidskopen.o pcidsk_utils_p.o metadataset_p.o \
-	metadatasegment_p.o pcidskcreate.o libjpeg_io.o
+OBJ = channel/*.o core/*.o port/*.o segment/*.o
 
-default:	pcidsk.a
+default:	pcidsk.a pcidsk.so
 
-pcidsk.a:	$(OBJ)
+pcidsk.a: core_comp
 	ar r pcidsk.a $(OBJ)
 
+pcidsk.so: core_comp
+	g++ -ldl -shared -o libpcidsk.so $(OBJ)
+
 clean:
-	rm -f *.o
-	rm -f *.a
+	(cd core; $(MAKE) clean)
+	(cd channel; $(MAKE) clean)
+	(cd segment; $(MAKE) clean)
+	(cd port; $(MAKE) clean)
+	-rm -f *.o
+	-rm -f *.a
+	-rm -f *.so
+
+core_comp:
+	(cd core; $(MAKE))
+	(cd channel; $(MAKE))
+	(cd segment; $(MAKE))
+	(cd port; $(MAKE))
 
 check:	default	
 	(cd ../tests; $(MAKE) check)
 
-$(OBJ):	pcidsk.h pcidsk_p.h pcidsk_config.h 
+$(OBJ):	pcidsk.h pcidsk_config.h 
 
 %.o:	%.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c -o $@ $<

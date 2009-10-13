@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary include file for PCIDSK SDK.
+ * Purpose: PCIDSK Georeferencing Segment Builder
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -25,58 +25,22 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef PCIDSK_CONFIG_H_INCLUDED
-#define PCIDSK_CONFIG_H_INCLUDED
+#ifndef __INCLUDE_SEGMENT_PCIDSKGEOREFBUILDER_H
+#define __INCLUDE_SEGMENT_PCIDSKGEOREFBUILDER_H
 
-namespace PCIDSK {
-
-    typedef unsigned char uint8;
-    typedef int           int32;
-    typedef unsigned int  uint32;
+namespace PCIDSK
+{
+    class PCIDSKFile;
     
-#if defined(_MSC_VER)  
-    typedef __int64          int64;
-    typedef unsigned __int64 uint64;
-#else
-    typedef long long          int64;
-    typedef unsigned long long uint64;
-#endif
-
+    class CPCIDSKGeorefSegmentBuilder : public IPCIDSKSegmentBuilder
+    {
+    public:
+        CPCIDSKGeorefSegmentBuilder() {}
+        ~CPCIDSKGeorefSegmentBuilder() {}
+        
+        
+    private:  
+    };
 };
 
-#ifndef PCIDSK_DLL
-#if defined(_MSC_VER) 
-#  define PCIDSK_DLL     __declspec(dllexport)
-#else
-#  define PCIDSK_DLL
-#endif
-#endif
-
-#if defined(__MSVCRT__) || defined(_MSC_VER)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "I64"
-#elif defined(HAVE_LONG_LONG)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
-#else
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "l"
-#endif
-
-// #define MISSING_VSNPRINTF
-
-/**
- * Versioning in the PCIDSK SDK
- * The version number for the PCIDSK SDK is to be used as follows:
- *  <ul>
- *  <li> If minor changes to the underlying fundamental classes are made,
- *          but no linkage-breaking changes are made, increment the minor
- *          number.
- *  <li> If major changes are made to the underlying interfaces that will
- *          break linkage, increment the major number.
- *  </ul>
- */
-#define PCIDSK_SDK_MAJOR_VERSION    0
-#define PCIDSK_SDK_MINOR_VERSION    1
-
-#endif // PCIDSK_CONFIG_H_INCLUDED
-
-
-
+#endif // __INCLUDE_SEGMENT_PCIDSKGEOREFBUILDER_H

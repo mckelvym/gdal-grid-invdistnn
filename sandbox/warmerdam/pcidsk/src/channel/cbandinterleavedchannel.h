@@ -1,6 +1,10 @@
 /******************************************************************************
  *
- * Purpose:  Primary public include file for PCIDSK SDK.
+ * Purpose:  Declaration of the CBandInterleavedChannel class.
+ *
+ * This class is used to implement band interleaved channels within a 
+ * PCIDSK file (which are always packed, and FILE interleaved data from
+ * external raw files which may not be packed. 
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -24,42 +28,51 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
-
-/**
- * \file pcidsk.h
- *
- * Public PCIDSK library classes and functions.
- */
-
-#ifndef PCIDSK_H_INCLUDED
-#define PCIDSK_H_INCLUDED
+#ifndef __INCLUDE_CHANNEL_CBANDINTERLEAVEDCHANNEL_H
+#define __INCLUDE_CHANNEL_CBANDINTERLEAVEDCHANNEL_H
 
 #include "pcidsk_config.h"
 #include "pcidsk_types.h"
-#include "pcidsk_file.h"
-#include "pcidsk_channel.h"
 #include "pcidsk_buffer.h"
-#include "pcidsk_mutex.h"
-#include "pcidsk_exception.h"
-#include "pcidsk_interfaces.h"
-#include "pcidsk_segment.h"
-#include "pcidsk_io.h"
-#include "pcidsk_georef.h"
+#include "channel/cpcidskchannel.h"
+#include <string>
 
-//! Namespace for all PCIDSK Library classes and functions.
-
-namespace PCIDSK {
+namespace PCIDSK
+{
+    class CPCIDSKFile;
+    class Mutex;
 /************************************************************************/
-/*                      PCIDSK Access Functions                         */
+/*                       CBandInterleavedChannel                        */
+/*                                                                      */
+/*      Also used for FILE interleaved raw files.                       */
 /************************************************************************/
-PCIDSKFile PCIDSK_DLL *Open( std::string filename, std::string access,  
-                             const PCIDSKInterfaces *interfaces );
-PCIDSKFile PCIDSK_DLL *Create( std::string filename, int pixels, int lines,
-                               int channel_count, eChanType *channel_types, 
-                               std::string options,
-                               const PCIDSKInterfaces *interfaces );
 
+    class CBandInterleavedChannel : public CPCIDSKChannel
+    {
+    public:
+        CBandInterleavedChannel( PCIDSKBuffer &image_header, 
+            PCIDSKBuffer &file_header, 
+            int channelnum,
+            CPCIDSKFile *file,
+            uint64 image_offset,
+            eChanType pixel_type );
+        virtual ~CBandInterleavedChannel();
 
-}; // end of PCIDSK namespace
+        virtual int ReadBlock( int block_index, void *buffer,
+            int xoff=-1, int yoff=-1,
+            int xsize=-1, int ysize=-1 );
+        virtual int WriteBlock( int block_index, void *buffer );
+    private:
+    // raw file layout - internal or external
+        uint64    start_byte;
+        uint64    pixel_offset;
+        uint64    line_offset;
 
-#endif // PCIDSK_H_INCLUDED
+        std::string filename;
+
+        void     **io_handle_p;
+        Mutex    **io_mutex_p;
+    };
+}; // end namespace PCIDSK
+
+#endif // __INCLUDE_CHANNEL_CBANDINTERLEAVEDCHANNEL_H

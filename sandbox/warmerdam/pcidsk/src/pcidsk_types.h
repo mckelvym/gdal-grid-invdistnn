@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary include file for PCIDSK SDK.
+ * Purpose:  Enumerations, data types and related helpers for the PCIDSK SDK
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -24,59 +24,50 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
+#ifndef __INCLUDE_PCIDSK_TYPES_H
+#define __INCLUDE_PCIDSK_TYPES_H
 
-#ifndef PCIDSK_CONFIG_H_INCLUDED
-#define PCIDSK_CONFIG_H_INCLUDED
+#include "pcidsk_config.h"
 
-namespace PCIDSK {
+#include <string>
 
-    typedef unsigned char uint8;
-    typedef int           int32;
-    typedef unsigned int  uint32;
+namespace PCIDSK
+{
+    //! Channel pixel data types.
+    typedef enum {
+        CHN_8U=0,     /*!< 8 bit unsigned byte */
+        CHN_16S=1,    /*!< 16 bit signed integer */
+        CHN_16U=2,    /*!< 16 bit unsigned integer */
+        CHN_32R=3,    /*!< 32 bit ieee floating point */
+        CHN_UNKNOWN=99 /*!< unknown channel type */
+    } eChanType;
+
+    //! Segment types.
+    typedef enum {
+        SEG_UNKNOWN = -1, 
+
+        SEG_BIT = 101,
+        SEG_VEC = 116, 
+        SEG_SIG = 121,
+        SEG_TEX = 140,
+        SEG_GEO = 150,
+        SEG_ORB = 160,
+        SEG_LUT = 170,
+        SEG_PCT = 171,
+        SEG_BLUT = 172,
+        SEG_BPCT = 173,
+        SEG_BIN = 180,
+        SEG_ARR = 181,
+        SEG_SYS = 182,
+        SEG_GCPOLD = 214,
+        SEG_GCP2 = 215,
+    } eSegType;
     
-#if defined(_MSC_VER)  
-    typedef __int64          int64;
-    typedef unsigned __int64 uint64;
-#else
-    typedef long long          int64;
-    typedef unsigned long long uint64;
-#endif
+    // Helper functions for working with segments and data types
+    int PCIDSK_DLL DataTypeSize( eChanType );
+    std::string PCIDSK_DLL DataTypeName( eChanType );
+    std::string PCIDSK_DLL SegmentTypeName( eSegType );
 
-};
+}; // end namespace PCIDSK
 
-#ifndef PCIDSK_DLL
-#if defined(_MSC_VER) 
-#  define PCIDSK_DLL     __declspec(dllexport)
-#else
-#  define PCIDSK_DLL
-#endif
-#endif
-
-#if defined(__MSVCRT__) || defined(_MSC_VER)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "I64"
-#elif defined(HAVE_LONG_LONG)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
-#else
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "l"
-#endif
-
-// #define MISSING_VSNPRINTF
-
-/**
- * Versioning in the PCIDSK SDK
- * The version number for the PCIDSK SDK is to be used as follows:
- *  <ul>
- *  <li> If minor changes to the underlying fundamental classes are made,
- *          but no linkage-breaking changes are made, increment the minor
- *          number.
- *  <li> If major changes are made to the underlying interfaces that will
- *          break linkage, increment the major number.
- *  </ul>
- */
-#define PCIDSK_SDK_MAJOR_VERSION    0
-#define PCIDSK_SDK_MINOR_VERSION    1
-
-#endif // PCIDSK_CONFIG_H_INCLUDED
-
-
-
+#endif // __INCLUDE_PCIDSK_TYPES_H
