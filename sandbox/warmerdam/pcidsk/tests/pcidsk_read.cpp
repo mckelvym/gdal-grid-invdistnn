@@ -1,5 +1,7 @@
 #include "pcidsk.h"
-#include <assert.h>
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 
 /************************************************************************/
 /*                               Usage()                                */

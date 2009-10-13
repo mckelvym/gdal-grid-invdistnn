@@ -1,5 +1,6 @@
 #include "pcidsk.h"
 #include <cppunit/extensions/HelperMacros.h>
+#include <cstring>
 
 using namespace PCIDSK;
 
