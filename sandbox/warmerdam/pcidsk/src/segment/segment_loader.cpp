@@ -27,7 +27,7 @@
 
 #include "pcidsk_config.h"
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 #include <windows.h>
 #else
 #include <dlfcn.h>
