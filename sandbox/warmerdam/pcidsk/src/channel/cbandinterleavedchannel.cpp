@@ -40,6 +40,7 @@
 #include "channel/cbandinterleavedchannel.h"
 #include <cassert>
 #include <cstring>
+#include <cstdio>
 
 using namespace PCIDSK;
 

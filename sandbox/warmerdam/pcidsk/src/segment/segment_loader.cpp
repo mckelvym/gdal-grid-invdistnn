@@ -40,7 +40,7 @@
 
 #include "segment/uuid.h"
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 #define CLOSE_LIBRARY(x) FreeLibrary(x)
 #else
 #define CLOSE_LIBRARY(x) dlclose(x)
@@ -60,8 +60,8 @@ typedef void (*GetPCIDSKLibraryVersion)(unsigned int *pnVerMajor, unsigned int *
  */
 bool priv::LoadSegmentLibrary(const std::string &sLibraryName)
 {
-#ifdef _MSC_VER
-    HANDLE hLib = LoadLibrary(sLibraryName.c_str());
+#if defined(_MSC_VER) || defined(__MINGW32__)
+    HINSTANCE hLib = LoadLibrary(sLibraryName.c_str());
 #else
     void *hLib = dlopen(sLibraryName.c_str(), RTLD_NOW);
 #endif
@@ -70,9 +70,9 @@ bool priv::LoadSegmentLibrary(const std::string &sLibraryName)
     {
         return false;
     }
-    
+
     // Check the PCIDSK Library Symbol Version
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
     GetPCIDSKLibraryVersion pVersion = (GetPCIDSKLibraryVersion)GetProcAddress(hLib, "GetPCIDSKLibraryVersion");
 #else
     GetPCIDSKLibraryVersion pVersion = (GetPCIDSKLibraryVersion)dlsym(hLib, "GetPCIDSKLibraryVersion");
@@ -87,16 +87,16 @@ bool priv::LoadSegmentLibrary(const std::string &sLibraryName)
     // Get the libray versions built against.
     unsigned int nVersionMajor = 0;
     unsigned int nVersionMinor = 0;
-    
+
     pVersion(&nVersionMajor, &nVersionMinor);
-    
+
     if (nVersionMajor != PCIDSK_SDK_MAJOR_VERSION)
     {
         CLOSE_LIBRARY(hLib);
         return false;
     }
-    
-#ifdef _MSC_VER
+
+#if defined(_MSC_VER) || defined(__MINGW32__)
     GetSegmentBuilder pGetBuilder = (GetSegmentBuilder)GetProcAddress(hLib, "GetSegmentBuilder");
 #else
     GetSegmentBuilder pGetBuilder = (GetSegmentBuilder)dlsym(hLib, "GetSegmentBuilder");
@@ -108,17 +108,17 @@ bool priv::LoadSegmentLibrary(const std::string &sLibraryName)
         CLOSE_LIBRARY(hLib);
         return false;
     }
-    
+
     // Get the builder instance
     IPCIDSKSegmentBuilder *poBuilderInstance = pGetBuilder();
-    
+
     if (poBuilderInstance == NULL) {
         CLOSE_LIBRARY(hLib);
         return false;
     }
-    
+
     priv::CPCIDSKSegmentFactory *poFactory = priv::CPCIDSKSegmentFactory::GetInstance();
     poFactory->RegisterSegmentBuilderInstance(poBuilderInstance);
-    
+
     return true;
 }
