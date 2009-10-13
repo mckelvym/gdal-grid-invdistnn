@@ -1,6 +1,6 @@
 # Makefile for portability abstraction code
 OBJECTS = io_stdio.o pthread_mutex.o
-CFLAGS = -O0 -g
+CFLAGS = -fPIC -O0 -g
 CXX = g++
 INCLUDES = -I..
 

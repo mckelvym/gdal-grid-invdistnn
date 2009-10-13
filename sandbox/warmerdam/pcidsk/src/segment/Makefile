@@ -2,7 +2,7 @@
 
 OBJECTS = $(patsubst %.cpp,%.o,$(wildcard *.cpp))
 INCLUDE = -I ..
-CFLAGS = -O0 -g
+CFLAGS = -fPIC -O0 -g
 CXX = g++
 
 
