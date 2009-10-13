@@ -32,6 +32,7 @@
 #include "pcidsk_buffer.h"
 #include "pcidsk_exception.h"
 #include <cassert>
+#include <cstdlib>
 
 using namespace PCIDSK;
 

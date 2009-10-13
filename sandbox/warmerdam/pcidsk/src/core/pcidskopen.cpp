@@ -31,6 +31,7 @@
 #include "pcidsk_interfaces.h"
 #include "core/cpcidskfile.h"
 #include <string>
+#include <cstring>
 #include <cassert>
 
 using namespace PCIDSK;

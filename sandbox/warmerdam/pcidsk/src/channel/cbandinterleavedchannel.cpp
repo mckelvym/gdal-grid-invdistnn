@@ -39,6 +39,7 @@
 #include "core/cpcidskfile.h"
 #include "channel/cbandinterleavedchannel.h"
 #include <cassert>
+#include <cstring>
 
 using namespace PCIDSK;
 

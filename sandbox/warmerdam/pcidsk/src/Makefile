@@ -12,7 +12,7 @@ pcidsk.a: core_comp
 	ar r pcidsk.a $(OBJ)
 
 pcidsk.so: core_comp
-	g++ -ldl -shared -o libpcidsk.so $(OBJ)
+	g++ -fPIC -ldl -shared -o libpcidsk.so $(OBJ)
 
 clean:
 	(cd core; $(MAKE) clean)

@@ -43,6 +43,7 @@
 #include "core/cpcidskfile.h"
 #include "segment/sysblockmap.h"
 #include <cassert>
+#include <cstring>
 
 using namespace PCIDSK;
 

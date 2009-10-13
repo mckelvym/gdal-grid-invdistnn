@@ -38,6 +38,8 @@
 #include "core/cpcidskfile.h"
 #include "core/pcidsk_utils.h"
 #include <cassert>
+#include <cstdlib>
+#include <cstring>
 
 using namespace PCIDSK;
 

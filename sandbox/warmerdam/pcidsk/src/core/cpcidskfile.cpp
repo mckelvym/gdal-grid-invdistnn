@@ -42,8 +42,9 @@
 #include "segment/metadatasegment.h"
 #include "segment/sysblockmap.h"
 
-#include <assert.h>
-
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 using namespace PCIDSK;
 
 /************************************************************************/

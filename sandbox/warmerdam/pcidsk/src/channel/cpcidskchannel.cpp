@@ -33,6 +33,8 @@
 #include "channel/cpcidskchannel.h"
 #include "channel/ctiledchannel.h"
 #include <cassert>
+#include <cstdlib>
+#include <cstring>
 
 using namespace PCIDSK;
 

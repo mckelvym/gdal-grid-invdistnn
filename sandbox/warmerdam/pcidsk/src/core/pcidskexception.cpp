@@ -28,7 +28,8 @@
 #include "pcidsk_config.h"
 #include "pcidsk_types.h"
 #include "pcidsk_exception.h"
-
+#include <cstdlib>
+#include <cstring>
 using PCIDSK::PCIDSKException;
 
 #if defined(_MSC_VER) && (_MSC_VER < 1500)

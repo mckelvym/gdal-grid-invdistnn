@@ -30,6 +30,7 @@
 #include "core/cpcidskfile.h"
 #include "channel/cpixelinterleavedchannel.h"
 #include <cassert>
+#include <cstring>
 
 using namespace PCIDSK;
 

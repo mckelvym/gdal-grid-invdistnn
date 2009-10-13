@@ -27,7 +27,8 @@
 
 #include "pcidsk_exception.h"
 #include "segment/cpcidskgeoref.h"
-#include <assert.h>
+#include <cassert>
+#include <cstring>
 
 using namespace PCIDSK;
 

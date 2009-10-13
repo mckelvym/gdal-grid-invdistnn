@@ -32,7 +32,8 @@
 
 #include "pcidsk_file.h"
 #include "segment/metadatasegment.h"
-#include <assert.h>
+#include <cassert>
+#include <cstring>
 
 using namespace PCIDSK;
 

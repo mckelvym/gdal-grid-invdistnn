@@ -28,6 +28,8 @@
 #include "pcidsk_types.h"
 #include "pcidsk_exception.h"
 #include "core/pcidsk_utils.h"
+#include <cstdlib>
+#include <cstring>
 
 using namespace PCIDSK;
 
