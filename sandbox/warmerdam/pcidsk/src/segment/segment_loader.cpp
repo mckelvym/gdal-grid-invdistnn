@@ -61,7 +61,7 @@ typedef void (*GetPCIDSKLibraryVersion)(unsigned int *pnVerMajor, unsigned int *
 bool priv::LoadSegmentLibrary(const std::string &sLibraryName)
 {
 #if defined(_MSC_VER) || defined(__MINGW32__)
-    HINSTANCE hLib = LoadLibrary(sLibraryName.c_str());
+    HINSTANCE hLib = LoadLibraryA(sLibraryName.c_str());
 #else
     void *hLib = dlopen(sLibraryName.c_str(), RTLD_NOW);
 #endif

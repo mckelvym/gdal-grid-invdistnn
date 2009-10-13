@@ -133,6 +133,8 @@ namespace priv
             out << std::setw(2) << std::hex << abyUUID[i];
         }
         out << " }";
+
+		return out;
     }
 }; // end namespace priv
 }; // end namespace PCIDSK

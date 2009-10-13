@@ -53,7 +53,12 @@ CPCIDSKSegmentFactory::~CPCIDSKSegmentFactory()
 
 CPCIDSKSegmentFactory *CPCIDSKSegmentFactory::GetInstance(void)
 {
-    
+	if (CPCIDSKSegmentFactory::mpoInstance == NULL)
+	{
+		CPCIDSKSegmentFactory::mpoInstance = new CPCIDSKSegmentFactory;
+	}
+
+	return CPCIDSKSegmentFactory::mpoInstance;
 }
 
 void CPCIDSKSegmentFactory::RegisterSegmentBuilderInstance(IPCIDSKSegmentBuilder *poBuilder)
