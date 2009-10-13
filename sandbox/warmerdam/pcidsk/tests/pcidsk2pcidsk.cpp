@@ -1,6 +1,7 @@
 #include "pcidsk.h"
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
 
 using namespace PCIDSK;
 
