@@ -81,6 +81,3 @@ namespace PCIDSK {
 #define PCIDSK_SDK_MINOR_VERSION    1
 
 #endif // PCIDSK_CONFIG_H_INCLUDED
-
-
-
