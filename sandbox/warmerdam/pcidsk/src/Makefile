@@ -1,24 +1,44 @@
 
 # Comment out to skip use of libjpeg
-JPEG_FLAGS =
+JPEG_FLAGS = -DHAVE_LIBJPEG
 
-CXXFLAGS = -g -Wall -fPIC $(JPEG_FLAGS)
+OBJ = \
+	channel/cbandinterleavedchannel.o \
+	channel/cpcidskchannel.o \
+	channel/cpixelinterleavedchannel.o \
+	channel/ctiledchannel.o \
+	core/cpcidskfile.o \
+	core/libjpeg_io.o \
+	core/metadataset_p.o \
+	core/pcidskbuffer.o \
+	core/pcidskcreate.o \
+	core/pcidskexception.o \
+	core/pcidskinterfaces.o \
+	core/pcidskopen.o \
+	core/pcidsk_utils.o \
+	core/sysvirtualfile.o \
+	port/io_stdio.o \
+	port/pthread_mutex.o \
+	segment/cpcidskgeoref.o \
+	segment/cpcidsksegment.o \
+	segment/metadatasegment_p.o \
+	segment/segmentfactory.o \
+	segment/segment_loader.o \
+	segment/sysblockmap.o
 
-OBJ = channel/*.o core/*.o port/*.o segment/*.o
 
-default:	pcidsk.a pcidsk.so
+CXXFLAGS = -g -Wall -fPIC -I. $(JPEG_FLAGS)
 
-pcidsk.a: core_comp
+default:	pcidsk.a libpcidsk.so
+
+pcidsk.a: $(OBJ)
 	ar r pcidsk.a $(OBJ)
 
-pcidsk.so: core_comp
+libpcidsk.so: $(OBJ)
 	g++ -fPIC -ldl -shared -o libpcidsk.so $(OBJ)
 
 clean:
-	(cd core; $(MAKE) clean)
-	(cd channel; $(MAKE) clean)
-	(cd segment; $(MAKE) clean)
-	(cd port; $(MAKE) clean)
+	rm -f $(OBJ)
 	-rm -f *.o
 	-rm -f *.a
 	-rm -f *.so
