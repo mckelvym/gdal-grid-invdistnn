@@ -27,6 +27,7 @@
 
 #include "pcidsk_config.h"
 #include "pcidsk_types.h"
+#include "pcidsk_utils.h"
 #include "pcidsk_interfaces.h"
 #include "pcidsk_mutex.h"
 

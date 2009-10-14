@@ -27,8 +27,13 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include <cassert>
 #include "pcidsk_config.h"
+#include "pcidsk_types.h"
+#include "core/pcidsk_utils.h"
+#include "pcidsk_exception.h"
+#include <cassert>
+#include <cstdio>
+
 using namespace PCIDSK;
 
 #if defined(HAVE_LIBJPEG)
