@@ -80,6 +80,8 @@ public:
     
     CPLErr CreateProjections( );
     static GDALDataset  *Open( GDALOpenInfo * );
+    static int           Identify( GDALOpenInfo * );
+
     const char          *GetProjectionRef();
     virtual int         GetGCPCount( );
     virtual const char  *GetGCPProjection();
@@ -304,6 +306,18 @@ CPLErr HDF5ImageRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     return CE_None;
 }
 
+/************************************************************************/
+/*                              Identify()                              */
+/************************************************************************/
+
+int HDF5ImageDataset::Identify( GDALOpenInfo *poOpenInfo )
+
+{
+    if(!EQUALN( poOpenInfo->pszFilename, "HDF5:", 5 ) )
+	return FALSE;
+    else
+        return TRUE;
+}
 
 /************************************************************************/
 /*                                Open()                                */
@@ -474,6 +488,7 @@ void GDALRegister_HDF5Image( )
         poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, 
                                    "frmt_hdf5.html" );
         poDriver->pfnOpen = HDF5ImageDataset::Open;
+        poDriver->pfnIdentify = HDF5ImageDataset::Identify;
 
         GetGDALDriverManager( )->RegisterDriver( poDriver );
     }
