@@ -41,6 +41,7 @@ namespace PCIDSK
     uint64 atouint64( const char *);
     int64  atoint64( const char *);
     void   SwapData( void *data, int value_size, int value_count );
+    bool   BigEndianSystem(void);
     void   GetCurrentDateTime( char *out_datetime );
 
     void   ParseTileFormat( std::string full_text, int &block_size, 

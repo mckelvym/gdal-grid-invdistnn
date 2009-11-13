@@ -39,6 +39,7 @@
 
 // Segment types
 #include "segment/cpcidskgeoref.h"
+#include "segment/cpcidskvectorsegment.h"
 #include "segment/metadatasegment.h"
 #include "segment/sysblockmap.h"
 
@@ -177,6 +178,10 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
     {
       case SEG_GEO:
         segobj = new CPCIDSKGeoref( this, segment, segment_pointer );
+        break;
+
+      case SEG_VEC:
+        segobj = new CPCIDSKVectorSegment( this, segment, segment_pointer );
         break;
 
       case SEG_SYS:

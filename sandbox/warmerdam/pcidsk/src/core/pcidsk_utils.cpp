@@ -280,7 +280,46 @@ void PCIDSK::SwapData( void *data, int size, int count )
             data8 += 4;
         }
     }
+    else if( size == 8 )
+    {
+        uint8 t;
+
+        for( ; count; count-- )
+        {
+            t = data8[0];
+            data8[0] = data8[7];
+            data8[7] = t;
+
+            t = data8[1];
+            data8[1] = data8[6];
+            data8[6] = t;
+
+            t = data8[2];
+            data8[2] = data8[5];
+            data8[5] = t;
+
+            t = data8[3];
+            data8[3] = data8[4];
+            data8[4] = t;
+
+            data8 += 8;
+        }
+    }
     else
         ThrowPCIDSKException( "Unsupported data size in SwapData()" );
 }
 
+/************************************************************************/
+/*                          BigEndianSystem()                           */
+/************************************************************************/
+
+bool PCIDSK::BigEndianSystem()
+
+{
+    unsigned short test_value = 1;
+    char test_char_value[2];
+
+    memcpy( test_char_value, &test_value, 2 );
+
+    return test_char_value[0] == 0;
+}

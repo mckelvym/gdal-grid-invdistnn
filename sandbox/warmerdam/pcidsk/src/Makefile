@@ -21,6 +21,7 @@ OBJ = \
 	port/pthread_mutex.o \
 	segment/cpcidskgeoref.o \
 	segment/cpcidsksegment.o \
+	segment/cpcidskvectorsegment.o \
 	segment/metadatasegment_p.o \
 	segment/segmentfactory.o \
 	segment/segment_loader.o \

@@ -1,4 +1,5 @@
 #include "pcidsk.h"
+#include "pcidsk_vectorsegment.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -11,9 +12,49 @@ static void Usage()
 
 {
     printf( "Usage: pcidsk_read [-p] [-l] <src_filename> [<dst_filename>]\n"
-            "                   [-ls] [-lc]\n" );
+            "                   [-ls] [-lc] [-lv]\n" );
     exit( 1 );
 }
+
+/************************************************************************/
+/*                        ReportVectorSegment()                         */
+/************************************************************************/
+
+static void ReportVectorSegment( PCIDSK::PCIDSKSegment *segobj )
+
+{
+    try 
+    { 
+        PCIDSK::PCIDSKVectorSegment *vecseg 
+            = dynamic_cast<PCIDSK::PCIDSKVectorSegment*>( segobj );
+        PCIDSK::ShapeId id;
+        std::vector<PCIDSK::ShapeVertex> vertices;
+        
+        for( id = vecseg->FindFirst();
+             id != PCIDSK::NullShapeId;
+             id = vecseg->FindNext( id ) ) 
+        {
+            unsigned int i;
+            
+            vecseg->GetVertices( id, vertices );
+            
+            printf( "  ShapeId: %d,  #vert=%d\n", id, (int) vertices.size() );
+            
+            for( i = 0; i < vertices.size(); i++ )
+                printf( "    %d: %.15g,%.15g,%.15g\n",
+                        i,
+                        vertices[i].x, 
+                        vertices[i].y, 
+                        vertices[i].z );
+        }
+    }
+    catch( PCIDSK::PCIDSKException ex )
+    {
+        fprintf( stderr, "PCIDSKException:\n%s\n", ex.what() );
+        exit( 1 );
+    }
+}
+
 
 /************************************************************************/
 /*                                main()                                */
@@ -29,6 +70,7 @@ int main( int argc, char **argv)
     int i_arg;
     bool list_segments = false;
     bool list_channels = false;
+    bool list_vectors = false;
 
     for( i_arg = 1; i_arg < argc; i_arg++ )
     {
@@ -38,6 +80,8 @@ int main( int argc, char **argv)
             strategy = argv[i_arg];
         else if( strcmp(argv[i_arg],"-ls") == 0 )
             list_segments = true;
+        else if( strcmp(argv[i_arg],"-lv") == 0 )
+            list_vectors = true;
         else if( strcmp(argv[i_arg],"-lc") == 0 )
             list_channels = true;
         else if( argv[i_arg][0] == '-' )
@@ -90,7 +134,7 @@ int main( int argc, char **argv)
             fp_raw = fopen(dst_file,"wb");
 
 /* -------------------------------------------------------------------- */
-/*      List segments if requested.                                     */
+/*      List channels if requested.                                     */
 /* -------------------------------------------------------------------- */
         if( list_channels )
         {
@@ -134,7 +178,7 @@ int main( int argc, char **argv)
 /* -------------------------------------------------------------------- */
 /*      List segments if requested.                                     */
 /* -------------------------------------------------------------------- */
-        if( list_segments )
+        if( list_segments || list_vectors )
         {
             for( int segment = 1; segment <= 1024; segment++ )
             {
@@ -142,7 +186,7 @@ int main( int argc, char **argv)
                 {
                     PCIDSK::PCIDSKSegment *segobj = file->GetSegment( segment );
 
-                    if( segobj != NULL )
+                    if( segobj != NULL && list_segments )
                     {
                         printf( "Segment %d/%s of type %d/%s.\n",
                                 segment, 
@@ -160,9 +204,16 @@ int main( int argc, char **argv)
                                     segobj->GetMetadataValue( keys[i_key].c_str() ).c_str() );
                         }
                     }
+
+                    if( segobj != NULL
+                        && segobj->GetSegmentType() == PCIDSK::SEG_VEC 
+                        && list_vectors )
+                        ReportVectorSegment( segobj );
                 }
-                catch(...)
+                catch( PCIDSK::PCIDSKException ex )
                 {
+                    fprintf( stderr, "PCIDSKException:\n%s\n", ex.what() );
+                    // continue...
                 }
             }
         }
