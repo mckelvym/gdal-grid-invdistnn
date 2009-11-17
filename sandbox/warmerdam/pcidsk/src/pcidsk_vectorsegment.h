@@ -30,30 +30,10 @@
 
 #include <string>
 #include <vector>
+#include "pcidsk_shape.h"
 
 namespace PCIDSK
 {
-#ifdef notdef
-    typedef  union
-    {
-        float		fFloat;
-        double	dDouble;
-        char		*pszString;
-        int32		nInteger;
-        int32		*panInts;
-    } GDBField, *GDBRecord;
-#endif
-
-    const static int NullShapeId = -1;
-    typedef int32 ShapeId;
-
-    typedef struct 
-    {
-        double x;
-        double y;
-        double z;
-    } ShapeVertex;
-
 /************************************************************************/
 /*                         PCIDSKVectorSegment                          */
 /************************************************************************/
@@ -67,40 +47,18 @@ namespace PCIDSK
 
         virtual std::string GetRst() = 0;
 
+        virtual int         GetFieldCount() = 0;
+        virtual std::string GetFieldName(int) = 0;
+        virtual std::string GetFieldDescription(int) = 0;
+        virtual ShapeFieldType GetFieldType(int) = 0;
+        virtual std::string GetFieldFormat(int) = 0;
+        virtual ShapeField  GetFieldDefault(int) = 0;
+
         virtual ShapeId     FindFirst() = 0;
         virtual ShapeId     FindNext(ShapeId) = 0;
         
         virtual void        GetVertices( ShapeId, std::vector<ShapeVertex>& ) = 0;
-        virtual void        GetRingStart( ShapeId, std::vector<int32>& ) = 0;
-        
-//        std::vector<Field>       GetFields( ShapeId ) = 0;
-
-#ifdef notdef
-    GDBShapeId	(*GetNextShapeId)(GDBLayer , GDBShapeId);
-    void	(*DeleteShape)   (GDBLayer , GDBShapeId);
-    GDBShapeId	(*CreateShape)   (GDBLayer , GDBShapeId);
-
-    GDBVertex	*(*GetVertices)  (GDBLayer ,GDBShapeId, int *, int32**);
-    void	(*SetVertices)   (GDBLayer ,GDBShapeId, int,GDBVertex *, int32*);
-
-    int32	*(*GetRingStart)  (GDBLayer , GDBShapeId);
-
-    TBool       (*GetShapeExtents) (GDBLayer, GDBShapeId, GDBVertex *);
-
-    GDBField *	(*GetRecord)     (GDBLayer, GDBShapeId);
-    void        (*SetRecord)     (GDBLayer, GDBShapeId, GDBField *);
-
-    GDBShape    *(*GetShape)     (GDBLayer , GDBShapeId);
-    void	 (*SetShape)     (GDBLayer , GDBShapeId, GDBShape *);
-
-    TBool	(*AddField)      (GDBLayer, char *, GDBFieldType, GDBField *);
-    TBool       (*DeleteField)   (GDBLayer , char *);
-    void	(*SetFieldFormat)(GDBLayer,  int, const char *);
-
-    void       *(*GetRst)        (GDBLayer);
-    void	(*SetRst)        (GDBLayer, void *);
-    TBool       (*ClearLayer)    (GDBLayer);
-#endif        
+        virtual void        GetFields( ShapeId, std::vector<ShapeField>& ) = 0;
     };
 }; // end namespace PCIDSK
 

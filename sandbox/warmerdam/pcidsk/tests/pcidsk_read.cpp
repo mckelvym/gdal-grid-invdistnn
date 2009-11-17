@@ -29,6 +29,21 @@ static void ReportVectorSegment( PCIDSK::PCIDSKSegment *segobj )
             = dynamic_cast<PCIDSK::PCIDSKVectorSegment*>( segobj );
         PCIDSK::ShapeId id;
         std::vector<PCIDSK::ShapeVertex> vertices;
+        unsigned int i, field_count = vecseg->GetFieldCount();
+        std::vector<PCIDSK::ShapeField> field_list;
+
+        printf( "  Attribute fields:\n" );
+        for( i = 0; i < field_count; i++ )
+        {
+            printf( "    %s (%s) %d/%s\n",
+                    vecseg->GetFieldName(i).c_str(), 
+                    vecseg->GetFieldDescription(i).c_str(), 
+                    (int) vecseg->GetFieldType(i), 
+                    PCIDSK::ShapeFieldTypeName(vecseg->GetFieldType(i)).c_str() );
+        }
+        
+        printf( "\n" );
+        
         
         for( id = vecseg->FindFirst();
              id != PCIDSK::NullShapeId;
@@ -40,6 +55,74 @@ static void ReportVectorSegment( PCIDSK::PCIDSKSegment *segobj )
             
             printf( "  ShapeId: %d,  #vert=%d\n", id, (int) vertices.size() );
             
+            vecseg->GetFields( id, field_list );
+            for( i = 0; i < field_count; i++ )
+            {
+                std::string format = vecseg->GetFieldFormat(i);
+
+                printf( "    %s: ", vecseg->GetFieldName(i).c_str() );
+                switch( field_list[i].GetType() )
+                {
+                  case PCIDSK::FieldTypeInteger:
+                    if( format.size() > 0 )
+                        printf( format.c_str(), 
+                                field_list[i].GetValueInteger() );
+                    else
+                        printf( "%d", field_list[i].GetValueInteger() );
+                    break;
+
+                  case PCIDSK::FieldTypeFloat:
+                    if( format.size() > 0 )
+                        printf( format.c_str(), 
+                                field_list[i].GetValueFloat() );
+                    else
+                        printf( "%g", field_list[i].GetValueFloat() );
+                    break;
+
+                  case PCIDSK::FieldTypeDouble:
+                    if( format.size() > 0 )
+                        printf( format.c_str(), 
+                                field_list[i].GetValueDouble() );
+                    else
+                        printf( "%g", field_list[i].GetValueDouble() );
+                    break;
+
+                  case PCIDSK::FieldTypeString:
+                    if( format.size() > 0 )
+                        printf( format.c_str(), 
+                                field_list[i].GetValueString().c_str() );
+                    else
+                        printf( "%s", field_list[i].GetValueString().c_str() );
+                    break;
+
+                  case PCIDSK::FieldTypeCountedInt:
+                  {
+                      unsigned int ii;
+                      std::vector<PCIDSK::int32> values = 
+                          field_list[i].GetValueCountedInt();
+
+                      printf( "(%d:", (int) values.size() );
+                      for( ii = 0; ii < values.size(); ii++ )
+                      {
+                          if( format.size() > 0 )
+                              printf( format.c_str(), values[ii] );
+                          else
+                              printf( "%d", values[ii] );
+
+                          if( ii != values.size()-1 )
+                              printf( "," );
+                      }
+                      printf( ")" );
+                      break;
+                  }
+
+                  default:
+                    printf( "NULL" );
+                }
+
+                printf( "\n" );
+            }
+
             for( i = 0; i < vertices.size(); i++ )
                 printf( "    %d: %.15g,%.15g,%.15g\n",
                         i,

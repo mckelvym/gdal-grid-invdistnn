@@ -54,17 +54,31 @@ namespace PCIDSK
 
         std::string     GetRst() { return ""; }
 
+        int             GetFieldCount();
+        std::string     GetFieldName(int);
+        std::string     GetFieldDescription(int);
+        ShapeFieldType  GetFieldType(int);
+        std::string     GetFieldFormat(int);
+        ShapeField      GetFieldDefault(int);
+
         ShapeId         FindFirst();
         ShapeId         FindNext(ShapeId);
         
         void            GetVertices( ShapeId, std::vector<ShapeVertex>& );
-        void            GetRingStart( ShapeId, std::vector<int32>& );
+        void            GetFields( ShapeId, std::vector<ShapeField>& );
 
      private:
         bool            base_initialized;
         bool            needs_swap;
 
         uint32          section_offsets[4];
+
+        // Field Definitions
+        std::vector<std::string> field_names;
+        std::vector<std::string> field_descriptions;
+        std::vector<ShapeFieldType>   field_types;
+        std::vector<std::string> field_formats;
+        std::vector<ShapeField>  field_defaults;
         
         // Information from the Shape Section of the header.
         bool                 vertex_block_initialized;
@@ -116,6 +130,11 @@ namespace PCIDSK
                                               int block_offset, 
                                               int block_count );
         void                 Initialize();
+
+        uint32               ReadField( uint32 offset, 
+                                        ShapeField& field, 
+                                        ShapeFieldType field_type,
+                                        int section = sec_record );
     };
 }; // end namespace PCIDSK
 

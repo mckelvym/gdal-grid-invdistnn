@@ -52,8 +52,6 @@ CPCIDSKVectorSegment::CPCIDSKVectorSegment( PCIDSKFile *file, int segment,
     raw_loaded_data_offset = 0;
     vert_loaded_data_offset = 0;
     record_loaded_data_offset = 0;
-
-    Initialize();
 }
 
 /************************************************************************/
@@ -78,8 +76,6 @@ void CPCIDSKVectorSegment::Initialize()
 {
     if( base_initialized )
         return;
-
-    fprintf( stderr, "Initialize Vector Segment\n" );
 
     base_initialized = true;
 
@@ -108,9 +104,38 @@ void CPCIDSKVectorSegment::Initialize()
         SwapData( section_offsets, 4, 4 );
 
 /* -------------------------------------------------------------------- */
+/*      Load the field definitions.                                     */
+/* -------------------------------------------------------------------- */
+    ShapeField work_value;
+    int  field_count, i;
+
+    uint32 next_off = section_offsets[2];
+    
+    next_off = ReadField( next_off, work_value, FieldTypeInteger, sec_raw );
+    field_count = work_value.GetValueInteger();
+
+    for( i = 0; i < field_count; i++ )
+    {
+        next_off = ReadField( next_off, work_value, FieldTypeString, sec_raw );
+        field_names.push_back( work_value.GetValueString() );
+        
+        next_off = ReadField( next_off, work_value, FieldTypeString, sec_raw );
+        field_descriptions.push_back( work_value.GetValueString() );
+        
+        next_off = ReadField( next_off, work_value, FieldTypeInteger, sec_raw );
+        field_types.push_back( (ShapeFieldType) work_value.GetValueInteger() );
+        
+        next_off = ReadField( next_off, work_value, FieldTypeString, sec_raw );
+        field_formats.push_back( work_value.GetValueString() );
+        
+        next_off = ReadField( next_off, work_value, field_types[i], sec_raw );
+        field_defaults.push_back( work_value );
+    }
+
+/* -------------------------------------------------------------------- */
 /*      Fetch the vertex block basics.                                  */
 /* -------------------------------------------------------------------- */
-    uint32 next_off = section_offsets[3];
+    next_off = section_offsets[3];
     vertex_block_initialized = false;
 
     memcpy( &vertex_block_count, GetData(sec_raw,next_off,NULL,4), 4);
@@ -151,6 +176,107 @@ void CPCIDSKVectorSegment::Initialize()
     shape_index_byte_offset = next_off;
     
     shape_index_start = 0;
+}
+
+/************************************************************************/
+/*                             ReadField()                              */
+/*                                                                      */
+/*      Read a value from the indicated offset in a section of the      */
+/*      vector segment, and place the value into a ShapeField           */
+/*      structure based on the passed in field type.                    */
+/************************************************************************/
+
+uint32 CPCIDSKVectorSegment::ReadField( uint32 offset, ShapeField& field,
+                                        ShapeFieldType field_type,
+                                        int section )
+
+{
+    switch( field_type )
+    {
+      case FieldTypeInteger:
+      {
+          int32 value;
+          memcpy( &value, GetData( section, offset, NULL, 4), 4 );
+          if( needs_swap )
+              SwapData( &value, 4, 1 );
+          field.SetValue( value );
+          return offset + 4;
+      }
+
+      case FieldTypeFloat:
+      {
+          float value;
+          memcpy( &value, GetData( section, offset, NULL, 4), 4 );
+          if( needs_swap )
+              SwapData( &value, 4, 1 );
+          field.SetValue( value );
+          return offset + 4;
+      }
+
+      case FieldTypeDouble:
+      {
+          double value;
+          memcpy( &value, GetData( section, offset, NULL, 8), 8 );
+          if( needs_swap )
+              SwapData( &value, 8, 1 );
+          field.SetValue( value );
+          return offset + 8;
+      }
+
+      case FieldTypeString:
+      {
+          int available;
+          char *srcdata = GetData( section, offset, &available, 1 );
+        
+          // Simple case -- all initially available.
+          int string_len = 0;
+
+          while( srcdata[string_len] != '\0' && available - string_len > 0 )
+              string_len++;
+
+          if( string_len < available && srcdata[string_len] == '\0' )
+          {
+              std::string value( srcdata, string_len );
+              field.SetValue( value );
+              return offset + string_len + 1;
+          }
+
+          std::string value;
+        
+          while( *srcdata != '\0' )
+          {
+              value += *srcdata;
+              offset++;
+              available--;
+              if( available == 0 )
+                  srcdata = GetData( section, offset, &available, 1 );
+          }
+
+          field.SetValue( value );
+          return offset+1;
+      }
+
+      case FieldTypeCountedInt:
+      {
+          std::vector<int32> value;
+          int32 count;
+          char *srcdata = GetData( section, offset, NULL, 4 );
+          memcpy( &count, srcdata, 4 );
+          if( needs_swap )
+              SwapData( &count, 4, 1 );
+
+          value.resize( count );
+          memcpy( &(value[0]), GetData(section,offset+4,NULL,4*count), 4*count );
+          if( needs_swap )
+              SwapData( &(value[0]), 4, count );
+          field.SetValue( value );
+          return offset + 4 + 4*count;
+      }
+
+      default:
+        assert( 0 );
+        return offset;
+    }
 }
 
 /************************************************************************/
@@ -300,6 +426,8 @@ int CPCIDSKVectorSegment::IndexFromShapeId( ShapeId id )
     if( id == NullShapeId )
         return -1;
 
+    Initialize();
+
 /* -------------------------------------------------------------------- */
 /*      Does this match our last lookup?                                */
 /* -------------------------------------------------------------------- */
@@ -338,6 +466,8 @@ int CPCIDSKVectorSegment::IndexFromShapeId( ShapeId id )
 void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
 
 {
+    Initialize();
+
 /* -------------------------------------------------------------------- */
 /*      Is the requested index already loaded?                          */
 /* -------------------------------------------------------------------- */
@@ -393,6 +523,8 @@ void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
 
 ShapeId CPCIDSKVectorSegment::FindFirst()
 { 
+    Initialize();
+
     if( shape_count == 0 )
         return NullShapeId;
 
@@ -457,12 +589,93 @@ void CPCIDSKVectorSegment::GetVertices( ShapeId shape_id,
 }
 
 /************************************************************************/
-/*                            GetRingStart()                            */
+/*                           GetFieldCount()                            */
 /************************************************************************/
 
-void CPCIDSKVectorSegment::GetRingStart( ShapeId nShapeId, 
-                                         std::vector<int32> &ring_start )
+int CPCIDSKVectorSegment::GetFieldCount()
 
 {
-    ThrowPCIDSKException( "GetRingStart() not implemented." );
+    Initialize();
+
+    return field_names.size();
+}
+
+/************************************************************************/
+/*                            GetFieldName()                            */
+/************************************************************************/
+
+std::string CPCIDSKVectorSegment::GetFieldName( int field_index )
+
+{
+    Initialize();
+
+    return field_names[field_index];
+}
+
+/************************************************************************/
+/*                        GetFieldDescription()                         */
+/************************************************************************/
+
+std::string CPCIDSKVectorSegment::GetFieldDescription( int field_index )
+
+{
+    Initialize();
+
+    return field_descriptions[field_index];
+}
+
+/************************************************************************/
+/*                            GetFieldType()                            */
+/************************************************************************/
+
+ShapeFieldType CPCIDSKVectorSegment::GetFieldType( int field_index )
+
+{
+    Initialize();
+
+    return field_types[field_index];
+}
+
+/************************************************************************/
+/*                           GetFieldFormat()                           */
+/************************************************************************/
+
+std::string CPCIDSKVectorSegment::GetFieldFormat( int field_index )
+
+{
+    Initialize();
+
+    return field_formats[field_index];
+}
+
+/************************************************************************/
+/*                          GetFieldDefault()                           */
+/************************************************************************/
+
+ShapeField CPCIDSKVectorSegment::GetFieldDefault( int field_index )
+
+{
+    Initialize();
+
+    return field_defaults[field_index];
+}
+
+/************************************************************************/
+/*                             GetFields()                              */
+/************************************************************************/
+
+void CPCIDSKVectorSegment::GetFields( ShapeId id, 
+                                      std::vector<ShapeField>& list )
+
+{
+    unsigned int i;
+    int shape_index = IndexFromShapeId( id );
+
+    AccessShapeByIndex( shape_index );
+
+    uint32 offset = shape_index_record_off[shape_index - shape_index_start] + 4;
+
+    list.resize(field_names.size());
+    for( i = 0; i < field_names.size(); i++ )
+        offset = ReadField( offset, list[i], field_types[i], sec_record );
 }
