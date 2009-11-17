@@ -61,6 +61,9 @@ namespace PCIDSK
         std::string     GetFieldFormat(int);
         ShapeField      GetFieldDefault(int);
 
+        ShapeIterator   begin() { return ShapeIterator(this); }
+        ShapeIterator   end() { return ShapeIterator(this,NullShapeId); }
+
         ShapeId         FindFirst();
         ShapeId         FindNext(ShapeId);
         

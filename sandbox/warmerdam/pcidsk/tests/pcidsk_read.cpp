@@ -27,7 +27,6 @@ static void ReportVectorSegment( PCIDSK::PCIDSKSegment *segobj )
     { 
         PCIDSK::PCIDSKVectorSegment *vecseg 
             = dynamic_cast<PCIDSK::PCIDSKVectorSegment*>( segobj );
-        PCIDSK::ShapeId id;
         std::vector<PCIDSK::ShapeVertex> vertices;
         unsigned int i, field_count = vecseg->GetFieldCount();
         std::vector<PCIDSK::ShapeField> field_list;
@@ -45,17 +44,16 @@ static void ReportVectorSegment( PCIDSK::PCIDSKSegment *segobj )
         printf( "\n" );
         
         
-        for( id = vecseg->FindFirst();
-             id != PCIDSK::NullShapeId;
-             id = vecseg->FindNext( id ) ) 
+        for( PCIDSK::ShapeIterator it = vecseg->begin(); 
+             it != vecseg->end(); it++ )
         {
             unsigned int i;
             
-            vecseg->GetVertices( id, vertices );
+            vecseg->GetVertices( *it, vertices );
             
-            printf( "  ShapeId: %d,  #vert=%d\n", id, (int) vertices.size() );
+            printf( "  ShapeId: %d,  #vert=%d\n", *it, (int) vertices.size() );
             
-            vecseg->GetFields( id, field_list );
+            vecseg->GetFields( *it, field_list );
             for( i = 0; i < field_count; i++ )
             {
                 std::string format = vecseg->GetFieldFormat(i);

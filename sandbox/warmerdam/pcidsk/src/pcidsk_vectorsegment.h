@@ -30,10 +30,13 @@
 
 #include <string>
 #include <vector>
+#include <iterator>
 #include "pcidsk_shape.h"
 
 namespace PCIDSK
 {
+    class ShapeIterator;
+    
 /************************************************************************/
 /*                         PCIDSKVectorSegment                          */
 /************************************************************************/
@@ -54,12 +57,37 @@ namespace PCIDSK
         virtual std::string GetFieldFormat(int) = 0;
         virtual ShapeField  GetFieldDefault(int) = 0;
 
+        virtual ShapeIterator begin() = 0;
+        virtual ShapeIterator end() = 0;
+
         virtual ShapeId     FindFirst() = 0;
         virtual ShapeId     FindNext(ShapeId) = 0;
         
         virtual void        GetVertices( ShapeId, std::vector<ShapeVertex>& ) = 0;
         virtual void        GetFields( ShapeId, std::vector<ShapeField>& ) = 0;
     };
+
+/************************************************************************/
+/*                            ShapeIterator                             */
+/************************************************************************/
+    class ShapeIterator : public std::iterator<std::input_iterator_tag, ShapeId>
+    {
+        ShapeId id;
+        PCIDSKVectorSegment *seg;
+        
+    public:
+        ShapeIterator(PCIDSKVectorSegment *seg_in)
+                : seg(seg_in)  { id = seg->FindFirst(); }
+        ShapeIterator(PCIDSKVectorSegment *seg_in, ShapeId id_in )
+                : id(id_in), seg(seg_in)  {}
+        ShapeIterator(const ShapeIterator& mit) : id(mit.id), seg(mit.seg) {}
+        ShapeIterator& operator++() { id=seg->FindNext(id); return *this;}
+        ShapeIterator& operator++(int) { id=seg->FindNext(id); return *this;}
+        bool operator==(const ShapeIterator& rhs) {return id == rhs.id;}
+        bool operator!=(const ShapeIterator& rhs) {return id != rhs.id;}
+        ShapeId& operator*() {return id;}
+    };
+
 }; // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_VECTORSEGMENT_H
