@@ -34,6 +34,7 @@
 #include "segment/cpcidsksegment.h"
 
 #include <string>
+#include <map>
 
 namespace PCIDSK
 {
@@ -103,15 +104,17 @@ namespace PCIDSK
         std::vector<int32>   shape_index_ids;         // loaded shape ids. 
         std::vector<uint32>  shape_index_vertex_off;  // loaded vertex offsets
         std::vector<uint32>  shape_index_record_off;  // loaded record offsets.
-
+        
         ShapeId              last_shapes_id;
         int                  last_shapes_index;
 
-        std::vector<int>     shapeid_to_index;        // partial map of shapeids to indexes.
+        bool                 shapeid_map_active;
+        std::map<ShapeId,int> shapeid_map;
+        int                  shapeid_pages_certainly_mapped;
 
         void                 AccessShapeByIndex( int iIndex );
         int                  IndexFromShapeId( ShapeId id );
-
+        
         // Cached buffers for GetData();
         PCIDSKBuffer         raw_loaded_data;
         uint32               raw_loaded_data_offset;

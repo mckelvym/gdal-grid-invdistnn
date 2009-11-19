@@ -37,7 +37,7 @@ using namespace PCIDSK;
 /*      Size of a block in the record/vertice block tables.  This is    */
 /*      determined by the PCIDSK format and may not be changed.         */
 /* -------------------------------------------------------------------- */
-const static int block_page = 8192;  
+const static int block_page_size = 8192;  
 
 /* -------------------------------------------------------------------- */
 /*      Size of one page of loaded shapeids.  This is not related to    */
@@ -45,7 +45,7 @@ const static int block_page = 8192;
 /*      shapeid pointers kept in RAM at one time from the shape         */
 /*      index.                                                          */
 /* -------------------------------------------------------------------- */
-const static int shapeid_page = 1024;
+const static int shapeid_page_size = 1024;
 
 /************************************************************************/
 /*                        CPCIDSKVectorSegment()                        */
@@ -64,6 +64,9 @@ CPCIDSKVectorSegment::CPCIDSKVectorSegment( PCIDSKFile *file, int segment,
     raw_loaded_data_offset = 0;
     vert_loaded_data_offset = 0;
     record_loaded_data_offset = 0;
+
+    shapeid_map_active = false;
+    shapeid_pages_certainly_mapped = -1;
 }
 
 /************************************************************************/
@@ -332,16 +335,16 @@ char *CPCIDSKVectorSegment::GetData( int section, uint32 offset,
         || offset+min_bytes > *pbuf_offset + pbuf->buffer_size )
     {
         // read whole 8K blocks around the target region.
-        uint32 load_offset = offset - (offset % block_page);
-        int size = (offset + min_bytes - load_offset + block_page - 1);
+        uint32 load_offset = offset - (offset % block_page_size);
+        int size = (offset + min_bytes - load_offset + block_page_size - 1);
         
-        size -= (size % block_page);
+        size -= (size % block_page_size);
 
         *pbuf_offset = load_offset;
         pbuf->SetSize( size );
 
         ReadSecFromFile( section, pbuf->buffer, 
-                         load_offset / block_page, size / block_page );
+                         load_offset / block_page_size, size / block_page_size );
     }
 
 /* -------------------------------------------------------------------- */
@@ -371,7 +374,7 @@ void CPCIDSKVectorSegment::ReadSecFromFile( int section, char *buffer,
 /* -------------------------------------------------------------------- */
     if( section == sec_raw )
     {
-        ReadFromFile( buffer, block_offset*block_page, block_count*block_page );
+        ReadFromFile( buffer, block_offset*block_page_size, block_count*block_page_size );
         return;
     }
 
@@ -421,9 +424,9 @@ void CPCIDSKVectorSegment::ReadSecFromFile( int section, char *buffer,
 
     for( i = 0; i < block_count; i++ )
     {
-        ReadFromFile( buffer + i * block_page, 
-                      block_page * (*block_map)[block_offset+i], 
-                      block_page );
+        ReadFromFile( buffer + i * block_page_size, 
+                      block_page_size * (*block_map)[block_offset+i], 
+                      block_page_size );
     }
 }
 
@@ -462,10 +465,31 @@ int CPCIDSKVectorSegment::IndexFromShapeId( ShapeId id )
     }
 
 /* -------------------------------------------------------------------- */
-/*      Put off the rest for a bit.                                     */
+/*      Activate the shapeid map, if it is not already active.          */
 /* -------------------------------------------------------------------- */
-    ThrowPCIDSKException( "generalized shapeid lookup not yet implemented." );
+    shapeid_map_active = true;
 
+/* -------------------------------------------------------------------- */
+/*      Is this already in our shapeid map?                             */
+/* -------------------------------------------------------------------- */
+    if( shapeid_map.count( id ) == 1 )
+        return shapeid_map[id];
+
+/* -------------------------------------------------------------------- */
+/*      Load shapeid index pages until we find the desired shapeid,     */
+/*      or we run out.                                                  */
+/* -------------------------------------------------------------------- */
+    int shapeid_pages = (shape_count+shapeid_page_size-1) / shapeid_page_size;
+
+    while( shapeid_pages_certainly_mapped+1 < shapeid_pages )
+    {
+        AccessShapeByIndex( 
+            (shapeid_pages_certainly_mapped+1) * shapeid_page_size );
+        
+        if( shapeid_map.count( id ) == 1 )
+            return shapeid_map[id];
+    }
+    
     return -1;
 }
 
@@ -493,9 +517,9 @@ void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
 /*      Load a chunk of shape index information into a                  */
 /*      PCIDSKBuffer.                                                   */
 /* -------------------------------------------------------------------- */
-    int entries_to_load = shapeid_page;
+    int entries_to_load = shapeid_page_size;
 
-    shape_index_start = shape_index - (shape_index % shapeid_page);
+    shape_index_start = shape_index - (shape_index % shapeid_page_size);
     if( shape_index_start + entries_to_load > shape_count )
         entries_to_load = shape_count - shape_index_start;
 
@@ -527,6 +551,27 @@ void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
         SwapData( &(shape_index_ids[0]), 4, entries_to_load );
         SwapData( &(shape_index_vertex_off[0]), 4, entries_to_load );
         SwapData( &(shape_index_record_off[0]), 4, entries_to_load );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      If the shapeid map is active, apply the current pages           */
+/*      shapeids if it does not already appear to have been             */
+/*      applied.                                                        */
+/* -------------------------------------------------------------------- */
+    int loaded_page = shape_index_start / shapeid_page_size;
+
+    if( shapeid_map_active 
+        && shape_index_ids.size() > 0 
+        && shapeid_map.count( shape_index_ids[0] ) == 0 )
+    {
+        for( i = 0; i < entries_to_load; i++ )
+        {
+            if( shape_index_ids[i] != NullShapeId )
+                shapeid_map[shape_index_ids[i]] = i+shape_index_start;
+        }
+
+        if( loaded_page == shapeid_pages_certainly_mapped+1 )
+            shapeid_pages_certainly_mapped++;
     }
 }
 

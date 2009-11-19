@@ -131,6 +131,12 @@ void VectorReadTest::testSchema()
     CPPUNIT_ASSERT( vecseg->GetFieldFormat(4) == "%16s" );
     CPPUNIT_ASSERT( vecseg->GetFieldDefault(4).GetValueString() == "" );
 
+    CPPUNIT_ASSERT( vecseg->GetFieldName(29) == "RingStart" );
+    CPPUNIT_ASSERT( vecseg->GetFieldType(29) == FieldTypeCountedInt );
+    CPPUNIT_ASSERT( vecseg->GetFieldDescription(29) == "Ring Start" );
+    CPPUNIT_ASSERT( vecseg->GetFieldFormat(29) == "%d" );
+    CPPUNIT_ASSERT( vecseg->GetFieldDefault(29).GetValueCountedInt().size() == 0 );
+
     delete file;
 }
 
@@ -173,9 +179,48 @@ void VectorReadTest::testRecords()
 
     CPPUNIT_ASSERT( fabs(area_sum - 165984002.771) < 1.0 );
     CPPUNIT_ASSERT( eas_id_sum == 110397 );
+
+    delete file;
 }
 
 void VectorReadTest::testRandomRead()
 {
+    PCIDSKFile *file;
+    
+    file = PCIDSK::Open( "canada.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    PCIDSKSegment *seg = file->GetSegment( 11 );
+    PCIDSKVectorSegment *vecseg = dynamic_cast<PCIDSKVectorSegment*>( seg );
+    
+    CPPUNIT_ASSERT( vecseg != NULL );
+
+    std::vector<ShapeField> field_list;
+    std::vector<ShapeVertex> vertex_list;
+
+    vecseg->GetFields( 1544, field_list );
+
+    CPPUNIT_ASSERT( field_list[0].GetValueInteger() == 1011 );
+    CPPUNIT_ASSERT( field_list[6].GetValueInteger() == 1545 );
+    CPPUNIT_ASSERT( field_list[9].GetValueString() == "route Transcanadienne" );
+
+    vecseg->GetVertices( 1544, vertex_list );
+
+    CPPUNIT_ASSERT( vertex_list.size() == 11 );
+    CPPUNIT_ASSERT( fabs(vertex_list[10].y-68010.6171875) < 0.0000001 );
+
+    vecseg->GetFields( 1, field_list );
+
+    CPPUNIT_ASSERT( field_list[0].GetValueInteger() == 77 );
+    CPPUNIT_ASSERT( field_list[6].GetValueInteger() == 2 );
+    CPPUNIT_ASSERT( field_list[9].GetValueString() == "" );
+
+    vecseg->GetVertices( 1, vertex_list );
+
+    CPPUNIT_ASSERT( vertex_list.size() == 4 );
+    CPPUNIT_ASSERT( fabs(vertex_list[3].y-1234782.125) < 0.0000001 );
+
+    delete file;
 }
 
