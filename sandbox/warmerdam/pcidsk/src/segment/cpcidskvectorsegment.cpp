@@ -31,9 +31,21 @@
 #include <cassert>
 #include <cstring>
 
-#define CHUNK_SIZE 8192
-
 using namespace PCIDSK;
+
+/* -------------------------------------------------------------------- */
+/*      Size of a block in the record/vertice block tables.  This is    */
+/*      determined by the PCIDSK format and may not be changed.         */
+/* -------------------------------------------------------------------- */
+const static int block_page = 8192;  
+
+/* -------------------------------------------------------------------- */
+/*      Size of one page of loaded shapeids.  This is not related to    */
+/*      the file format, and may be changed to alter the number of      */
+/*      shapeid pointers kept in RAM at one time from the shape         */
+/*      index.                                                          */
+/* -------------------------------------------------------------------- */
+const static int shapeid_page = 1024;
 
 /************************************************************************/
 /*                        CPCIDSKVectorSegment()                        */
@@ -245,7 +257,7 @@ uint32 CPCIDSKVectorSegment::ReadField( uint32 offset, ShapeField& field,
         
           while( *srcdata != '\0' )
           {
-              value += *srcdata;
+              value += *(srcdata++);
               offset++;
               available--;
               if( available == 0 )
@@ -320,16 +332,16 @@ char *CPCIDSKVectorSegment::GetData( int section, uint32 offset,
         || offset+min_bytes > *pbuf_offset + pbuf->buffer_size )
     {
         // read whole 8K blocks around the target region.
-        uint32 load_offset = offset - (offset % CHUNK_SIZE);
-        int size = (offset + min_bytes - load_offset + CHUNK_SIZE - 1);
+        uint32 load_offset = offset - (offset % block_page);
+        int size = (offset + min_bytes - load_offset + block_page - 1);
         
-        size -= (size % CHUNK_SIZE);
+        size -= (size % block_page);
 
         *pbuf_offset = load_offset;
         pbuf->SetSize( size );
 
         ReadSecFromFile( section, pbuf->buffer, 
-                         load_offset / CHUNK_SIZE, size / CHUNK_SIZE );
+                         load_offset / block_page, size / block_page );
     }
 
 /* -------------------------------------------------------------------- */
@@ -359,7 +371,7 @@ void CPCIDSKVectorSegment::ReadSecFromFile( int section, char *buffer,
 /* -------------------------------------------------------------------- */
     if( section == sec_raw )
     {
-        ReadFromFile( buffer, block_offset*CHUNK_SIZE, block_count*CHUNK_SIZE );
+        ReadFromFile( buffer, block_offset*block_page, block_count*block_page );
         return;
     }
 
@@ -405,11 +417,13 @@ void CPCIDSKVectorSegment::ReadSecFromFile( int section, char *buffer,
     else
         block_map = &record_block_index;
 
+    assert( block_count + block_offset <= (int) block_map->size() );
+
     for( i = 0; i < block_count; i++ )
     {
-        ReadFromFile( buffer + i * CHUNK_SIZE, 
-                      CHUNK_SIZE * (*block_map)[block_offset+i], 
-                      CHUNK_SIZE );
+        ReadFromFile( buffer + i * block_page, 
+                      block_page * (*block_map)[block_offset+i], 
+                      block_page );
     }
 }
 
@@ -479,7 +493,6 @@ void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
 /*      Load a chunk of shape index information into a                  */
 /*      PCIDSKBuffer.                                                   */
 /* -------------------------------------------------------------------- */
-    const static int shapeid_page = 1024; // shapes in a bunch.
     int entries_to_load = shapeid_page;
 
     shape_index_start = shape_index - (shape_index % shapeid_page);

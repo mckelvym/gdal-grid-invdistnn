@@ -85,7 +85,8 @@ namespace PCIDSK
         ShapeField() 
             { v.string_val = NULL; type = FieldTypeNone; }
 
-        ShapeField( const ShapeField &src ) { *this = src; }
+        ShapeField( const ShapeField &src )
+            { v.string_val = NULL; type = FieldTypeNone; *this = src; }
 
         ~ShapeField() 
             { Clear(); }
