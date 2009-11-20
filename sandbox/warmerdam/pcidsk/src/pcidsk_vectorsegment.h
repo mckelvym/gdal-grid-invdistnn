@@ -41,7 +41,39 @@ namespace PCIDSK
 /*                         PCIDSKVectorSegment                          */
 /************************************************************************/
 
-//! Interface to PCIDSK vector segment.
+/**
+\brief Interface to PCIDSK vector segment.
+
+The vector segment contains a set of vector features with a common set 
+of attribute data (fields).   Each feature has a numeric identifier (ShapeId),
+a set of field values, and a set of geometric vertices.   The layer as a 
+whole has a description of the attribute fields, and an RST (Representation
+Style Table).  
+
+The geometry and attribute fields of shapes can be fetched with the 
+GetVertices() and GetFields() methods by giving the ShapeId of the desired
+feature.  The set of shapeid's can be identified using the FindFirst(),
+and FindNext() methods or the STL compatible ShapeIterator (begin() and
+end() methods).  
+
+The PCIDSKSegment interface for the segment can be used to fetch the
+LAYER_TYPE metadata describing how the vertices should be interpreted
+as a geometry.  Some layers will also have a RingStart attribute field
+which is used in conjunction with the LAYER_TYPE to interprete the
+geometry.  Some vector segments may have no LAYER_TYPE metadata in which
+case single vertices are interpreted as points, and multiple vertices
+as linestrings.  
+
+More details are available in the GDB.HLP description of the GDB vector
+data model.
+
+Note that there are no mechanisms for fast spatial or attribute searches
+in a PCIDSK vector segment.  Accessing features randomly (rather than
+in the order shapeids are returned by FindFirst()/FindNext() or ShapeIterator
+) may result in reduced performance, and the use of large amounts of memory
+for large vector segments.
+
+*/
 
     class PCIDSK_DLL PCIDSKVectorSegment
     {
@@ -95,17 +127,63 @@ not normally be shown to the user.
 @return the field type.
 */
         virtual ShapeFieldType GetFieldType(int field_index) = 0;
+
+/**
+\brief Get field format.
+
+@param field_index index of the field requested from zero to GetFieldCount()-1.
+@return the field format as a C style format string suitable for use with printf.
+*/
         virtual std::string GetFieldFormat(int field_index) = 0;
+
+/**
+\brief Get field default.
+
+@param field_index index of the field requested from zero to GetFieldCount()-1.
+@return the field default value.
+*/
         virtual ShapeField  GetFieldDefault(int field_index) = 0;
 
+/**
+\brief Get iterator to first shape.
+@return iterator.
+*/
         virtual ShapeIterator begin() = 0;
+
+/**
+\brief Get iterator to end of shape lib (a wrapper for NullShapeId).
+@return iterator.
+*/
         virtual ShapeIterator end() = 0;
 
+/**
+\brief Fetch first shapeid in the layer.
+@return first shape's shapeid.
+*/
         virtual ShapeId     FindFirst() = 0;
-        virtual ShapeId     FindNext(ShapeId) = 0;
+
+/**
+\brief Fetch the next shape id after the indicated shape id.
+@param id the previous shapes id.
+@return next shape's shapeid.
+*/
+        virtual ShapeId     FindNext(ShapeId id) = 0;
         
-        virtual void        GetVertices( ShapeId, std::vector<ShapeVertex>& ) = 0;
-        virtual void        GetFields( ShapeId, std::vector<ShapeField>& ) = 0;
+/**
+\brief Fetch the vertices for the indicated shape.
+@param id the shape to fetch
+@param list the list is updated with the vertices for this shape.
+*/
+        virtual void        GetVertices( ShapeId id, 
+                                         std::vector<ShapeVertex>& list ) = 0;
+
+/**
+\brief Fetch the fields for the indicated shape.
+@param id the shape to fetch
+@param list the field list is updated with the field values for this shape.
+*/
+        virtual void        GetFields( ShapeId id, 
+                                       std::vector<ShapeField>& list ) = 0;
     };
 
 /************************************************************************/

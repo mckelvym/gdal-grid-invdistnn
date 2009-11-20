@@ -34,10 +34,9 @@
 namespace PCIDSK
 {
 
-    //! Type used for shape identifier
+    //! Type used for shape identifier, use constant NullShapeId as a NULL value
     typedef int32 ShapeId;
 
-    //! Special constant for ShapeId NULL.
     const static ShapeId NullShapeId = -1;
 
     //! Structure for an x,y,z point.

@@ -15,6 +15,7 @@ OBJ = \
 	core/pcidskexception.o \
 	core/pcidskinterfaces.o \
 	core/pcidskopen.o \
+	core/pcidsk_pubutils.o \
 	core/pcidsk_utils.o \
 	core/sysvirtualfile.o \
 	port/io_stdio.o \

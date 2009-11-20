@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Various utility functions.
+ * Purpose:  Various private (undocumented) utility functions.
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -32,125 +32,6 @@
 #include <cstring>
 
 using namespace PCIDSK;
-
-/************************************************************************/
-/*                            DataTypeSize()                            */
-/************************************************************************/
-
-/**
- * Return size of data type.
- *
- * @param chan_type the channel type enumeration value.
- *
- * @return the size of the passed data type in bytes, or zero for unknown 
- * values.
- */
-
-int PCIDSK::DataTypeSize( eChanType chan_type )
-
-{
-    switch( chan_type )
-    {
-      case CHN_8U:
-        return 1;
-      case CHN_16S:
-        return 2;
-      case CHN_16U:
-        return 2;
-      case CHN_32R:
-        return 4;
-      default:
-        return 0;
-    }
-}
-
-/************************************************************************/
-/*                            DataTypeName()                            */
-/************************************************************************/
-
-/**
- * Return name for the data type.
- *
- * The returned values are suitable for display to people, and matches
- * the portion of the name after the underscore (ie. "8U" for CHN_8U.
- *
- * @param chan_type the channel type enumeration value to be translated.
- *
- * @return a string representing the data type.
- */
-
-std::string PCIDSK::DataTypeName( eChanType chan_type )
-
-{
-    switch( chan_type )
-    {
-      case CHN_8U:
-        return "8U";
-      case CHN_16S:
-        return "16S";
-      case CHN_16U:
-        return "16U";
-      case CHN_32R:
-        return "32R";
-      default:
-        return "UNK";
-    }
-}
-/************************************************************************/
-/*                          SegmentTypeName()                           */
-/************************************************************************/
-
-/**
- * Return name for segment type.
- *
- * Returns a short name for the segment type code passed in.  This is normally
- * the portion of the enumeration name that comes after the underscore - ie. 
- * "BIT" for SEG_BIT. 
- * 
- * @param type the segment type code.
- *
- * @return the string for the segment type.
- */
-
-std::string PCIDSK::SegmentTypeName( eSegType type )
-
-{
-    switch( type )
-    {
-      case SEG_BIT:
-        return "BIT";
-      case SEG_VEC:
-        return "VEC";
-      case SEG_SIG:
-        return "SIG";
-      case SEG_TEX:
-        return "TEX";
-      case SEG_GEO:
-        return "GEO";
-      case SEG_ORB:
-        return "ORB";
-      case SEG_LUT:
-        return "LUT";
-      case SEG_PCT:
-        return "PCT";
-      case SEG_BLUT:
-        return "BLUT";
-      case SEG_BPCT:
-        return "BPCT";
-      case SEG_BIN:
-        return "BIN";
-      case SEG_ARR:
-        return "ARR";
-      case SEG_SYS:
-        return "SYS";
-      case SEG_GCPOLD:
-        return "GCPOLD";
-      case SEG_GCP2:
-        return "GCP2";
-      default:
-        return "UNKNOWN";
-    }
-}
 
 /************************************************************************/
 /*                         GetCurrentDateTime()                         */
@@ -323,3 +204,60 @@ bool PCIDSK::BigEndianSystem()
 
     return test_char_value[0] == 0;
 }
+
+
+/************************************************************************/
+/*                          ParseTileFormat()                           */
+/*                                                                      */
+/*      Parse blocksize and compression out of a TILED interleaving     */
+/*      string as passed to the Create() function or stored in          */
+/*      _DBLayout metadata.                                             */
+/************************************************************************/
+
+void PCIDSK::ParseTileFormat( std::string full_text, 
+                              int &block_size, std::string &compression )
+
+{
+    compression = "NONE";
+    block_size = 127;
+
+    UCaseStr( full_text );
+
+/* -------------------------------------------------------------------- */
+/*      Only operate on tiled stuff.                                    */
+/* -------------------------------------------------------------------- */
+    if( strncmp(full_text.c_str(),"TILED",5) != 0 )
+        return;
+
+/* -------------------------------------------------------------------- */
+/*      Do we have a block size?                                        */
+/* -------------------------------------------------------------------- */
+    const char *next_text = full_text.c_str() + 5;
+
+    if( isdigit(*next_text) )
+    {
+        block_size = atoi(next_text);
+        while( isdigit(*next_text) )
+            next_text++;
+    }
+    
+    while( *next_text == ' ' )
+        next_text++;
+
+/* -------------------------------------------------------------------- */
+/*      Do we have a compression type?                                  */
+/* -------------------------------------------------------------------- */
+    if( *next_text != '\0' )
+    {
+        compression = next_text;
+        if( compression != "RLE"
+            && strncmp(compression.c_str(),"JPEG",4) != 0 
+            && compression != "NONE"
+            && compression != "QUADTREE" )
+        {
+            ThrowPCIDSKException( "Unsupported tile compression scheme '%s' requested.",
+                                  compression.c_str() );
+        }
+    }    
+}
+                      
