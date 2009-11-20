@@ -87,12 +87,13 @@ SysBlockMap::~SysBlockMap()
 void SysBlockMap::Initialize()
 
 {
-    PCIDSKBuffer init_data(34);
+    PCIDSKBuffer init_data(512);
 
     init_data.Put( "VERSION  1", 0, 10 );
     init_data.Put( 0, 10, 8 );
     init_data.Put( 0, 18, 8 );
     init_data.Put( -1, 26, 8 );
+    init_data.Put( "", 34, 512-34 );
 
     WriteToFile( init_data.buffer, 0, init_data.buffer_size );
 #ifdef notdef

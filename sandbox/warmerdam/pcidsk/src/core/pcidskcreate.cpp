@@ -145,17 +145,17 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /* ==================================================================== */
 /*      Establish some key file layout information.                     */
 /* ==================================================================== */
-    int image_header_start = 1, image_header_size; // in blocks
+    int image_header_start = 1;                    // in blocks
     uint64 image_data_start, image_data_size;      // in blocks
     uint64 segment_ptr_start, segment_ptr_size=64; // in blocks
     int pixel_group_size, line_size;               // in bytes
+    int image_header_count = channel_count;
 
 /* -------------------------------------------------------------------- */
 /*      Pixel interleaved.                                              */
 /* -------------------------------------------------------------------- */
     if( strcmp(interleaving,"PIXEL") == 0 )
     {
-        image_header_size = channel_count * 2;
         pixel_group_size = 
             channels[0] + channels[1]*2 + channels[2]*2 + channels[3]*4;
         line_size = ((pixel_group_size * pixels + 511) / 512) * 512;
@@ -169,8 +169,6 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /* -------------------------------------------------------------------- */
     else if( strcmp(interleaving,"BAND") == 0 )
     {
-        image_header_size = channel_count * 2;
-
         pixel_group_size = 
             channels[0] + channels[1]*2 + channels[2]*2 + channels[3]*4;
         // BAND interleaved bands are tightly packed.
@@ -187,9 +185,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
     {
         // For some reason we reserve extra space, but only for FILE.
         if( channel_count < 64 )
-            image_header_size = 64 * 2;
-        else
-            image_header_size = channel_count * 2;
+            image_header_count = 64;
 
         image_data_size = 0;
 
@@ -199,7 +195,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /* -------------------------------------------------------------------- */
 /*      Place components.                                               */
 /* -------------------------------------------------------------------- */
-    segment_ptr_start = image_header_start + image_header_size;
+    segment_ptr_start = image_header_start + image_header_count*2;
     image_data_start = segment_ptr_start + segment_ptr_size;
 
 /* ==================================================================== */
@@ -255,7 +251,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
     fh.Put( image_header_start+1, 336, 16 );
 
     // FH13 - number of blocks of image headers.
-    fh.Put( image_header_size, 352, 8);
+    fh.Put( image_header_count*2, 352, 8);
 
     // FH14 - interleaving.
     fh.Put( interleaving, 360, 8);
@@ -349,6 +345,16 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
             sprintf( sis_filename, "/SIS=%d", chan_index );
             ih.Put( sis_filename, 64, 64 );
         }
+
+        interfaces->io->Write( ih.buffer, 1024, 1, io_handle );
+    }
+
+    for( chan_index = channel_count; 
+         chan_index < image_header_count; 
+         chan_index++ )
+    {
+        ih.Put( "", 160, 8 );
+        ih.Put( "<unintialized>", 64, 64 );
 
         interfaces->io->Write( ih.buffer, 1024, 1, io_handle );
     }
