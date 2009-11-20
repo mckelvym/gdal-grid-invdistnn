@@ -459,7 +459,10 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories 
 # with spaces.
 
-INPUT                  = .
+INPUT                  = . \
+		       core/pcidskopen.cpp core/pcidskcreate.cpp \
+		       core/pcidskexception.cpp core/pcidsk_utils.cpp \
+		       core/pcidskinterfaces.cpp
 
 # If the value of the INPUT tag contains directories, you can use the 
 # FILE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp 

@@ -145,5 +145,40 @@ exist on the target object.
 
 @see GetMetadataKeys()
 
+******************************************************************************
+\fn void PCIDSK::PCIDSKSegment::SetMetadataValue( std::string key, std::string value );
+
+\brief Set metadata value
+
+Assign  the metadata value associated with the passed key on this object.  
+The file needs to be open for update.  Note that keys should be well formed
+tokens (no special characters, spaces, etc).
+
+@param key the key to fetch the value for.  
+
+@param value the value to assign to the key.
+
+@see GetMetadataValue()
+ 
+******************************************************************************
+\fn bool PCIDSK::PCIDSKSegment::IsAtEOF();
+
+\brief Is segment last in file?
+
+Returns true if the segment is the last one in the file, and thus can be 
+grown without having to move it.  Primarily this method is used by the 
+SDK itself. 
+
+@return true if segment at EOF or false otherwise.
+
+******************************************************************************
+\fn uint64 PCIDSK::PCIDSKSegment::GetContentSize();
+
+\brief Get size of segment data.
+
+Returns the size of the data portion of this segment (header excluded) 
+in bytes.  
+
+@return segment data size in bytes.
 */
 

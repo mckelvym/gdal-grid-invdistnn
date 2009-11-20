@@ -34,9 +34,13 @@
 namespace PCIDSK
 {
 
-    const static int NullShapeId = -1;
+    //! Type used for shape identifier
     typedef int32 ShapeId;
 
+    //! Special constant for ShapeId NULL.
+    const static ShapeId NullShapeId = -1;
+
+    //! Structure for an x,y,z point.
     typedef struct 
     {
         double x;
@@ -44,6 +48,10 @@ namespace PCIDSK
         double z;
     } ShapeVertex;
 
+/************************************************************************/
+/*                            ShapeFieldType                            */
+/************************************************************************/
+    //! Attribute field types.
     typedef enum  // These deliberately match GDBFieldType values.
     {
         FieldTypeNone = 0,
@@ -54,6 +62,14 @@ namespace PCIDSK
         FieldTypeCountedInt = 5
     } ShapeFieldType;
 
+/************************************************************************/
+/*                         ShapeFieldTypeName()                         */
+/************************************************************************/
+    /**
+     \brief Translate field type into a textual description.
+     @param type the type enumeration value to translate.
+     @return name for field type.
+    */
     inline std::string ShapeFieldTypeName( ShapeFieldType type )
     {
         switch( type ) {
@@ -66,7 +82,24 @@ namespace PCIDSK
         }
         return "";
     }
+    
 
+/************************************************************************/
+/*                              ShapeField                              */
+/************************************************************************/
+    /**
+     \brief Attribute field value.
+
+     This class encapsulates any of the supported vector attribute field
+     types in a convenient way that avoids memory leaks or ownership confusion.
+     The object has a field type (initially FieldTypeNone on construction)
+     and a value of the specified type.  Note that the appropriate value
+     accessor (ie. GetValueInteger()) must be used that corresponds to the
+     fields type. No attempt is made to automatically convert (ie. float to
+     double) if the wrong accessor is used.
+
+    */
+     
     class ShapeField
     {
       private:
@@ -82,15 +115,18 @@ namespace PCIDSK
         } v;
         
       public:
+        //! Simple constructor.
         ShapeField() 
             { v.string_val = NULL; type = FieldTypeNone; }
 
+        //! Copy constructor.
         ShapeField( const ShapeField &src )
             { v.string_val = NULL; type = FieldTypeNone; *this = src; }
 
         ~ShapeField() 
             { Clear(); }
 
+        //! Assignment operator.
         ShapeField &operator=( const ShapeField &src )
             {
                 switch( src.GetType() )
@@ -117,6 +153,7 @@ namespace PCIDSK
                 return *this;
             }
 
+        //! Clear field value.
         void Clear()
             { 
                 if( (type == FieldTypeString || type == FieldTypeCountedInt)
@@ -128,9 +165,11 @@ namespace PCIDSK
                 type = FieldTypeNone;
             }
 
+        //! Fetch field type
         ShapeFieldType  GetType() const
             { return type; }
 
+        //! Set integer value on field.
         void SetValue( int32 val ) 
             { 
                 Clear(); 
@@ -138,6 +177,7 @@ namespace PCIDSK
                 v.integer_val = val; 
             }
 
+        //! Set integer list value on field.
         void SetValue( const std::vector<int32> &val )
             { 
                 Clear();
@@ -149,6 +189,7 @@ namespace PCIDSK
                         sizeof(int32) * val.size() ); 
             }
 
+        //! Set string value on field.
         void SetValue( const std::string &val )
             { 
                 Clear(); 
@@ -156,6 +197,7 @@ namespace PCIDSK
                 v.string_val = strdup(val.c_str()); 
             }
 
+        //! Set double precision floating point value on field.
         void SetValue( double val )
             { 
                 Clear(); 
@@ -163,6 +205,7 @@ namespace PCIDSK
                 v.double_val = val; 
             }
 
+        //! Set single precision floating point value on field.
         void SetValue( float val )
             { 
                 Clear(); 
@@ -170,8 +213,10 @@ namespace PCIDSK
                 v.float_val = val; 
             }
 
+        //! Fetch value as integer or zero if field not of appropriate type.
         int32 GetValueInteger() const
             { if( type == FieldTypeInteger ) return v.integer_val; else return 0; }
+        //! Fetch value as integer list or empty list if field not of appropriate type.
         std::vector<int32> GetValueCountedInt() const
             { 
                 std::vector<int32> result;
@@ -183,10 +228,13 @@ namespace PCIDSK
                 }
                 return result;
             }
+        //! Fetch value as string or "" if field not of appropriate type.
         std::string GetValueString() const
             { if( type == FieldTypeString ) return v.string_val; else return ""; }
+        //! Fetch value as float or 0.0 if field not of appropriate type.
         float GetValueFloat() const
             { if( type == FieldTypeFloat ) return v.float_val; else return 0.0; }
+        //! Fetch value as double or 0.0 if field not of appropriate type.
         double GetValueDouble() const
             { if( type == FieldTypeDouble ) return v.double_val; else return 0.0; }
     };

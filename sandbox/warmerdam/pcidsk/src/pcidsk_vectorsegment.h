@@ -41,21 +41,62 @@ namespace PCIDSK
 /*                         PCIDSKVectorSegment                          */
 /************************************************************************/
 
-//! Interface to PCIDSK georeferencing segment.
+//! Interface to PCIDSK vector segment.
 
     class PCIDSK_DLL PCIDSKVectorSegment
     {
     public:
         virtual	~PCIDSKVectorSegment() {}
 
+/**
+\brief Fetch RST. 
+
+No attempt is made to parse the RST, it is up to the caller to decode it. 
+
+NOTE: There is some header info on RST format that may be needed to do this 
+for older RSTs.
+
+@return RST as a string.
+*/
         virtual std::string GetRst() = 0;
 
+
+/**
+\brief Get field count.
+
+Note that this includes any system attributes, like RingStart, that would
+not normally be shown to the user.
+
+@return the number of attribute fields defined on this layer.
+*/
+
         virtual int         GetFieldCount() = 0;
-        virtual std::string GetFieldName(int) = 0;
-        virtual std::string GetFieldDescription(int) = 0;
-        virtual ShapeFieldType GetFieldType(int) = 0;
-        virtual std::string GetFieldFormat(int) = 0;
-        virtual ShapeField  GetFieldDefault(int) = 0;
+
+/**
+\brief Get field name.
+
+@param field_index index of the field requested from zero to GetFieldCount()-1.
+@return the field name. 
+*/
+        virtual std::string GetFieldName(int field_index) = 0;
+
+/**
+\brief Get field description.
+
+@param field_index index of the field requested from zero to GetFieldCount()-1.
+@return the field description, often empty.
+*/
+        virtual std::string GetFieldDescription(int field_index) = 0;
+
+/**
+\brief Get field type.
+
+@param field_index index of the field requested from zero to GetFieldCount()-1.
+@return the field type.
+*/
+        virtual ShapeFieldType GetFieldType(int field_index) = 0;
+        virtual std::string GetFieldFormat(int field_index) = 0;
+        virtual ShapeField  GetFieldDefault(int field_index) = 0;
 
         virtual ShapeIterator begin() = 0;
         virtual ShapeIterator end() = 0;
@@ -70,6 +111,9 @@ namespace PCIDSK
 /************************************************************************/
 /*                            ShapeIterator                             */
 /************************************************************************/
+
+//! Iterator over shapeids in a vector segment.
+
     class ShapeIterator : public std::iterator<std::input_iterator_tag, ShapeId>
     {
         ShapeId id;

@@ -42,10 +42,60 @@ namespace PCIDSK
     public:
         virtual	~PCIDSKGeoref() {}
 
+/**
+\brief Get georeferencing transformation.
+
+Returns the affine georeferencing transform coefficients for this image.
+Used to map from pixel/line coordinates to georeferenced coordinates using
+the transformation:
+
+ Xgeo = a1 +   a2 * Xpix + xrot * Ypix
+
+ Ygeo = b1 + yrot * Xpix +   b2 * Ypix
+
+where Xpix and Ypix are pixel line locations with (0,0) being the top left
+corner of the top left pixel, and (0.5,0.5) being the center of the top left
+pixel.  For an ungeoreferenced image the values will be 
+(0.0,1.0,0.0,0.0,0.0,1.0).
+
+@param a1 returns easting of top left corner.
+@param a2 returns easting pixel size.
+@param xrot returns rotational coefficient, normally zero.
+@param b1 returns northing of the top left corner.
+@param yrot returns rotational coefficient, normally zero.
+@param b3 returns northing pixel size, normally negative indicating north-up.
+
+*/
         virtual void GetTransform( double &a1, double &a2, double &xrot, 
             double &b1, double &yrot, double &b3 ) = 0;
+
+/**
+\brief Fetch georeferencing string.
+
+Returns the short, 16 character, georeferncing string.  This string is
+sufficient to document the coordinate system of simple coordinate
+systems (like "UTM    17 S D000"), while other coordinate systems are
+only fully defined with additional projection parameters.
+
+@return the georeferencing string. 
+
+*/        
         virtual std::string GetGeosys() = 0;
 
+/**
+\brief Write simple georeferencing information
+
+Writes out a georeferencing string and geotransform to the segment. 
+
+@param geosys 16 character coordinate system, like "UTM    17 S D000".
+@param a1 easting of top left corner.
+@param a2 easting pixel size.
+@param xrot rotational coefficient, normally zero.
+@param b1 northing of the top left corner.
+@param yrot rotational coefficient, normally zero.
+@param b3 northing pixel size, normally negative indicating north-up.
+
+*/
         virtual void WriteSimple( std::string geosys, 
             double a1, double a2, double xrot, 
             double b1, double yrot, double b3 ) = 0;
