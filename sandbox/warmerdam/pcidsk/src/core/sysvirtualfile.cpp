@@ -98,7 +98,7 @@ SysVirtualFile::~SysVirtualFile()
             file->GetSegment( block_segment[loaded_block] );
 
         data_seg_obj->WriteToFile( block_data, 
-                                   block_size * block_index[loaded_block],
+                                   block_size * (uint64) block_index[loaded_block],
                                    block_size );
         loaded_block_dirty = false;
     }
@@ -211,9 +211,9 @@ void SysVirtualFile::LoadBlock( int requested_block )
     {
         PCIDSKSegment *data_seg_obj = 
             file->GetSegment( block_segment[loaded_block] );
-
+        
         data_seg_obj->WriteToFile( block_data, 
-                                   block_size * block_index[loaded_block],
+                                   block_size * (uint64) block_index[loaded_block],
                                    block_size );
         loaded_block_dirty = false;
     }
@@ -225,7 +225,7 @@ void SysVirtualFile::LoadBlock( int requested_block )
         file->GetSegment( block_segment[requested_block] );
 
     data_seg_obj->ReadFromFile( block_data, 
-                                block_size * block_index[requested_block],
+                                block_size * (uint64) block_index[requested_block],
                                 block_size );
 
     loaded_block = requested_block;
