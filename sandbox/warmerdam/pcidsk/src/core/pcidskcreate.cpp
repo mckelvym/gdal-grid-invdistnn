@@ -344,6 +344,15 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
             char sis_filename[65];
             sprintf( sis_filename, "/SIS=%d", chan_index );
             ih.Put( sis_filename, 64, 64 );
+
+            // IHi.6.7 - IHi.6.10
+            ih.Put( 0, 250, 8 ); 
+            ih.Put( 0, 258, 8 );
+            ih.Put( pixels, 266, 8 );
+            ih.Put( lines, 274, 8 );
+
+            // IHi.6.11
+            ih.Put( 1, 282, 8 );
         }
 
         interfaces->io->Write( ih.buffer, 1024, 1, io_handle );
@@ -355,6 +364,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
     {
         ih.Put( "", 160, 8 );
         ih.Put( "<unintialized>", 64, 64 );
+        ih.Put( "", 250, 40 );
 
         interfaces->io->Write( ih.buffer, 1024, 1, io_handle );
     }
