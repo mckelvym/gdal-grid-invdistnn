@@ -887,7 +887,7 @@ void CPCIDSKFile::MoveSegmentToEOF( int segment )
     new_seg_start = file_size + 1;
 
     // Grow the file to hold the segment at the end.
-    ExtendFile( seg_size * 512, false );
+    ExtendFile( seg_size, false );
 
     // Move the segment data to the new location.
     uint8 copy_buf[16384];
