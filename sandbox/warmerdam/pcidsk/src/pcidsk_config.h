@@ -44,7 +44,6 @@ namespace PCIDSK {
 
 };
 
-#ifndef PCIDSK_DLL
 #ifdef _MSC_VER
 # ifdef LIBPCIDSK_EXPORTS
 #  define PCIDSK_DLL     __declspec(dllexport)
@@ -53,7 +52,6 @@ namespace PCIDSK {
 # endif
 #else
 #  define PCIDSK_DLL
-#endif
 #endif
 
 #if defined(__MSVCRT__) || defined(_MSC_VER)
