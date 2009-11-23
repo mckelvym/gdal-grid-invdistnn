@@ -378,9 +378,6 @@ void CPCIDSKFile::InitializeFromHeader()
             
             image_offset += DataTypeSize(channel->GetType())
                 * width * height;
-            
-            // bands start on block boundaries I think.
-            image_offset = ((image_offset+511) / 512) * 512;
         }
 
         else if( interleaving == "PIXEL" )
