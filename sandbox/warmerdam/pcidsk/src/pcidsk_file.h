@@ -37,12 +37,12 @@ namespace PCIDSK
 /*                              PCIDSKFile                              */
 /************************************************************************/
 
-//! Top interface to PCIDSK (.pix) files.
     class PCIDSKChannel;
     class PCIDSKSegment;
     class PCIDSKInterfaces;
     class Mutex;
     
+//! Top interface to PCIDSK (.pix) files.
     class PCIDSK_DLL PCIDSKFile
     {
     public:

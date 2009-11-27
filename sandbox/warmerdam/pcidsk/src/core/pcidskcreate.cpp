@@ -47,7 +47,7 @@ using namespace PCIDSK;
  * Create a PCIDSK (.pix) file. 
  *
  * @param filename the name of the PCIDSK file to create.
- * @param pixel the width of the new file in pixels.
+ * @param pixels the width of the new file in pixels.
  * @param lines the height of the new file in scanlines.
  * @param channel_count the number of channels to create.
  * @param channel_types an array of types for all the channels, or NULL for

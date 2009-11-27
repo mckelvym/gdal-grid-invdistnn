@@ -297,11 +297,12 @@ int main( int argc, char **argv)
 
                     if( segobj != NULL && list_segments )
                     {
-                        printf( "Segment %d/%s of type %d/%s.\n",
+                        printf( "Segment %d/%s of type %d/%s, %d bytes.\n",
                                 segment, 
                                 segobj->GetName().c_str(), 
                                 segobj->GetSegmentType(),
-                                PCIDSK::SegmentTypeName(segobj->GetSegmentType()).c_str() );
+                                PCIDSK::SegmentTypeName(segobj->GetSegmentType()).c_str(),
+                                (int) segobj->GetContentSize() );
                         keys = segobj->GetMetadataKeys();  
                         
                         if( keys.size() > 0 )

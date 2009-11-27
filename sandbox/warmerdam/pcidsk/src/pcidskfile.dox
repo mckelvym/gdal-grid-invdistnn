@@ -32,7 +32,6 @@
 \brief Fetch hookable interfaces in use with this file.
 
 
-
 ******************************************************************************
 
 \fn PCIDSKChannel *PCIDSK::PCIDSKFile::GetChannel( int band );
