@@ -48,7 +48,7 @@ namespace PCIDSK {
 # ifdef LIBPCIDSK_EXPORTS
 #  define PCIDSK_DLL     __declspec(dllexport)
 # else
-#  define PCIDSK_DLL	 __declspec(dllimport)
+#  define PCIDSK_DLL
 # endif
 #else
 #  define PCIDSK_DLL
