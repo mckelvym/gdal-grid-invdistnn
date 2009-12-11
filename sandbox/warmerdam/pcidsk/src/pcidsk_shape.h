@@ -30,6 +30,8 @@
 
 #include <string>
 #include <vector>
+#include <cstdlib>
+#include <cstring>
 
 namespace PCIDSK
 {
