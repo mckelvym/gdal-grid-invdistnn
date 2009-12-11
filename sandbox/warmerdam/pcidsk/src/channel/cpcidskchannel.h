@@ -74,7 +74,7 @@ namespace PCIDSK
         std::string GetMetadataValue( std::string key ) 
             { return metadata.GetMetadataValue(key); }
         void        SetMetadataValue( std::string key, std::string value ) 
-            { return metadata.SetMetadataValue(key,value); }
+            { metadata.SetMetadataValue(key,value); }
         std::vector<std::string> GetMetadataKeys() 
             { return metadata.GetMetadataKeys(); }
 

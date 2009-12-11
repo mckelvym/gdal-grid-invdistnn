@@ -47,6 +47,9 @@
 
 using namespace PCIDSK;
 
+
+const int SysVirtualFile::block_size = SYSVIRTUALFILE_BLOCKSIZE;
+
 /************************************************************************/
 /*                           SysVirtualFile()                           */
 /************************************************************************/

@@ -47,6 +47,10 @@ const static int block_page_size = 8192;
 /* -------------------------------------------------------------------- */
 const static int shapeid_page_size = 1024;
 
+const int CPCIDSKVectorSegment::sec_raw = 0;
+const int CPCIDSKVectorSegment::sec_vert = 1;
+const int CPCIDSKVectorSegment::sec_record = 2;
+        
 /************************************************************************/
 /*                        CPCIDSKVectorSegment()                        */
 /************************************************************************/

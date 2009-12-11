@@ -77,7 +77,7 @@ std::string CPCIDSKSegment::GetMetadataValue( std::string key )
 
 void CPCIDSKSegment::SetMetadataValue( std::string key, std::string value ) 
 {
-    return metadata->SetMetadataValue(key,value);
+    metadata->SetMetadataValue(key,value);
 }
 
 std::vector<std::string> CPCIDSKSegment::GetMetadataKeys() 
@@ -127,7 +127,7 @@ void CPCIDSKSegment::ReadFromFile( void *buffer, uint64 offset, uint64 size )
         ThrowPCIDSKException( 
             "Attempt to read past end of segment %d (%d bytes at offset %d)",
             segment, (int) offset, (int) size );
-    return file->ReadFromFile( buffer, offset + data_offset + 1024, size );
+    file->ReadFromFile( buffer, offset + data_offset + 1024, size );
 }
 
 /************************************************************************/
@@ -159,7 +159,7 @@ void CPCIDSKSegment::WriteToFile( const void *buffer, uint64 offset, uint64 size
         data_size += blocks_to_add * 512;
     }
 
-    return file->WriteToFile( buffer, offset + data_offset + 1024, size );
+    file->WriteToFile( buffer, offset + data_offset + 1024, size );
 }
 
 /************************************************************************/

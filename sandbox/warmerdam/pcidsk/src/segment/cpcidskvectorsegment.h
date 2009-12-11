@@ -125,9 +125,9 @@ namespace PCIDSK
         PCIDSKBuffer         record_loaded_data;
         uint32               record_loaded_data_offset;
 
-        static const int     sec_raw = 0;
-        static const int     sec_vert = 1;
-        static const int     sec_record = 2;
+        static const int     sec_raw ;
+        static const int     sec_vert;
+        static const int     sec_record;
 
         char                *GetData( int section, uint32 offset, 
                                       int *bytes_available = NULL, 

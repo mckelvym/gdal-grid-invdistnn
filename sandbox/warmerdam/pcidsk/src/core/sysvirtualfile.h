@@ -42,6 +42,8 @@
 
 #include <vector>
 
+#define SYSVIRTUALFILE_BLOCKSIZE    8192
+
 namespace PCIDSK
 {
     class CPCIDSKFile;
@@ -63,7 +65,7 @@ namespace PCIDSK
 
         uint64    GetLength() { return file_length; }
     
-        static const int       block_size = 8192;
+        static const int       block_size;
     
     private:
         CPCIDSKFile           *file;
@@ -76,7 +78,7 @@ namespace PCIDSK
         std::vector<int>       block_index;
 
         int                    loaded_block;
-        uint8                  block_data[block_size];
+        uint8                  block_data[SYSVIRTUALFILE_BLOCKSIZE];
         bool                   loaded_block_dirty;
 
         int                    last_bm_index;
