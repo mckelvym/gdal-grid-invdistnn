@@ -21,6 +21,7 @@ OBJ = \
 	port/io_stdio.o \
 	port/pthread_mutex.o \
 	segment/cpcidskgeoref.o \
+	segment/cpcidskpct.o \
 	segment/cpcidsksegment.o \
 	segment/cpcidskvectorsegment.o \
 	segment/metadatasegment_p.o \

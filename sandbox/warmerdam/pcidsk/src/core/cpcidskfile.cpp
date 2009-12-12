@@ -39,6 +39,7 @@
 
 // Segment types
 #include "segment/cpcidskgeoref.h"
+#include "segment/cpcidskpct.h"
 #include "segment/cpcidskvectorsegment.h"
 #include "segment/metadatasegment.h"
 #include "segment/sysblockmap.h"
@@ -178,6 +179,10 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
     {
       case SEG_GEO:
         segobj = new CPCIDSKGeoref( this, segment, segment_pointer );
+        break;
+
+      case SEG_PCT:
+        segobj = new CPCIDSK_PCT( this, segment, segment_pointer );
         break;
 
       case SEG_VEC:
@@ -616,39 +621,40 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
                                 eSegType seg_type, int data_blocks )
 
 {
-#ifdef notdef
 /* -------------------------------------------------------------------- */
 /*	Set the size of fixed length segments.				*/
 /* -------------------------------------------------------------------- */
-    switch( type )
+    int expected_data_blocks = 0;
+
+    switch( seg_type )
     {
       case SEG_LUT:
-	nBlocks = 4;
+	expected_data_blocks = 2;
 	break;
 
       case SEG_PCT:
-	nBlocks = 8;
+	expected_data_blocks = 6;
 	break;
 
       case SEG_SIG:
-	nBlocks = 14;
+	expected_data_blocks = 12;
 	break;
 
-      case SEG_GCP:
-	// nBlocks = 67;
+      case SEG_GCP2:
+	// expected_data_blocks = 67;
 	// Change seg type to new GCP segment type
-	nBlocks = 131;
-	type = SEG_GCP2;
+	expected_data_blocks = 129;
 	break;
 	
       case SEG_GEO:
-	nBlocks = 8;
+	expected_data_blocks = 6;
 	break;
 
 /* -------------------------------------------------------------------- */
 /*      We do some complicated stuff here to avoid exceeding the        */
 /*      largest number representable in a int32 (2GB).                  */
 /* -------------------------------------------------------------------- */
+#ifdef notdef
       case SEG_BIT:
         {
             int	  nBlocksPerScanline, nExtraPixels;
@@ -674,14 +680,20 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
                       IDB->pixels * (double) IDB->lines
                       / 1000000.0 ));
         }
-        break;
+        break
 
       case SEG_TEX:
         if( nBlocks < 66 )
             nBlocks = 66;
         break;
-    }
 #endif
+
+      default:
+        break;
+    }
+
+    if( data_blocks == 0 && expected_data_blocks != 0 )
+        data_blocks = expected_data_blocks;
 
 /* -------------------------------------------------------------------- */
 /*      Find an empty Segment Pointer.  For System segments we start    */
