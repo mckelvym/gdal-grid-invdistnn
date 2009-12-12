@@ -1,41 +1,44 @@
 #OPTFLAGS = /Zi 
 OPTFLAGS = /Ox
 CXXFLAGS = /nologo /MD /GR /EHsc $(OPTFLAGS) /W3 /I. \
-	/D_CRT_SECURE_NO_DEPRECATE /DLIBPCIDSK_EXPORTS /D_CRT_NONSTDC_NO_DEPRECATE
+	/D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE
+
+# Add this if producing a DLL:
+# /DLIBPCIDSK_EXPORTS 
 
 OBJ = \
-	channel/cbandinterleavedchannel.obj \
-	channel/cpcidskchannel.obj \
-	channel/cpixelinterleavedchannel.obj \
-	channel/ctiledchannel.obj \
-	core/cpcidskfile.obj \
-	core/libjpeg_io.obj \
-	core/metadataset_p.obj \
-	core/pcidskbuffer.obj \
-	core/pcidskcreate.obj \
-	core/pcidskexception.obj \
-	core/pcidskinterfaces.obj \
-	core/pcidskopen.obj \
-	core/pcidsk_pubutils.obj \
-	core/pcidsk_utils.obj \
-	core/sysvirtualfile.obj \
-	port/io_win32.obj \
-	port/win32_mutex.obj \
-	segment/cpcidskgeoref.obj \
-	segment/cpcidsksegment.obj \
-	segment/cpcidskvectorsegment.obj \
-	segment/metadatasegment_p.obj \
-	segment/segmentfactory.obj \
-	segment/segment_loader.obj \
-	segment/sysblockmap.obj
+	channel\cbandinterleavedchannel.obj \
+	channel\cpcidskchannel.obj \
+	channel\cpixelinterleavedchannel.obj \
+	channel\ctiledchannel.obj \
+	core\cpcidskfile.obj \
+	core\libjpeg_io.obj \
+	core\metadataset_p.obj \
+	core\pcidskbuffer.obj \
+	core\pcidskcreate.obj \
+	core\pcidskexception.obj \
+	core\pcidskinterfaces.obj \
+	core\pcidskopen.obj \
+	core\pcidsk_pubutils.obj \
+	core\pcidsk_utils.obj \
+	core\sysvirtualfile.obj \
+	port\io_win32.obj \
+	port\win32_mutex.obj \
+	segment\cpcidskgeoref.obj \
+	segment\cpcidsksegment.obj \
+	segment\cpcidskvectorsegment.obj \
+	segment\metadatasegment_p.obj \
+	segment\segmentfactory.obj \
+	segment\segment_loader.obj \
+	segment\sysblockmap.obj
 
 default:	pcidsk.lib
 
 pcidsk.lib:	$(OBJ)
-	lib /nologo /out:pcidsk.lib *.obj
+	lib /nologo /out:pcidsk.lib $(OBJ)
 
 clean:
-	-del *.obj
+	-del $(OBJ)
 	-del *.lib
 	-del *.pdb
 	-del *.ilk
@@ -52,5 +55,5 @@ check:	default
 $(OBJ):	pcidsk.h pcidsk_config.h 
 
 .cpp.obj:	
-	$(CC) $(CXXFLAGS) /c $*.cpp
+	$(CC) $(CXXFLAGS) /c $*.cpp /Fo$*.obj
 
