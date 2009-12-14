@@ -45,10 +45,8 @@ MetadataSet::MetadataSet()
 
 
 {
-    this->id = id;
-    this->group = group;
-    this->file = file;
-    
+    this->file = NULL;
+    id = -1;
     loaded = false;
 }
 
@@ -83,8 +81,13 @@ void MetadataSet::Load()
     if( loaded )
         return;
 
+    // This legitimately occurs in some situations, such for overview channel
+    // objects.
     if( file == NULL )
-        ThrowPCIDSKException( "Load() on MetadataSet that is not initialized yet." );
+    {
+        loaded = true;
+        return;
+    }
 
     PCIDSKSegment *seg = file->GetSegment( SEG_SYS , "METADATA");
 
@@ -125,6 +128,11 @@ void MetadataSet::SetMetadataValue( std::string key, std::string value )
 {
     if( !loaded )
         Load();
+
+    if( file == NULL )
+    {
+        ThrowPCIDSKException( "Attempt to set metadata on an unassociated MetadataSet, likely an overview channel." );
+    }
 
     md_set[key] = value;
 
