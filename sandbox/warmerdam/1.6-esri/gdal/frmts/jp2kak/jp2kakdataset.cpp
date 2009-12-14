@@ -178,6 +178,10 @@ class JP2KAKRasterBand : public GDALPamRasterBand
     virtual CPLErr IRasterIO( GDALRWFlag, int, int, int, int,
                               void *, int, int, GDALDataType,
                               int, int );
+
+    int            HasExternalOverviews() 
+                   { return GDALPamRasterBand::GetOverviewCount() != 0; }
+
   public:
 
     		JP2KAKRasterBand( int, int, kdu_codestream, int, kdu_client *,
@@ -1801,6 +1805,109 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
 }
 
 /************************************************************************/
+/*                    GDALGetBestOverviewLevel()                        */
+/*                                                                      */
+/* Returns the best overview level to satisfy the query or -1 if none   */
+/* Also updates nXOff, nYOff, nXSize, nYSize when returning a valid     */
+/* overview level                                                       */
+/************************************************************************/
+
+static
+int GDALBandGetBestOverviewLevel(GDALRasterBand* poBand,
+                                 int &nXOff, int &nYOff,
+                                 int &nXSize, int &nYSize,
+                                 int nBufXSize, int nBufYSize)
+{
+    double dfDesiredResolution;
+/* -------------------------------------------------------------------- */
+/*      Compute the desired resolution.  The resolution is              */
+/*      based on the least reduced axis, and represents the number      */
+/*      of source pixels to one destination pixel.                      */
+/* -------------------------------------------------------------------- */
+    if( (nXSize / (double) nBufXSize) < (nYSize / (double) nBufYSize ) 
+        || nBufYSize == 1 )
+        dfDesiredResolution = nXSize / (double) nBufXSize;
+    else
+        dfDesiredResolution = nYSize / (double) nBufYSize;
+
+/* -------------------------------------------------------------------- */
+/*      Find the overview level that largest resolution value (most     */
+/*      downsampled) that is still less than (or only a little more)    */
+/*      downsampled than the request.                                   */
+/* -------------------------------------------------------------------- */
+    int nOverviewCount = poBand->GetOverviewCount();
+    GDALRasterBand* poBestOverview = NULL;
+    double dfBestResolution = 0;
+    int nBestOverviewLevel = -1;
+    
+    for( int iOverview = 0; iOverview < nOverviewCount; iOverview++ )
+    {
+        GDALRasterBand  *poOverview = poBand->GetOverview( iOverview );
+        double          dfResolution;
+
+        // What resolution is this?
+        if( (poBand->GetXSize() / (double) poOverview->GetXSize())
+            < (poBand->GetYSize() / (double) poOverview->GetYSize()) )
+            dfResolution = 
+                poBand->GetXSize() / (double) poOverview->GetXSize();
+        else
+            dfResolution = 
+                poBand->GetYSize() / (double) poOverview->GetYSize();
+
+        // Is it nearly the requested resolution and better (lower) than
+        // the current best resolution?
+        if( dfResolution >= dfDesiredResolution * 1.2 
+            || dfResolution <= dfBestResolution )
+            continue;
+
+        // Ignore AVERAGE_BIT2GRAYSCALE overviews for RasterIO purposes.
+        const char *pszResampling = 
+            poOverview->GetMetadataItem( "RESAMPLING" );
+
+        if( pszResampling != NULL && EQUALN(pszResampling,"AVERAGE_BIT2",12))
+            continue;
+
+        // OK, this is our new best overview.
+        poBestOverview = poOverview;
+        nBestOverviewLevel = iOverview;
+        dfBestResolution = dfResolution;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      If we didn't find an overview that helps us, just return        */
+/*      indicating failure and the full resolution image will be used.  */
+/* -------------------------------------------------------------------- */
+    if( nBestOverviewLevel < 0 )
+        return -1;
+
+/* -------------------------------------------------------------------- */
+/*      Recompute the source window in terms of the selected            */
+/*      overview.                                                       */
+/* -------------------------------------------------------------------- */
+    int         nOXOff, nOYOff, nOXSize, nOYSize;
+    double      dfXRes, dfYRes;
+    
+    dfXRes = poBand->GetXSize() / (double) poBestOverview->GetXSize();
+    dfYRes = poBand->GetYSize() / (double) poBestOverview->GetYSize();
+
+    nOXOff = MIN(poBestOverview->GetXSize()-1,(int) (nXOff/dfXRes+0.5));
+    nOYOff = MIN(poBestOverview->GetYSize()-1,(int) (nYOff/dfYRes+0.5));
+    nOXSize = MAX(1,(int) (nXSize/dfXRes + 0.5));
+    nOYSize = MAX(1,(int) (nYSize/dfYRes + 0.5));
+    if( nOXOff + nOXSize > poBestOverview->GetXSize() )
+        nOXSize = poBestOverview->GetXSize() - nOXOff;
+    if( nOYOff + nOYSize > poBestOverview->GetYSize() )
+        nOYSize = poBestOverview->GetYSize() - nOYOff;
+        
+    nXOff = nOXOff;
+    nYOff = nOYOff;
+    nXSize = nOXSize;
+    nYSize = nOYSize;
+    
+    return nBestOverviewLevel;
+}
+
+/************************************************************************/
 /*                           TestUseBlockIO()                           */
 /*                                                                      */
 /*      Check whether we should use blocked IO (true) or direct io      */
@@ -1831,6 +1938,28 @@ JP2KAKDataset::TestUseBlockIO( int nXOff, int nYOff, int nXSize, int nYSize,
         for( j = i+1; j < nBandCount; j++ )
             if( panBandList[j] == panBandList[i] )
                 return TRUE;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      If we have external overviews built, and they could be used     */
+/*      to satisfy this request, we will avoid DirectRasterIO()         */
+/*      which would ignore them.                                        */
+/* -------------------------------------------------------------------- */
+    if( GetRasterCount() == 0 )
+        return TRUE;
+
+    JP2KAKRasterBand *poWrkBand = (JP2KAKRasterBand*) GetRasterBand(1);
+    if( poWrkBand->HasExternalOverviews() ) 
+    {
+        int    nOverview;
+        int    nXOff2=nXOff, nYOff2=nYOff, nXSize2=nXSize, nYSize2=nYSize;
+
+        nOverview =
+            GDALBandGetBestOverviewLevel( poWrkBand, 
+                                          nXOff2, nYOff2, nXSize2, nYSize2,
+                                          nBufXSize, nBufYSize);
+        if (nOverview >= 0 )
+            return TRUE;
     }
 
 /* -------------------------------------------------------------------- */
