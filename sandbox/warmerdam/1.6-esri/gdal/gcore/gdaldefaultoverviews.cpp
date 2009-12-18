@@ -181,7 +181,7 @@ void GDALDefaultOverviews::Initialize( GDALDataset *poDSIn,
             else
                 osOvrFilename = pszProxyOvrFilename;
 
-            poODS = (GDALDataset *) GDALOpen(osOvrFilename,GA_Update);
+            poODS = (GDALDataset *) GDALOpen(osOvrFilename,poDS->GetAccess());
         }
     }
 
