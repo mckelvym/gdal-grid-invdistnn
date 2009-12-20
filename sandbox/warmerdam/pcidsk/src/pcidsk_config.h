@@ -56,10 +56,8 @@ namespace PCIDSK {
 
 #if defined(__MSVCRT__) || defined(_MSC_VER)
   #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "I64"
-#elif defined(HAVE_LONG_LONG)
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
 #else
-  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "l"
+  #define PCIDSK_FRMT_64_WITHOUT_PREFIX     "ll"
 #endif
 
 // #define MISSING_VSNPRINTF
