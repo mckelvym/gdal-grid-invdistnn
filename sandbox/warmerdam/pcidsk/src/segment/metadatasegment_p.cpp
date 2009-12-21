@@ -225,7 +225,7 @@ void MetadataSegment::Save()
         if( update_list.count(full_key) == 1 )
             /* do not transfer - we will append later */;
         else
-            new_data.append( pszNext, i );
+            new_data.append( pszNext, i+1 );
 
 /* -------------------------------------------------------------------- */
 /*      Advance to start of next line.                                  */
