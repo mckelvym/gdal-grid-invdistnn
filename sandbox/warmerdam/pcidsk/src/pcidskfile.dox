@@ -298,7 +298,7 @@ tokens (no special characters, spaces, etc).
 
 @param key the key to fetch the value for.  
 
-@param value the value to assign to the key.
+@param value the value to assign to the key.  An empty string deletes the item.
 
 @see GetMetadataValue()
 
@@ -326,6 +326,41 @@ computation is not a function of the PCIDSK SDK.
 @param factor the overview decimation factor. 
 
 @param resampling the resampling to be used for this overview - one of "NEAREST", "AVERAGE" or "MODE".
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKFile::CreateSegment( std::string name, std::string description, eSegType seg_type, int data_blocks );
+
+\brief create a new auxiliary segment
+
+A new segment of the desired type is created and assigned the given name and 
+description.  The segment number is returned.  The segment is created with the
+requested number of data blocks.  If this is zero a default size may be 
+assigned for some types with fixed sizes.
+
+This method may fail if there are no unused segment pointers available in
+the file. 
+
+@param name segment name, at most eight characters.
+
+@param description segment description, at most 64 characters.
+
+@param seg_type the segment type.
+
+@param data_blocks the number of data blocks the segment should be initially assigned.  If zero a default value may be used for some fixed sized segments.
+
+@return the number of the segment created.
+
+******************************************************************************
+\fn int PCIDSK::PCIDSKFile::DeleteSegment( int segment );
+
+\brief delete an existing segment
+
+Delete the indicated segment number.  The segment must currently exist.  The
+internal PCIDSKSegment object associated with this segment will also be
+destroyed, and any references to it from GetSegment() or other sources should
+not be used by the application after this call is made.   
+
+@param segment the number of the segment to delete from the file.
 
 */
 

@@ -177,6 +177,21 @@ does not exist on the target object.
 @see GetMetadataKeys()
 
 ******************************************************************************
+\fn void PCIDSK::PCIDSKChannel::SetMetadataValue( std::string key, std::string value );
+
+\brief Set metadata value
+
+Assign  the metadata value associated with the passed key on this object.  
+The file needs to be open for update.  Note that keys should be well formed
+tokens (no special characters, spaces, etc).
+
+@param key the key to fetch the value for.  
+
+@param value the value to assign to the key.  An empty string deletes the item.
+
+@see GetMetadataValue()
+ 
+******************************************************************************
 \fn int PCIDSK::PCIDSKChannel::GetOverviewCount();
 
 \brief Fetch number of overviews

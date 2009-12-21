@@ -614,6 +614,49 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 }
 
 /************************************************************************/
+/*                           DeleteSegment()                            */
+/************************************************************************/
+
+void CPCIDSKFile::DeleteSegment( int segment )
+
+{
+/* -------------------------------------------------------------------- */
+/*      Is this an existing segment?                                    */
+/* -------------------------------------------------------------------- */
+    PCIDSKSegment *poSeg = GetSegment( segment );
+
+    if( poSeg == NULL )
+        ThrowPCIDSKException( "DeleteSegment(%d) failed, segment does not exist.", segment );
+
+/* -------------------------------------------------------------------- */
+/*      Wipe associated metadata.                                       */
+/* -------------------------------------------------------------------- */
+    std::vector<std::string> md_keys = poSeg->GetMetadataKeys();
+    unsigned int i;
+
+    for( i = 0; i < md_keys.size(); i++ )
+        poSeg->SetMetadataValue( md_keys[i], "" );
+
+/* -------------------------------------------------------------------- */
+/*      Remove the segment object from the segment object cache.  I     */
+/*      hope the application is not retaining any references to this    */
+/*      segment!                                                        */
+/* -------------------------------------------------------------------- */
+    segments[segment] = NULL;
+    delete poSeg;
+
+/* -------------------------------------------------------------------- */
+/*      Mark the segment pointer as deleted.                            */
+/* -------------------------------------------------------------------- */
+    segment_pointers.buffer[(segment-1)*32] = 'D';
+
+    // write the updated segment pointer back to the file. 
+    WriteToFile( segment_pointers.buffer + (segment-1)*32, 
+                 segment_pointers_offset + (segment-1)*32, 
+                 32 );
+}
+
+/************************************************************************/
 /*                           CreateSegment()                            */
 /************************************************************************/
 

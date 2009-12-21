@@ -66,6 +66,7 @@ namespace PCIDSK
             int previous = 0 );
         int  CreateSegment( std::string name, std::string description,
             eSegType seg_type, int data_blocks );
+        void DeleteSegment( int segment );
         void CreateOverviews( int chan_count, int *chan_list, 
             int factor, std::string resampling );
 

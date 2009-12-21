@@ -242,6 +242,9 @@ void MetadataSegment::Save()
 
     for( it = update_list.begin(); it != update_list.end(); it++ )
     {
+        if( it->second.size() == 0 )
+            continue;
+
         std::string line;
 
         line = it->first;

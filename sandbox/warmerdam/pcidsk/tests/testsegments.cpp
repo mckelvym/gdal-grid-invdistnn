@@ -41,6 +41,7 @@ class SegmentsTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testGeoref );
     CPPUNIT_TEST( testPCTRead );
     CPPUNIT_TEST( testPCTWrite );
+    CPPUNIT_TEST( testSegDelete );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -51,6 +52,7 @@ public:
     void testGeoref();
     void testPCTRead();
     void testPCTWrite();
+    void testSegDelete();
 };
 
 // Registers the fixture into the 'registry'
@@ -185,5 +187,48 @@ void SegmentsTest::testPCTWrite()
 
     delete file;
     unlink( "pct_file.pix" );
+}
+
+void SegmentsTest::testSegDelete()
+{
+    eChanType channel_types[1] = {CHN_8U};
+    PCIDSKFile *file = 
+        PCIDSK::Create( "pct_file.pix", 50, 40, 1, channel_types, "BAND", NULL);
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    int iSeg = file->CreateSegment( "TSTPCT", "Desc", SEG_PCT, 0 );
+
+    PCIDSKSegment *seg = file->GetSegment( iSeg );
+
+    CPPUNIT_ASSERT( seg != NULL );
+
+    PCIDSK_PCT *pct_seg = dynamic_cast<PCIDSK_PCT*>(seg);
+
+    CPPUNIT_ASSERT( pct_seg != NULL );
+
+    unsigned char pct[768];
+    int i;
+
+    for( i = 0; i < 256; i++ )
+    {
+        pct[i] = i;
+        pct[256+i] = 255-i;;
+        pct[512+i] = i/2;
+    }
+    pct_seg->WritePCT( pct );
+    seg->SetMetadataValue( "TEST", "VALUE" );
+
+    file->DeleteSegment( iSeg );
+
+    delete file;
+
+    file = PCIDSK::Open( "pct_file.pix", "r+", NULL );
+
+    CPPUNIT_ASSERT( file->GetSegment( iSeg ) == NULL );
+
+    delete file;
+
+//    unlink( "pct_file.pix" );
 }
 

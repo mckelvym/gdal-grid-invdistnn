@@ -156,7 +156,7 @@ tokens (no special characters, spaces, etc).
 
 @param key the key to fetch the value for.  
 
-@param value the value to assign to the key.
+@param value the value to assign to the key.  An empty string deletes the item.
 
 @see GetMetadataValue()
  

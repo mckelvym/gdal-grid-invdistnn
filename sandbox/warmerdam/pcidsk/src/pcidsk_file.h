@@ -67,6 +67,7 @@ namespace PCIDSK
 
         virtual int  CreateSegment( std::string name, std::string description,
             eSegType seg_type, int data_blocks ) = 0;
+        virtual void DeleteSegment( int segment ) = 0;
         virtual void CreateOverviews( int chan_count, int *chan_list, 
             int factor, std::string resampling ) = 0;
 
