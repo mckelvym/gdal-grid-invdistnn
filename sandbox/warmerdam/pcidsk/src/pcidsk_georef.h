@@ -28,9 +28,17 @@
 #define __INCLUDE_PCIDSK_GEOREF_H
 
 #include <string>
+#include <vector>
 
 namespace PCIDSK
 {
+    typedef enum {
+        UNIT_US_FOOT = 1,
+        UNIT_METER = 2,
+        UNIT_DEGREE = 4,
+        UNIT_INTL_FOOT = 5
+    } UnitCode;
+
 /************************************************************************/
 /*                             PCIDSKGeoref                             */
 /************************************************************************/
@@ -83,6 +91,43 @@ only fully defined with additional projection parameters.
         virtual std::string GetGeosys() = 0;
 
 /**
+\brief Fetch projection parameters.
+
+Fetches the list of detailed projection parameters used for projection
+methods not fully described by the Geosys string.  The projection 
+parameters are as shown below, though in the future more items might
+be added to the array.  The first 15 are the classic USGS GCTP parameters.
+
+<ul>
+<li> Parm[0]: diameter of earth - major axis (meters). 
+<li> Parm[1]: diameter of earth - minor axis (meters).
+<li> Parm[2]: Reference Longitude (degrees)
+<li> Parm[3]: Reference Latitude (degrees)
+<li> Parm[4]: Standard Parallel 1 (degrees)
+<li> Parm[5]: Standard Parallel 2 (degrees)
+<li> Parm[6]: False Easting (meters?)
+<li> Parm[7]: False Northing (meters?)
+<li> Parm[8]: Scale (unitless)
+<li> Parm[9]: Height (meters?)
+<li> Parm[10]: Longitude 1 (degrees)
+<li> Parm[11]: Latitude 1 (degrees)
+<li> Parm[12]: Longitude 2 (degrees)
+<li> Parm[13]: Latitude 2 (degrees)
+<li> Parm[14]: Azimuth (degrees)
+<li> Parm[15]: Landsat Number 
+<li> Parm[16]: Landsat Path
+<li> Parm[17]: Unit Code (1=US Foot, 2=Meter, 4=Degree, 5=Intl Foot).
+</ul>
+
+Review the PCIDSK Database Reference Manual to understand which parameters
+apply to which projection methods.
+
+@return an array of values, at least 18.
+*/
+
+        virtual std::vector<double> GetParameters() = 0;
+
+/**
 \brief Write simple georeferencing information
 
 Writes out a georeferencing string and geotransform to the segment. 
@@ -99,6 +144,17 @@ Writes out a georeferencing string and geotransform to the segment.
         virtual void WriteSimple( std::string geosys, 
             double a1, double a2, double xrot, 
             double b1, double yrot, double b3 ) = 0;
+
+/**
+\brief Write complex projection parameters.
+
+See GetParameters() for the description of the parameters list. 
+
+@param parameters A list of at least 17 projection parameters. 
+
+*/
+
+        virtual void WriteParameters( std::vector<double> &parameters ) = 0;
     };
 }; // end namespace PCIDSK
 

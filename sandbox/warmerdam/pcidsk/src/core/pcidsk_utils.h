@@ -40,6 +40,12 @@ namespace PCIDSK
     std::string &UCaseStr( std::string & );
     uint64 atouint64( const char *);
     int64  atoint64( const char *);
+    int    pci_strcasecmp( const char *, const char * );
+    int    pci_strncasecmp( const char *, const char *, int );
+
+#define EQUAL(x,y) (pci_strcasecmp(x,y) == 0)
+#define EQUALN(x,y,n) (pci_strncasecmp(x,y,n) == 0)
+  
     void   SwapData( void *data, int value_size, int value_count );
     bool   BigEndianSystem(void);
     void   GetCurrentDateTime( char *out_datetime );

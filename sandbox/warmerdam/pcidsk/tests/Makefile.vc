@@ -3,7 +3,8 @@ CXXFLAGS = -I../src /nologo /MD /GR /EHsc /Zi /W3 \
 	-I..\cppunit-1.12.1\include \
 	/D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE
 
-OBJ =   test_main.obj testpcidskexception.obj testpcidskfile.obj
+OBJ =   test_main.obj testpcidskexception.obj testpcidskfile.obj \
+    testprojections.obj testsegments.obj
 
 LIBS =	../src/pcidsk.lib ..\cppunit-1.12.1\src\cppunit\Release\cppunit.lib
 

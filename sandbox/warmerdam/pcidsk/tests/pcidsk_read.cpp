@@ -27,9 +27,14 @@
 
 #include "pcidsk.h"
 #include "pcidsk_vectorsegment.h"
+#include "pcidsk_georef.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+
+#ifdef DEBUG
+#include "segment/cpcidskgeoref.h"
+#endif
 
 /************************************************************************/
 /*                               Usage()                                */
@@ -39,8 +44,49 @@ static void Usage()
 
 {
     printf( "Usage: pcidsk_read [-p] [-l] <src_filename> [<dst_filename>]\n"
-            "                   [-ls] [-lc] [-lv]\n" );
+            "                   [-ls] [-lc] [-lv] [-lg]\n" );
     exit( 1 );
+}
+
+/************************************************************************/
+/*                          ReportGeoSegment()                          */
+/************************************************************************/
+
+static void ReportGeoSegment( PCIDSK::PCIDSKSegment *segobj )
+
+{
+    try 
+    { 
+        double a1, a2, xrot, b1, yrot, b3;
+        PCIDSK::PCIDSKGeoref *geoseg 
+            = dynamic_cast<PCIDSK::PCIDSKGeoref*>( segobj );
+
+        std::string geosys = geoseg->GetGeosys();
+        geoseg->GetTransform( a1, a2, xrot, b1, yrot, b3 );
+
+        printf( "  Geosys = '%s'\n", geosys.c_str() );
+        printf( "  A1=%20.16g,   A2=%20.16g, XROT=%20.16g\n", a1, a2, xrot );
+        printf( "  B1=%20.16g, YROT=%20.16g,   B3=%20.16g\n", b1, yrot, b3 );
+
+        std::vector<double> parms;
+        unsigned int i;
+
+        parms = geoseg->GetParameters();
+        for( i = 0; i < parms.size(); i++ )
+            printf( "    Parameter[%d] = %.16g\n", i, parms[i] );
+
+#ifdef DEBUG
+        parms = (dynamic_cast<PCIDSK::CPCIDSKGeoref *>(segobj))->GetUSGSParameters();
+        for( i = 0; i < parms.size(); i++ )
+             printf( "    USGS Parameter[%d] = %.16g\n", i, parms[i] );
+#endif
+
+    }
+    catch( PCIDSK::PCIDSKException ex )
+    {
+        fprintf( stderr, "PCIDSKException:\n%s\n", ex.what() );
+        exit( 1 );
+    }
 }
 
 /************************************************************************/
@@ -180,6 +226,7 @@ int main( int argc, char **argv)
     bool list_segments = false;
     bool list_channels = false;
     bool list_vectors = false;
+    bool list_geo = false;
 
     for( i_arg = 1; i_arg < argc; i_arg++ )
     {
@@ -191,6 +238,8 @@ int main( int argc, char **argv)
             list_segments = true;
         else if( strcmp(argv[i_arg],"-lv") == 0 )
             list_vectors = true;
+        else if( strcmp(argv[i_arg],"-lg") == 0 )
+            list_geo = true;
         else if( strcmp(argv[i_arg],"-lc") == 0 )
             list_channels = true;
         else if( argv[i_arg][0] == '-' )
@@ -287,7 +336,7 @@ int main( int argc, char **argv)
 /* -------------------------------------------------------------------- */
 /*      List segments if requested.                                     */
 /* -------------------------------------------------------------------- */
-        if( list_segments || list_vectors )
+        if( list_segments || list_vectors || list_geo )
         {
             for( int segment = 1; segment <= 1024; segment++ )
             {
@@ -319,6 +368,11 @@ int main( int argc, char **argv)
                         && segobj->GetSegmentType() == PCIDSK::SEG_VEC 
                         && list_vectors )
                         ReportVectorSegment( segobj );
+
+                    if( segobj != NULL
+                        && segobj->GetSegmentType() == PCIDSK::SEG_GEO 
+                        && list_geo )
+                        ReportGeoSegment( segobj );
                 }
                 catch( PCIDSK::PCIDSKException ex )
                 {

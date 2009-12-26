@@ -123,11 +123,15 @@ int main( int argc, char **argv)
 
             PCIDSKGeoref *dst_geo = 
                 dynamic_cast<PCIDSKGeoref*>(dst_file->GetSegment(1));
+            std::vector<double> parms;
 
             src_geo->GetTransform( a1, a2, xrot, b1, yrot, b3 );
         
             dst_geo->WriteSimple( src_geo->GetGeosys(), 
                                   a1, a2, xrot, b1, yrot, b3 );
+
+            parms = src_geo->GetParameters();
+            dst_geo->WriteParameters( parms );
         }
     
 /* -------------------------------------------------------------------- */

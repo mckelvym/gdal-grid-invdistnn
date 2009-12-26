@@ -261,3 +261,73 @@ void PCIDSK::ParseTileFormat( std::string full_text,
     }    
 }
                       
+/************************************************************************/
+/*                           pci_strcasecmp()                           */
+/************************************************************************/
+
+int PCIDSK::pci_strcasecmp( const char *string1, const char *string2 )
+
+{
+    int i;
+
+    for( i = 0; string1[i] != '\0' && string2[i] != '\0'; i++ )
+    {
+        char c1 = string1[i];
+        char c2 = string2[i];
+
+        if( islower(c1) )
+            c1 = toupper(c1);
+        if( islower(c2) )
+            c2 = toupper(c2);
+
+        if( c1 < c2 )
+            return -1;
+        else if( c1 > c2 )
+            return 1;
+        else 
+            return 0;
+    }
+
+    if( string1[i] == '\0' && string2[i] == '\0' )
+        return 0;
+    else if( string1[i] == '\0' )
+        return 1;
+    else
+        return -1;
+}
+
+/************************************************************************/
+/*                          pci_strncasecmp()                           */
+/************************************************************************/
+
+int PCIDSK::pci_strncasecmp( const char *string1, const char *string2, int len )
+
+{
+    int i;
+
+    for( i = 0; i < len; i++ )
+    {
+        if( string1[i] == '\0' && string2[i] == '\0' )
+            return 0;
+        else if( string1[i] == '\0' )
+            return 1;
+        else if( string2[i] == '\0' )
+            return -1;
+
+        char c1 = string1[i];
+        char c2 = string2[i];
+
+        if( islower(c1) )
+            c1 = toupper(c1);
+        if( islower(c2) )
+            c2 = toupper(c2);
+
+        if( c1 < c2 )
+            return -1;
+        else if( c1 > c2 )
+            return 1;
+    }
+
+    return 0;
+}
+

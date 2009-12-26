@@ -55,18 +55,27 @@ namespace PCIDSK
                                   double &b1, double &yrot, double &b3 );
         std::string GetGeosys();
 
+        std::vector<double> GetParameters();
+
         void        WriteSimple( std::string geosys, 
                                  double a1, double a2, double xrot, 
                                  double b1, double yrot, double b3 );
+        void        WriteParameters( std::vector<double> &parameters );
+
+        // special interface just for testing.
+        std::vector<double> GetUSGSParameters();
+
      private:
-         bool         loaded;
+        bool         loaded;
 
-         std::string  geosys;
-         double       a1, a2, xrot, b1, yrot, b3;
+        std::string  geosys;
+        double       a1, a2, xrot, b1, yrot, b3;
+        
+        void         Load();
+        void         PrepareGCTPFields();
+        void         ReformatGeosys( std::string &geosys );
 
-         void         Load();
-
-         PCIDSKBuffer seg_data;
+        PCIDSKBuffer seg_data;
     };
 }; // end namespace PCIDSK
 

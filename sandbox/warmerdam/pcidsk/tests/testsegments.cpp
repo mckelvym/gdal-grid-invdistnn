@@ -229,6 +229,6 @@ void SegmentsTest::testSegDelete()
 
     delete file;
 
-//    unlink( "pct_file.pix" );
+    unlink( "pct_file.pix" );
 }
 
