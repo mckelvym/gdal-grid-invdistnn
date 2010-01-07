@@ -1,6 +1,7 @@
 
 # Comment out to skip use of libjpeg
 JPEG_FLAGS = -DHAVE_LIBJPEG
+JPEG_LDFLAGS = -ljpeg
 
 OBJ = \
 	channel/cbandinterleavedchannel.o \
@@ -25,9 +26,8 @@ OBJ = \
 	segment/cpcidsksegment.o \
 	segment/cpcidskvectorsegment.o \
 	segment/metadatasegment_p.o \
-	segment/segmentfactory.o \
-	segment/segment_loader.o \
-	segment/sysblockmap.o
+	segment/sysblockmap.o \
+	segment/cpcidskrpcmodel.o
 
 
 CXXFLAGS = -g -Wall -fPIC -I. $(JPEG_FLAGS)
@@ -38,7 +38,7 @@ pcidsk.a: $(OBJ)
 	ar r pcidsk.a $(OBJ)
 
 libpcidsk.so: $(OBJ)
-	g++ -fPIC -ldl -shared -o libpcidsk.so $(OBJ)
+	g++ -fPIC $(JPEG_LDFLAGS) -ldl -shared -o libpcidsk.so $(OBJ)
 
 clean:
 	rm -f $(OBJ)

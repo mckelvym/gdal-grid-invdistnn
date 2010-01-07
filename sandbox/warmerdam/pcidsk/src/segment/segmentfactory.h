@@ -31,15 +31,14 @@
 #include <map>
 #include <vector>
 
-#include "segment/pcidsksegmentbuilder.h"
-
 namespace PCIDSK 
 {
     struct IPCIDSKSegmentBuilder;
+    class PCIDSKSegment;
+    class PCIDSKFile;
 
 namespace priv
 {
-    class PCIDSKSegment;
 
     /**
      * The private PCIDSK Segment factory. This class implements the
@@ -55,7 +54,8 @@ namespace priv
         
         // TODO: Figure out optimal set of arguments to be passed to the segment factory
         PCIDSKSegment *ConstructSegment(PCIDSKFile *poFile, unsigned int nSegmentNum,
-            char *psSegmentPointer);
+            const char *psSegmentPointer, const std::string &sSegmentMnemonic,
+            unsigned int nSegmentType);
         
         // Check out/construct an instance of the segment factory singleton
         static CPCIDSKSegmentFactory *GetInstance(void);
@@ -79,13 +79,19 @@ namespace priv
         
         /**
          * A tree that maps a segment title (i.e. textual name) to the instance
-         * of the segment builder. This is used during the construction of a
-         * segment.
+         * of the segment builder. This tree is then mapped to the segment type
+         * number.
+         * This is used during the construction of a segment.
          */
-        std::map<std::string, IPCIDSKSegmentBuilder *> moMapSegmentNameToBuilder;
+        std::map<unsigned int, std::map<std::string, IPCIDSKSegmentBuilder *> > moMapSegmentNameToBuilder;
+        
+        /**
+         * The default segment builder
+         */
+        IPCIDSKSegmentBuilder *mpoDefaultBuilder;
     };
     
-    bool LoadSegmentLibrary(const std::string &sLibraryName);
+    IPCIDSKSegmentBuilder *LoadSegmentLibrary(const std::string &sLibraryName);
 
 }; // end namespace priv
 }; // end namespace PCIDSK

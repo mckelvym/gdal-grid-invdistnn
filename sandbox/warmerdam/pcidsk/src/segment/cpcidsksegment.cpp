@@ -65,9 +65,7 @@ CPCIDSKSegment::CPCIDSKSegment( PCIDSKFile *file, int segment,
 CPCIDSKSegment::~CPCIDSKSegment()
 
 {
-    if (metadata) {
-        delete metadata;
-    }
+    delete metadata;
 }
 
 std::string CPCIDSKSegment::GetMetadataValue( std::string key ) 

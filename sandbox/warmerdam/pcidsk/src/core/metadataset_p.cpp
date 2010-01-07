@@ -63,7 +63,7 @@ MetadataSet::~MetadataSet()
 /*                             Initialize()                             */
 /************************************************************************/
 
-void MetadataSet::Initialize( PCIDSKFile *file, std::string group, int id )
+void MetadataSet::Initialize( PCIDSKFile *file, const std::string& group, int id )
 
 {
     this->file = file;
@@ -107,7 +107,7 @@ void MetadataSet::Load()
 /*                          GetMetadataValue()                          */
 /************************************************************************/
 
-std::string MetadataSet::GetMetadataValue( std::string key )
+std::string MetadataSet::GetMetadataValue( const std::string& key )
 
 {
     if( !loaded )
@@ -123,7 +123,7 @@ std::string MetadataSet::GetMetadataValue( std::string key )
 /*                          SetMetadataValue()                          */
 /************************************************************************/
 
-void MetadataSet::SetMetadataValue( std::string key, std::string value )
+void MetadataSet::SetMetadataValue( const std::string& key, const std::string& value )
 
 {
     if( !loaded )

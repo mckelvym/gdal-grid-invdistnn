@@ -27,9 +27,8 @@ OBJ = \
 	segment\cpcidskgeoref.obj \
 	segment\cpcidsksegment.obj \
 	segment\cpcidskvectorsegment.obj \
+	segment\cpcidskrpcmodel.obj \
 	segment\metadatasegment_p.obj \
-	segment\segmentfactory.obj \
-	segment\segment_loader.obj \
 	segment\sysblockmap.obj
 
 default:	pcidsk.lib

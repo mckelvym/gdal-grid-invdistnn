@@ -90,9 +90,9 @@ namespace PCIDSK
         void      GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
             std::string filename = "" );
 
-        std::string GetMetadataValue( std::string key ) 
+        std::string GetMetadataValue( const std::string& key ) 
             { return metadata.GetMetadataValue(key); }
-        void        SetMetadataValue( std::string key, std::string value ) 
+        void        SetMetadataValue( const std::string& key, const std::string& value ) 
             { metadata.SetMetadataValue(key,value); }
         std::vector<std::string> GetMetadataKeys() 
             { return metadata.GetMetadataKeys(); }

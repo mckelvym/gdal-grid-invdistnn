@@ -43,11 +43,15 @@
 #include "segment/cpcidskvectorsegment.h"
 #include "segment/metadatasegment.h"
 #include "segment/sysblockmap.h"
+#include "segment/cpcidskrpcmodel.h"
 
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
+#include <string>
+
+#include <iostream>
 
 using namespace PCIDSK;
 
@@ -198,11 +202,17 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
             segobj = new CPCIDSKSegment( this, segment, segment_pointer );
 
         break;
-
-      default:
-        segobj = new CPCIDSKSegment( this, segment, segment_pointer );
+    
+      case SEG_BIN:
+        if (!strncmp(segment_pointer + 4, "RFMODEL ", 8))
+            segobj = new CPCIDSKRPCModelSegment( this, segment, segment_pointer );
+        break;
+        
     }
-
+    
+    if (segobj == NULL)
+        segobj = new CPCIDSKSegment( this, segment, segment_pointer );
+        
     segments[segment] = segobj;
 
     return segobj;

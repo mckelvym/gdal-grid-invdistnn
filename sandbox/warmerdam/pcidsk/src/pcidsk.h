@@ -45,6 +45,7 @@
 #include "pcidsk_segment.h"
 #include "pcidsk_io.h"
 #include "pcidsk_georef.h"
+#include "pcidsk_rpc.h"
 
 //! Namespace for all PCIDSK Library classes and functions.
 

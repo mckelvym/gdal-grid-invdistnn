@@ -83,8 +83,8 @@ namespace PCIDSK
         virtual void GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
             std::string filename = "" ) = 0;
 
-        virtual std::string GetMetadataValue( std::string key ) = 0;
-        virtual void SetMetadataValue( std::string key, std::string value ) = 0;
+        virtual std::string GetMetadataValue( const std::string& key ) = 0;
+        virtual void SetMetadataValue( const std::string& key, const std::string& value ) = 0;
         virtual std::vector<std::string> GetMetadataKeys() = 0;
     };
 }; // end namespace PCIDSK

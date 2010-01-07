@@ -31,10 +31,13 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 #ifdef DEBUG
 #include "segment/cpcidskgeoref.h"
 #endif
+
+#include <iostream>
 
 /************************************************************************/
 /*                               Usage()                                */
@@ -47,6 +50,69 @@ static void Usage()
             "                   [-ls] [-lc] [-lv] [-lg]\n" );
     exit( 1 );
 }
+
+namespace {
+/************************************************************************/
+/*                          PrintVector()                               */
+/************************************************************************/
+void PrintVector(const std::vector<double> &vec)
+{
+    std::vector<double>::const_iterator iter = vec.begin();
+    while (iter != vec.end()) {
+        std::cout << *iter << " ";
+        iter++;
+    }
+}
+
+void ReportRPCSegment(PCIDSK::PCIDSKRPCSegment *rpcseg)
+{
+    printf("\tSensor Name: %s\n", rpcseg->GetSensorName().c_str());
+    
+    printf("\tRaster Dimensions: %u (lines) x %u (pixels)\n",
+        rpcseg->GetLines(), rpcseg->GetPixels());
+    
+    printf("\tIs%s a nominal model\n", rpcseg->IsNominalModel() ? "" : " NOT");
+    printf("\tIs%s user generated\n", rpcseg->IsUserGenerated() ? "" : " NOT");
+    
+    std::vector<double> xnum = rpcseg->GetXNumerator();
+    std::vector<double> xdenom = rpcseg->GetXDenominator();
+    std::vector<double> ynum = rpcseg->GetYNumerator();
+    std::vector<double> ydenom = rpcseg->GetYDenominator();
+    
+    printf("\tX Numerator Coeffs: ");
+    PrintVector(xnum);
+    printf("\n\tX Denominator Coeffs: ");
+    PrintVector(xdenom);
+    printf("\n\tY Numerator Coeffs: ");
+    PrintVector(ynum);
+    printf("\n\tY Denominator Coeffs:");
+    PrintVector(ydenom);
+    printf("\n");
+    
+    double xoffset, xscale, yoffset, yscale, zoffset, zscale, pixoffset, 
+        pixscale, lineoffset, linescale;
+    rpcseg->GetRPCTranslationCoeffs(xoffset, xscale, yoffset, yscale, zoffset,
+        zscale, pixoffset, pixscale, lineoffset, linescale);
+        
+    printf("\tX offset: %f\n", xoffset);
+    printf("\tX scale: %f\n", xscale);
+
+    printf("\tY offset: %f\n", yoffset);
+    printf("\tY scale: %f\n", yscale);
+
+    printf("\tZ offset: %f\n", zoffset);
+    printf("\tZ scale: %f\n", zscale);
+    
+    printf("\tPixel offset: %f\n", pixoffset);
+    printf("\tPixel scale: %f\n", pixscale);
+
+    printf("\tLine offset: %f\n", lineoffset);
+    printf("\tLine scale: %f\n", linescale);
+    
+    printf("\tGeosys String: [%s]\n", rpcseg->GetGeosysString().c_str());
+}
+
+} // end anonymous namespace for helper functions
 
 /************************************************************************/
 /*                          ReportGeoSegment()                          */
@@ -373,6 +439,13 @@ int main( int argc, char **argv)
                         && segobj->GetSegmentType() == PCIDSK::SEG_GEO 
                         && list_geo )
                         ReportGeoSegment( segobj );
+                    
+                    PCIDSK::PCIDSKRPCSegment *rpcseg = NULL;
+                    if ( segobj != NULL &&
+                         (rpcseg = dynamic_cast<PCIDSK::PCIDSKRPCSegment*>(segobj)))
+                    {
+                        ReportRPCSegment(rpcseg);
+                    }
                 }
                 catch( PCIDSK::PCIDSKException ex )
                 {

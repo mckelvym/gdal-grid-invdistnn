@@ -46,9 +46,9 @@ namespace PCIDSK
         MetadataSet();
         ~MetadataSet();
 
-        void        Initialize( PCIDSKFile *file, std::string group, int id );
-        std::string GetMetadataValue( std::string key );
-        void        SetMetadataValue( std::string key, std::string value );
+        void        Initialize( PCIDSKFile *file, const std::string& group, int id );
+        std::string GetMetadataValue( const std::string& key );
+        void        SetMetadataValue( const std::string& key, const std::string& value );
         std::vector<std::string> GetMetadataKeys();
     
     private:
