@@ -144,6 +144,6 @@ namespace PCIDSK
 
         MetadataSet  metadata;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PRIV_CPCIDSKFILE_H

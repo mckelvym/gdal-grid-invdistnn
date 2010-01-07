@@ -87,6 +87,6 @@ namespace PCIDSK
 
         std::vector<SysVirtualFile*> virtual_files;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_SEGMENT_SYSBLOCKMAP_H

@@ -63,5 +63,5 @@ namespace PCIDSK
         void         Load();
     };
     
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 #endif // __INCLUDE_PRIV_METADATASET_H

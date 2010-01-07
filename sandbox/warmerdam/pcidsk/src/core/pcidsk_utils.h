@@ -59,6 +59,6 @@ namespace PCIDSK
     void LibJPEG_CompressBlock(
         uint8 *src_data, int src_bytes, uint8 *dst_data, int &dst_bytes,
         int xsize, int ysize, eChanType pixel_type, int quality );
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_CORE_PCIDSK_UTILS_H

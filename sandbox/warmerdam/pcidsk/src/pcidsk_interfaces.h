@@ -57,6 +57,6 @@ namespace PCIDSK
 
     //    DBInterfaces 	db_interfaces;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_INTERFACES_H

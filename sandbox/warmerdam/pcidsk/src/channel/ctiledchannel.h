@@ -91,6 +91,6 @@ namespace PCIDSK
                                                     PCIDSKBuffer &oCompressed );
 
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_CHANNEL_CTILEDCHANNEL_H

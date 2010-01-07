@@ -56,6 +56,6 @@ namespace PCIDSK
 
     const IOInterfaces PCIDSK_DLL *GetDefaultIOInterfaces();
 
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_IO_H

@@ -85,6 +85,6 @@ namespace PCIDSK
 
         void                   LoadBlock( int requested_block );
     };  
-};
+}
 
 #endif // __INCLUDE_CORE_SYSVIRTUALFILE_H

@@ -37,7 +37,7 @@ using namespace PCIDSK;
 /*      Size of a block in the record/vertice block tables.  This is    */
 /*      determined by the PCIDSK format and may not be changed.         */
 /* -------------------------------------------------------------------- */
-const static int block_page_size = 8192;  
+static const int block_page_size = 8192;  
 
 /* -------------------------------------------------------------------- */
 /*      Size of one page of loaded shapeids.  This is not related to    */
@@ -45,7 +45,7 @@ const static int block_page_size = 8192;
 /*      shapeid pointers kept in RAM at one time from the shape         */
 /*      index.                                                          */
 /* -------------------------------------------------------------------- */
-const static int shapeid_page_size = 1024;
+static const int shapeid_page_size = 1024;
 
 const int CPCIDSKVectorSegment::sec_raw = 0;
 const int CPCIDSKVectorSegment::sec_vert = 1;

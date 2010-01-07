@@ -160,7 +160,7 @@ void MetadataSegment::FetchMetadata( const char *group, int id,
 /************************************************************************/
 
 void MetadataSegment::SetMetadataValue( const char *group, int id,
-                                        std::string key, std::string value )
+                                        const std::string& key, const std::string& value )
 
 {
     Load();

@@ -54,6 +54,6 @@ namespace PCIDSK
         virtual void ReadPCT( unsigned char pct[768] );
         virtual void WritePCT( unsigned char pct[768] );
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_SEGMENT_PCIDSKGEOREF_H

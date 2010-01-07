@@ -60,6 +60,6 @@ namespace PCIDSK
         virtual void SetMetadataValue( std::string key, std::string value ) = 0;
         virtual std::vector<std::string> GetMetadataKeys() = 0;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_CHANNEL_H

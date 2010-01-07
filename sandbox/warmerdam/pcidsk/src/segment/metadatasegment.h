@@ -57,7 +57,7 @@ namespace PCIDSK
         void         FetchMetadata( const char *group, int id, 
                                     std::map<std::string,std::string> &md_set );
         void         SetMetadataValue( const char *group, int id,
-                                       std::string key, std::string value );
+                                       const std::string& key, const std::string& value );
                                    
     private:
        bool         loaded;
@@ -69,6 +69,6 @@ namespace PCIDSK
 
        std::map<std::string,std::string> update_list;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_SEGMENT_METADATASEGMENT_H

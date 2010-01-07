@@ -55,6 +55,6 @@ namespace PCIDSK
 
     };
 
-}; //end namespace PCIDSK
+} //end namespace PCIDSK
 
 #endif // __INCLUDE_CORE_MUTEXHOLDER_H

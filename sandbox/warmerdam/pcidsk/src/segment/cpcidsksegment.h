@@ -92,5 +92,5 @@ namespace PCIDSK
         MetadataSet  *metadata;
     };
     
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 #endif // _INCLUDE_SEGMENT_PCIDSKSEGMENT_H

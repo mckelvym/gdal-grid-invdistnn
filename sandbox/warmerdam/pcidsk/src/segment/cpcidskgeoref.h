@@ -77,6 +77,6 @@ namespace PCIDSK
 
         PCIDSKBuffer seg_data;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_SEGMENT_PCIDSKGEOREF_H

@@ -72,5 +72,5 @@ namespace PCIDSK
     private:
         std::string work_field;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 #endif // __INCLUDE_PCIDSKBUFFER_H 

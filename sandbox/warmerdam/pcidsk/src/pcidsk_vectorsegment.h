@@ -210,6 +210,6 @@ not normally be shown to the user.
         ShapeId& operator*() {return id;}
     };
 
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_VECTORSEGMENT_H

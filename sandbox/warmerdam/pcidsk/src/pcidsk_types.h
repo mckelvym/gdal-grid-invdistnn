@@ -60,7 +60,7 @@ namespace PCIDSK
         SEG_ARR = 181,
         SEG_SYS = 182,
         SEG_GCPOLD = 214,
-        SEG_GCP2 = 215,
+        SEG_GCP2 = 215
     } eSegType;
     
     // Helper functions for working with segments and data types
@@ -68,6 +68,6 @@ namespace PCIDSK
     std::string PCIDSK_DLL DataTypeName( eChanType );
     std::string PCIDSK_DLL SegmentTypeName( eSegType );
 
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_TYPES_H

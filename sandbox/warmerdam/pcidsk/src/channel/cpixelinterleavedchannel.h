@@ -60,6 +60,6 @@ namespace PCIDSK
     private:
         int      image_offset;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_CHANNEL_CPIXELINTERLEAVEDCHANNEL_H

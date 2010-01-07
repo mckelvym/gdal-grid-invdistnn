@@ -40,6 +40,6 @@ namespace PCIDSK
         Mutex          *io_mutex;
     };
 
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_CORE_PROTECTEDFILE_H

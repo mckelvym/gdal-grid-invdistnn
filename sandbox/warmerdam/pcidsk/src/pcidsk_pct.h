@@ -65,6 +65,6 @@ and ends with the blue gun output values (pct[512-767]).
 */
         virtual void WritePCT( unsigned char pct[768] ) = 0;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_PCT_H

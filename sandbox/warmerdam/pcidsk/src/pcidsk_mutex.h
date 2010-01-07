@@ -45,6 +45,6 @@ namespace PCIDSK
     };
 
     Mutex PCIDSK_DLL *DefaultCreateMutex(void);    
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_MUTEX_H

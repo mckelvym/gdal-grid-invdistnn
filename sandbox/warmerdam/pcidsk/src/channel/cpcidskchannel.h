@@ -103,6 +103,6 @@ namespace PCIDSK
         std::vector<std::string>     overview_infos;
         std::vector<CTiledChannel *> overview_bands;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_CHANNEL_CPCIDSKCHANNEL_H

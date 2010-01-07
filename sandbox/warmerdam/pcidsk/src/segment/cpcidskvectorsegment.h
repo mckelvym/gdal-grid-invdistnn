@@ -142,6 +142,6 @@ namespace PCIDSK
                                         ShapeFieldType field_type,
                                         int section = sec_record );
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_SEGMENT_VECTORSEGMENT_H

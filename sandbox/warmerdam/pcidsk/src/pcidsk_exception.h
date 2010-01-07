@@ -54,6 +54,6 @@ namespace PCIDSK
 
     void PCIDSK_DLL ThrowPCIDSKException( const char *fmt, ... );
 
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_EXCEPTION_H

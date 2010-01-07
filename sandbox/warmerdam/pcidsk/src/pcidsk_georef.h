@@ -156,6 +156,6 @@ See GetParameters() for the description of the parameters list.
 
         virtual void WriteParameters( std::vector<double> &parameters ) = 0;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_GEOREF_H

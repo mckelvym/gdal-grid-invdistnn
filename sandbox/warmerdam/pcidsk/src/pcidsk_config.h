@@ -42,7 +42,7 @@ namespace PCIDSK {
     typedef unsigned long long uint64;
 #endif
 
-};
+}
 
 #ifdef _MSC_VER
 # ifdef LIBPCIDSK_EXPORTS

@@ -39,7 +39,7 @@ namespace PCIDSK
     //! Type used for shape identifier, use constant NullShapeId as a NULL value
     typedef int32 ShapeId;
 
-    const static ShapeId NullShapeId = -1;
+    static const ShapeId NullShapeId = -1;
 
     //! Structure for an x,y,z point.
     typedef struct 
@@ -240,6 +240,6 @@ namespace PCIDSK
             { if( type == FieldTypeDouble ) return v.double_val; else return 0.0; }
     };
 
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_PCIDSK_SHAPE_H

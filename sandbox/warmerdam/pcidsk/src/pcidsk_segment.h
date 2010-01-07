@@ -61,6 +61,6 @@ namespace PCIDSK
         virtual std::vector<std::string> GetMetadataKeys() = 0;
     };
 
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_SEGMENT_PCIDSKSEGMENT_H

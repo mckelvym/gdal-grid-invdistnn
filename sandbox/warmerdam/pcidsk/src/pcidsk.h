@@ -61,6 +61,6 @@ PCIDSKFile PCIDSK_DLL *Create( std::string filename, int pixels, int lines,
                                const PCIDSKInterfaces *interfaces );
 
 
-}; // end of PCIDSK namespace
+} // end of PCIDSK namespace
 
 #endif // PCIDSK_H_INCLUDED

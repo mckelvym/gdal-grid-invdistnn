@@ -73,6 +73,6 @@ namespace PCIDSK
         void     **io_handle_p;
         Mutex    **io_mutex_p;
     };
-}; // end namespace PCIDSK
+} // end namespace PCIDSK
 
 #endif // __INCLUDE_CHANNEL_CBANDINTERLEAVEDCHANNEL_H
