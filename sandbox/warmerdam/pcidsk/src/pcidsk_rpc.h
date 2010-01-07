@@ -105,4 +105,3 @@ namespace PCIDSK {
 }
 
 #endif // __INCLUDE_PCIDSK_PCIDSK_RPC_H
- 

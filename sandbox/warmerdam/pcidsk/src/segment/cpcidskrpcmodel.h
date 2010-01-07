@@ -115,4 +115,3 @@ namespace PCIDSK {
 }
 
 #endif // __INCLUDE_PCIDSK_SEGMENT_PCIDSKRPCMODEL_H
- 
