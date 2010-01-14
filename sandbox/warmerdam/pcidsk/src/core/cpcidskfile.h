@@ -97,6 +97,8 @@ namespace PCIDSK
         std::vector<std::string> GetMetadataKeys() 
             { return metadata.GetMetadataKeys(); }
 
+        void      Synchronize();
+
     // not exposed to applications.
         void      ExtendFile( uint64 blocks_requested, bool prezero = false );
         void      ExtendSegment( int segment, uint64 blocks_to_add,

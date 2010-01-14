@@ -62,7 +62,7 @@ namespace PCIDSK
                                                 int block_width, int block_height,
                                                 eChanType chan_type,
                                                 std::string compression );
-        void            Sync();
+        void            Synchronize();
         void            Initialize();
         int             GrowVirtualFile( int image, int &last_block,
                                          int &block_segment_ret );

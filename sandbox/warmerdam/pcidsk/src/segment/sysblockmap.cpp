@@ -74,7 +74,7 @@ SysBlockMap::~SysBlockMap()
         virtual_files[i] = NULL;
     }
 
-    Sync();
+    Synchronize();
 }
 
 /************************************************************************/
@@ -145,10 +145,10 @@ void SysBlockMap::Load()
 }
 
 /************************************************************************/
-/*                                Sync()                                */
+/*                            Synchronize()                             */
 /************************************************************************/
 
-void SysBlockMap::Sync()
+void SysBlockMap::Synchronize()
 
 {
     if( !loaded || !dirty )

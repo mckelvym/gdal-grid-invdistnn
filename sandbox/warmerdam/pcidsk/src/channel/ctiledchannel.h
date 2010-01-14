@@ -67,8 +67,8 @@ namespace PCIDSK
                                int xsize=-1, int ysize=-1 );
         virtual int WriteBlock( int block_index, void *buffer );
 
-        void        Sync();
-    
+        virtual void Synchronize();
+        
     private:
         int                      image;
 

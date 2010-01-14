@@ -91,7 +91,7 @@ CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header,
 CTiledChannel::~CTiledChannel()
 
 {
-    Sync();
+    Synchronize();
 }
 
 /************************************************************************/
@@ -181,12 +181,12 @@ void CTiledChannel::EstablishAccess()
 }
 
 /************************************************************************/
-/*                                Sync()                                */
+/*                            Synchronize()                             */
 /*                                                                      */
 /*      Flush updated blockmap to disk if it is dirty.                  */
 /************************************************************************/
 
-void CTiledChannel::Sync()
+void CTiledChannel::Synchronize()
 
 {
     if( !tile_info_dirty )
@@ -209,6 +209,7 @@ void CTiledChannel::Sync()
     }
 
     vfile->WriteToFile( tmap.buffer, 128, tile_count*20 );
+    vfile->Synchronize();
 }
 
 /************************************************************************/

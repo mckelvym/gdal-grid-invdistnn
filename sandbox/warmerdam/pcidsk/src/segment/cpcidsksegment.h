@@ -75,6 +75,8 @@ namespace PCIDSK
         void        SetMetadataValue( std::string key, std::string value );
         std::vector<std::string> GetMetadataKeys();
             
+        virtual void Synchronize() {}
+
     protected:
         PCIDSKFile *file;
 

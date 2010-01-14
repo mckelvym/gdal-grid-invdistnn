@@ -80,12 +80,13 @@ CPCIDSKFile::CPCIDSKFile()
 CPCIDSKFile::~CPCIDSKFile()
 
 {
+    Synchronize();
+
 /* -------------------------------------------------------------------- */
-/*      Cleanup last line caching stuff for pixel interleaved data.     */
+/*      Cleanup last block buffer.                                      */
 /* -------------------------------------------------------------------- */
     if( last_block_data != NULL )
     {
-        FlushBlock();
         last_block_index = -1;
         free( last_block_data );
         last_block_data = NULL;
@@ -133,6 +134,45 @@ CPCIDSKFile::~CPCIDSKFile()
     }
 
     delete io_mutex;
+}
+
+/************************************************************************/
+/*                            Synchronize()                             */
+/************************************************************************/
+
+void CPCIDSKFile::Synchronize()
+
+{
+    if( !GetUpdatable() )
+        return;
+
+/* -------------------------------------------------------------------- */
+/*      Flush out last line caching stuff for pixel interleaved data.   */
+/* -------------------------------------------------------------------- */
+    FlushBlock();
+
+/* -------------------------------------------------------------------- */
+/*      Synchronize all channels.                                       */
+/* -------------------------------------------------------------------- */
+    size_t i;
+    for( i = 0; i < channels.size(); i++ )
+        channels[i]->Synchronize();
+    
+/* -------------------------------------------------------------------- */
+/*      Synchronize all segments we have instantiated.                  */
+/* -------------------------------------------------------------------- */
+    for( i = 0; i < segments.size(); i++ )
+    {
+        if( segments[i] != NULL )
+            segments[i]->Synchronize();
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Ensure the file is synhronized to disk.                         */
+/* -------------------------------------------------------------------- */
+    MutexHolder oHolder( io_mutex );
+
+    interfaces.io->Flush( io_handle );
 }
 
 /************************************************************************/

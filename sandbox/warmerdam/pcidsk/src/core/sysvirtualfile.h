@@ -60,6 +60,8 @@ namespace PCIDSK
                         int image_index );
         ~SysVirtualFile();
 
+        void      Synchronize();
+
         void      WriteToFile( const void *buffer, uint64 offset, uint64 size );
         void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
 

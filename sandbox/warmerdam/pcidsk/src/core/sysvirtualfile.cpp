@@ -95,6 +95,16 @@ SysVirtualFile::SysVirtualFile( CPCIDSKFile *file, int start_block,
 SysVirtualFile::~SysVirtualFile()
 
 {
+    Synchronize();
+}
+
+/************************************************************************/
+/*                            Synchronize()                             */
+/************************************************************************/
+
+void SysVirtualFile::Synchronize()
+
+{
     if( loaded_block_dirty )
     {
         PCIDSKSegment *data_seg_obj = 
@@ -106,7 +116,6 @@ SysVirtualFile::~SysVirtualFile()
         loaded_block_dirty = false;
     }
 }
-
 
 /************************************************************************/
 /*                            WriteToFile()                             */

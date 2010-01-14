@@ -215,5 +215,17 @@ to the base image.
 
 @return the overview channel object.
 
+******************************************************************************
+\fn void PCIDSK::PCIDSKChannel::Synchronize();
+
+\brief Write pending information to disk.
+
+Some write and update operations on PCIDSK files are not written to disk 
+immediately after write calls.  This method will ensure that any pending
+writes are flushed through to disk.  
+
+NOTE: Currently this method does not invalidate read-cached information. 
+At some point in the future it might be extended to do this as well.
+
 */
 

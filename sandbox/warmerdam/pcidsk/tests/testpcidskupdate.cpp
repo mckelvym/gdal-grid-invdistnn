@@ -38,6 +38,7 @@ class PCIDSKUpdateTest : public CppUnit::TestFixture
     CPPUNIT_TEST( updateBandInterleaved );
     CPPUNIT_TEST( updatePixelInterleaved );
     CPPUNIT_TEST( testReadonly );
+    CPPUNIT_TEST( testSync );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -47,6 +48,7 @@ public:
     void updateBandInterleaved();
     void updatePixelInterleaved();
     void testReadonly();
+    void testSync();
 };
 
 // Registers the fixture into the 'registry'
@@ -227,5 +229,84 @@ void PCIDSKUpdateTest::testReadonly()
     }
 
     delete file;
+}
+
+/************************************************************************/
+/*                              testSync()                              */
+/*                                                                      */
+/*      Test support for the Synchronize() method. In particular we     */
+/*      create a tiled file, write some data, write some metadata,      */
+/*      and then confirm that after a sync we are able to read this     */
+/*      back on a second file handle without having closed the first    */
+/*      yet.                                                            */
+/************************************************************************/
+
+void PCIDSKUpdateTest::testSync()
+{
+/* -------------------------------------------------------------------- */
+/*      Create a simple pcidsk file.                                    */
+/* -------------------------------------------------------------------- */
+    PCIDSKFile *file;
+    eChanType channel_types[1] = {CHN_8U};
+
+    file = PCIDSK::Create( "sync_test.pix", 300, 200, 1, channel_types,
+                           "TILED", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+    
+/* -------------------------------------------------------------------- */
+/*      Update channel 1.                                               */
+/* -------------------------------------------------------------------- */
+    PCIDSKChannel *chan;
+
+    uint8 data_tile_8[127*127];
+    unsigned int i;
+    
+    for( i = 0; i < sizeof(data_tile_8); i++ )
+        data_tile_8[i] = i % 256;
+
+    chan = file->GetChannel(1);
+    chan->WriteBlock( 1, data_tile_8 );
+
+/* -------------------------------------------------------------------- */
+/*      Write some metadata.                                            */
+/* -------------------------------------------------------------------- */
+    chan->SetMetadataValue( "ABC", "DEF" );
+
+/* -------------------------------------------------------------------- */
+/*      Synchronize the file to disk.                                   */
+/* -------------------------------------------------------------------- */
+    file->Synchronize();
+    
+/* -------------------------------------------------------------------- */
+/*      Open the file for read access via another handle.               */
+/* -------------------------------------------------------------------- */
+    PCIDSKFile *file2 = PCIDSK::Open( "sync_test.pix", "r", NULL );
+
+/* -------------------------------------------------------------------- */
+/*      Read and check pixel data.                                      */
+/* -------------------------------------------------------------------- */
+    uint8 data_tile_8_r[127*127];
+
+    chan = file2->GetChannel(1);
+    chan->ReadBlock( 1, data_tile_8_r );
+
+    for( i = 0; i < sizeof(data_tile_8_r); i++ )
+    {
+        CPPUNIT_ASSERT( data_tile_8[i] == data_tile_8_r[i] );
+    }
+    
+/* -------------------------------------------------------------------- */
+/*      Check metadata.                                                 */
+/* -------------------------------------------------------------------- */
+    CPPUNIT_ASSERT( chan->GetMetadataValue( "ABC" ) == "DEF" );
+    
+/* -------------------------------------------------------------------- */
+/*      Cleanup.                                                        */
+/* -------------------------------------------------------------------- */
+    delete file2;
+    delete file;
+
+    unlink( "sync_test.pix" );
 }
 

@@ -58,6 +58,8 @@ namespace PCIDSK
                                     std::map<std::string,std::string> &md_set );
         void         SetMetadataValue( const char *group, int id,
                                        const std::string& key, const std::string& value );
+
+        void         Synchronize();
                                    
     private:
        bool         loaded;

@@ -78,6 +78,8 @@ namespace PCIDSK
         std::vector<std::string> GetMetadataKeys() 
             { return metadata.GetMetadataKeys(); }
 
+        virtual void Synchronize() {}
+
     // Just for CPCIDSKFile.
         void      InvalidateOverviewInfo();
 

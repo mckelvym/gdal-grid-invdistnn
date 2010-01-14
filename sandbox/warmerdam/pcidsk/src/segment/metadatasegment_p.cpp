@@ -57,6 +57,15 @@ MetadataSegment::MetadataSegment( PCIDSKFile *file, int segment,
 MetadataSegment::~MetadataSegment()
 
 {
+    Synchronize();
+}
+
+/************************************************************************/
+/*                            Synchronize()                             */
+/************************************************************************/
+
+void MetadataSegment::Synchronize()
+{
     if( loaded && update_list.size() > 0 )
         Save();
 }
