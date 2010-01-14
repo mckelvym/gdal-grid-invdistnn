@@ -32,6 +32,7 @@
 #include <cstring>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 
 using namespace PCIDSK;
 
