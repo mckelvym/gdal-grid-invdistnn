@@ -1,0 +1,150 @@
+OziExplorer File Format (OZF)
+=============================
+Binary format with extension: .ozf2 or .ozfx3
+
+Description derived from the code of http://code.google.com/p/ozex/ and http://code.google.com/p/swampex/.
+
+It was written by "hnedka" and published on 12-25-2009 on the Global Mapper Forum:
+http://www.globalmapperforum.com/forums/suggestion-box/3182-map-support-oziexplorer-ozfx3.html
+--
+
+Firts, there are some inherent limitations of the format:
+- max(height, width) has to be >= 300
+- max(height, width) has to be <= 0xFFFFFFFF
+- max(height, width) / 64 has to be <= 0xFFFF
+- resulting file size has to be <= 0xFFFFFFFF
+
+1) First header:
+
+typedef struct
+{
+	short magic;          // set it to 0x7780 for ozfx3 and 0x7778 for ozf2
+  long locked;          // if set to 1, than ozi refuses to export the image (doesn't seem to work for ozfx3 files though); just set to 0
+  short tile_width;     // set always to 64
+  short version;        // set always to 1
+  long old_header_size; // set always to 0x436; this has something to do with files having magic 0x7779 
+                        // (haven't seen any of those, they are probably rare, but ozi has code to open them)
+ } ozf_header_1;
+
+2) In ozfx3 files, there is an awkward part now, where random numbers and encryption key are generated. 
+Just put this right after the structure above:
+ 
+byte random_number;      // at least 0x94, at most 0xFF (obviously)
+byte random_numbers[random_number];
+
+Now retrieve byte at random_numbers[0x93]. This byte is used as first encryption/decryption key.
+Encryption is pretty simple:
+
+static uchar d1_key[0x1A] =
+{
+	0x2D, 0x4A, 0x43, 0xF1, 0x27, 0x9B, 0x69, 0x4F,
+	0x36, 0x52, 0x87, 0xEC, 0x5F, 0x42, 0x53, 0x22,
+	0x9E, 0x8B, 0x2D, 0x83, 0x3D, 0xD2, 0x84, 0xBA,
+	0xD8, 0x5B
+};
+
+// s = pointer to data that will be encrypted/decrypted (symmetrical xor encryption)
+// n = length of data
+// initial = key; there two keys used, one of them is "random_numbers[0x93]" mentioned above
+
+void ozf_decode1(unsigned char *s, long n, unsigned char initial)
+{
+	for(uint j = 0; j < n; j++)
+	{
+		s[j] ^= d1_key[j % 0x1A] + initial;
+	}
+}
+
+What you now do is that you encrypt the whole ozf_header_1 structure (including magic number). 
+Then write the correct magic number back (without modifying anything else).
+
+
+Now after those random_numbers will follow a dword. This has some effect on loading/settings, 
+but one hardcoded value will do:
+0x07A431F1
+
+All possible values (just for reference) are:
+0x07A431F1 - Ozf2Img 3.00+; unrestricted saving; encryption depth: 16
+0xE592C118 - MapMerge 1.05+; no saving; encryption depth: 16
+0xC208F454 - MapMerge 1.04; no saving; encryption depth: full
+0xB9F423C5 - ?
+0x6A59B7A4 - ?
+0xF9671483 - ?
+0xB214A3C5 - ?
+0xE6D4A238 - ?
+0xD56207A9 - ?
+0x59B7A443 - ?
+0xF423C556 - ?
+
+This dword will be encrypted using the initial key mentioned before. From now on, *only* the second key will be used, which is:
+(random_numbers[0x93] + 8A) & 0xFF
+
+3) Second part of the header. For ozf2 files, it starts right after the first header; for ozfx3 files, 
+ it starts after the encrypted 0x07A431F1 number.
+ 
+ Format is:
+ 
+typedef struct
+{
+	int header_size;		// always 40
+	int image_width;		// width of image in pixels
+	int image_height;		// height of image in pixels
+	short depth;				// set to 1
+	short bpp;					// set to 8
+	int reserved1;			// set to 0
+	int memory_size;		// height * width; probably not used and contains junk if it exceeds 0xFFFFFFFF (which is perfectly ok)
+	int reserved2;			// set to 0
+	int reserved3;			// set to 0
+	int unk2;						// set to 0x100
+	int unk2;						// set to 0x100
+
+ } ozf_header_2;
+ 
+ If the file is ozfx3, then encrypt it (in one piece).
+ 
+4) zoom levels header
+
+First item is separator - 0x77777777
+
+After that, we have zoom levels (ie list of all resolutions saved in file). The format is:
+short zoom_level_count;
+float zoom[zoom_level_count + 2];		// each float should have size 4
+
+First level is mandatory: 100.0
+Then there are several optional levels: 75.0, 50.0, 33.333333, 25, 20, 10, 5, 2.5, 1
+  --> these are added depending on the size of an image; if it is tiny, 100% will do. 
+  If it is very large, then other resolutions are needed, so that it doesn't have to load many tiles at once
+  when zooming out.
+After that, there are two more levels. These are preview images - they are resized, so that max (width, height) is 130
+for the first image and 300 for the second image. Then the percentage level is computed: (size_resized / size_original) * 100.
+
+Note that each of those images needs to be modified, so it has 255 or less colors (black is always present - but not sure, if it is actually needed).
+
+5) Now zoom levels follow
+
+First item is separator - 0x77777777
+
+Each resized image is cut up to 64x64 tiles. Border tiles that are not 64x64 are filled with black on the edges, so it makes 64x64.
+Each of those tiles has 64 * 64 bytes. Each of those bytes point to palette table - offset in that table gives us color.
+Each of the tiles is compressed using zlib. If the format is ozfx3, than first 16 bytes (or all the bytes, if there are less than 16 of them)
+are encrypted. They are saved probably row by row, but cannot verify.
+
+After that, info table follows:
+uint width;
+uint height;
+ushort tiles_x;
+ushort tiles_y;
+
+If the format is ozfx3, than all of these items are encrypted (not together, but one by one)
+
+Then we have palette, which is exactly 256 dwords. Each of them has format: byte B, byte G, byte R, byte zero.
+If the format is ozfx3, then the whole table is encrypted (1024 bytes).
+
+Then we have a table of dwords. Each of them points to an absolute offset (from start of the file)
+of one of those 64*64 tiles. Again, if the format is ozfx3, they are all encrypted - this time individually one by one.
+
+Dword follows. This time it points to the info table above (start of uint width). Again absolute offset and if ozfx3, then encrypted.
+
+6) 
+No separator this time. Now we have table of dwords, absolute offsets, encrypted individually (if ozfx3). They point to zoom levels above.
+At the end of the file is another word, same condition as above, but it points to start of this zoom_levels table.
