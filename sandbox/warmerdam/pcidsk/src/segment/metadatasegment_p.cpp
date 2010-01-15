@@ -35,6 +35,7 @@
 #include <cassert>
 #include <cstring>
 #include <cstdio>
+#include <map>
 
 using namespace PCIDSK;
 

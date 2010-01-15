@@ -30,7 +30,7 @@
 #include "core/pcidsk_utils.h"
 #include <cstdlib>
 #include <cstring>
-#include <ctype.h>
+#include <cctype>
 
 using namespace PCIDSK;
 

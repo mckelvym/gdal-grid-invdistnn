@@ -30,7 +30,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
-#include <errno.h>
+#include <cerrno>
 
 using namespace PCIDSK;
 
