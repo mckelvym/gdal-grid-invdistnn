@@ -4008,8 +4008,16 @@ HFADataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 
     for( iBand = 0; iBand < nBandCount; iBand++ )
     {
+        int bSuccess;
         GDALRasterBand *poSrcBand = poSrcDS->GetRasterBand( iBand+1 );
-        poDS->GetRasterBand(iBand+1)->SetMetadata( poSrcBand->GetMetadata() );
+        GDALRasterBand *poDstBand = poDS->GetRasterBand(iBand+1);
+
+        poDstBand->SetMetadata( poSrcBand->GetMetadata() );
+        poDstBand->SetDescription( poSrcBand->GetDescription() );
+
+        double dfNoDataValue = poSrcBand->GetNoDataValue( &bSuccess );
+        if( bSuccess )
+            poDstBand->SetNoDataValue( dfNoDataValue );
     }
 
 /* -------------------------------------------------------------------- */
