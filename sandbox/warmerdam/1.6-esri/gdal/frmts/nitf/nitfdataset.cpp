@@ -1453,7 +1453,7 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo )
     else if( poDS->bGotGeoTransform == FALSE 
              && nGCPCount > 0 
              && GDALGCPsToGeoTransform( nGCPCount, psGCPs, 
-                                        poDS->adfGeoTransform, TRUE ) )
+                                        poDS->adfGeoTransform, FALSE ) )
     {	
         poDS->bGotGeoTransform = TRUE;
     } 
