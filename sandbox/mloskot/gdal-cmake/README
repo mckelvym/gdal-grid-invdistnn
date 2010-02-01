@@ -1,0 +1,6 @@
+Currently, gdal-cmake is hosted in Mercurial repository
+at http://code.google.com/p/gdal-cmake/
+The works is based on GDAL 1.6 branch.
+Perhaps it will move closer GDAL repo some time in future.
+
+Mateusz Loskot <mateusz@loskot.net>
