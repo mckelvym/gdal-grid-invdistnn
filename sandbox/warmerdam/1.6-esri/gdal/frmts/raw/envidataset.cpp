@@ -836,6 +836,19 @@ void ENVIDataset::WriteProjectionInfo()
         VSIFPrintf( fp, "map info = {%s, %s}\n",
                     pszProjName, osLocation.c_str());
     }
+
+	// write out coordinate system string
+	if ( oSRS.morphToESRI() == OGRERR_NONE )
+	{
+		char *pszProjESRI = NULL;
+		if ( oSRS.exportToWkt(&pszProjESRI) == OGRERR_NONE )
+		{
+			if ( strlen(pszProjESRI) )
+				VSIFPrintf( fp, "coordinate system string = {%s}\n", pszProjESRI);
+		}
+		CPLFree(pszProjESRI);
+		pszProjESRI = NULL;
+	}
 }
 
 
@@ -1045,6 +1058,17 @@ int ENVIDataset::ProcessMapinfo( const char *pszMapinfo )
     }
 
 /* -------------------------------------------------------------------- */
+/*      Check if we have coordinate system string, and if so parse it.  */
+/* -------------------------------------------------------------------- */
+	char **papszCSS = NULL;
+    if( CSLFetchNameValue( papszHeader, "coordinate_system_string" ) != NULL )
+    {
+		papszCSS = CSLTokenizeString2(
+			CSLFetchNameValue( papszHeader, "coordinate_system_string" ), 
+			"{}", CSLT_PRESERVEQUOTES );
+    }
+
+/* -------------------------------------------------------------------- */
 /*      Check if we have projection info, and if so parse it.           */
 /* -------------------------------------------------------------------- */
     char        **papszPI = NULL;
@@ -1071,93 +1095,98 @@ int ENVIDataset::ProcessMapinfo( const char *pszMapinfo )
 /* -------------------------------------------------------------------- */
 /*      Capture projection.                                             */
 /* -------------------------------------------------------------------- */
-    if( EQUALN(papszFields[0],"UTM",3) && nCount >= 9 )
-    {
-        oSRS.SetUTM( atoi(papszFields[7]), 
-                     !EQUAL(papszFields[8],"South") );
-        if( nCount >= 10 && strstr(papszFields[9],"=") == NULL )
-            SetENVIDatum( &oSRS, papszFields[9] );
-        else
-            oSRS.SetWellKnownGeogCS( "NAD27" );
-    }
-    else if( EQUALN(papszFields[0],"State Plane (NAD 27)",19)
-             && nCount >= 7 )
-    {
-        oSRS.SetStatePlane( ITTVISToUSGSZone(atoi(papszFields[7])), FALSE );
-    }
-    else if( EQUALN(papszFields[0],"State Plane (NAD 83)",19)
-             && nCount >= 7 )
-    {
-        oSRS.SetStatePlane( ITTVISToUSGSZone(atoi(papszFields[7])), TRUE );
-    }
-    else if( EQUALN(papszFields[0],"Geographic Lat",14) 
-             && nCount >= 8 )
-    {
-        if( nCount >= 8 && strstr(papszFields[7],"=") == NULL )
-            SetENVIDatum( &oSRS, papszFields[7] );
-        else
-            oSRS.SetWellKnownGeogCS( "WGS84" );
-    }
-    else if( nPICount > 8 && atoi(papszPI[0]) == 3 ) // TM
-    {
-        oSRS.SetTM( CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
-                    CPLAtofM(papszPI[7]),
-                    CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
-    }
-    else if( nPICount > 8 && atoi(papszPI[0]) == 4 ) // Lambert Conformal Conic
-    {
-        oSRS.SetLCC( CPLAtofM(papszPI[7]), CPLAtofM(papszPI[8]),
-                     CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
-                     CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
-    }
-    else if( nPICount > 10 && atoi(papszPI[0]) == 5 ) // Oblique Merc (2 point)
-    {
-        oSRS.SetHOM2PNO( CPLAtofM(papszPI[3]), 
-                         CPLAtofM(papszPI[4]), CPLAtofM(papszPI[5]), 
-                         CPLAtofM(papszPI[6]), CPLAtofM(papszPI[7]), 
-                         CPLAtofM(papszPI[10]), 
-                         CPLAtofM(papszPI[8]), CPLAtofM(papszPI[9]) );
-    }
-    else if( nPICount > 8 && atoi(papszPI[0]) == 6 ) // Oblique Merc 
-    {
-        oSRS.SetHOM(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
-                    CPLAtofM(papszPI[5]), 0.0,
-                    CPLAtofM(papszPI[8]), 
-                    CPLAtofM(papszPI[6]), CPLAtofM(papszPI[7]) );
-    }
-    else if( nPICount > 8 && atoi(papszPI[0]) == 7 ) // Stereographic
-    {
-        oSRS.SetStereographic( CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
-                               CPLAtofM(papszPI[7]),
-                               CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
-    }
-    else if( nPICount > 8 && atoi(papszPI[0]) == 9 ) // Albers Equal Area
-    {
-        oSRS.SetACEA( CPLAtofM(papszPI[7]), CPLAtofM(papszPI[8]),
-                      CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
-                      CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
-    }
-    else if( nPICount > 6 && atoi(papszPI[0]) == 10 ) // Polyconic
-    {
-        oSRS.SetPolyconic(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
-                          CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
-    }
-    else if( nPICount > 6 && atoi(papszPI[0]) == 11 ) // LAEA
-    {
-        oSRS.SetLAEA(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
-                     CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
-    }
-    else if( nPICount > 6 && atoi(papszPI[0]) == 12 ) // Azimuthal Equid.
-    {
-        oSRS.SetAE(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
-                   CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
-    }
-    else if( nPICount > 6 && atoi(papszPI[0]) == 31 ) // Polar Stereographic
-    {
-        oSRS.SetPS(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
-                   1.0,
-                   CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
-    }
+	if ( oSRS.importFromESRI( papszCSS ) != OGRERR_NONE )
+	{
+		if( EQUALN(papszFields[0],"UTM",3) && nCount >= 9 )
+		{
+	        oSRS.SetUTM( atoi(papszFields[7]), 
+						!EQUAL(papszFields[8],"South") );
+			if( nCount >= 10 && strstr(papszFields[9],"=") == NULL )
+	            SetENVIDatum( &oSRS, papszFields[9] );
+			else
+	            oSRS.SetWellKnownGeogCS( "NAD27" );
+	    }
+	    else if( EQUALN(papszFields[0],"State Plane (NAD 27)",19)
+				&& nCount >= 7 )
+		{
+	        oSRS.SetStatePlane( ITTVISToUSGSZone(atoi(papszFields[7])), FALSE );
+	    }
+	    else if( EQUALN(papszFields[0],"State Plane (NAD 83)",19)
+				&& nCount >= 7 )
+		{
+	        oSRS.SetStatePlane( ITTVISToUSGSZone(atoi(papszFields[7])), TRUE );
+	    }
+	    else if( EQUALN(papszFields[0],"Geographic Lat",14) 
+				&& nCount >= 8 )
+		{
+	        if( nCount >= 8 && strstr(papszFields[7],"=") == NULL )
+				SetENVIDatum( &oSRS, papszFields[7] );
+			else
+	            oSRS.SetWellKnownGeogCS( "WGS84" );
+	    }
+	    else if( nPICount > 8 && atoi(papszPI[0]) == 3 ) // TM
+	    {
+			oSRS.SetTM( CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
+						CPLAtofM(papszPI[7]),
+						CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+		}
+		else if( nPICount > 8 && atoi(papszPI[0]) == 4 ) // Lambert Conformal Conic
+		{
+	        oSRS.SetLCC( CPLAtofM(papszPI[7]), CPLAtofM(papszPI[8]),
+						CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
+						CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+		}
+		else if( nPICount > 10 && atoi(papszPI[0]) == 5 ) // Oblique Merc (2 point)
+		{
+	        oSRS.SetHOM2PNO( CPLAtofM(papszPI[3]), 
+							CPLAtofM(papszPI[4]), CPLAtofM(papszPI[5]), 
+							CPLAtofM(papszPI[6]), CPLAtofM(papszPI[7]), 
+							CPLAtofM(papszPI[10]), 
+							CPLAtofM(papszPI[8]), CPLAtofM(papszPI[9]) );
+		}
+		else if( nPICount > 8 && atoi(papszPI[0]) == 6 ) // Oblique Merc 
+		{
+	        oSRS.SetHOM(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+						CPLAtofM(papszPI[5]), 0.0,
+						CPLAtofM(papszPI[8]), 
+						CPLAtofM(papszPI[6]), CPLAtofM(papszPI[7]) );
+		}
+		else if( nPICount > 8 && atoi(papszPI[0]) == 7 ) // Stereographic
+		{
+	        oSRS.SetStereographic( CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
+								CPLAtofM(papszPI[7]),
+								CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+		}
+		else if( nPICount > 8 && atoi(papszPI[0]) == 9 ) // Albers Equal Area
+		{
+			oSRS.SetACEA( CPLAtofM(papszPI[7]), CPLAtofM(papszPI[8]),
+						CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]),
+						CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+		}
+		else if( nPICount > 6 && atoi(papszPI[0]) == 10 ) // Polyconic
+		{
+	        oSRS.SetPolyconic(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+							CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+		}
+		else if( nPICount > 6 && atoi(papszPI[0]) == 11 ) // LAEA
+		{
+	        oSRS.SetLAEA(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+						CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+		}
+		else if( nPICount > 6 && atoi(papszPI[0]) == 12 ) // Azimuthal Equid.
+		{
+	        oSRS.SetAE(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+					CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+		}
+		else if( nPICount > 6 && atoi(papszPI[0]) == 31 ) // Polar Stereographic
+		{
+	        oSRS.SetPS(CPLAtofM(papszPI[3]), CPLAtofM(papszPI[4]), 
+					1.0,
+					CPLAtofM(papszPI[5]), CPLAtofM(papszPI[6]) );
+		}
+	}
+
+    CSLDestroy( papszCSS );
 
     // Still lots more that could be added for someone with the patience.
 
