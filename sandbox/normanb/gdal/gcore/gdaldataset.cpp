@@ -34,6 +34,10 @@
 
 CPL_CVSID("$Id$");
 
+CPL_C_START
+GDALAsyncRasterIO *GDALGetDefaultAsyncRasterIO( GDALDatasetH hDS );
+CPL_C_END
+
 typedef struct
 {
     /* PID of the thread that mark the dataset as shared */
@@ -2306,6 +2310,9 @@ static int GDALDumpOpenSharedDatasetsForeach(void* elt, void* user_data)
 }
 
 
+/************************************************************************/
+/*                 GDALDumpOpenSharedDatasetsForeach()                  */
+/************************************************************************/
 static int GDALDumpOpenDatasetsForeach(void* elt, void* user_data)
 {
     FILE *fp = (FILE*) user_data;
@@ -2336,6 +2343,9 @@ static int GDALDumpOpenDatasetsForeach(void* elt, void* user_data)
     return TRUE;
 }
 
+/************************************************************************/
+/*                        GDALDumpOpenDatasets()                        */
+/************************************************************************/
 /**
  * \brief List open datasets.
  *
@@ -2373,40 +2383,57 @@ int CPL_STDCALL GDALDumpOpenDatasets( FILE *fp )
 /************************************************************************/
 /*                        BeginAsyncRasterIO()                          */
 /************************************************************************/
-GDALAsyncRasterIO* GDALDataset::BeginAsyncRasterIO(int xOff, int yOff,
-										int xSize, int ySize,
-										void *pBuf,
-										int bufXSize, int bufYSize,
-										GDALDataType bufType,
-										int nBandCount, int* pBandMap,
-										int nPixelSpace, int nLineSpace,
-										int nBandSpace,
-										char **papszOptions)
+GDALAsyncRasterIO* 
+GDALDataset::BeginAsyncRasterIO(int xOff, int yOff,
+                                int xSize, int ySize,
+                                void *pBuf,
+                                int bufXSize, int bufYSize,
+                                GDALDataType bufType,
+                                int nBandCount, int* pBandMap,
+                                int nPixelSpace, int nLineSpace,
+                                int nBandSpace,
+                                char **papszOptions)
 {
-	return NULL;
-}
+    GDALAsyncRasterIO *poARIO = 
+        GDALGetDefaultAsyncRasterIO( (GDALDatasetH) this );
 
+    poARIO->xOff = xOff;
+    poARIO->yOff = yOff;
+    poARIO->xSize = xSize;
+    poARIO->ySize = ySize;
+    poARIO->pBuf = pBuf;
+    poARIO->bufXSize = bufXSize;
+    poARIO->bufYSize = bufYSize;
+    poARIO->nBandCount = nBandCount;
+    poARIO->pBandMap 
+
+    return NULL;
+}
 
 /************************************************************************/
 /*                        GDALBeginAsyncRasterIO()                      */
 /************************************************************************/
-GDALAsyncRasterIOH CPL_STDCALL GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
-										int xSize, int ySize,
-										void *pBuf,
-										int bufXSize, int bufYSize,
-										GDALDataType bufType,
-										int nBandCount, int* bandMap,
-										int nPixelSpace, int nLineSpace,
-										int nBandSpace,
-										char **papszOptions)
+
+GDALAsyncRasterIOH CPL_STDCALL 
+GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
+                       int xSize, int ySize,
+                       void *pBuf,
+                       int bufXSize, int bufYSize,
+                       GDALDataType bufType,
+                       int nBandCount, int* bandMap,
+                       int nPixelSpace, int nLineSpace,
+                       int nBandSpace,
+                       char **papszOptions)
+
 {
-	VALIDATE_POINTER1( hDS, "GDALDataset", NULL );
-	return (GDALAsyncRasterIOH)((GDALDataset *) hDS)->BeginAsyncRasterIO(xOff, yOff,
-											xSize, ySize,
-											pBuf, bufXSize, bufYSize,
-											bufType, nBandCount, bandMap,
-											nPixelSpace, nLineSpace,
-											nBandSpace, papszOptions);
+    VALIDATE_POINTER1( hDS, "GDALDataset", NULL );
+    return (GDALAsyncRasterIOH)((GDALDataset *) hDS)->
+        BeginAsyncRasterIO(xOff, yOff,
+                           xSize, ySize,
+                           pBuf, bufXSize, bufYSize,
+                           bufType, nBandCount, bandMap,
+                           nPixelSpace, nLineSpace,
+                           nBandSpace, papszOptions);
 }
 
 /************************************************************************/
@@ -2421,17 +2448,18 @@ void GDALDataset::EndAsyncRasterIO(GDALAsyncRasterIO *)
 /************************************************************************/
 void CPL_STDCALL GDALEndAsyncRasterIO(GDALDatasetH hDS, GDALAsyncRasterIOH hAsyncRasterIOH)
 {
-		VALIDATE_POINTER0( hDS, "GDALDataset" );
-		VALIDATE_POINTER0( hAsyncRasterIOH, "GDALAsyncRasterIO" );
-		((GDALDataset *) hDS) -> EndAsyncRasterIO((GDALAsyncRasterIO *)hAsyncRasterIOH);	
+    VALIDATE_POINTER0( hDS, "GDALDataset" );
+    VALIDATE_POINTER0( hAsyncRasterIOH, "GDALAsyncRasterIO" );
+    ((GDALDataset *) hDS) -> EndAsyncRasterIO((GDALAsyncRasterIO *)hAsyncRasterIOH);	
 }
 
 /*************************************************************************/
 /*                        GDALAsyncRasterIO()                            */
 /*************************************************************************/
+
 GDALAsyncRasterIO::GDALAsyncRasterIO(GDALDataset* poDS)
 {
-	this->poDS = poDS;
+    this->poDS = poDS;
 }
 
 /*************************************************************************/
@@ -2446,8 +2474,8 @@ GDALAsyncRasterIO::~GDALAsyncRasterIO()
 /**************************************************************************/
 GDALDatasetH CPL_STDCALL GDALGetGDALDataset(GDALAsyncRasterIOH hAsyncRasterIOH)
 {
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", NULL);
-	return (GDALDatasetH)((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetGDALDataset();
+    VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", NULL);
+    return (GDALDatasetH)((GDALAsyncRasterIO *)hAsyncRasterIOH)->GetGDALDataset();
 }
 
 /***************************************************************************/

@@ -368,8 +368,6 @@ GDALDataType CPL_STDCALL GDALGetDataTypeByName( const char *pszName )
     return GDT_Unknown;
 }
 
-
-/*
 /************************************************************************/
 /*                        GDALGetAsyncStatusTypeByName()                */
 /************************************************************************/

@@ -1118,20 +1118,20 @@ GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
 {
     JPIPKAKAsyncRasterIO* ario = new JPIPKAKAsyncRasterIO(this);
     ario->pBuf = pBuf;
-    ario->bufXSize = bufXSize;
-    ario->bufYSize = bufYSize;
-    ario->bufType = bufType;
+    ario->nBufXSize = bufXSize;
+    ario->nBufYSize = bufYSize;
+    ario->eBufType = bufType;
     ario->nBandCount = nBandCount;
-    ario->pBandMap = pBandMap;
+    ario->panBandMap = pBandMap;
     ario->nPixelSpace = nPixelSpace;
     ario->nLineSpace = nLineSpace;
     ario->nBandSpace = nBandSpace;
 
     if (pBandMap)
     {
-        ario->pBandMap = new int[nBandCount];
+        ario->panBandMap = new int[nBandCount];
         for (int i = 0; i < nBandCount; i++)
-            ario->pBandMap[i] = pBandMap[i];
+            ario->panBandMap[i] = pBandMap[i];
     }
 
     // check we have sensible values
@@ -1147,10 +1147,10 @@ GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
     if ((yOff + ySize) > this->GetRasterYSize())
         ySize = this->GetRasterYSize() - yOff;
 
-    ario->xOff = xOff;
-    ario->yOff = yOff;
-    ario->xSize = xSize;
-    ario->ySize = ySize;
+    ario->nXOff = xOff;
+    ario->nYOff = yOff;
+    ario->nXSize = xSize;
+    ario->nYSize = ySize;
 
     // parse options
     const char* pszLevel = CSLFetchNameValue(papszOptions, "LEVEL");
@@ -1280,7 +1280,7 @@ void GDALRegister_JPIPKAK()
 JPIPKAKAsyncRasterIO::JPIPKAKAsyncRasterIO(GDALDataset *poDS)
 {
 	this->poDS = (JPIPKAKDataset *)poDS;
-	this->pBandMap = NULL;
+	this->panBandMap = NULL;
 	this->pBuf = NULL;
 	this->nDataRead = 0;
 }
@@ -1293,8 +1293,7 @@ JPIPKAKAsyncRasterIO::~JPIPKAKAsyncRasterIO()
 	this->Stop();
 
 	// don't own the buffer
-	if (this->pBandMap)
-		delete [] pBandMap;
+        delete [] panBandMap;
 }
 /************************************************/
 /*           Start()                            */
@@ -1326,10 +1325,10 @@ void JPIPKAKAsyncRasterIO::Start()
         // calculate the kakadu adjust image size
         channels.configure(*(((JPIPKAKDataset*)this->poDS)->oCodestream));
         // set band mapping
-        if (pBandMap)
+        if (panBandMap)
         {
             for (int i = 0; i < nBandCount; i++)
-                channels.source_components[i] = pBandMap[i]-1;
+                channels.source_components[i] = panBandMap[i]-1;
         }
 
         kdu_coords* reference_expansion = new kdu_coords(1, 1);
@@ -1356,29 +1355,29 @@ void JPIPKAKAsyncRasterIO::Start()
         int fx = view_siz->x;
         int fy = view_siz->y;
 
-        this->xOff = ceil(this->xOff / (1.0 * nRes)); // roffx
-        this->yOff = ceil(this->yOff / (1.0 * nRes)); // roffy
-        this->xSize = ceil(this->xSize / (1.0 * nRes)); // rsizx
-        this->ySize = ceil(this->ySize / (1.0 * nRes)); // rsizy
+        this->nXOff = ceil(this->nXOff / (1.0 * nRes)); // roffx
+        this->nYOff = ceil(this->nYOff / (1.0 * nRes)); // roffy
+        this->nXSize = ceil(this->nXSize / (1.0 * nRes)); // rsizx
+        this->nYSize = ceil(this->nYSize / (1.0 * nRes)); // rsizy
 
-        if ((this->xOff + this->xSize) > fx)
-            this->xSize = fx - this->xOff;
+        if ((this->nXOff + this->nXSize) > fx)
+            this->nXSize = fx - this->nXOff;
 
-        if ((this->yOff+ this->ySize) > fy)
-            this->ySize = fy - this->yOff;
+        if ((this->nYOff+ this->nYSize) > fy)
+            this->nYSize = fy - this->nYOff;
 
         CPLString jpipUrl;
         CPLString comps;
 
         for (int i = 0; i < nBandCount; i++)
-            comps.Printf("%s%i,", comps.c_str(), pBandMap[i]);
+            comps.Printf("%s%i,", comps.c_str(), panBandMap[i]);
 
         comps.erase(comps.length() -1);
 	
         jpipUrl.Printf("%s&type=jpp-stream&roff=%i,%i&rsiz=%i,%i&fsiz=%i,%i,closest&quality=%i&comps=%s", 
                        ((JPIPKAKDataset*)this->poDS)->osRequestUrl.c_str(),
-                       this->xOff, this->yOff,
-                       this->xSize, this->ySize,
+                       this->nXOff, this->nYOff,
+                       this->nXSize, this->nYSize,
                        fx, fy,
                        this->nQualityLayers, comps.c_str());
 
@@ -1475,7 +1474,7 @@ void JPIPKAKAsyncRasterIO::Stop()
  *
  */
 
-GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(bool wait, int timeout,
+GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int timeout,
                                                                int* pnxbufoff,
                                                                int* pnybufoff,
                                                                int* pnxbufsize,
@@ -1543,10 +1542,10 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(bool wait, int ti
         kdu_coords* expansion = new kdu_coords(1, 1);
 
         kdu_dims* region = new kdu_dims();
-        region->access_pos()->x = this->xOff;
-        region->access_pos()->y = this->yOff;
-        region->access_size()->x = this->xSize;
-        region->access_size()->y = this->ySize;
+        region->access_pos()->x = this->nXOff;
+        region->access_pos()->y = this->nYOff;
+        region->access_size()->x = this->nXSize;
+        region->access_size()->y = this->nYSize;
         ((JPIPKAKDataset*)this->poDS)->oCodestream->apply_input_restrictions(0, 0, this->nLevel, this->nQualityLayers, region);
 
         kdu_dims* incomplete_region = new kdu_dims();
@@ -1578,7 +1577,7 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(bool wait, int ti
 
         int nPrecisionBits = 8;
 
-        switch(bufType)
+        switch(eBufType)
         {
           case GDT_Byte:
             nPrecisionBits = 8;

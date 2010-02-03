@@ -232,7 +232,7 @@ public:
     /* Returns GARIO_UPDATE, GARIO_NO_MESSAGE (if pending==false and nothing in the queue
        or if pending==true && timeout != 0 and nothing in the queue at the end of the timeout), 
        GARIO_COMPLETE, GARIO_ERROR */
-    virtual GDALAsyncStatusType GetNextUpdatedRegion(bool wait, int timeout,
+    virtual GDALAsyncStatusType GetNextUpdatedRegion(int wait, int timeout,
                                                      int* pnxbufoff,
                                                      int* pnybufoff,
                                                      int* pnxbufsize,

@@ -755,7 +755,6 @@ GDALRegenerateOverviewsMultiBand(int nBands, GDALRasterBand** papoSrcBands,
 /*                          GDALAsyncRasterIO                           */
 /* ******************************************************************** */
 
-
 /**
  * Class used as a session object for remote streaming data services
  */
@@ -763,61 +762,65 @@ class CPL_DLL GDALAsyncRasterIO
 {
   protected:
     GDALDataset* poDS;
-	int xOff;
-	int yOff;
-	int xSize;
-	int ySize;
-	void * pBuf;
-	int bufXSize;
-	int bufYSize;
-	GDALDataType bufType;
-	int nBandCount;
-	int* pBandMap;
-	int nPixelSpace;
-	int nLineSpace;
-	int nBandSpace;
-	long nDataRead;
+    int          nXOff;
+    int          nYOff;
+    int          nXSize;
+    int          nYSize;
+    void *       pBuf;
+    int          nBufXSize;
+    int          nBufYSize;
+    GDALDataType eBufType;
+    int          nBandCount;
+    int*         panBandMap;
+    int          nPixelSpace;
+    int          nLineSpace;
+    int          nBandSpace;
+    long         nDataRead;
+
   public:
-	GDALAsyncRasterIO(GDALDataset* poDS = NULL);
-	virtual ~GDALAsyncRasterIO();
+    GDALAsyncRasterIO(GDALDataset* poDS = NULL);
+    virtual ~GDALAsyncRasterIO();
 
-	GDALDataset* GetGDALDataset(){return poDS;}
-	int GetXOffset(){return xOff;}
-	int GetYOffset(){return yOff;}
-	int GetXSize(){return xSize;}
-	int GetYSize(){return ySize;}
-	void * GetBuffer(){return pBuf;}
-	int GetBufferXSize(){return bufXSize;}
-	int GetBufferYSize(){return bufYSize;}
-	GDALDataType GetBufferType(){return bufType;}
-	int GetBandCount(){return nBandCount;}
-	int* GetBandMap(){return pBandMap;}
-	int GetPixelSpace(){return nPixelSpace;}
-	int GetLineSpace(){return nLineSpace;}
-	int GetBandSpace(){return nBandSpace;}
+    GDALDataset* GetGDALDataset() {return poDS;}
+    int GetXOffset() {return nXOff;}
+    int GetYOffset() {return nYOff;}
+    int GetXSize() {return nXSize;}
+    int GetYSize() {return nYSize;}
+    void * GetBuffer() {return pBuf;}
+    int GetBufferXSize() {return nBufXSize;}
+    int GetBufferYSize() {return nBufYSize;}
+    GDALDataType GetBufferType() {return eBufType;}
+    int GetBandCount() {return nBandCount;}
+    int* GetBandMap() {return panBandMap;}
+    int GetPixelSpace() {return nPixelSpace;}
+    int GetLineSpace() {return nLineSpace;}
+    int GetBandSpace() {return nBandSpace;}
 
-	int GetNDataRead(){return nDataRead;}
+    int GetNDataRead(){return nDataRead;}
 	
-	/* Returns GARIO_UPDATE, GARIO_NO_MESSAGE (if pending==false and nothing in the queue or if pending==true && timeout != 0 and nothing in the queue at the end of the timeout), GARIO_COMPLETE, GARIO_ERROR */
-	virtual GDALAsyncStatusType GetNextUpdatedRegion(bool wait, int timeout,
-                                                   int* pnxbufoff,
-                                                   int* pnybufoff,
-                                                   int* pnxbufsize,
-                                                   int* pnybufsize) = 0;
-	/* if pending = true, we wait forever if timeout=0, for the timeout time otherwise */
-	/* if pending = false, we return immediately */
-	/* the int* are output values */
+    /* Returns GARIO_UPDATE, GARIO_NO_MESSAGE (if pending==false and nothing in the queue or if pending==true && timeout != 0 and nothing in the queue at the end of the timeout), GARIO_COMPLETE, GARIO_ERROR */
+    virtual GDALAsyncStatusType GetNextUpdatedRegion(int bWait, int nTimeout,
+                                                     int* pnBufXOff,
+                                                     int* pnBufYOff,
+                                                     int* pnBufXSize,
+                                                     int* pnBufXSize) = 0;
 
-	// lock a whole buffer.
-	virtual void LockBuffer() = 0;
+    /* if pending = true, we wait forever if timeout=0, for the timeout time otherwise */
+    /* if pending = false, we return immediately */
+    /* the int* are output values */
 
-	// lock only a block
+    // lock a whole buffer.
+    virtual void LockBuffer() = 0;
+
+    // lock only a block
     // the caller must relax a previous lock before asking for a new one
-    virtual void LockBuffer(int xbufoff, int ybufoff, int xbufsize, int ybufsize) = 0;
+    virtual void LockBuffer(int nBufXOff, int nBufYOff, 
+                            int nBufXSize, int nBufYSize) = 0;
     virtual void UnlockBuffer() = 0; 
 	
-	friend class GDALDataset;
+    friend class GDALDataset;
 };
+
 
 CPL_C_START
 GDALDriverManager CPL_DLL * GetGDALDriverManager( void );
