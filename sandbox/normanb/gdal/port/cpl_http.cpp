@@ -82,13 +82,14 @@ CPLWriteFct(void *buffer, size_t size, size_t nmemb, void *reqInfo)
 static size_t CPLHdrWriteFct(void *buffer, size_t size, size_t nmemb, void *reqInfo)
 {
     CPLHTTPResult *psResult = (CPLHTTPResult *) reqInfo;
-	// copy the buffer to a char* and initialize with zeros (zero terminate as well)
-	char* pszHdr = (char*)CPLCalloc(nmemb + 1, size);
+    // copy the buffer to a char* and initialize with zeros (zero terminate as well)
+    char* pszHdr = (char*)CPLCalloc(nmemb + 1, size);
     CPLPrintString(pszHdr, (char *)buffer, nmemb * size);
-	char *pszKey = NULL;
-	const char *pszValue = CPLParseNameValue(pszHdr, &pszKey );
-	psResult->papszHeaders = CSLSetNameValue(psResult->papszHeaders, pszKey, pszValue);
-	CPLFree(pszHdr);
+    char *pszKey = NULL;
+    const char *pszValue = CPLParseNameValue(pszHdr, &pszKey );
+    psResult->papszHeaders = CSLSetNameValue(psResult->papszHeaders, pszKey, pszValue);
+    CPLFree(pszHdr);
+    CPLFree(pszKey);
     return nmemb; 
 }
 
@@ -110,14 +111,14 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
 #else
     CURL *http_handle;
 
-	const char *pszPersistent = CSLFetchNameValue( papszOptions, "PERSISTENT" );
-	if (pszPersistent)
-	{
-		if (!http_persistent_handle)
-			http_persistent_handle = curl_easy_init();
+    const char *pszPersistent = CSLFetchNameValue( papszOptions, "PERSISTENT" );
+    if (pszPersistent)
+    {
+        if (!http_persistent_handle)
+            http_persistent_handle = curl_easy_init();
 
-		http_handle = http_persistent_handle;
-	}
+        http_handle = http_persistent_handle;
+    }
 
     char szCurlErrBuf[CURL_ERROR_SIZE+1];
     CPLHTTPResult *psResult;
@@ -129,7 +130,7 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
     psResult = (CPLHTTPResult *) CPLCalloc(1,sizeof(CPLHTTPResult));
 	
     if (!http_handle)
-		http_handle = curl_easy_init();
+        http_handle = curl_easy_init();
 
     curl_easy_setopt(http_handle, CURLOPT_URL, pszURL );
 
@@ -162,9 +163,9 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
     curl_easy_setopt(http_handle, CURLOPT_NOSIGNAL, 1 );
 #endif
 
-	// capture response headers
-	curl_easy_setopt(http_handle, CURLOPT_HEADERDATA, psResult);
-	curl_easy_setopt(http_handle, CURLOPT_HEADERFUNCTION, CPLHdrWriteFct);
+    // capture response headers
+    curl_easy_setopt(http_handle, CURLOPT_HEADERDATA, psResult);
+    curl_easy_setopt(http_handle, CURLOPT_HEADERFUNCTION, CPLHdrWriteFct);
  
     curl_easy_setopt(http_handle, CURLOPT_WRITEDATA, psResult );
     curl_easy_setopt(http_handle, CURLOPT_WRITEFUNCTION, CPLWriteFct );
@@ -197,10 +198,10 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
     }
 
 
-	if (!pszPersistent)
-	    curl_easy_cleanup( http_handle );
+    if (!pszPersistent)
+        curl_easy_cleanup( http_handle );
     
-	curl_slist_free_all(headers);
+    curl_slist_free_all(headers);
 
     return psResult;
 #endif /* def HAVE_CURL */
@@ -243,7 +244,7 @@ void CPLHTTPDestroyResult( CPLHTTPResult *psResult )
         CPLFree( psResult->pabyData );
         CPLFree( psResult->pszErrBuf );
         CPLFree( psResult->pszContentType );
-        CPLFree( psResult->papszHeaders );
+        CSLDestroy( psResult->papszHeaders );
         CPLFree( psResult );
     }
 }

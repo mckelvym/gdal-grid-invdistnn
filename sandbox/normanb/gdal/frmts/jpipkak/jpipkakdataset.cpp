@@ -500,11 +500,14 @@ JPIPKAKDataset::~JPIPKAKDataset()
 
     // frees decompressor as well
     if (this->oCodestream)
+    {
         this->oCodestream->destroy();
+        delete this->oCodestream;
+    }
+    delete this->oDecompressor;
 
     if (this->oCache)
         delete this->oCache;
-
 }
 
 /*****************************************/
@@ -581,6 +584,7 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
                 char *pszKey = NULL;
                 const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
                 this->pszCid = CPLStrdup(pszValue);
+                CPLFree( pszKey );
             }
 
             if (EQUALN(papszTokens[i], "path", 4))
@@ -588,6 +592,7 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
                 char *pszKey = NULL;
                 const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
                 this->pszPath = CPLStrdup(pszValue);
+                CPLFree( pszKey );
             }
         }
 
@@ -710,6 +715,8 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
                 kdu_byte* pabyBuffer = (kdu_byte *)CPLMalloc(nLen);
                 this->oCache->read(pabyBuffer, nLen);
                 VSIFWriteL(pabyBuffer, nLen, 1, fpLL);
+                CPLFree( pabyBuffer );
+
                 VSIFFlushL(fpLL);
                 VSIFSeekL(fpLL, 0, SEEK_SET);
 
@@ -1287,7 +1294,7 @@ JPIPKAKAsyncRasterIO::~JPIPKAKAsyncRasterIO()
 
 	// don't own the buffer
 	if (this->pBandMap)
-		delete pBandMap;
+		delete [] pBandMap;
 }
 /************************************************/
 /*           Start()                            */
