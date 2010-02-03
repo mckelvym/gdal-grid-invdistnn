@@ -1322,7 +1322,7 @@ void JPIPKAKAsyncRasterIO::Start()
         if (pBandMap)
         {
             for (int i = 0; i < nBandCount; i++)
-                channels.source_components[i] = pBandMap[i];
+                channels.source_components[i] = pBandMap[i]-1;
         }
 
         kdu_coords* reference_expansion = new kdu_coords(1, 1);
