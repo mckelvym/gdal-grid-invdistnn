@@ -35,7 +35,16 @@
 CPL_CVSID("$Id$");
 
 CPL_C_START
-GDALAsyncRasterIO *GDALGetDefaultAsyncRasterIO( GDALDatasetH hDS );
+GDALAsyncRasterIO *
+GDALGetDefaultAsyncRasterIO( GDALDataset *poDS,
+                             int nXOff, int nYOff,
+                             int nXSize, int nYSize,
+                             void *pBuf,
+                             int nBufXSize, int nBufYSize,
+                             GDALDataType eBufType,
+                             int nBandCount, int* panBandMap,
+                             int nPixelSpace, int nLineSpace,
+                             int nBandSpace, char **papszOptions);
 CPL_C_END
 
 typedef struct
@@ -2384,30 +2393,24 @@ int CPL_STDCALL GDALDumpOpenDatasets( FILE *fp )
 /*                        BeginAsyncRasterIO()                          */
 /************************************************************************/
 GDALAsyncRasterIO* 
-GDALDataset::BeginAsyncRasterIO(int xOff, int yOff,
-                                int xSize, int ySize,
+GDALDataset::BeginAsyncRasterIO(int nXOff, int nYOff,
+                                int nXSize, int nYSize,
                                 void *pBuf,
-                                int bufXSize, int bufYSize,
-                                GDALDataType bufType,
-                                int nBandCount, int* pBandMap,
+                                int nBufXSize, int nBufYSize,
+                                GDALDataType eBufType,
+                                int nBandCount, int* panBandMap,
                                 int nPixelSpace, int nLineSpace,
-                                int nBandSpace,
-                                char **papszOptions)
+                                int nBandSpace, char **papszOptions)
 {
-    GDALAsyncRasterIO *poARIO = 
-        GDALGetDefaultAsyncRasterIO( (GDALDatasetH) this );
+    // See gdaldefaultasync.cpp
 
-    poARIO->xOff = xOff;
-    poARIO->yOff = yOff;
-    poARIO->xSize = xSize;
-    poARIO->ySize = ySize;
-    poARIO->pBuf = pBuf;
-    poARIO->bufXSize = bufXSize;
-    poARIO->bufYSize = bufYSize;
-    poARIO->nBandCount = nBandCount;
-    poARIO->pBandMap 
-
-    return NULL;
+    return
+        GDALGetDefaultAsyncRasterIO( this, 
+                                     nXOff, nYOff, nXSize, nYSize,
+                                     pBuf, nBufXSize, nBufYSize, eBufType,
+                                     nBandCount, panBandMap,
+                                     nPixelSpace, nLineSpace, nBandSpace,
+                                     papszOptions );
 }
 
 /************************************************************************/
@@ -2439,8 +2442,9 @@ GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
 /************************************************************************/
 /*                        EndAsyncRasterIO()                            */
 /************************************************************************/
-void GDALDataset::EndAsyncRasterIO(GDALAsyncRasterIO *)
+void GDALDataset::EndAsyncRasterIO(GDALAsyncRasterIO *poARIO )
 {
+    delete poARIO;
 }
 
 /************************************************************************/
