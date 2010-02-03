@@ -96,6 +96,346 @@ private:
     char *m_pszError;
 };
 
+/************************************************************************/
+/* ==================================================================== */
+/*                            JPIPKAKRasterBand                         */
+/* ==================================================================== */
+/************************************************************************/
+
+/************************************************************************/
+/*                         JPIPKAKRasterBand()                          */
+/************************************************************************/
+
+JPIPKAKRasterBand::JPIPKAKRasterBand( int nBand, int nDiscardLevels,
+                                      kdu_codestream *oCodeStream,
+                                      int nResCount,
+                                      JPIPKAKDataset *poBaseDSIn )
+
+{
+    this->nBand = nBand;
+    this->poBaseDS = poBaseDSIn;
+
+    bYCbCrReported = FALSE;
+
+    if( oCodeStream->get_bit_depth(nBand-1) > 8
+        && oCodeStream->get_bit_depth(nBand-1) <= 16
+        && oCodeStream->get_signed(nBand-1) )
+    {
+        this->eDataType = GDT_Int16;
+        this->nBytesPerPixel = 2;
+    }
+    else if( oCodeStream->get_bit_depth(nBand-1) > 8
+             && oCodeStream->get_bit_depth(nBand-1) <= 16
+             && !oCodeStream->get_signed(nBand-1) )
+    {
+        this->eDataType = GDT_UInt16;
+        this->nBytesPerPixel = 2;
+    }
+    else if( oCodeStream->get_bit_depth(nBand-1) > 16
+             && oCodeStream->get_signed(nBand-1) )
+    {
+        this->eDataType = GDT_Int32;
+        this->nBytesPerPixel = 4;
+    }
+    else if( oCodeStream->get_bit_depth(nBand-1) > 16
+             && !oCodeStream->get_signed(nBand-1) )
+    {
+        this->eDataType = GDT_UInt32;
+        this->nBytesPerPixel = 4;
+    }
+    else
+    {
+        this->eDataType = GDT_Byte;
+        this->nBytesPerPixel = 1;
+    }
+
+    this->nDiscardLevels = nDiscardLevels;
+    this->oCodeStream = oCodeStream;
+
+    //this->jpip_client = jpip_client;
+
+    oCodeStream->apply_input_restrictions( 0, 0, nDiscardLevels, 0, NULL );
+    oCodeStream->get_dims( 0, band_dims );
+
+    this->nRasterXSize = band_dims.size.x;
+    this->nRasterYSize = band_dims.size.y;
+
+/* -------------------------------------------------------------------- */
+/*      Use a 2048x128 "virtual" block size unless the file is small.    */
+/* -------------------------------------------------------------------- */
+    if( nRasterXSize >= 2048 )
+        nBlockXSize = 2048;
+    else
+        nBlockXSize = nRasterXSize;
+    
+    if( nRasterYSize >= 256 )
+        nBlockYSize = 128;
+    else
+        nBlockYSize = nRasterYSize;
+
+/* -------------------------------------------------------------------- */
+/*      Figure out the color interpretation for this band.              */
+/* -------------------------------------------------------------------- */
+    
+    eInterp = GCI_Undefined;
+
+    //if( oJP2Channels.exists() )
+    //{
+    //    int nRedIndex=-1, nGreenIndex=-1, nBlueIndex=-1, nLutIndex;
+    //    int nCSI;
+
+    //    if( oJP2Channels.get_num_colours() == 3 )
+    //    {
+    //        oJP2Channels.get_colour_mapping( 0, nRedIndex, nLutIndex, nCSI );
+    //        oJP2Channels.get_colour_mapping( 1, nGreenIndex, nLutIndex, nCSI );
+    //        oJP2Channels.get_colour_mapping( 2, nBlueIndex, nLutIndex, nCSI );
+    //    }
+    //    else
+    //    {
+    //        oJP2Channels.get_colour_mapping( 0, nRedIndex, nLutIndex, nCSI );
+    //        if( nBand == 1 )
+    //            eInterp = GCI_GrayIndex;
+    //    }
+
+    //    if( eInterp != GCI_Undefined )
+    //        /* nothing to do */;
+
+    //    // If we have LUT info, it is a palette image.
+    //    else if( nLutIndex != -1 )
+    //        eInterp = GCI_PaletteIndex;
+
+    //    // Establish color band this is. 
+    //    else if( nRedIndex == nBand-1 )
+    //        eInterp = GCI_RedBand;
+    //    else if( nGreenIndex == nBand-1 )
+    //        eInterp = GCI_GreenBand;
+    //    else if( nBlueIndex == nBand-1 )
+    //        eInterp = GCI_BlueBand;
+    //    else
+    //        eInterp = GCI_Undefined;
+
+    //    // Could this band be an alpha band?
+    //    if( eInterp == GCI_Undefined )
+    //    {
+    //        int color_idx, opacity_idx, lut_idx;
+
+    //        for( color_idx = 0; 
+    //             color_idx < oJP2Channels.get_num_colours(); color_idx++ )
+    //        {
+    //            if( oJP2Channels.get_opacity_mapping( color_idx, opacity_idx,
+    //                                                  lut_idx, nCSI ) )
+    //            {
+    //                if( opacity_idx == nBand - 1 )
+    //                    eInterp = GCI_AlphaBand;
+    //            }
+    //            if( oJP2Channels.get_premult_mapping( color_idx, opacity_idx,
+    //                                                  lut_idx, nCSI ) )
+    //            {
+    //                if( opacity_idx == nBand - 1 )
+    //                    eInterp = GCI_AlphaBand;
+    //            }
+    //        }
+    //    }
+    //}
+    //else if( nBand == 1 )
+    //    eInterp = GCI_RedBand;
+    //else if( nBand == 2 )
+    //    eInterp = GCI_GreenBand;
+    //else if( nBand == 3 )
+    //    eInterp = GCI_BlueBand;
+    //else
+    //    eInterp = GCI_GrayIndex;
+        
+/* -------------------------------------------------------------------- */
+/*      Do we have any overviews?  Only check if we are the full res    */
+/*      image.                                                          */
+/* -------------------------------------------------------------------- */
+    nOverviewCount = 0;
+    papoOverviewBand = 0;
+
+    if( nDiscardLevels == 0 )
+    {
+        int  nXSize = nRasterXSize, nYSize = nRasterYSize;
+
+        for( int nDiscard = 1; nDiscard < nResCount; nDiscard++ )
+        {
+            kdu_dims  dims;
+
+            nXSize = (nXSize+1) / 2;
+            nYSize = (nYSize+1) / 2;
+
+            if( (nXSize+nYSize) < 128 || nXSize < 4 || nYSize < 4 )
+                continue; /* skip super reduced resolution layers */
+
+            oCodeStream->apply_input_restrictions( 0, 0, nDiscard, 0, NULL );
+            oCodeStream->get_dims( 0, dims );
+
+            if( (dims.size.x == nXSize || dims.size.x == nXSize-1)
+                && (dims.size.y == nYSize || dims.size.y == nYSize-1) )
+            {
+                nOverviewCount++;
+                papoOverviewBand = (JPIPKAKRasterBand **) 
+                    CPLRealloc( papoOverviewBand, 
+                                sizeof(void*) * nOverviewCount );
+                papoOverviewBand[nOverviewCount-1] = 
+                    new JPIPKAKRasterBand( nBand, nDiscard, oCodeStream, 0,
+                                           poBaseDS );
+            }
+            else
+            {
+                CPLDebug( "GDAL", "Discard %dx%d JPEG2000 overview layer,\n"
+                          "expected %dx%d.", 
+                          dims.size.x, dims.size.y, nXSize, nYSize );
+            }
+        }
+    }
+}
+
+/************************************************************************/
+/*                         ~JPIPKAKRasterBand()                          */
+/************************************************************************/
+
+JPIPKAKRasterBand::~JPIPKAKRasterBand()
+
+{
+	//if (this->ario != NULL) this->poBaseDS->EndAsyncRasterIO(ario);
+
+    for( int i = 0; i < nOverviewCount; i++ )
+        delete papoOverviewBand[i];
+
+    CPLFree( papoOverviewBand );
+}
+
+/************************************************************************/
+/*                          GetOverviewCount()                          */
+/************************************************************************/
+
+int JPIPKAKRasterBand::GetOverviewCount()
+
+{
+    return nOverviewCount;
+}
+
+/************************************************************************/
+/*                            GetOverview()                             */
+/************************************************************************/
+
+GDALRasterBand *JPIPKAKRasterBand::GetOverview( int iOverviewIndex )
+
+{
+    if( iOverviewIndex < 0 || iOverviewIndex >= nOverviewCount )
+        return NULL;
+    else
+        return papoOverviewBand[iOverviewIndex];
+}
+
+/************************************************************************/
+/*                             IReadBlock()                             */
+/************************************************************************/
+
+CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
+                                      void * pImage )
+{
+    CPLDebug( "JPIPKAK", "IReadBlock(%d,%d) on band %d.", 
+              nBlockXOff, nBlockYOff, nBand );
+
+    int xOff = nBlockXOff * this->nBlockXSize;
+    int yOff = nBlockYOff * this->nBlockYSize;
+
+    int *pBandMap = new(int[1]);
+    pBandMap[0] = this->nBand-1;
+
+    // allocate temp buffer
+    //void *pBuf = CPLMalloc(GDALGetDataTypeSize(this->eDataType)/8 * this->nBlockXSize * this->nBlockYSize);
+    //unsigned int *pBuf = (unsigned int*)CPLMalloc(sizeof(unsigned int) * this->nBlockXSize * this->nBlockYSize);
+
+    // GDALAsyncRasterIO takes a 32bpp buffer for byte, int32, uint32, float, etc and 16bpp for int16, uint16
+    int bufPixelSize;
+    if (this->eDataType == GDT_Int16 || this->eDataType == GDT_UInt16) bufPixelSize = 2; else bufPixelSize = 4;
+    void *pBuf = CPLMalloc(bufPixelSize * this->nBlockXSize * this->nBlockYSize);
+    //unsigned short *pBuf = (unsigned short*)CPLMalloc(sizeof(unsigned short) * this->nBlockXSize * this->nBlockYSize);
+
+    // setup options
+    char **papszOptions = NULL;
+    papszOptions = CSLAddString(papszOptions, "LEVEL=0");
+
+    GDALAsyncRasterIO* ario = this->poBaseDS->BeginAsyncRasterIO(xOff, yOff, this->nBlockXSize, 
+                                                                 this->nBlockYSize, pBuf, this->nBlockXSize, this->nBlockYSize, 
+                                                                 this->eDataType, 1, pBandMap, 0, 0, 0, papszOptions);
+
+    CSLDestroy(papszOptions);
+    delete []pBandMap;
+
+    int pnxbufoff; // absolute x image offset
+    int pnybufoff; // abolute y image offset
+    int pnxbufsize;
+    int pnybufsize;
+
+    unsigned char *pImageUnsignedChar = (unsigned char *)pImage;
+    unsigned short *pImageUnsignedShort = (unsigned short *)pImage;
+    short *pImageShort = (short *)pImage;
+    unsigned int *pImageUnsignedInt = (unsigned int *)pImage;
+    int *pImageInt = (int *)pImage;
+
+    unsigned char *pBufUnsignedChar = (unsigned char *)pBuf;
+    unsigned short *pBufUnsignedShort = (unsigned short *)pBuf;
+    short *pBufShort = (short *)pBuf;
+    unsigned int *pBufUnsignedInt = (unsigned int *)pBuf;
+    int *pBufInt = (int *)pBuf;
+
+    ario->LockBuffer();
+    GDALAsyncStatusType status = ario->GetNextUpdatedRegion(true, 0, &pnxbufoff,
+                                                            &pnybufoff,
+                                                            &pnxbufsize,
+                                                            &pnybufsize);
+    ario->UnlockBuffer();
+
+    while(status == GARIO_UPDATE)
+    {
+
+        int relYOffset = pnybufoff - yOff; // relative y offset of temporary image buffer
+        int relXOffset = pnxbufoff - xOff; // relative x offset of temporary image buffer
+        // loop over temp buffer lines and copy into pImage buffer
+        // # lines = pnybufsize
+        for (int y=0; y < pnybufsize; y++)
+        {
+            int srcOffset = y * pnxbufsize;
+            int destOffset = ((y + relYOffset) * this->nBlockXSize) + relXOffset;
+			
+            // loop over samples
+            // # samples = pnxbufsize
+            for (int x=0; x < pnxbufsize; x++)
+            {
+                if (this->eDataType == GDT_Int16) 
+                    pImageShort[destOffset+x] = pBufShort[srcOffset+x];
+                else if (this->eDataType == GDT_UInt16) 
+                    pImageUnsignedShort[destOffset+x] = pBufUnsignedShort[srcOffset+x];
+                else if (this->eDataType == GDT_Int32) 
+                    pImageInt[destOffset+x] = pBufInt[srcOffset+x];
+                else if (this->eDataType == GDT_UInt32) 
+                    pImageUnsignedInt[destOffset+x] = pBufUnsignedInt[srcOffset+x];
+                else // GDT_Byte
+                    pImageUnsignedChar[destOffset+x] = pBufUnsignedInt[srcOffset+x];
+            }
+        }
+
+        ario->LockBuffer();
+        status = ario->GetNextUpdatedRegion(true, 0, &pnxbufoff,
+                                            &pnybufoff,
+                                            &pnxbufsize,
+                                            &pnybufsize);
+        ario->UnlockBuffer();
+    }
+
+    poBaseDS->EndAsyncRasterIO(ario);
+
+    CPLFree(pBuf);
+
+    if (status == GARIO_ERROR)
+        return CE_Failure;
+    else
+        return CE_None;
+}
 
 /*****************************************/
 /*         JPIPKAKDataset()              */
@@ -308,6 +648,8 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             this->nRasterXSize = view_dims.size.x;
             this->nRasterYSize = view_dims.size.y;
 
+	        this->nBands = this->oCodestream->get_num_components();
+
             // TODO add color interpretation
 
             // calculate overviews
@@ -319,6 +661,18 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
 
             cod_in->get("Clayers", 0, 0, this->nQualityLayers);
             cod_in->get("Clevels", 0, 0, this->nResLevels);
+
+			// setup band objects
+	        int iBand;
+    
+			for( iBand = 1; iBand <= this->nBands; iBand++ )
+			{
+	            JPIPKAKRasterBand *poBand = 
+					new JPIPKAKRasterBand(iBand,0,this->oCodestream,this->nResLevels,
+										this );
+	
+				this->SetBand( iBand, poBand );
+			}
 
             // jpipkak does not support rasterband access, 
             // when this is added this->nComps can be replaced by this->nBands
@@ -349,7 +703,7 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             if (nLen > 0)
             {
                 // create in memory file using vsimem
-                CPLString osFileBoxName;
+				CPLString osFileBoxName;
                 osFileBoxName.Printf("/vsimem/jpip/%s.dat", this->pszCid);
                 FILE *fpLL = VSIFOpenL(osFileBoxName.c_str(), "w+");
                 this->oCache->set_read_scope(KDU_META_DATABIN, this->nCodestream, 0);
@@ -683,6 +1037,68 @@ const GDAL_GCP *JPIPKAKDataset::GetGCPs()
 /*  number of quality layers, and thread retrieval priority              */
 /*  xOff, yOff, xSize, ySize are at 1:1									 */
 /*************************************************************************/
+
+/**
+ * \brief Sets up an asynchronous data request
+ *
+ * This method sets up an asynchronus data request. Please see jpipkak.html for
+ * additional usage information.
+ *
+ * The nPixelSpace, nLineSpace and nBandSpace parameters allow reading into or
+ * writing from various organization of buffers. 
+ *
+ * This method is the same as the C GDALBeginAsyncRasterIO() function.
+ *
+ * @param nXOff The pixel offset to the top left corner of the region
+ * of the band to be accessed.  This would be zero to start from the left side.
+ *
+ * @param nYOff The line offset to the top left corner of the region
+ * of the band to be accessed.  This would be zero to start from the top.
+ *
+ * @param nXSize The width of the region of the band to be accessed in pixels.
+ *
+ * @param nYSize The height of the region of the band to be accessed in lines.
+ *
+ * @param pBuf The buffer into which the data should be read. This buffer must 
+ * contain at least nBufXSize * nBufYSize * nBandCount words of type eBufType.  
+ * It is organized in left to right,top to bottom pixel order.  Spacing is 
+ * controlled by the nPixelSpace, and nLineSpace parameters.
+ *
+ * @param nBufXSize the width of the buffer image into which the desired region
+ * is to be read, or from which it is to be written.
+ *
+ * @param nBufYSize the height of the buffer image into which the desired
+ * region is to be read, or from which it is to be written.
+ *
+ * @param eBufType the type of the pixel values in the pData data buffer.  The
+ * pixel values will automatically be translated to/from the GDALRasterBand
+ * data type as needed.
+ *
+ * @param nBandCount the number of bands being read or written. 
+ *
+ * @param panBandMap the list of nBandCount band numbers being read/written.
+ * Note band numbers are 1 based.   This may be NULL to select the first 
+ * nBandCount bands.
+ *
+ * @param nPixelSpace The byte offset from the start of one pixel value in
+ * pData to the start of the next pixel value within a scanline.  If defaulted
+ * (0) the size of the datatype eBufType is used.
+ *
+ * @param nLineSpace The byte offset from the start of one scanline in
+ * pData to the start of the next.  If defaulted the size of the datatype
+ * eBufType * nBufXSize is used.
+ *
+ * @param nBandSpace the byte offset from the start of one bands data to the
+ * start of the next.  If defaulted (zero) the value will be 
+ * nLineSpace * nBufYSize implying band sequential organization
+ * of the data buffer. 
+ *
+ * @param papszOptions Options include LEVEL=, LAYERS=, PRIORITY= for 
+ * resolution level, number of quality layers, and thread retrieval 
+ * priority       
+ *
+ */
+
 GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
                                                       int xSize, int ySize, 
                                                       void *pBuf,
@@ -760,8 +1176,16 @@ GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
 }
 
 /************************************************************************/
-/*                  EndAsyncRasterIO                                    */
+/*                  EndAsyncRasterIO()                                  */
 /************************************************************************/
+
+/**
+ * End asynchronous request.
+ *
+ * @param poARIO pointer to a GDALAsyncRasterIO
+ *
+ */
+
 void JPIPKAKDataset::EndAsyncRasterIO(GDALAsyncRasterIO *poARIO)
 {
 	delete poARIO;
@@ -1006,6 +1430,44 @@ void JPIPKAKAsyncRasterIO::Stop()
 /***********************************************/
 /*            GetNextUpdatedRegion()           */
 /***********************************************/
+
+/** 
+ * The function decompresses the available data to generate an image
+ * (according to the dataset buffer type set in 
+ * JPIPKAKDataset->BeginAsyncRasterIO) The window width, height (at the 
+ * requested discard level) decompressed is returned in the region pointer and 
+ * can be rendered by the client. The status of the rendering operation is one 
+ * of GARIO_PENDING, GARIO_UPDATE, GARIO_ERROR, GARIO_COMPLETE from the 
+ * GDALAsyncStatusType structure. GARIO_UPDATE, GARIO_PENDING require more 
+ * reads of GetNextUpdatedRegion to get the full image data, this is the 
+ * progressive rendering of JPIP. GARIO_COMPLETE indicates the window is complete.
+ *
+ * GDALAsyncStatusType is a structure used byGetNextUpdatedRegion to indicate 
+ * whether the function should be called again when either kakadu has more data 
+ * in its cache to decompress, or the server has not sent an End Of Response 
+ * (EOR) message to indicate the request window is complete. 
+ *
+ * The region passed into this function is passed by reference, and the caller 
+ * can read this region when the result returns to find the region that has been 
+ * decompressed. The image data is packed into the buffer, e.g. RGB if the region 
+ * requested has 3 components.
+ *
+ * @param wait
+ *
+ * @param timeout
+ *
+ * @param pnxbufoff
+ *
+ * @param pnybufoff
+ *
+ * @param pnxbufsize
+ *
+ * @param pnybufsize
+ *
+ * @return GDALAsyncStatusType
+ *
+ */
+
 GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(bool wait, int timeout,
                                                                int* pnxbufoff,
                                                                int* pnybufoff,
@@ -1134,7 +1596,7 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(bool wait, int ti
             {
                 bIsDecompressing = ((JPIPKAKDataset*)this->poDS)->oDecompressor->process((kdu_uint16 *)pBuf, 
                                                                                          channel_offsets, 1, *origin, *pnxbufsize, 100000, 0, *incomplete_region, *region, nPrecisionBits);
-            }
+            }			
         }
 
         ((JPIPKAKDataset*)this->poDS)->oDecompressor->finish();

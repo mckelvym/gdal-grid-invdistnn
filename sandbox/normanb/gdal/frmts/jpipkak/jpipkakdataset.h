@@ -156,6 +156,65 @@ public:
     friend class JPIPKAKAsyncRasterIO;
 };
 
+/************************************************************************/
+/* ==================================================================== */
+/*                            JPIPKAKRasterBand                          */
+/* ==================================================================== */
+/************************************************************************/
+
+class JPIPKAKRasterBand : public GDALPamRasterBand
+{
+    friend class JPIPKAKDataset;
+
+    JPIPKAKDataset *poBaseDS;
+
+    int         nDiscardLevels; 
+
+	int nBytesPerPixel;
+
+    kdu_dims 	band_dims; 
+
+    int		nOverviewCount;
+    JPIPKAKRasterBand **papoOverviewBand;
+
+    //kdu_client	*jpip_client;
+
+    kdu_codestream *oCodeStream;
+
+    GDALColorTable oCT;
+
+    int         bYCbCrReported;
+    
+    GDALColorInterp eInterp;
+
+	//GDALAsyncRasterIO* ario;
+
+    //virtual CPLErr IRasterIO( GDALRWFlag, int, int, int, int,
+                              //void *, int, int, GDALDataType,
+                              //int, int );
+  public:
+
+    		JPIPKAKRasterBand( int, int, kdu_codestream *, int,
+                                  JPIPKAKDataset * );
+    		~JPIPKAKRasterBand();
+    
+    virtual CPLErr IReadBlock( int, int, void * );
+
+    virtual int    GetOverviewCount();
+    virtual GDALRasterBand *GetOverview( int );
+
+    //virtual GDALColorInterp GetColorInterpretation();
+    //virtual GDALColorTable *GetColorTable();
+
+    // internal
+
+    //void        ApplyPalette( jp2_palette oJP2Palette );
+    //void        ProcessYCbCrTile(kdu_tile tile, GByte *pabyBuffer, 
+                                 //int nBlockXOff, int nBlockYOff,
+                                 //int nTileOffsetX, int nTileOffsetY );
+    //void        ProcessTile(kdu_tile tile, GByte *pabyBuffer );
+};
+
 class JPIPKAKAsyncRasterIO : public GDALAsyncRasterIO
 {
 private:
