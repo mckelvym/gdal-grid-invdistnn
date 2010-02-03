@@ -23,9 +23,10 @@ BIN_LIST += 	gdal_contour$(EXE) \
 		gdalbuildvrt$(EXE)
 endif
 
-NON_DEFAULT_LIST = 	multireadtest$(EXE) \
-			dumpoverviews$(EXE) gdalwarpsimple$(EXE) gdalflattenmask$(EXE) \
-			gdaltorture$(EXE) gdal2ogr$(EXE) test_ogrsf$(EXE)
+NON_DEFAULT_LIST = 	\
+	multireadtest$(EXE) dumpoverviews$(EXE) gdalwarpsimple$(EXE) \
+	gdalflattenmask$(EXE) gdaltorture$(EXE) gdal2ogr$(EXE) \
+	test_ogrsf$(EXE) gdalasyncread$(EXE)
 
 default:	gdal-config-inst gdal-config $(BIN_LIST)
 
@@ -92,6 +93,10 @@ gdalflattenmask$(EXE): gdalflattenmask.$(OBJ_EXT) $(DEP_LIBS)
 
 # Not compiled by default
 gdaltorture$(EXE): gdaltorture.$(OBJ_EXT) $(DEP_LIBS)
+	$(LD) $(LNK_FLAGS) $^ $(XTRAOBJ) $(CONFIG_LIBS) -o $@
+
+# Not compiled by default
+gdalasyncread$(EXE): gdalasyncread.$(OBJ_EXT) $(DEP_LIBS)
 	$(LD) $(LNK_FLAGS) $^ $(XTRAOBJ) $(CONFIG_LIBS) -o $@
 
 # Not compiled by default
