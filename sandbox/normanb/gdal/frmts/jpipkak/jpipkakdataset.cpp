@@ -314,7 +314,6 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             siz_params* siz_in = this->oCodestream->access_siz();
             kdu_params* cod_in = siz_in->access_cluster("COD");
 
-            CPLFree(&view_dims);
             delete oChannels;
             delete ref_expansion;
 
@@ -531,7 +530,7 @@ JPIPDataSegment* JPIPKAKDataset::ReadSegment(GByte* pabyData, int nLen)
 
         if ((segment->GetLen() > 0) && (!segment->IsEOR()))
         {
-            GByte* pabyDataSegment = new GByte[segment->GetLen()];
+            GByte* pabyDataSegment = (GByte *) CPLCalloc(1,segment->GetLen());
 			
             // copy data from input array pabyData to the data segment
             memcpy(pabyDataSegment, 
@@ -1283,7 +1282,7 @@ static void JPIPWorkerFunc(void *req)
         long nEnd = clock();
 		
         if ((nEnd - nStart) > 0)
-            nCurrentTransmissionLength = max(bytes / ((1.0 * (nEnd - nStart)) / CLOCKS_PER_SEC), nMinimumTransmissionLength);
+            nCurrentTransmissionLength = MAX(bytes / ((1.0 * (nEnd - nStart)) / CLOCKS_PER_SEC), nMinimumTransmissionLength);
 		
 
         CPLAcquireMutex(pGlobalMutex, 100.0);
