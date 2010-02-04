@@ -371,7 +371,6 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     unsigned int *pImageUnsignedInt = (unsigned int *)pImage;
     int *pImageInt = (int *)pImage;
 
-    unsigned char *pBufUnsignedChar = (unsigned char *)pBuf;
     unsigned short *pBufUnsignedShort = (unsigned short *)pBuf;
     short *pBufShort = (short *)pBuf;
     unsigned int *pBufUnsignedInt = (unsigned int *)pBuf;
@@ -639,7 +638,6 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
 
             kdu_channel_mapping* oChannels = new kdu_channel_mapping();
             oChannels->configure(*this->oCodestream);
-            int nRef_Comp = oChannels->get_source_component(0);
             kdu_coords* ref_expansion = new kdu_coords(1, 1);
 					
             // get available resolutions, image width / height etc.
@@ -800,6 +798,8 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
                  "Unable to parse required cnew and tid response headers" );
         return FALSE;    
     }
+
+    return FALSE; // we never really get here.
 }
 
 /******************************************/
@@ -1315,9 +1315,6 @@ void JPIPKAKAsyncRasterIO::Start()
     else
     {
         // calculate the url the worker function is going to retrieve
-        int w = this->poDS->GetRasterXSize();
-        int h = this->poDS->GetRasterYSize();
-		
         // calculate the kakadu adjust image size
         channels.configure(*(((JPIPKAKDataset*)this->poDS)->oCodestream));
         // set band mapping
@@ -1351,10 +1348,10 @@ void JPIPKAKAsyncRasterIO::Start()
         int fx = view_siz->x;
         int fy = view_siz->y;
 
-        this->nXOff = ceil(this->nXOff / (1.0 * nRes)); // roffx
-        this->nYOff = ceil(this->nYOff / (1.0 * nRes)); // roffy
-        this->nXSize = ceil(this->nXSize / (1.0 * nRes)); // rsizx
-        this->nYSize = ceil(this->nYSize / (1.0 * nRes)); // rsizy
+        this->nXOff = (int) ceil(this->nXOff / (1.0 * nRes)); // roffx
+        this->nYOff = (int) ceil(this->nYOff / (1.0 * nRes)); // roffy
+        this->nXSize = (int) ceil(this->nXSize / (1.0 * nRes)); // rsizx
+        this->nYSize = (int) ceil(this->nYSize / (1.0 * nRes)); // rsizy
 
         if ((this->nXOff + this->nXSize) > fx)
             this->nXSize = fx - this->nXOff;
@@ -1495,7 +1492,7 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
     if ((nSize == 0) && (wait))
     {
         // poll for change in cache size
-        clock_t end_wait = NULL;
+        clock_t end_wait = 0;
 
         if (timeout > 0)
             end_wait = clock() + timeout * CLOCKS_PER_SEC; 
@@ -1746,7 +1743,7 @@ static void JPIPWorkerFunc(void *req)
         long nEnd = clock();
 		
         if ((nEnd - nStart) > 0)
-            nCurrentTransmissionLength = MAX(bytes / ((1.0 * (nEnd - nStart)) / CLOCKS_PER_SEC), nMinimumTransmissionLength);
+            nCurrentTransmissionLength = (int) MAX(bytes / ((1.0 * (nEnd - nStart)) / CLOCKS_PER_SEC), nMinimumTransmissionLength);
 		
 
         CPLAcquireMutex(pGlobalMutex, 100.0);
