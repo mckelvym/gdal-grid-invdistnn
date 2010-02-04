@@ -342,9 +342,6 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     int xOff = nBlockXOff * this->nBlockXSize;
     int yOff = nBlockYOff * this->nBlockYSize;
 
-    int *pBandMap = new(int[1]);
-    pBandMap[0] = this->nBand-1;
-
     // allocate temp buffer
     //void *pBuf = CPLMalloc(GDALGetDataTypeSize(this->eDataType)/8 * this->nBlockXSize * this->nBlockYSize);
     //unsigned int *pBuf = (unsigned int*)CPLMalloc(sizeof(unsigned int) * this->nBlockXSize * this->nBlockYSize);
@@ -356,15 +353,12 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     //unsigned short *pBuf = (unsigned short*)CPLMalloc(sizeof(unsigned short) * this->nBlockXSize * this->nBlockYSize);
 
     // setup options
-    char **papszOptions = NULL;
-    papszOptions = CSLAddString(papszOptions, "LEVEL=0");
+    char *apszOptions[] = { "LEVEL=0", NULL };
 
-    GDALAsyncRasterIO* ario = this->poBaseDS->BeginAsyncRasterIO(xOff, yOff, this->nBlockXSize, 
-                                                                 this->nBlockYSize, pBuf, this->nBlockXSize, this->nBlockYSize, 
-                                                                 this->eDataType, 1, pBandMap, 0, 0, 0, papszOptions);
-
-    CSLDestroy(papszOptions);
-    delete []pBandMap;
+    GDALAsyncRasterIO* ario = this->poBaseDS->
+        BeginAsyncRasterIO(xOff, yOff, this->nBlockXSize, this->nBlockYSize, 
+                           pBuf, this->nBlockXSize, this->nBlockYSize, 
+                           this->eDataType, 1, &nBand, 0, 0, 0, apszOptions);
 
     int pnxbufoff; // absolute x image offset
     int pnybufoff; // abolute y image offset
@@ -390,9 +384,8 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                                                             &pnybufsize);
     ario->UnlockBuffer();
 
-    while(status == GARIO_UPDATE)
+    while(status == GARIO_UPDATE || status == GARIO_COMPLETE)
     {
-
         int relYOffset = pnybufoff - yOff; // relative y offset of temporary image buffer
         int relXOffset = pnxbufoff - xOff; // relative x offset of temporary image buffer
         // loop over temp buffer lines and copy into pImage buffer
@@ -418,6 +411,9 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                     pImageUnsignedChar[destOffset+x] = pBufUnsignedInt[srcOffset+x];
             }
         }
+
+        if( status == GARIO_COMPLETE )
+            break;
 
         ario->LockBuffer();
         status = ario->GetNextUpdatedRegion(true, 0, &pnxbufoff,
