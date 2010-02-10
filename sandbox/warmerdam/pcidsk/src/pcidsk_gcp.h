@@ -86,7 +86,7 @@ namespace PCIDSK {
             elevation_datum_ = datum;
         }
         
-        void GetElevationInfo(EElevationDatum& datum, EElevationUnit& unit)
+        void GetElevationInfo(EElevationDatum& datum, EElevationUnit& unit) const
         {
             unit = elevation_unit_;
             datum = elevation_datum_;

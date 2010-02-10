@@ -53,6 +53,7 @@ namespace PCIDSK {
         void ClearGCPs(void);
     private:
         void Load();
+        void RebuildSegmentData(void);
         bool loaded_;
         struct PCIDSKGCP2SegInfo;
         PCIDSKGCP2SegInfo* pimpl_;

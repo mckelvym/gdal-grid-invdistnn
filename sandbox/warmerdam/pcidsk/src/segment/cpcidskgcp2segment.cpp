@@ -158,13 +158,107 @@ void CPCIDSKGCP2Segment::SetGCPs(std::vector<PCIDSK::GCP> const& gcps)
     pimpl_->num_gcps = gcps.size();
     pimpl_->gcps = gcps; // copy them in
     
-    // TODO: regenerate GCP segment data
+    RebuildSegmentData();
 }
  
 // Return the count of GCPs in the segment
 unsigned int  CPCIDSKGCP2Segment::GetGCPCount(void) const
 {
     return pimpl_->num_gcps;
+}
+
+void CPCIDSKGCP2Segment::RebuildSegmentData(void)
+{
+    // Rebuild the segment data based on the contents of the struct
+    int num_blocks = (pimpl_->num_gcps + 1) / 2;
+    
+    // This will have to change when we have proper projections support
+    if (pimpl_->map_units != pimpl_->gcps[0].GetMapUnits()) {
+        pimpl_->map_units = pimpl_->gcps[0].GetMapUnits();
+    }
+    
+    data_size = num_blocks + 1024;
+    
+    pimpl_->seg_data.SetSize(data_size);
+    
+    // Write out the first few fields
+    pimpl_->seg_data.Put("GCP     ", 0, 8);
+    pimpl_->seg_data.Put(num_blocks, 8, 8);
+    pimpl_->seg_data.Put((int)pimpl_->gcps.size(), 16, 8);
+    pimpl_->seg_data.Put(pimpl_->map_units.c_str(), 24, 16);
+    pimpl_->seg_data.Put((int)0, 40, 8);
+    
+    // Time to write GCPs out:
+    std::vector<PCIDSK::GCP>::const_iterator iter =
+        pimpl_->gcps.begin();
+    
+    unsigned int id = 0;
+    while (iter != pimpl_->gcps.end()) {
+        std::size_t offset = 512 + id * 256;
+        
+        if ((*iter).IsCheckPoint()) {
+            pimpl_->seg_data.Put("C", offset, 1);
+        } else {
+            pimpl_->seg_data.Put("G", offset, 1);
+        }
+        
+        pimpl_->seg_data.Put("0", offset + 1, 5);
+        
+        // Start writing out the GCP values
+        pimpl_->seg_data.Put((*iter).GetPixel(), offset + 6, 14);
+        pimpl_->seg_data.Put((*iter).GetLine(), offset + 20, 14);
+        pimpl_->seg_data.Put((*iter).GetZ(), offset + 34, 12);
+        
+        GCP::EElevationUnit unit;
+        GCP::EElevationDatum datum;
+        (*iter).GetElevationInfo(datum, unit);
+        
+        char unit_c;
+        
+        switch (unit)
+        {
+        case GCP::EMetres:
+        case GCP::EUnknown:
+            unit_c = 'M';
+            break;
+        case GCP::EAmericanFeet:
+            unit_c = 'A';
+            break;
+        case GCP::EInternationalFeet:
+            unit_c = 'F';
+            break;
+        }
+        
+        char datum_c;
+        
+        switch(datum)
+        {
+        case GCP::EEllipsoidal:
+            datum_c = 'E';
+            break;
+        case GCP::EMeanSeaLevel:
+            datum_c = 'M';
+            break;
+        }
+        
+        // Write out elevation information
+        pimpl_->seg_data.Put(&unit_c, offset + 46, 1);
+        pimpl_->seg_data.Put(&datum_c, offset + 47, 1);
+        
+        pimpl_->seg_data.Put((*iter).GetX(), offset + 48, 22);
+        pimpl_->seg_data.Put((*iter).GetY(), offset + 70, 22);
+        pimpl_->seg_data.Put((*iter).GetPixelErr(), offset + 92, 10);
+        pimpl_->seg_data.Put((*iter).GetLineErr(), offset + 102, 10);
+        pimpl_->seg_data.Put((*iter).GetZErr(), offset + 112, 10);
+        pimpl_->seg_data.Put((*iter).GetXErr(), offset + 122, 14);
+        pimpl_->seg_data.Put((*iter).GetYErr(), offset + 136, 14);
+        pimpl_->seg_data.Put((*iter).GetIDString(), offset + 192, 64);
+        
+        id++;
+        iter++;
+    }
+    
+    WriteToFile(pimpl_->seg_data.buffer, 0, data_size);
 }
  
 // Clear a GCP Segment
@@ -173,6 +267,6 @@ void  CPCIDSKGCP2Segment::ClearGCPs(void)
     pimpl_->num_gcps = 0;
     pimpl_->gcps.clear();
     
-    // TODO: regenerate GCP segment data
+    RebuildSegmentData();
 }
 
