@@ -277,7 +277,7 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
                              tile_sizes[block_index] );
         // Do byte swapping if needed.
         if( needs_swap )
-            SwapData( buffer, pixel_size, xsize * ysize );
+            SwapPixels( buffer, pixel_type, xsize * ysize );
 
         return 1;
     }
@@ -301,7 +301,7 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
         
         // Do byte swapping if needed.
         if( needs_swap )
-            SwapData( buffer, pixel_size, xsize * ysize );
+            SwapPixels( buffer, pixel_type, xsize * ysize );
         
         return 1;
     }
@@ -340,7 +340,7 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
 /*      data.  Perhaps this should be conditional?                      */
 /* -------------------------------------------------------------------- */
     if( needs_swap )
-        SwapData( oUncompressedData.buffer, pixel_size, 
+        SwapPixels( oUncompressedData.buffer, pixel_type, 
                   GetBlockWidth() * GetBlockHeight() );
 
 /* -------------------------------------------------------------------- */
@@ -387,14 +387,14 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
     {
         // Do byte swapping if needed.
         if( needs_swap )
-            SwapData( buffer, pixel_size, pixel_count );
+            SwapPixels( buffer, pixel_type, pixel_count );
 
         vfile->WriteToFile( buffer, 
                             tile_offsets[block_index], 
                             tile_sizes[block_index] );
 
         if( needs_swap )
-            SwapData( buffer, pixel_size, pixel_count );
+            SwapPixels( buffer, pixel_type, pixel_count );
 
         return 1;
     }
@@ -409,7 +409,7 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
             oUncompressedData.buffer_size );
 
     if( needs_swap )
-        SwapData( oUncompressedData.buffer, pixel_size, pixel_count );
+        SwapPixels( oUncompressedData.buffer, pixel_type, pixel_count );
 
 /* -------------------------------------------------------------------- */
 /*      Compress the imagery.                                           */

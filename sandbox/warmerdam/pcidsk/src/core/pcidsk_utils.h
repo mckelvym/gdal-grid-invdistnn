@@ -46,12 +46,16 @@ namespace PCIDSK
 #define EQUAL(x,y) (pci_strcasecmp(x,y) == 0)
 #define EQUALN(x,y,n) (pci_strncasecmp(x,y,n) == 0)
   
-    void   SwapData( void *data, int value_size, int value_count );
+    void   SwapData( void* const data, const int size, const int wcount );
     bool   BigEndianSystem(void);
     void   GetCurrentDateTime( char *out_datetime );
 
     void   ParseTileFormat( std::string full_text, int &block_size, 
                             std::string &compression );
+    void   SwapPixels(void* const data, 
+                      const eChanType type, 
+                      const std::size_t count);
+                                                
 
     void LibJPEG_DecompressBlock(
         uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes,

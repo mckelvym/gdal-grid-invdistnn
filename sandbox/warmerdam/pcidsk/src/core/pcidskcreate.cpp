@@ -114,7 +114,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /* -------------------------------------------------------------------- */
 /*      Validate the channel types.                                     */
 /* -------------------------------------------------------------------- */
-    int channels[4] = {0,0,0,0};
+    int channels[7] = {0,0,0,0,0,0,0};
     int chan_index;
     bool regular = true;
 
@@ -300,6 +300,15 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 
     // FH24.4 - 32R bands.
     fh.Put( channels[3], 476, 4 );
+    
+    // FH24.5 - C16U bands
+    fh.Put( channels[4], 480, 4 );
+    
+    // FH24.6 - C16S bands
+    fh.Put( channels[5], 484, 4 );
+    
+    // FH24.7 - C32R bands
+    fh.Put( channels[6], 488, 4 );
 
 /* -------------------------------------------------------------------- */
 /*      Write out the file header.                                      */
@@ -330,14 +339,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 
     for( chan_index = 0; chan_index < channel_count; chan_index++ )
     {
-        if( channel_types[chan_index] == CHN_8U )
-            ih.Put( "8U", 160, 8 );
-        else if( channel_types[chan_index] == CHN_16S )
-            ih.Put( "16S", 160, 8 );
-        else if( channel_types[chan_index] == CHN_16U )
-            ih.Put( "16U", 160, 8 );
-        else if( channel_types[chan_index] == CHN_32R )
-            ih.Put( "32R", 160, 8 );
+        ih.Put(DataTypeName(channel_types[chan_index]).c_str(), 160, 8);    
 
         if( strncmp("TILED",options.c_str(),5) == 0 )
         {

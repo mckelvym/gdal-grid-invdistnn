@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Purpose:  Primary public include file for PCIDSK SDK.
+ * Purpose: Interface through which a PCIDSK GCP Segment would be accessed
  * 
  ******************************************************************************
  * Copyright (c) 2009
@@ -24,43 +24,35 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
+#ifndef __INCLUDE_PCIDSK_PCIDSK_GCPSEGMENT_H
+#define __INCLUDE_PCIDSK_PCIDSK_GCPSEGMENT_H
 
-/**
- * \file pcidsk.h
- *
- * Public PCIDSK library classes and functions.
- */
+#include "pcidsk_gcp.h"
 
-#ifndef PCIDSK_H_INCLUDED
-#define PCIDSK_H_INCLUDED
-
-#include "pcidsk_config.h"
-#include "pcidsk_types.h"
-#include "pcidsk_file.h"
-#include "pcidsk_channel.h"
-#include "pcidsk_buffer.h"
-#include "pcidsk_mutex.h"
-#include "pcidsk_exception.h"
-#include "pcidsk_interfaces.h"
-#include "pcidsk_segment.h"
-#include "pcidsk_io.h"
-#include "pcidsk_georef.h"
-#include "pcidsk_rpc.h"
-
-//! Namespace for all PCIDSK Library classes and functions.
+#include <vector>
 
 namespace PCIDSK {
-/************************************************************************/
-/*                      PCIDSK Access Functions                         */
-/************************************************************************/
-PCIDSKFile PCIDSK_DLL *Open( std::string filename, std::string access,  
-                             const PCIDSKInterfaces *interfaces = NULL );
-PCIDSKFile PCIDSK_DLL *Create( std::string filename, int pixels, int lines,
-                               int channel_count, eChanType *channel_types, 
-                               std::string options,
-                               const PCIDSKInterfaces *interfaces = NULL );
+    class PCIDSKGCPSegment
+    {
+    public:
+        // Return all GCPs in the segment
+        virtual std::vector<PCIDSK::GCP> const& GetGCPs(void) const = 0;
+        
+        // Write the given GCPs to the segment. If the segment already
+        // exists, it will be replaced with this one.
+        virtual void SetGCPs(std::vector<PCIDSK::GCP> const& gcps) = 0;
+        
+        // Return the count of GCPs in the segment
+        virtual unsigned int GetGCPCount(void) const = 0;
+        
+        // Clear a GCP Segment
+        virtual void ClearGCPs(void) = 0;
+        
+        // Virtual Destructor
+        virtual ~PCIDSKGCPSegment(void) {}
+    };
+} // end namespace PCIDSK
 
 
-} // end of PCIDSK namespace
+#endif // __INCLUDE_PCIDSK_PCIDSK_GCPSEGMENT_H
 
-#endif // PCIDSK_H_INCLUDED

@@ -44,6 +44,7 @@
 #include "segment/metadatasegment.h"
 #include "segment/sysblockmap.h"
 #include "segment/cpcidskrpcmodel.h"
+#include "segment/cpcidskgcp2segment.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -242,6 +243,9 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
             segobj = new CPCIDSKSegment( this, segment, segment_pointer );
 
         break;
+        
+      case SEG_GCP2:
+        segobj = new CPCIDSKGCP2Segment(this, segment, segment_pointer);
     
       case SEG_BIN:
         if (!strncmp(segment_pointer + 4, "RFMODEL ", 8))
@@ -358,6 +362,9 @@ void CPCIDSKFile::InitializeFromHeader()
     int count_16s = atoi(fh.Get(468,4));
     int count_16u = atoi(fh.Get(472,4));
     int count_32r = atoi(fh.Get(476,4));
+    int count_c16u = atoi(fh.Get(480,4));
+    int count_c16s = atoi(fh.Get(484,4));
+    int count_c32r = atoi(fh.Get(488,4));
 
 /* -------------------------------------------------------------------- */
 /*      for pixel interleaved files we need to compute the length of    */
@@ -403,27 +410,21 @@ void CPCIDSKFile::InitializeFromHeader()
         eChanType pixel_type;
         const char *pixel_type_string = ih.Get( 160, 8 );
     
-        if( strcmp(pixel_type_string,"8U      ") == 0 )
-            pixel_type = CHN_8U;
-        else if( strcmp(pixel_type_string,"16S     ") == 0 )
-            pixel_type = CHN_16S;
-        else if( strcmp(pixel_type_string,"16U     ") == 0 )
-            pixel_type = CHN_16U;
-        else if( strcmp(pixel_type_string,"32R     ") == 0 )
-            pixel_type = CHN_32R;
-        else
-            pixel_type = CHN_UNKNOWN; // should we throw an exception?  
+        pixel_type = GetDataTypeFromName(pixel_type_string);
 
-        // if we didn't get channel type in header, work out from counts (old)
-
-        if( channelnum <= count_8u )
-            pixel_type = CHN_8U;
-        else if( channelnum <= count_8u + count_16s )
-            pixel_type = CHN_16S;
-        else if( channelnum <= count_8u + count_16s + count_16u )
-            pixel_type = CHN_16U;
-        else 
-            pixel_type = CHN_32R;
+        // if we didn't get channel type in header, work out from counts (old).
+        // Check this only if we don't have complex channels:
+        
+        if (count_c32r == 0 && count_c16u == 0 && count_c16s == 0) {
+            if( channelnum <= count_8u )
+                pixel_type = CHN_8U;
+            else if( channelnum <= count_8u + count_16s )
+                pixel_type = CHN_16S;
+            else if( channelnum <= count_8u + count_16s + count_16u )
+                pixel_type = CHN_16U;
+            else 
+                pixel_type = CHN_32R;
+        }
             
         if( interleaving == "BAND" )
         {

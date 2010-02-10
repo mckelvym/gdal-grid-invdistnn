@@ -27,7 +27,8 @@ OBJ = \
 	segment/cpcidskvectorsegment.o \
 	segment/metadatasegment_p.o \
 	segment/sysblockmap.o \
-	segment/cpcidskrpcmodel.o
+	segment/cpcidskrpcmodel.o \
+	segment/cpcidskgcp2segment.o
 
 
 CXXFLAGS = -g -Wall -fPIC -I. $(JPEG_FLAGS)

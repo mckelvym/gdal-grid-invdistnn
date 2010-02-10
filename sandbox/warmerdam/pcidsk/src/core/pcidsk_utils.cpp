@@ -122,13 +122,50 @@ int64 PCIDSK::atoint64( const char *str_value )
 }
 
 /************************************************************************/
+/*                            SwapPixels()                              */
+/************************************************************************/
+/**
+ * @brief Perform an endianess swap for a given buffer of pixels
+ *
+ * Baed on the provided data type, do an appropriate endianess swap for
+ * a buffer of pixels. Deals with the Complex case specially, in
+ * particular.
+ *
+ * @param data the pixels to be swapped
+ * @param type the data type of the pixels
+ * @param count the count of pixels (not bytes, words, etc.)
+ */
+void PCIDSK::SwapPixels(void* const data, 
+                        const eChanType type, 
+                        const std::size_t count)
+{
+    switch(type) {
+    case CHN_8U:
+    case CHN_16U:
+    case CHN_16S:
+    case CHN_32R:
+        SwapData(data, DataTypeSize(type), count);
+        break;
+    case CHN_C16U:
+    case CHN_C16S:
+    case CHN_C32R:
+        SwapData(data, DataTypeSize(type) / 2, count * 2);
+        break;
+    default:
+        ThrowPCIDSKException("Unknown data type passed to SwapPixels."
+            "This is a software bug. Please contact your vendor.");
+    }
+}
+
+/************************************************************************/
 /*                              SwapData()                              */
 /************************************************************************/
 
-void PCIDSK::SwapData( void *data, int size, int count )
+void PCIDSK::SwapData( void* const data, const int size, const int wcount )
 
 {
-    uint8 *data8 = (uint8 *) data;
+    uint8* data8 = reinterpret_cast<uint8*>(data);
+    std::size_t count = wcount;
 
     if( size == 2 )
     {

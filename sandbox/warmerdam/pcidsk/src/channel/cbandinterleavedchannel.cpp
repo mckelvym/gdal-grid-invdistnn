@@ -181,7 +181,7 @@ int CBandInterleavedChannel::ReadBlock( int block_index, void *buffer,
 /*      Do byte swapping if needed.                                     */
 /* -------------------------------------------------------------------- */
     if( needs_swap )
-        SwapData( buffer, pixel_size, xsize );
+        SwapPixels( buffer, pixel_type, xsize );
 
     return 1;
 }
@@ -220,13 +220,13 @@ int CBandInterleavedChannel::WriteBlock( int block_index, void *buffer )
         MutexHolder holder( *io_mutex_p );
 
         if( needs_swap ) // swap before write.
-            SwapData( buffer, pixel_size, width );
+            SwapPixels( buffer, pixel_type, width );
 
         interfaces->io->Seek( *io_handle_p, offset, SEEK_SET );
         interfaces->io->Write( buffer, 1, window_size, *io_handle_p );
 
         if( needs_swap ) // restore to original order.
-            SwapData( buffer, pixel_size, width );
+            SwapPixels( buffer, pixel_type, width );
     }
 
 /* -------------------------------------------------------------------- */
@@ -251,7 +251,7 @@ int CBandInterleavedChannel::WriteBlock( int block_index, void *buffer )
                     pixel_size );
 
             if( needs_swap ) // swap before write.
-                SwapData( this_pixel, pixel_size, 1 );
+                SwapPixels( this_pixel, pixel_type, 1 );
 
             this_pixel += pixel_size;
         }

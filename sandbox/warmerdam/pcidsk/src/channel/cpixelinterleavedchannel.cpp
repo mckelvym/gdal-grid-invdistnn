@@ -154,7 +154,7 @@ int CPixelInterleavedChannel::ReadBlock( int block_index, void *buffer,
 /*      Do byte swapping if needed.                                     */
 /* -------------------------------------------------------------------- */
     if( needs_swap )
-        SwapData( buffer, pixel_size, win_xsize );
+        SwapPixels( buffer, pixel_type, win_xsize );
 
     return 1;
 }
@@ -185,6 +185,7 @@ int CPixelInterleavedChannel::WriteBlock( int block_index, void *buffer )
 /*      reasonably efficiently.  We might consider adding faster        */
 /*      cases for 16/32bit data that is word aligned.                   */
 /* -------------------------------------------------------------------- */
+    // TODO: fixup for the complex case
     if( pixel_size == pixel_group )
         memcpy( pixel_buffer, buffer, pixel_size * width );
     else
