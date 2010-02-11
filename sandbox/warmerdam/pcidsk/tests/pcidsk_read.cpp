@@ -28,6 +28,7 @@
 #include "pcidsk.h"
 #include "pcidsk_vectorsegment.h"
 #include "pcidsk_georef.h"
+#include "pcidsk_gcpsegment.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -111,6 +112,25 @@ void ReportRPCSegment(PCIDSK::PCIDSKRPCSegment *rpcseg)
     printf("\tLine scale: %f\n", linescale);
     
     printf("\tGeosys String: [%s]\n", rpcseg->GetGeosysString().c_str());
+}
+
+void ReportGCPSegment(PCIDSK::PCIDSKGCPSegment *segobj)
+{
+    std::vector<PCIDSK::GCP> gcps = segobj->GetGCPs();
+    
+    printf("Got GCP Segment with %u GCPs\n", (unsigned int)gcps.size());
+    std::vector<PCIDSK::GCP>::const_iterator iter =
+        gcps.begin();
+    
+    unsigned int gcp_num = 1;
+    while (iter != gcps.end()) {
+        printf("%d: [%s] Proj: [%s]\n", gcp_num, (*iter).GetIDString(), (*iter).GetMapUnits().c_str());
+        printf("\t(%f, %f, %f) -> (%f, %f)\n",
+            (*iter).GetX(), (*iter).GetY(), (*iter).GetZ(),
+            (*iter).GetPixel(), (*iter).GetLine());
+        gcp_num++;
+        iter++;
+    }
 }
 
 } // end anonymous namespace for helper functions
@@ -446,6 +466,12 @@ int main( int argc, char **argv)
                          (rpcseg = dynamic_cast<PCIDSK::PCIDSKRPCSegment*>(segobj)))
                     {
                         ReportRPCSegment(rpcseg);
+                    }
+                    
+                    PCIDSK::PCIDSKGCPSegment* gcpseg = NULL;
+                    if (segobj != NULL && (gcpseg = dynamic_cast<PCIDSK::PCIDSKGCPSegment*>(segobj)))
+                    {
+                        ReportGCPSegment(gcpseg);
                     }
                 }
                 catch( PCIDSK::PCIDSKException ex )

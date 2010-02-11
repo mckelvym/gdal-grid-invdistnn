@@ -28,6 +28,7 @@
 #include "pcidsk.h"
 #include <cppunit/extensions/HelperMacros.h>
 #include <cstring>
+#include <unistd.h>
 
 using namespace PCIDSK;
 
@@ -40,6 +41,11 @@ class PCIDSKCreateTest : public CppUnit::TestFixture
     CPPUNIT_TEST( tiledRLE );
     CPPUNIT_TEST( tiledJPEG );
     CPPUNIT_TEST( testErrors );
+    
+    // Complex creation and opening support
+    CPPUNIT_TEST(createComplex16U);
+    CPPUNIT_TEST(createComplex16S);
+    CPPUNIT_TEST(createComplex32R);
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -51,6 +57,9 @@ public:
     void tiledRLE();
     void tiledJPEG();
     void testErrors();
+    void createComplex16U();
+    void createComplex16S();
+    void createComplex32R();
 };
 
 // Registers the fixture into the 'registry'
@@ -238,6 +247,156 @@ void PCIDSKCreateTest::tiledJPEG()
     delete file;
 
     unlink( "tiledjpeg_file.pix" );
+}
+
+/************************************************************************/
+/*                         createComplex16U()                           */
+/************************************************************************/
+
+void PCIDSKCreateTest::createComplex16U()
+{
+    PCIDSKFile* file;
+    PCIDSKChannel *chan;
+    
+    eChanType channel_types[2] = { CHN_C16U, CHN_C16U };
+    file = PCIDSK::Create("complex_16u_file.pix", 512, 512, 2, channel_types, 
+        "BAND", NULL);
+    
+    CPPUNIT_ASSERT(file != NULL);
+    
+    delete file;
+    file = PCIDSK::Open("complex_16u_file.pix", "r+", NULL);
+    
+    CPPUNIT_ASSERT(file != NULL);
+    
+    // Try to get the chnannel
+    chan = file->GetChannel(2);
+    
+    CPPUNIT_ASSERT(chan != NULL);
+    CPPUNIT_ASSERT(chan->GetType() == CHN_C16U);
+    CPPUNIT_ASSERT(DataTypeSize(chan->GetType()) == 4);
+    
+    // Write a phase gradient to the channel
+    unsigned short* const data =
+        new unsigned short[512 * 512 * DataTypeSize(chan->GetType())];
+    
+    for (std::size_t y = 0; y < 512; y++) {
+        for (std::size_t x = 0; x < 512; x++) {
+            std::size_t offset = 2 * x + (512 * 2) * y;
+            data[offset] = x;
+            data[offset + 1] = y; // x + yj
+        }
+    }
+    
+    for (std::size_t y = 0; y < 512; y++) {
+        unsigned short* line = &data[y * 512 * 2];
+        chan->WriteBlock(y, line);
+    }
+    
+    delete[] data;
+    delete file;
+    
+    unlink("complex_16u_file.pix");
+}
+
+/************************************************************************/
+/*                         createComplex16S()                           */
+/************************************************************************/
+
+void PCIDSKCreateTest::createComplex16S()
+{
+    PCIDSKFile* file;
+    PCIDSKChannel *chan;
+    
+    eChanType channel_types[2] = { CHN_C16S, CHN_C16S };
+    file = PCIDSK::Create("complex_16s_file.pix", 512, 512, 2, channel_types, 
+        "BAND", NULL);
+    
+    CPPUNIT_ASSERT(file != NULL);
+    
+    delete file;
+    file = PCIDSK::Open("complex_16s_file.pix", "r+", NULL);
+    
+    CPPUNIT_ASSERT(file != NULL);
+    
+    // Try to get the chnannel
+    chan = file->GetChannel(2);
+    
+    CPPUNIT_ASSERT(chan != NULL);
+    CPPUNIT_ASSERT(chan->GetType() == CHN_C16S);
+    CPPUNIT_ASSERT(DataTypeSize(chan->GetType()) == 4);
+    
+    // Write a phase gradient to the channel
+    short* const data =
+        new short[512 * 512 * DataTypeSize(chan->GetType())];
+    
+    for (std::size_t y = 0; y < 512; y++) {
+        for (std::size_t x = 0; x < 512; x++) {
+            std::size_t offset = 2 * x + (512 * 2) * y;
+            data[offset] = x;
+            data[offset + 1] = y; // x + yj
+        }
+    }
+    
+    for (std::size_t y = 0; y < 512; y++) {
+        short* line = &data[y * 512 * 2];
+        chan->WriteBlock(y, line);
+    }
+    
+    delete[] data;
+    delete file;
+    
+    unlink("complex_16s_file.pix");
+}
+
+/************************************************************************/
+/*                         createComplex32R()                           */
+/************************************************************************/
+
+void PCIDSKCreateTest::createComplex32R()
+{
+    PCIDSKFile* file;
+    PCIDSKChannel *chan;
+    
+    eChanType channel_types[2] = { CHN_C32R, CHN_C32R };
+    file = PCIDSK::Create("complex_32r_file.pix", 512, 512, 2, channel_types, 
+        "BAND", NULL);
+    
+    CPPUNIT_ASSERT(file != NULL);
+    
+    delete file;
+    file = PCIDSK::Open("complex_32r_file.pix", "r+", NULL);
+    
+    CPPUNIT_ASSERT(file != NULL);
+    
+    // Try to get the chnannel
+    chan = file->GetChannel(2);
+    
+    CPPUNIT_ASSERT(chan != NULL);
+    CPPUNIT_ASSERT(chan->GetType() == CHN_C32R);
+    CPPUNIT_ASSERT(DataTypeSize(chan->GetType()) == 8);
+    
+    // Write a phase gradient to the channel
+    float* const data =
+        new float[512 * 512 * DataTypeSize(chan->GetType())];
+    
+    for (std::size_t y = 0; y < 512; y++) {
+        for (std::size_t x = 0; x < 512; x++) {
+            std::size_t offset = 4 * x + (512 * 4) * y;
+            data[offset] = x;
+            data[offset + 1] = y; // x + yj
+        }
+    }
+    
+    for (std::size_t y = 0; y < 512; y++) {
+        float* line = &data[y * 512 * 4];
+        chan->WriteBlock(y, line);
+    }
+    
+    delete[] data;
+    delete file;
+    
+    unlink("complex_32r_file.pix");
 }
 
 /************************************************************************/

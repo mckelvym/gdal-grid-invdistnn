@@ -29,7 +29,10 @@
 #include "pcidsk.h"
 #include "pcidsk_georef.h"
 #include "pcidsk_pct.h"
+#include "pcidsk_gcp.h"
+#include "pcidsk_gcpsegment.h"
 #include <cppunit/extensions/HelperMacros.h>
+#include <unistd.h>
 
 using namespace PCIDSK;
 
@@ -42,7 +45,10 @@ class SegmentsTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testPCTRead );
     CPPUNIT_TEST( testPCTWrite );
     CPPUNIT_TEST( testSegDelete );
-
+    CPPUNIT_TEST( testGCPAdd );
+    CPPUNIT_TEST( testGCPWrite );
+    CPPUNIT_TEST( testGCPRead );
+    
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -53,6 +59,9 @@ public:
     void testPCTRead();
     void testPCTWrite();
     void testSegDelete();
+    void testGCPAdd();
+    void testGCPWrite();
+    void testGCPRead();
 };
 
 // Registers the fixture into the 'registry'
@@ -60,10 +69,15 @@ CPPUNIT_TEST_SUITE_REGISTRATION( SegmentsTest );
 
 void SegmentsTest::setUp()
 {
+    eChanType channel_types[1] = { CHN_8U };
+    PCIDSKFile* file = 
+        PCIDSK::Create("gcp_file.pix", 50, 50, 1, channel_types, "BAND");
+    delete file;
 }
 
 void SegmentsTest::tearDown()
 {
+    unlink("gcp_file.pix");
 }
 
 void SegmentsTest::testEltoro()
@@ -232,3 +246,95 @@ void SegmentsTest::testSegDelete()
     unlink( "pct_file.pix" );
 }
 
+void SegmentsTest::testGCPAdd()
+{
+    PCIDSKFile* file = 
+        PCIDSK::Open("gcp_file.pix", "r+");
+    
+    int segnum = file->CreateSegment("GCP2TEST", "GCP2 Test Segment", SEG_GCP2, 0);
+    PCIDSKSegment* seg = file->GetSegment(segnum);
+    CPPUNIT_ASSERT(seg != NULL);
+    PCIDSKGCPSegment* gcp_seg = dynamic_cast<PCIDSKGCPSegment*>(seg);
+    CPPUNIT_ASSERT(gcp_seg != NULL);
+    
+    CPPUNIT_ASSERT(gcp_seg->GetGCPCount() == 0);
+    
+    delete file;
+}
+
+void SegmentsTest::testGCPWrite()
+{
+    PCIDSKFile* file = 
+        PCIDSK::Open("gcp_file.pix", "r+");
+        
+    // Get the GCP segment
+    int seg_num = file->CreateSegment("GCP2TEST", "GCP2 Test write", SEG_GCP2, 0);
+    PCIDSKSegment* seg = file->GetSegment(seg_num);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    
+    PCIDSKGCPSegment* gcp_seg = dynamic_cast<PCIDSKGCPSegment*>(seg);
+    
+    CPPUNIT_ASSERT(gcp_seg != NULL);
+    
+    std::vector<PCIDSK::GCP> gcps;
+    
+    // Create a few GCPs
+    for (unsigned int y = 0; y <= 50; y += 10) {
+        for (unsigned int x = 0; x <= 50; x += 10) {
+            std::stringstream ss;
+            ss << "GCP #" << y * x;
+            PCIDSK::GCP gcp(x, y, 1.0,
+                x, y, ss.str(), "LAT/LONG D000");
+            gcps.push_back(gcp);
+        }
+    }
+    
+    // Write out some GCPs
+    gcp_seg->SetGCPs(gcps);
+    
+    CPPUNIT_ASSERT(gcp_seg->GetGCPCount() == gcps.size());
+    
+    // Read the GCPs back
+    std::vector<PCIDSK::GCP> const& gcps_read = gcp_seg->GetGCPs();
+    
+    CPPUNIT_ASSERT(gcps_read.size() == gcps.size());
+    
+    delete file;
+    
+    file = PCIDSK::Open("gcp_file.pix", "r");
+    CPPUNIT_ASSERT(file != NULL);
+    seg = file->GetSegment(seg_num);
+    CPPUNIT_ASSERT(seg != NULL);
+    gcp_seg = dynamic_cast<PCIDSKGCPSegment*>(seg);
+    CPPUNIT_ASSERT(gcp_seg != NULL);
+    CPPUNIT_ASSERT(gcp_seg->GetGCPCount() == gcps.size());
+    
+    delete file;
+    
+    
+}
+
+void SegmentsTest::testGCPRead()
+{
+    PCIDSKFile* file =
+        PCIDSK::Open("irvine_gcp2.pix", "r+");
+    
+    CPPUNIT_ASSERT(file != NULL);
+    
+    // Get irvine's GCP2 segment
+    PCIDSKSegment* seg = file->GetSegment(9);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    
+    PCIDSKGCPSegment* gcp_seg = dynamic_cast<PCIDSKGCPSegment*>(seg);
+    
+    CPPUNIT_ASSERT(gcp_seg != NULL);
+    
+    // Get the GCPs
+    std::vector<PCIDSK::GCP> const& gcps_read = gcp_seg->GetGCPs();
+    
+    CPPUNIT_ASSERT(gcps_read.size() == 22);
+    
+    delete file;
+}

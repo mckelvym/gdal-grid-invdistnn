@@ -28,6 +28,7 @@
 #include "pcidsk.h"
 #include <cppunit/extensions/HelperMacros.h>
 #include <cstring>
+#include <unistd.h>
 
 using namespace PCIDSK;
 

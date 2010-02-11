@@ -27,7 +27,7 @@
 
 #include "pcidsk.h"
 #include "pcidsk_vectorsegment.h"
-#include <math.h>
+#include <cmath>
 #include <cppunit/extensions/HelperMacros.h>
 
 using namespace PCIDSK;
