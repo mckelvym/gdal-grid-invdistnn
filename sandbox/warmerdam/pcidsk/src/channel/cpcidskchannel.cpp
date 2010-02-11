@@ -44,6 +44,7 @@ using namespace PCIDSK;
 /************************************************************************/
 
 CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header, 
+                                uint64 ih_offset,
                                 CPCIDSKFile *file, 
                                 eChanType pixel_type,
                                 int channel_number )
@@ -52,6 +53,7 @@ CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header,
     this->pixel_type = pixel_type;
     this->file = file;
     this->channel_number = channel_number;
+    this->ih_offset = ih_offset;
 
     width = file->GetWidth();
     height = file->GetHeight();
@@ -201,10 +203,44 @@ PCIDSKChannel *CPCIDSKChannel::GetOverview( int overview_index )
         image_header.Put( pseudo_filename, 64, 64 );
         
         overview_bands[overview_index] = 
-            new CTiledChannel( image_header, file_header, -1, file, 
+            new CTiledChannel( image_header, 0, file_header, -1, file, 
                                CHN_UNKNOWN );
     }
 
     return overview_bands[overview_index];
 }
 
+/************************************************************************/
+/*                           GetDescription()                           */
+/************************************************************************/
+
+std::string CPCIDSKChannel::GetDescription() 
+
+{
+    if( ih_offset == 0 )
+        return "";
+
+    PCIDSKBuffer ih_1(64);
+    std::string ret;
+
+    file->ReadFromFile( ih_1.buffer, ih_offset, 64 );
+    ih_1.Get(0,64,ret);
+
+    return ret;
+
+}
+
+/************************************************************************/
+/*                           SetDescription()                           */
+/************************************************************************/
+
+void CPCIDSKChannel::SetDescription( std::string description )
+
+{
+    if( ih_offset == 0 )
+        ThrowPCIDSKException( "Description cannot be set on overviews." );
+        
+    PCIDSKBuffer ih_1(64);
+    ih_1.Put( description.c_str(), 0, 64 );
+    file->WriteToFile( ih_1.buffer, ih_offset, 64 );
+}

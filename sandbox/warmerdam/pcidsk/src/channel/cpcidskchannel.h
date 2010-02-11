@@ -53,7 +53,7 @@ namespace PCIDSK
         friend class PCIDSKFile;
 
     public:
-        CPCIDSKChannel( PCIDSKBuffer &image_header, 
+        CPCIDSKChannel( PCIDSKBuffer &image_header, uint64 ih_offset,
             CPCIDSKFile *file, eChanType pixel_type,
             int channel_number );
         virtual   ~CPCIDSKChannel();
@@ -80,6 +80,9 @@ namespace PCIDSK
 
         virtual void Synchronize() {}
 
+        std::string GetDescription();
+        void SetDescription( std::string description );
+
     // Just for CPCIDSKFile.
         void      InvalidateOverviewInfo();
 
@@ -88,6 +91,7 @@ namespace PCIDSK
         MetadataSet  metadata;
 
         int       channel_number;
+        uint64    ih_offset;
         eChanType pixel_type;
         char      byte_order; // 'S': littleendian, 'N': bigendian
         int       needs_swap;

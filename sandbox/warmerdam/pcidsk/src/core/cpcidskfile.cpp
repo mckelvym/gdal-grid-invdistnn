@@ -397,10 +397,9 @@ void CPCIDSKFile::InitializeFromHeader()
     {
         PCIDSKBuffer ih(1024);
         PCIDSKChannel *channel = NULL;
+        uint64  ih_offset = (ih_start_block-1)*512 + (channelnum-1)*1024;
         
-        ReadFromFile( ih.buffer, 
-                      (ih_start_block-1)*512 + (channelnum-1)*1024, 
-                      1024);
+        ReadFromFile( ih.buffer, ih_offset, 1024 );
 
         // fetch the filename, if there is one.
         std::string filename;
@@ -428,7 +427,8 @@ void CPCIDSKFile::InitializeFromHeader()
             
         if( interleaving == "BAND" )
         {
-            channel = new CBandInterleavedChannel( ih, fh, channelnum, this,
+            channel = new CBandInterleavedChannel( ih, ih_offset, fh, 
+                                                   channelnum, this,
                                                    image_offset, pixel_type );
 
             
@@ -438,7 +438,8 @@ void CPCIDSKFile::InitializeFromHeader()
 
         else if( interleaving == "PIXEL" )
         {
-            channel = new CPixelInterleavedChannel( ih, fh, channelnum, this,
+            channel = new CPixelInterleavedChannel( ih, ih_offset, fh, 
+                                                    channelnum, this,
                                                     (int) image_offset, 
                                                     pixel_type );
             image_offset += DataTypeSize(pixel_type);
@@ -447,12 +448,14 @@ void CPCIDSKFile::InitializeFromHeader()
         else if( interleaving == "FILE" 
                  && strncmp(filename.c_str(),"/SIS=",5) == 0 )
         {
-            channel = new CTiledChannel( ih, fh, channelnum, this, pixel_type );
+            channel = new CTiledChannel( ih, ih_offset, fh, 
+                                         channelnum, this, pixel_type );
         }
 
         else if( interleaving == "FILE" )
         {
-            channel = new CBandInterleavedChannel( ih, fh, channelnum, this,
+            channel = new CBandInterleavedChannel( ih, ih_offset, fh, 
+                                                   channelnum, this,
                                                    0, pixel_type );
         }
 

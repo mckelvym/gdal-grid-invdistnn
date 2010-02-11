@@ -3,7 +3,7 @@ CXXFLAGS = -g -Wall -I../src -I/usr/local/include -DDEBUG
 
 OBJ =   test_main.o testpcidskexception.o testpcidskfile.o testsegments.o \
 	testpcidskcreate.o testpcidskupdate.o testoverviews.o \
-	testvectorread.o testprojections.o
+	testvectorread.o testprojections.o testchannel.o
 
 LIBS =	-L../src -lpcidsk -L/usr/local/lib -ljpeg -lcppunit -ldl # ../src/pcidsk.a 
 

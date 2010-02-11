@@ -48,11 +48,12 @@ using namespace PCIDSK;
 /************************************************************************/
 
 CTiledChannel::CTiledChannel( PCIDSKBuffer &image_header, 
+                              uint64 ih_offset,
                               PCIDSKBuffer &file_header,
                               int channelnum,
                               CPCIDSKFile *file,
                               eChanType pixel_type )
-        : CPCIDSKChannel( image_header, file, pixel_type, channelnum )
+        : CPCIDSKChannel( image_header, ih_offset, file, pixel_type, channelnum)
 
 {
     tile_info_dirty = false;

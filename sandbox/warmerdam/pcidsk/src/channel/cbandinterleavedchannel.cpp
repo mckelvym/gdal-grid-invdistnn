@@ -49,12 +49,13 @@ using namespace PCIDSK;
 /************************************************************************/
 
 CBandInterleavedChannel::CBandInterleavedChannel( PCIDSKBuffer &image_header, 
+                                                  uint64 ih_offset, 
                                                   PCIDSKBuffer &file_header,
                                                   int channelnum,
                                                   CPCIDSKFile *file,
                                                   uint64 image_offset,
                                                   eChanType pixel_type )
-        : CPCIDSKChannel( image_header, file, pixel_type, channelnum )
+        : CPCIDSKChannel( image_header, ih_offset, file, pixel_type, channelnum)
 
 {
     io_handle_p = NULL;

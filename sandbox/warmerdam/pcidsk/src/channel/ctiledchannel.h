@@ -50,6 +50,7 @@ namespace PCIDSK
 
     public:
         CTiledChannel( PCIDSKBuffer &image_header, 
+                       uint64 ih_offset,
                        PCIDSKBuffer &file_header, 
                        int channelnum,
                        CPCIDSKFile *file,

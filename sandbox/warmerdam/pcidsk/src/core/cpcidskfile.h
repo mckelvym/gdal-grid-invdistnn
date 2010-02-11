@@ -59,7 +59,7 @@ namespace PCIDSK
         virtual PCIDSKInterfaces *GetInterfaces() { return &interfaces; }
 
         PCIDSKChannel  *GetChannel( int band );
-        PCIDSKSegment   *GetSegment( int segment );
+        PCIDSKSegment  *GetSegment( int segment );
         std::vector<PCIDSKSegment *> GetSegments();
 
         PCIDSKSegment  *GetSegment( int type, std::string name,

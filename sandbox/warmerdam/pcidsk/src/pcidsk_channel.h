@@ -61,6 +61,9 @@ namespace PCIDSK
         virtual std::vector<std::string> GetMetadataKeys() = 0;
 
         virtual void Synchronize() = 0;
+
+        virtual std::string GetDescription() = 0;
+        virtual void SetDescription( std::string description ) = 0;
     };
 } // end namespace PCIDSK
 

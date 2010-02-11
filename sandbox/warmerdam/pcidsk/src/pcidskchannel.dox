@@ -227,5 +227,20 @@ writes are flushed through to disk.
 NOTE: Currently this method does not invalidate read-cached information. 
 At some point in the future it might be extended to do this as well.
 
+******************************************************************************
+\fn std::string PCIDSK::PCIDSKChannel::GetDescription();
+
+\brief Fetch channel description.
+
+@return Returns the contents of the IHi.1 field for the channel, with 
+trailing spaces stripped.
+
+******************************************************************************
+\fn void PCIDSK::PCIDSKChannel::SetDescription( std::string description );
+
+\brief Set channel description.
+
+@param description a string of up to 64 characters.
+
 */
 
