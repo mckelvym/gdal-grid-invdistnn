@@ -43,12 +43,12 @@ namespace PCIDSK
     {
     public:
         virtual ~PCIDSKChannel() {};
-        virtual int GetBlockWidth() = 0;
-        virtual int GetBlockHeight() = 0;
-        virtual int GetBlockCount() = 0;
-        virtual int GetWidth() = 0;
-        virtual int GetHeight() = 0;
-        virtual eChanType GetType() = 0;
+        virtual int GetBlockWidth() const = 0;
+        virtual int GetBlockHeight() const = 0;
+        virtual int GetBlockCount() const = 0;
+        virtual int GetWidth() const = 0;
+        virtual int GetHeight() const = 0;
+        virtual eChanType GetType() const = 0;
         virtual int ReadBlock( int block_index, void *buffer,
             int win_xoff=-1, int win_yoff=-1,
             int win_xsize=-1, int win_ysize=-1 ) = 0;

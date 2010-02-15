@@ -33,6 +33,8 @@
 #include "pcidsk_exception.h"
 #include <cassert>
 #include <cstdlib>
+#include <vector>
+#include <string>
 
 using namespace PCIDSK;
 
@@ -103,15 +105,22 @@ void CPCIDSKSegment::LoadSegmentPointer( const char *segment_pointer )
 /************************************************************************/
 /*                         LoadSegmentHeader()                          */
 /************************************************************************/
-
+#include <iostream>
 void CPCIDSKSegment::LoadSegmentHeader()
 
 {
     header.SetSize(1024);
 
     file->ReadFromFile( header.buffer, data_offset, 1024 );
-
-    // parse out history, etc 
+    
+    // Read the history from the segment header. PCIDSK supports
+    // 8 history entries per segment.
+    std::string hist_msg;
+    for (unsigned int i = 0; i < 8; i++)
+    {
+        header.Get(384 + i * 80, 80, hist_msg);
+        history_.push_back(hist_msg);
+    }
 }
 
 /************************************************************************/
@@ -180,3 +189,14 @@ bool CPCIDSKSegment::IsAtEOF()
     else
         return false;
 }
+
+std::vector<std::string> CPCIDSKSegment::GetHistoryEntries() const
+{
+    return history_;
+}
+
+void CPCIDSKSegment::SetHistoryEntry(unsigned int id, std::string const& message)
+{
+    
+}
+

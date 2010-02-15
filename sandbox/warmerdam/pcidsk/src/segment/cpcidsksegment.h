@@ -76,6 +76,9 @@ namespace PCIDSK
         std::vector<std::string> GetMetadataKeys();
             
         virtual void Synchronize() {}
+        
+        std::vector<std::string> GetHistoryEntries() const;
+        void SetHistoryEntry(unsigned int id, std::string const& message);
 
     protected:
         PCIDSKFile *file;
@@ -92,6 +95,8 @@ namespace PCIDSK
         PCIDSKBuffer header;
 
         MetadataSet  *metadata;
+        
+        std::vector<std::string> history_;
     };
     
 } // end namespace PCIDSK

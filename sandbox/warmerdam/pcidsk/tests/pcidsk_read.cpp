@@ -133,6 +133,19 @@ void ReportGCPSegment(PCIDSK::PCIDSKGCPSegment *segobj)
     }
 }
 
+void DumpSegHistory(PCIDSK::PCIDSKSegment* seg)
+{
+    std::vector<std::string> history(seg->GetHistoryEntries());
+    std::vector<std::string>::iterator iter = history.begin();
+    unsigned int i = 1;
+    printf("Segment %d's History:\n", seg->GetSegmentNumber());
+    while (iter != history.end())
+    {
+        printf("  Entry %d: %s\n", ++i, (*iter).c_str());
+        iter++;
+    }
+}
+
 } // end anonymous namespace for helper functions
 
 /************************************************************************/
@@ -314,12 +327,11 @@ int main( int argc, char **argv)
     bool list_channels = false;
     bool list_vectors = false;
     bool list_geo = false;
+    bool dump_history = false;
 
     for( i_arg = 1; i_arg < argc; i_arg++ )
     {
         if( strcmp(argv[i_arg],"-p") == 0 )
-            strategy = argv[i_arg];
-        else if( strcmp(argv[i_arg],"-l") == 0 )
             strategy = argv[i_arg];
         else if( strcmp(argv[i_arg],"-ls") == 0 )
             list_segments = true;
@@ -329,6 +341,10 @@ int main( int argc, char **argv)
             list_geo = true;
         else if( strcmp(argv[i_arg],"-lc") == 0 )
             list_channels = true;
+        else if( strcmp(argv[i_arg],"-lh") == 0 )
+            dump_history = true;
+        else if( strcmp(argv[i_arg],"-l") == 0 )
+            strategy = argv[i_arg];
         else if( argv[i_arg][0] == '-' )
             Usage();
         else if( src_file == NULL )
@@ -448,6 +464,11 @@ int main( int argc, char **argv)
                             printf( "    %s: %s\n", 
                                     keys[i_key].c_str(), 
                                     segobj->GetMetadataValue( keys[i_key].c_str() ).c_str() );
+                        }
+                        
+                        if (dump_history)
+                        {
+                            DumpSegHistory(segobj);
                         }
                     }
 

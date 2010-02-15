@@ -158,7 +158,7 @@ void CPCIDSKChannel::EstablishOverviewInfo()
 /*                           GetBlockCount()                            */
 /************************************************************************/
 
-int CPCIDSKChannel::GetBlockCount()
+int CPCIDSKChannel::GetBlockCount() const
 
 {
     // We deliberately call GetBlockWidth() and GetWidth() to trigger

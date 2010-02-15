@@ -58,13 +58,13 @@ namespace PCIDSK
             int channel_number );
         virtual   ~CPCIDSKChannel();
 
-        virtual int GetBlockWidth() { return block_width; }
-        virtual int GetBlockHeight() { return block_height; }
-        virtual int GetBlockCount();
+        virtual int GetBlockWidth() const { return block_width; }
+        virtual int GetBlockHeight() const { return block_height; }
+        virtual int GetBlockCount() const;
 
-        virtual int GetWidth() { return width; }
-        virtual int GetHeight() { return height; }
-        virtual eChanType GetType() { return pixel_type; }
+        virtual int GetWidth() const { return width; }
+        virtual int GetHeight() const { return height; }
+        virtual eChanType GetType() const { return pixel_type; }
 
         int       GetOverviewCount();
         PCIDSKChannel  *GetOverview( int i );
@@ -92,15 +92,15 @@ namespace PCIDSK
 
         int       channel_number;
         uint64    ih_offset;
-        eChanType pixel_type;
+        mutable eChanType pixel_type;
         char      byte_order; // 'S': littleendian, 'N': bigendian
-        int       needs_swap;
+        mutable int       needs_swap;
 
     // width/height, and block size.
-        int       width;
-        int       height;
-        int       block_width;
-        int       block_height;
+        mutable int       width;
+        mutable int       height;
+        mutable int       block_width;
+        mutable int       block_height;
 
     // info about overviews;
         void      EstablishOverviewInfo();

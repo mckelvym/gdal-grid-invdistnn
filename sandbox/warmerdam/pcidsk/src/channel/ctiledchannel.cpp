@@ -99,7 +99,7 @@ CTiledChannel::~CTiledChannel()
 /*                          EstablishAccess()                           */
 /************************************************************************/
 
-void CTiledChannel::EstablishAccess()
+void CTiledChannel::EstablishAccess() const
 
 {
     if( vfile != NULL )
@@ -471,7 +471,7 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
 /*                           GetBlockWidth()                            */
 /************************************************************************/
 
-int CTiledChannel::GetBlockWidth()
+int CTiledChannel::GetBlockWidth() const
 
 {
     EstablishAccess();
@@ -482,7 +482,7 @@ int CTiledChannel::GetBlockWidth()
 /*                           GetBlockHeight()                           */
 /************************************************************************/
 
-int CTiledChannel::GetBlockHeight()
+int CTiledChannel::GetBlockHeight() const
 
 {
     EstablishAccess();
@@ -493,7 +493,7 @@ int CTiledChannel::GetBlockHeight()
 /*                              GetWidth()                              */
 /************************************************************************/
 
-int CTiledChannel::GetWidth()
+int CTiledChannel::GetWidth() const
 
 {
     if( width == -1 )
@@ -506,7 +506,7 @@ int CTiledChannel::GetWidth()
 /*                             GetHeight()                              */
 /************************************************************************/
 
-int CTiledChannel::GetHeight()
+int CTiledChannel::GetHeight() const
 
 {
     if( height == -1 )
@@ -519,7 +519,7 @@ int CTiledChannel::GetHeight()
 /*                              GetType()                               */
 /************************************************************************/
 
-eChanType CTiledChannel::GetType()
+eChanType CTiledChannel::GetType() const
 
 {
     if( pixel_type == CHN_UNKNOWN )
