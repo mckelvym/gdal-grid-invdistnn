@@ -12,7 +12,7 @@ under the same open source license. See http://www.gdal.org/
 Source repository
 -----------------
 
-At the moment, the source of libosr lives in a sandbox of the GDAL/OGR SVN
+At the moment, the source of libOSR lives in a sandbox of the GDAL/OGR SVN
 repository:
 
   http://svn.osgeo.org/gdal/sandbox/libosr
