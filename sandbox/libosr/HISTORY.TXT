@@ -5,6 +5,8 @@ LibOSR - Revision History
 CHANGES - Current Version:
 --------------------------
 
+- Upgraded to latest source files from GDAL trunk as of 2010-02-20
+
 
 Version 0.1 - (2010-02-20)
 --------------------------
