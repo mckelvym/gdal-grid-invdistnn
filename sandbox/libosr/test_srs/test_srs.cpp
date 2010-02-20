@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 
     if (argc != 2)
     {
-        printf("Usage: %s <skt_string>\n", argv[0]);
+        printf("Usage: %s <wkt_string>\n", argv[0]);
         return -1;
     }
 
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     if( eErr != OGRERR_NONE )
     {
         OSRDestroySpatialReference( hSRS );
-        printf("Ingestion of WKT string '%s' failed.\n");
+        printf("Ingestion of WKT string failed.\n");
         return -1;
     }
 
