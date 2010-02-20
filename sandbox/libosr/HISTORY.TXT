@@ -1,0 +1,17 @@
+LibOSR - Revision History
+==========================
+
+
+CHANGES - Current Version:
+--------------------------
+
+
+Version 0.1 - (1999-12-04)
+--------------------------
+
+ - First pre-release version, derived from MITAB source tree
+
+
+------------
+$Id:  $
+------------
