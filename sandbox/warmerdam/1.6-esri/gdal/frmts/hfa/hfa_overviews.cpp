@@ -80,11 +80,12 @@ CPLErr HFAAuxBuildOverviews( const char *pszOvrFilename,
 /*      base band.                                                      */
 /* -------------------------------------------------------------------- */
         GDALDriver *poHFADriver = (GDALDriver *) GDALGetDriverByName("HFA");
-        const char *apszOptions[3] = { "COMPRESSED=YES", NULL, NULL };
+        const char *apszOptions[4] = { "COMPRESSED=YES", "AUX=YES", 
+                                       NULL, NULL };
         
         CPLString osDepFileOpt = "DEPENDENT_FILE=";
         osDepFileOpt += CPLGetFilename(poParentDS->GetDescription());
-        apszOptions[1] = osDepFileOpt.c_str();
+        apszOptions[2] = osDepFileOpt.c_str();
 
         *ppoODS = 
             poHFADriver->Create( pszOvrFilename, 
