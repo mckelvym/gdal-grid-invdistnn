@@ -389,19 +389,20 @@ void PCIDSKCreateTest::createComplex32R()
     CPPUNIT_ASSERT(DataTypeSize(chan->GetType()) == 8);
     
     // Write a phase gradient to the channel
-    float* const data =
-        new float[512 * 512 * DataTypeSize(chan->GetType())];
+    float* data =
+        new float[512 * 512 * 2];
     
     for (std::size_t y = 0; y < 512; y++) {
         for (std::size_t x = 0; x < 512; x++) {
-            std::size_t offset = 4 * x + (512 * 4) * y;
+            std::size_t offset = 2 * x + 
+                (512 * 2) * y;
             data[offset] = x;
             data[offset + 1] = y; // x + yj
         }
     }
     
     for (std::size_t y = 0; y < 512; y++) {
-        float* line = &data[y * 512 * 4];
+        float* line = &data[y * 512 * 2];
         chan->WriteBlock(y, line);
     }
     
@@ -417,6 +418,29 @@ void PCIDSKCreateTest::createComplex32R()
     
     delete[] data;
     delete file;
+    
+    // re-open the file, and load the first line
+    file = PCIDSK::Open("complex_32r_file.pix", "r");
+    CPPUNIT_ASSERT(file != NULL);
+    
+    chan = file->GetChannel(2);
+    CPPUNIT_ASSERT(chan != NULL);
+    CPPUNIT_ASSERT_EQUAL(CHN_C32R, chan->GetType());
+    
+    data = new float[512 * 2];
+    
+    chan->ReadBlock(1, data);
+    
+    // Check that the first line is equal, as expected.
+    for (std::size_t i = 0; i < 512; i++)
+    {
+        CPPUNIT_ASSERT_EQUAL((float)i, data[i * 2]);
+        CPPUNIT_ASSERT_EQUAL(1.0f, data[i * 2 + 1]);
+    }
+    
+    delete[] data;
+    delete file;
+    
     unlink("complex_32r_file.pix");
 }
 

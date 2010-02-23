@@ -157,7 +157,14 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
     if( strcmp(interleaving,"PIXEL") == 0 )
     {
         pixel_group_size = 
-            channels[0] + channels[1]*2 + channels[2]*2 + channels[3]*4;
+            channels[0] + // CHN_8U
+            channels[1] * DataTypeSize(CHN_16U) + 
+            channels[2] * DataTypeSize(CHN_16S) + 
+            channels[3] * DataTypeSize(CHN_32R) +
+            channels[4] * DataTypeSize(CHN_C16U) +
+            channels[5] * DataTypeSize(CHN_C16S) +
+            channels[6] * DataTypeSize(CHN_C32R);
+            //channels[0] + channels[1]*2 + channels[2]*2 + channels[3]*4;
         line_size = ((pixel_group_size * pixels + 511) / 512) * 512;
         image_data_size = (((uint64)line_size) * lines) / 512;
 
@@ -170,7 +177,13 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
     else if( strcmp(interleaving,"BAND") == 0 )
     {
         pixel_group_size = 
-            channels[0] + channels[1]*2 + channels[2]*2 + channels[3]*4;
+            channels[0] + // CHN_8U
+            channels[1] * DataTypeSize(CHN_16U) + 
+            channels[2] * DataTypeSize(CHN_16S) + 
+            channels[3] * DataTypeSize(CHN_32R) +
+            channels[4] * DataTypeSize(CHN_C16U) +
+            channels[5] * DataTypeSize(CHN_C16S) +
+            channels[6] * DataTypeSize(CHN_C32R);
         // BAND interleaved bands are tightly packed.
         image_data_size = 
             (((uint64)pixel_group_size) * pixels * lines + 511) / 512;
@@ -191,7 +204,7 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 
         // TODO: Old code enforces a 1TB limit on the fattest band.
     }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Place components.                                               */
 /* -------------------------------------------------------------------- */
