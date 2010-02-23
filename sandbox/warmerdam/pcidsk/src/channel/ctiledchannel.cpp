@@ -132,15 +132,8 @@ void CTiledChannel::EstablishAccess() const
     theader.Get(32,4,data_type);
     theader.Get(54, 8, compression);
     
-    if( data_type == "8U" )
-        pixel_type = CHN_8U;
-    else if( data_type == "16S" )
-        pixel_type = CHN_16S;
-    else if( data_type == "16U" )
-        pixel_type = CHN_16U;
-    else if( data_type == "32R" )
-        pixel_type = CHN_32R;
-    else
+    pixel_type = GetDataTypeFromName(data_type);
+    if (pixel_type == CHN_UNKNOWN)
     {
         ThrowPCIDSKException( "Unknown channel type: %s", 
                               data_type.c_str() );

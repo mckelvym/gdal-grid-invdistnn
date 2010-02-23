@@ -356,7 +356,7 @@ void PCIDSKCreateTest::createComplex16S()
 void PCIDSKCreateTest::createComplex32R()
 {
     PCIDSKFile* file;
-    PCIDSKChannel *chan;
+    PCIDSKChannel* chan;
     
     eChanType channel_types[2] = { CHN_C32R, CHN_C32R };
     file = PCIDSK::Create("complex_32r_file.pix", 512, 512, 2, channel_types, 
@@ -368,6 +368,18 @@ void PCIDSKCreateTest::createComplex32R()
     file = PCIDSK::Open("complex_32r_file.pix", "r+", NULL);
     
     CPPUNIT_ASSERT(file != NULL);
+    
+    // Add a fake GEOref segment
+    PCIDSK::PCIDSKSegment* seg = file->GetSegment(SEG_GEO, "", 0);
+    CPPUNIT_ASSERT(seg != NULL);
+    
+    PCIDSK::PCIDSKGeoref* georef = dynamic_cast<PCIDSK::PCIDSKGeoref*>(seg);
+    CPPUNIT_ASSERT(georef != NULL);
+
+    // Set some stuff
+    georef->WriteSimple("LAT/LONG D000", 16, 4, 0, 16, 0, -4);
+    
+    file->Synchronize();
     
     // Try to get the chnannel
     chan = file->GetChannel(2);
@@ -393,9 +405,18 @@ void PCIDSKCreateTest::createComplex32R()
         chan->WriteBlock(y, line);
     }
     
+    // Try to read back the GEOref information
+    double a1, a2, xrot, y1, yrot, y3;
+    georef->GetTransform(a1, a2, xrot, y1, yrot, y3);
+    CPPUNIT_ASSERT_EQUAL(16.0, a1);
+    CPPUNIT_ASSERT_EQUAL(4.0, a2);
+    CPPUNIT_ASSERT_EQUAL(0.0, xrot);
+    CPPUNIT_ASSERT_EQUAL(16.0, y1);
+    CPPUNIT_ASSERT_EQUAL(0.0, yrot);
+    CPPUNIT_ASSERT_EQUAL(-4.0, y3);
+    
     delete[] data;
     delete file;
-    
     unlink("complex_32r_file.pix");
 }
 
