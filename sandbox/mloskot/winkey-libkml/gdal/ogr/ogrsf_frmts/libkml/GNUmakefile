@@ -1,5 +1,6 @@
-
-
+#
+# Builds OGR LIBKML driver
+#
 include ../../../GDALmake.opt
 
 CORE_OBJ = ogrlibkmlgeometry.o \

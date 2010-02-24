@@ -31,7 +31,7 @@
 //#include "cpl_string.h"
 //#include "cpl_error.h"
 
-
+#include <kml/engine.h>
 
 /******************************************************************************
  OGRLIBKMLDataSource()
@@ -82,7 +82,7 @@ int OGRLIBKMLDataSource::Open(const char *pszFilename, int bUpdate )
 
   else if (EQUAL( CPLGetExtension(pszFilename), "kmz" )) {
     
-    if (!(kmzfile = KmzFile::OpenFromFile (pszFilename))) {
+    if (!(kmzfile = kmlengine::KmzFile::OpenFromFile(pszFilename))) {
       CPLError( CE_Failure, CPLE_OpenFailed, 
                 "%s is not a valid kmz file",
                 pszFilename );
@@ -139,7 +139,7 @@ int OGRLIBKMLDataSource::Create (
 
   /*else*/ if (EQUAL( CPLGetExtension(pszFilename), "kmz" )) {
     
-    if (!(kmzfile = KmzFile::Create (pszFilename))) {
+    if (!(kmzfile = kmlengine::KmzFile::Create (pszFilename))) {
       CPLError( CE_Failure, CPLE_OpenFailed, 
                 "Failed to create kmz file %s.", 
                 pszFilename );
@@ -150,14 +150,15 @@ int OGRLIBKMLDataSource::Create (
     
     /***** set up the factory everything will use *****/
     
-    poKmlFactory = KmlFactory::GetFactory();
+    poKmlFactory = kmldom::KmlFactory::GetFactory();
 
     /***** create the doc.kml it has to be the first file in *****/
     
     const char *namefield = CPLGetConfigOption("LIBKML_USE_DOC.KML", "yes");
-    if (!strcmp(namefield, "yes")) {
-      DocumentPtr poKmlDoc_kmlDocument = poKmlFactory->CreateDocument();
-      KmlPtr poKmlKml = poKmlFactory->CreateKml();
+    if (!strcmp(namefield, "yes"))
+    {
+        kmldom::DocumentPtr poKmlDoc_kmlDocument = poKmlFactory->CreateDocument();
+        kmldom::KmlPtr poKmlKml = poKmlFactory->CreateKml();
       poKmlKml->set_feature(poKmlDoc_kmlDocument);
 
       std::string strKmlOut = kmldom::SerializePretty(poKmlKml);
@@ -194,12 +195,9 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer(
   OGRwkbGeometryType eGType,
   char ** papszOptions)
 {
-  
-  
   OGRLayer *poOgrLayer = new OGRLIBKMLLayer(pszLayerName, poSpatialRef, eGType,
                                             poKmlFactory)
-
-   KmlFactory          *poKmlFactory;
+  kmldom::KmlFactory *poKmlFactory = 0;
 }
 /******************************************************************************
  TestCapability()

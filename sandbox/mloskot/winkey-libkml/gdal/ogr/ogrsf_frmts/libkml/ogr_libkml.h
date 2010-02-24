@@ -31,14 +31,6 @@
 #include <kml/engine.h>
 #include <kml/dom.h>
 
-using kmldom::KmlFactory;
-
-using kmlengine::KmzFile;
-using kmlengine::KmzFilePtr;
-
-using kmlengine::KmlFile;
-using kmlengine::KmlFilePtr;
-
 class OGRLIBKMLDataSource;
 /******************************************************************************
   layer class
@@ -52,10 +44,10 @@ class OGRLIBKMLLayer : public OGRLayer
     int                  bUpdate;
     int                  nNextFID;
     int                  isFolder;
-    //KmlFolderPtr         poKmlFolder;
-    KmlFile             *kmlfile;
-    KmlFactory          *poKmlFactory;
-    //DocumentPtr          poKmlDoc_kmlDocument
+    //kmlengine::KmlFolderPtr poKmlFolder;
+    kmlengine::KmlFile  *kmlfile;
+    kmldom::KmlFactory  *poKmlFactory;
+    //kmldom::DocumentPtr poKmlDoc_kmlDocument
    
   public:
     OGRLIBKMLLayer       ( const char *pszFilename );
@@ -106,10 +98,10 @@ class OGRLIBKMLDataSource : public OGRDataSource {
     int              nLayers;
     int              bUpdate;
     
-    KmzFile         *kmzfile;
-    KmlFile         *kmlfile;
-    KmlFactory      *poKmlFactory;
-    //DocumentPtr      poKmlDoc_kmlDocument
+    kmlengine::KmzFile *kmzfile;
+    kmlengine::KmlFile *kmlfile;
+    kmldom::KmlFactory *poKmlFactory;
+    //kmldom::DocumentPtr poKmlDoc_kmlDocument
     
   public:
                      OGRLIBKMLDataSource();
@@ -159,4 +151,3 @@ class OGRLIBKMLDriver : public OGRSFDriver {
 
     int            TestCapability( const char * );
 };
-
