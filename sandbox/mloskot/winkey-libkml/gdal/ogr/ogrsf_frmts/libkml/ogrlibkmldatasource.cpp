@@ -37,12 +37,15 @@
  OGRLIBKMLDataSource()
 ******************************************************************************/
 
-OGRLIBKMLDataSource::OGRLIBKMLDataSource() {
-  pszName = NULL;
-  papoLayers = NULL;
-  nLayers = 0;
-  kmzfile = NULL;
-  
+OGRLIBKMLDataSource::OGRLIBKMLDataSource()
+    : pszName(0)
+    , papoLayers(0)
+    , nLayers(0)
+    , bUpdate(0)
+    , kmzfile(0)
+    , kmlfile(0)
+    , poKmlFactory(0)
+{  
 }
 
 /******************************************************************************
@@ -55,7 +58,7 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource() {
 
   for( int i = 0; i < nLayers; i++ )
     delete papoLayers[i];
-    
+
   CPLFree( papoLayers );
   
 }
@@ -70,40 +73,41 @@ int OGRLIBKMLDataSource::Open(const char *pszFilename, int bUpdate )
 
   /***** kml *****/
   
-  if (EQUAL( CPLGetExtension(pszFilename), "kml" )) {
-    if( bUpdate ) {
-
+  if (EQUAL( CPLGetExtension(pszFilename), "kml" ))
+  {
+    if( bUpdate )
+    {
 //static bool kmlbase::File::ReadFileToString  	(  	const string &   	 filename,
 //		string *  	output	 
 //	) 
-  }
+    }
   }
   /***** kmz *****/
 
-  else if (EQUAL( CPLGetExtension(pszFilename), "kmz" )) {
+  else if (EQUAL( CPLGetExtension(pszFilename), "kmz" ))
+  {
     
-    if (!(kmzfile = kmlengine::KmzFile::OpenFromFile(pszFilename))) {
+    if (!(kmzfile = kmlengine::KmzFile::OpenFromFile(pszFilename)))
+    {
       CPLError( CE_Failure, CPLE_OpenFailed, 
                 "%s is not a valid kmz file",
                 pszFilename );
       return FALSE;
     }
-        if( bUpdate ) {
+
+    if( bUpdate )
+    {
     }
 
   }
+  else
+  {
+     return FALSE;
 
-
-
- 
-
-  else {
-    return FALSE;
-
-    if( bUpdate ) {
+    if( bUpdate )
+    {
     }
   }
-
 }
 
 /******************************************************************************
@@ -174,9 +178,7 @@ int OGRLIBKMLDataSource::Create (
  GetLayer()
 ******************************************************************************/
 
-OGRLayer *OGRLIBKMLDataSource::GetLayer(
-  int iLayer)
-
+OGRLayer *OGRLIBKMLDataSource::GetLayer(int iLayer)
 {
   if( iLayer < 0 || iLayer >= nLayers )
     return NULL;
@@ -195,9 +197,7 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer(
   OGRwkbGeometryType eGType,
   char ** papszOptions)
 {
-  OGRLayer *poOgrLayer = new OGRLIBKMLLayer(pszLayerName, poSpatialRef, eGType,
-                                            poKmlFactory)
-  kmldom::KmlFactory *poKmlFactory = 0;
+    OGRLayer *poOgrLayer = new OGRLIBKMLLayer(pszLayerName, poSpatialRef, eGType);
 }
 /******************************************************************************
  TestCapability()

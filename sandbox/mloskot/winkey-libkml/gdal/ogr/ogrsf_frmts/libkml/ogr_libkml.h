@@ -44,13 +44,15 @@ class OGRLIBKMLLayer : public OGRLayer
     int                  bUpdate;
     int                  nNextFID;
     int                  isFolder;
-    //kmlengine::KmlFolderPtr poKmlFolder;
+    kmldom::FolderPtr poKmlFolder;
     kmlengine::KmlFile  *kmlfile;
     kmldom::KmlFactory  *poKmlFactory;
     //kmldom::DocumentPtr poKmlDoc_kmlDocument
    
   public:
-    OGRLIBKMLLayer       ( const char *pszFilename );
+    OGRLIBKMLLayer       ( const char *pszFilename,
+                           OGRSpatialReference *poSpatialRef,
+                           OGRwkbGeometryType eGType );
    ~OGRLIBKMLLayer();
 
     void                 ResetReading();

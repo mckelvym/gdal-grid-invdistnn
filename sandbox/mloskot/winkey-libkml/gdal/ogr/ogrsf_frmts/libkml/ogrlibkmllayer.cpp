@@ -37,16 +37,17 @@
 
 ******************************************************************************/
 
-OGRLIBKMLLayer::OGRLIBKMLLayer(
-  const char *pszLayerName, 
-  OGRSpatialReference *poSpatialRef,
-  OGRwkbGeometryType eGType,
-  KmlFactory *poKmlMyFactory)
+OGRLIBKMLLayer::OGRLIBKMLLayer(const char *pszLayerName, 
+                               OGRSpatialReference *poSpatialRef,
+                               OGRwkbGeometryType eGType)
+    : poFeatureDefn(0)
+    , fp(0)
+    , bUpdate(0)
+    , nNextFID(0)
+    , isFolder(0)
+    , kmlfile(0)
+    , poKmlFactory(kmldom::KmlFactory::GetFactory())
 {
-
-  poKmlFactory = poKmlMyFactory;
-
-  
 }
 
 /******************************************************************************
@@ -55,8 +56,6 @@ OGRLIBKMLLayer::OGRLIBKMLLayer(
 
 OGRLIBKMLLayer::~OGRLIBKMLLayer()
 {
-
-
 }
 
 /******************************************************************************
@@ -65,8 +64,7 @@ OGRLIBKMLLayer::~OGRLIBKMLLayer()
 
 void OGRLIBKMLLayer::ResetReading()
 {
-
-
+    // TODO: unfinished? mloskot
 }
 
 /******************************************************************************
@@ -75,8 +73,8 @@ void OGRLIBKMLLayer::ResetReading()
 
 OGRFeature * OGRLIBKMLLayer::GetNextFeature()
 {
-
-
+    // TODO: unfinished? mloskot
+    return NULL;
 }
 
 /******************************************************************************
@@ -85,19 +83,18 @@ OGRFeature * OGRLIBKMLLayer::GetNextFeature()
 
 OGRFeatureDefn * OGRLIBKMLLayer::GetLayerDefn()
 {
-
-  return poFeatureDefn;
+    // TODO: unfinished? mloskot
+    return poFeatureDefn;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLLayer::SetAttributeFilter(
-  const char *)
+OGRErr OGRLIBKMLLayer::SetAttributeFilter(const char * pszFilter)
 {
-
-
+    // TODO: unfinished? mloskot
+    return OGRERR_NONE;
 }
 
 
@@ -105,58 +102,60 @@ OGRErr OGRLIBKMLLayer::SetAttributeFilter(
 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLLayer::SetNextByIndex(
-  long nIndex)
+OGRErr OGRLIBKMLLayer::SetNextByIndex(long nIndex)
 {
-
-
+    // TODO: unfinished? mloskot
+    return OGRERR_NONE;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-OGRFeature *OGRLIBKMLLayer::GetFeature(
-  long nFID)
+OGRFeature *OGRLIBKMLLayer::GetFeature(long nFID)
 {
-
-
+    // TODO: unfinished? mloskot
+    return NULL;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLLayer::SetFeature(
-  OGRFeature *poFeature)
+OGRErr OGRLIBKMLLayer::SetFeature(OGRFeature *poFeature)
 {
+    CPLAssert(0 != poFeature);
 
-
+    // TODO: unfinished? mloskot
+    return OGRERR_NONE;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLLayer::CreateFeature(
-  OGRFeature *poOgrFeat)
+OGRErr OGRLIBKMLLayer::CreateFeature(OGRFeature *poFeature)
 {
+    CPLAssert(0 != poFeature);
 
-  PlacemarkPtr poKmlPlacemark = feat2kml(this, poOgrFeat, poKmlFactory);
+    PlacemarkPtr poKmlPlacemark = feat2kml(this, poFeature, poKmlFactory);
 
-  if (isFolder)
-    poKmlFolder->add_feature(poKmlPlacemark);
-  
+    if (isFolder)
+    {
+        poKmlFolder->add_feature(poKmlPlacemark);
+    }
+
+    return OGRERR_NONE;
+}  
 
 /******************************************************************************
 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLLayer::DeleteFeature(
-  long nFID )
+OGRErr OGRLIBKMLLayer::DeleteFeature(long nFID)
 {
-
-
+    // TODO: unfinished? mloskot
+    return OGRERR_NONE;
 }
 
 /******************************************************************************
@@ -165,57 +164,53 @@ OGRErr OGRLIBKMLLayer::DeleteFeature(
 
 OGRSpatialReference * OGRLIBKMLLayer::GetSpatialRef()
 {
-
-  return NULL;
+    return NULL;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-int OGRLIBKMLLayer::GetFeatureCount(
-  int bForce)
+int OGRLIBKMLLayer::GetFeatureCount(int bForce)
 {
-
-
+    // TODO: unfinished? mloskot
+    return 0;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLLayer::GetExtent(
-  OGREnvelope *psExtent,
-  int bForce)
+OGRErr OGRLIBKMLLayer::GetExtent(OGREnvelope *poExtent, int bForce)
 {
+    CPLAssert(0 != poExtent);
 
-
+    // TODO: unfinished? mloskot
+    return OGRERR_NONE;
 }
-
     
 /******************************************************************************
 
 ******************************************************************************/
 
-const char *OGRLIBKMLLayer::GetInfo(
-  const char * )
+const char *OGRLIBKMLLayer::GetInfo(const char* pszInfo)
 {
+    CPLAssert(0 != pszInfo);
 
-
+    return 0;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLLayer::CreateField(
-  OGRFieldDefn *poField,
-  int bApproxOK)
+OGRErr OGRLIBKMLLayer::CreateField(OGRFieldDefn *poField, int bApproxOK)
 {
+    CPLAssert(0 != poField);
 
-
+    // TODO: unfinished? mloskot
+    return OGRERR_NONE;
 }
-
 
 /******************************************************************************
 
@@ -223,8 +218,8 @@ OGRErr OGRLIBKMLLayer::CreateField(
 
 OGRErr OGRLIBKMLLayer::SyncToDisk()
 {
-
-
+    // TODO: unfinished? mloskot
+    return OGRERR_NONE;
 }
 
 /******************************************************************************
@@ -233,45 +228,41 @@ OGRErr OGRLIBKMLLayer::SyncToDisk()
 
 OGRStyleTable *OGRLIBKMLLayer::GetStyleTable()
 {
-
-  return m_poStyleTable;
+    return m_poStyleTable;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-void OGRLIBKMLLayer::SetStyleTableDirectly(
-  OGRStyleTable *poStyleTable )
+void OGRLIBKMLLayer::SetStyleTableDirectly(OGRStyleTable *poStyleTable)
 {
-
-  m_poStyleTable = poStyleTable;
-  
-  
+    CPLAssert(0 != poStyleTable);
+    
+    m_poStyleTable = poStyleTable;
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-void OGRLIBKMLLayer::SetStyleTable(
-    OGRStyleTable *poStyleTable)
+void OGRLIBKMLLayer::SetStyleTable(OGRStyleTable *poStyleTable)
 {
-  
-  
+    CPLAssert(0 != poStyleTable);
 }
 
 /******************************************************************************
 
 ******************************************************************************/
 
-int OGRLIBKMLLayer::TestCapability(
-  const char * pszCap)
+int OGRLIBKMLLayer::TestCapability(const char * pszCap)
 {
-  int result = FALSE;
-  
-  if( EQUAL(pszCap,OLCSequentialWrite))
-    result = bUpdate;
+    CPLAssert(0 != pszCap);
 
-  return result;
+    int result = FALSE;
+    
+    if( EQUAL(pszCap,OLCSequentialWrite) )
+        result = bUpdate;
+    
+    return result;
 }
