@@ -113,9 +113,9 @@ class OGRLIBKMLDataSource : public OGRDataSource {
     
     int              GetLayerCount() { return nLayers; }
     OGRLayer        *GetLayer(int);
-    OGRLayer        *GetLayerByName(const char *);
-    OGRErr           DeleteLayer(int);
-
+    // TODO: unused? mloskot
+    // OGRLayer        *GetLayerByName(const char *);
+    // OGRErr           DeleteLayer(int);
     
     OGRLayer        *CreateLayer( const char *pszName, 
                                   OGRSpatialReference *poSpatialRef = NULL,
@@ -138,9 +138,13 @@ class OGRLIBKMLDataSource : public OGRDataSource {
   driver class
 ******************************************************************************/
 
-class OGRLIBKMLDriver : public OGRSFDriver {
+class OGRLIBKMLDriver : public OGRSFDriver
+{
+private:
+
     int            bUpdate;
-  public:
+public:
+                  OGRLIBKMLDriver();
                   ~OGRLIBKMLDriver();
                 
     const char    *GetName();

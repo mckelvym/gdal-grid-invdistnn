@@ -71,43 +71,45 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource() {
 int OGRLIBKMLDataSource::Open(const char *pszFilename, int bUpdate )
 {
 
-  /***** kml *****/
-  
-  if (EQUAL( CPLGetExtension(pszFilename), "kml" ))
-  {
-    if( bUpdate )
-    {
-//static bool kmlbase::File::ReadFileToString  	(  	const string &   	 filename,
-//		string *  	output	 
-//	) 
-    }
-  }
-  /***** kmz *****/
+    /***** kml *****/
 
-  else if (EQUAL( CPLGetExtension(pszFilename), "kmz" ))
-  {
-    
-    if (!(kmzfile = kmlengine::KmzFile::OpenFromFile(pszFilename)))
+    if (EQUAL( CPLGetExtension(pszFilename), "kml" ))
     {
-      CPLError( CE_Failure, CPLE_OpenFailed, 
-                "%s is not a valid kmz file",
-                pszFilename );
-      return FALSE;
+        if( bUpdate )
+        {
+            //static bool kmlbase::File::ReadFileToString   (   const string &       filename,
+            //      string *    output   
+            //  ) 
+        }
+    }
+    /***** kmz *****/
+
+    else if (EQUAL( CPLGetExtension(pszFilename), "kmz" ))
+    {
+
+        if (!(kmzfile = kmlengine::KmzFile::OpenFromFile(pszFilename)))
+        {
+            CPLError( CE_Failure, CPLE_OpenFailed, 
+                      "%s is not a valid kmz file", pszFilename );
+            return FALSE;
+        }
+
+        if( bUpdate )
+        {
+        }
+
+    }
+    else
+    {
+        return FALSE;
+
+        if( bUpdate )
+        {
+        }
     }
 
-    if( bUpdate )
-    {
-    }
-
-  }
-  else
-  {
-     return FALSE;
-
-    if( bUpdate )
-    {
-    }
-  }
+    //TODO: what ret value here, seems TRUE ? mloskot
+    return TRUE;
 }
 
 /******************************************************************************
@@ -119,61 +121,59 @@ int OGRLIBKMLDataSource::Open(const char *pszFilename, int bUpdate )
  
 ******************************************************************************/
 
-int OGRLIBKMLDataSource::Create (
-  const char *pszFilename,
-  char **papszOptions)
+int OGRLIBKMLDataSource::Create(const char *pszFilename, char **papszOptions)
 {
-
-  /***** kml *****/
+    /***** kml *****/
   
-/*  if (EQUAL( CPLGetExtension(pszFilename), "kml" )) {
+    /*  if (EQUAL( CPLGetExtension(pszFilename), "kml" )) {
 
-    if (!(kmlfile =
-            kmlengine::KmlFile::CreateFromParse(
-                kmlengine::KmlFile::CreateXmlHeader() ))) {
-      CPLError( CE_Failure, CPLE_OpenFailed, 
-                "Failed to create kml file %s.", 
-                pszFilename );
-      return false;
+        if (!(kmlfile =
+        kmlengine::KmlFile::CreateFromParse(
+        kmlengine::KmlFile::CreateXmlHeader() ))) {
+        CPLError( CE_Failure, CPLE_OpenFailed, 
+        "Failed to create kml file %s.", 
+        pszFilename );
+        return false;
+        }
+
+        }
+    */  
+    /***** kmz *****/
+
+    /*else*/
+    if (EQUAL( CPLGetExtension(pszFilename), "kmz" ))
+    {    
+        if (!(kmzfile = kmlengine::KmzFile::Create (pszFilename)))
+        {
+            CPLError( CE_Failure, CPLE_OpenFailed, 
+                      "Failed to create kmz file %s.", 
+                      pszFilename );
+            return false;
+        }
+
+        nLayers = 0;
+    
+        /***** set up the factory everything will use *****/
+    
+        poKmlFactory = kmldom::KmlFactory::GetFactory();
+
+        /***** create the doc.kml it has to be the first file in *****/
+    
+        const char *namefield = CPLGetConfigOption("LIBKML_USE_DOC.KML", "yes");
+        if (!strcmp(namefield, "yes"))
+        {
+            kmldom::DocumentPtr poKmlDoc(poKmlFactory->CreateDocument());
+            kmldom::KmlPtr poKmlKml(poKmlFactory->CreateKml());
+            poKmlKml->set_feature(poKmlDoc);
+
+            std::string strKmlOut(kmldom::SerializePretty(poKmlKml));
+            kmzfile->AddFile(strKmlOut, "Doc.Kml");
+        }
     }
 
-  }
-*/  
-  /***** kmz *****/
-
-  /*else*/ if (EQUAL( CPLGetExtension(pszFilename), "kmz" )) {
-    
-    if (!(kmzfile = kmlengine::KmzFile::Create (pszFilename))) {
-      CPLError( CE_Failure, CPLE_OpenFailed, 
-                "Failed to create kmz file %s.", 
-                pszFilename );
-      return false;
-    }
-
-    nLayers = 0;
-    
-    /***** set up the factory everything will use *****/
-    
-    poKmlFactory = kmldom::KmlFactory::GetFactory();
-
-    /***** create the doc.kml it has to be the first file in *****/
-    
-    const char *namefield = CPLGetConfigOption("LIBKML_USE_DOC.KML", "yes");
-    if (!strcmp(namefield, "yes"))
-    {
-        kmldom::DocumentPtr poKmlDoc_kmlDocument = poKmlFactory->CreateDocument();
-        kmldom::KmlPtr poKmlKml = poKmlFactory->CreateKml();
-      poKmlKml->set_feature(poKmlDoc_kmlDocument);
-
-      std::string strKmlOut = kmldom::SerializePretty(poKmlKml);
-
-      kmzfile->AddFile(strKmlOut, "Doc.Kml");
-    }
-  }
-
-  return true;
+    return true;
 }
-    
+
 /******************************************************************************
  GetLayer()
 ******************************************************************************/
@@ -191,13 +191,14 @@ OGRLayer *OGRLIBKMLDataSource::GetLayer(int iLayer)
  CreateLayer()
 ******************************************************************************/
 
-OGRLayer *OGRLIBKMLDataSource::CreateLayer(
-  const char *pszLayerName, 
-  OGRSpatialReference *poSpatialRef,
-  OGRwkbGeometryType eGType,
-  char ** papszOptions)
+OGRLayer *OGRLIBKMLDataSource::CreateLayer(const char *pszLayerName,
+                                           OGRSpatialReference *poSpatialRef,
+                                           OGRwkbGeometryType eGType,
+                                           char** papszOptions)
 {
-    OGRLayer *poOgrLayer = new OGRLIBKMLLayer(pszLayerName, poSpatialRef, eGType);
+    OGRLayer *poLayer = new OGRLIBKMLLayer(pszLayerName, poSpatialRef, eGType);
+
+    return poLayer;
 }
 /******************************************************************************
  TestCapability()

@@ -32,6 +32,14 @@
 
 
 /******************************************************************************
+ OGRLIBKMLDriver()
+******************************************************************************/
+
+OGRLIBKMLDriver::OGRLIBKMLDriver() : bUpdate(0)
+{
+}
+
+/******************************************************************************
  ~OGRLIBKMLDriver()
 ******************************************************************************/
 
@@ -45,45 +53,42 @@ OGRLIBKMLDriver::~OGRLIBKMLDriver()
 
 const char *OGRLIBKMLDriver::GetName()
 {
-  
-  return "LIBKML";
+    return "LIBKML";
 }
 
 /******************************************************************************
  Open()
 ******************************************************************************/
 
-OGRDataSource *OGRLIBKMLDriver::Open(
-  const char *pszFilename,
-  int bUpdate)
+OGRDataSource *OGRLIBKMLDriver::Open(const char *pszFilename, int bUpdate)
 {
-  OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource();
+    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource();
 
-  if(!poDS->Open(pszFilename, bUpdate)) {
-    delete poDS;
-    poDS = NULL;
-  }
+    if (!poDS->Open(pszFilename, bUpdate))
+    {
+        delete poDS;
+        poDS = NULL;
+    }
 
-  return poDS;
+    return poDS;
 }
 
 /******************************************************************************
  CreateDataSource()
 ******************************************************************************/
 
-OGRDataSource *OGRLIBKMLDriver::CreateDataSource(
-  const char* pszName,
-  char** papszOptions)
+OGRDataSource *OGRLIBKMLDriver::CreateDataSource(const char* pszName, char** papszOptions)
 {
     CPLAssert( NULL != pszName );
     CPLDebug( "LIBKML", "Attempt to create: %s", pszName );
-    
+
     OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource();
 
-  if(!poDS->Create(pszName, papszOptions)) {
-    delete poDS;
-    poDS = NULL;
-  }
+    if (!poDS->Create(pszName, papszOptions))
+    {
+        delete poDS;
+        poDS = NULL;
+    }
 
     return poDS;
 }
@@ -92,26 +97,23 @@ OGRDataSource *OGRLIBKMLDriver::CreateDataSource(
  DeleteDataSource()
 ******************************************************************************/
 
-OGRErr OGRLIBKMLDriver::DeleteDataSource(
-  const char *pszName)
+OGRErr OGRLIBKMLDriver::DeleteDataSource(const char *pszName)
 {
+#warning implement DeleteDataSource()
 
-  #warning implement DeleteDataSource()
+    return OGRERR_NONE;
 }
 
 /******************************************************************************
  TestCapability()
 ******************************************************************************/
 
-int OGRLIBKMLDriver::TestCapability(
-  const char* pszCap)
+int OGRLIBKMLDriver::TestCapability(const char* pszCap)
 {
   if( EQUAL(pszCap,ODrCCreateDataSource) )
     return bUpdate;
-  
   else if( EQUAL(pszCap,ODrCDeleteDataSource) )
     return bUpdate;
-  
   else
     return FALSE;
 }
@@ -122,9 +124,6 @@ int OGRLIBKMLDriver::TestCapability(
 
 void RegisterOGRLIBKML()
 {
-  OGRSFDriverRegistrar::GetRegistrar()->RegisterDriver(new OGRLIBKMLDriver);
-
+  OGRSFDriverRegistrar::GetRegistrar()->RegisterDriver(new OGRLIBKMLDriver());
 }
-
-
 
