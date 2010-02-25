@@ -87,6 +87,9 @@ void OGRRegisterAll()
 #ifdef KML_ENABLED
     RegisterOGRKML();
 #endif
+#ifdef LIBKML_ENABLED
+    RegisterOGRLIBKML();
+#endif
 #ifdef GEOJSON_ENABLED
     RegisterOGRGeoJSON();
 #endif
