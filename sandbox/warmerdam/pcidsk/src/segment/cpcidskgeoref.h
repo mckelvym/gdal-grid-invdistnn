@@ -57,10 +57,10 @@ namespace PCIDSK
 
         std::vector<double> GetParameters();
 
-        void        WriteSimple( std::string geosys, 
+        void        WriteSimple( std::string const& geosys, 
                                  double a1, double a2, double xrot, 
                                  double b1, double yrot, double b3 );
-        void        WriteParameters( std::vector<double> &parameters );
+        void        WriteParameters( std::vector<double> const& parameters );
 
         // special interface just for testing.
         std::vector<double> GetUSGSParameters();
@@ -73,7 +73,7 @@ namespace PCIDSK
         
         void         Load();
         void         PrepareGCTPFields();
-        void         ReformatGeosys( std::string &geosys );
+        std::string  ReformatGeosys( std::string const& geosys );
 
         PCIDSKBuffer seg_data;
     };
