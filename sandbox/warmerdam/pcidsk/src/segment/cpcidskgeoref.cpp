@@ -964,7 +964,7 @@ void CPCIDSKGeoref::PrepareGCTPFields()
 /*      ellipsoid values here!                                          */
 /* -------------------------------------------------------------------- */
     int Spheroid = -1;
-    if( geosys[12] == 'E' )
+    if( geosys_clean[12] == 'E' )
         Spheroid = atoi(geosys_clean.c_str() + 13);
     
     if( Spheroid < 0 || Spheroid > 19 )
