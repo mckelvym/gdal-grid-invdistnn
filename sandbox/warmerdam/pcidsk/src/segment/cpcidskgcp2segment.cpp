@@ -268,7 +268,7 @@ void CPCIDSKGCP2Segment::RebuildSegmentData(void)
         iter++;
     }
     
-    WriteToFile(pimpl_->seg_data.buffer, 0, data_size);
+    WriteToFile(pimpl_->seg_data.buffer, 0, pimpl_->seg_data.buffer_size);
     
     pimpl_->changed = false;
 }
