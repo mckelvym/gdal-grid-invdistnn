@@ -131,6 +131,19 @@ CPLErr VRTSourcedRasterBand::IRasterIO( GDALRWFlag eRWFlag,
         return CE_Failure;
     }
 
+/* ==================================================================== */
+/*      Do we have overviews that would be appropriate to satisfy       */
+/*      this request?                                                   */
+/* ==================================================================== */
+    if( (nBufXSize < nXSize || nBufYSize < nYSize)
+        && GetOverviewCount() > 0 )
+    {
+        if( OverviewRasterIO( eRWFlag, nXOff, nYOff, nXSize, nYSize, 
+                              pData, nBufXSize, nBufYSize, 
+                              eBufType, nPixelSpace, nLineSpace ) == CE_None )
+            return CE_None;
+    }
+
 /* -------------------------------------------------------------------- */
 /*      Initialize the buffer to some background value. Use the         */
 /*      nodata value if available.                                      */
