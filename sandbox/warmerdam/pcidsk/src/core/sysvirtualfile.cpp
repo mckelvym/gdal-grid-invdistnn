@@ -110,10 +110,10 @@ void SysVirtualFile::Synchronize()
 {
     if( loaded_block_dirty )
     {
-        PCIDSKSegment *data_seg_obj = 
+        PCIDSKSegment *data_seg_obj =
             file->GetSegment( block_segment[loaded_block] );
 
-        data_seg_obj->WriteToFile( block_data, 
+        data_seg_obj->WriteToFile( block_data,
                                    block_size * (uint64) block_index[loaded_block],
                                    block_size );
         loaded_block_dirty = false;
@@ -136,24 +136,25 @@ SysVirtualFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
         int offset_in_block = (int) ((offset + buffer_offset) % block_size);
         int amount_to_copy = block_size - offset_in_block;
 
-        if (offset_in_block != 0 || amount_to_copy < block_size) {
+        if (offset_in_block != 0 || (size - buffer_offset) < (uint64)block_size) {
             // we need to read in the block for update
             LoadBlock( request_block );
+            if( amount_to_copy > (int) (size - buffer_offset) )
+                amount_to_copy = (int) (size - buffer_offset);
+
+            // fill in the block
+            memcpy( block_data + offset_in_block,
+                    ((uint8 *) buffer) + buffer_offset,
+                    amount_to_copy );
+
+            loaded_block_dirty = true;
         } else {
-            FlushDirtyBlock(); // flush the cached block, if dirty
-            GrowVirtualFile(request_block); // if the file needs to grow, make it so
-            loaded_block = request_block;
+            int num_full_blocks = (size - buffer_offset) / block_size;
+            
+            WriteBlocks(request_block, num_full_blocks, (uint8*)buffer + buffer_offset);
+            
+            amount_to_copy = num_full_blocks * block_size;
         }
-
-        if( amount_to_copy > (int) (size - buffer_offset) )
-            amount_to_copy = (int) (size - buffer_offset);
-
-        // fill in the block
-        memcpy( block_data + offset_in_block, 
-                ((uint8 *) buffer) + buffer_offset, 
-                amount_to_copy );
-
-        loaded_block_dirty = true;
 
         buffer_offset += amount_to_copy;
     }
@@ -295,7 +296,65 @@ void SysVirtualFile::GrowVirtualFile(std::ptrdiff_t requested_block)
 }
 
 /**
- * \breif Load a group of blocks
+ * \brief Writes a group of blocks
+ * Attempts to create a group of blocks (if the SysVirtualFile
+ * is not already large enough to hold them) and then write them
+ * out contiguously
+ */
+void SysVirtualFile::WriteBlocks(int first_block,
+                                 int block_count,
+                                 void* const buffer)
+{
+    FlushDirtyBlock();
+    // Iterate through all the blocks to be written, first, then
+    // grow the virtual file
+    for (unsigned int i = 0; i < block_count; i++) {
+        GrowVirtualFile(first_block + i);
+    }
+    
+    // Using a similar algorithm to the LoadBlocks() function,
+    // attempt to coalesce writes
+    std::size_t buffer_off = 0;
+    std::size_t blocks_written = 0;
+    std::size_t current_first_block = first_block;
+    while (blocks_written < block_count) {
+        unsigned int cur_segment = block_segment[current_first_block];
+        unsigned int cur_block = current_first_block;
+        while (cur_block < (unsigned int)block_count + first_block &&
+            (unsigned int)block_segment[cur_block + 1] == cur_segment)
+        {
+            cur_block++;
+        }
+        
+        // Find largest span of contiguous blocks we can write
+        uint64 write_start = block_index[current_first_block];
+        uint64 write_cur = write_start * block_size;
+        unsigned int count_to_write = 1;
+        while (write_cur + block_size ==
+            (uint64)block_index[count_to_write + current_first_block] * block_size &&
+            count_to_write < (cur_block - current_first_block))
+        {
+            write_cur += block_size;
+            count_to_write++;
+        }
+        
+        PCIDSKSegment *data_seg_obj =
+            file->GetSegment( cur_segment );
+        
+        std::size_t bytes_to_write = count_to_write * block_size;
+        
+        data_seg_obj->WriteToFile((uint8*)buffer + buffer_off,
+                                  block_size * current_first_block,
+                                  bytes_to_write);
+    
+        buffer_off += bytes_to_write;
+        blocks_written += count_to_write;
+        current_first_block += count_to_write;
+    }
+}
+
+/**
+ * \brief Load a group of blocks
  * Attempts to coalesce reading of groups of blocks into a single
  * filesystem I/O operation. Does not cache the loaded block, nor
  * does it modify the state of the SysVirtualFile, other than to
