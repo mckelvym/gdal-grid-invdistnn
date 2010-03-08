@@ -44,6 +44,9 @@
 #include "segment/sysblockmap.h"
 #include <cassert>
 #include <cstring>
+#if 0
+#include <cstdio>
+#endif
 
 using namespace PCIDSK;
 
@@ -131,14 +134,21 @@ SysVirtualFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
     {
         int request_block = (int) ((offset + buffer_offset) / block_size);
         int offset_in_block = (int) ((offset + buffer_offset) % block_size);
-        int amount_to_copy;
+        int amount_to_copy = block_size - offset_in_block;
 
-        LoadBlock( request_block );
+        if (offset_in_block != 0 || amount_to_copy < block_size) {
+            // we need to read in the block for update
+            LoadBlock( request_block );
+        } else {
+            FlushDirtyBlock(); // flush the cached block, if dirty
+            GrowVirtualFile(request_block); // if the file needs to grow, make it so
+            loaded_block = request_block;
+        }
 
-        amount_to_copy = block_size - offset_in_block;
         if( amount_to_copy > (int) (size - buffer_offset) )
             amount_to_copy = (int) (size - buffer_offset);
 
+        // fill in the block
         memcpy( block_data + offset_in_block, 
                 ((uint8 *) buffer) + buffer_offset, 
                 amount_to_copy );
@@ -163,21 +173,43 @@ void SysVirtualFile::ReadFromFile( void *buffer, uint64 offset, uint64 size )
 
 {
     uint64 buffer_offset = 0;
-
+#if 0
+    printf("Requesting region at %llu of size %llu\n", offset, size);
+#endif
     while( buffer_offset < size )
     {
         int request_block = (int) ((offset + buffer_offset) / block_size);
         int offset_in_block = (int) ((offset + buffer_offset) % block_size);
-        int amount_to_copy;
+        int amount_to_copy = block_size - offset_in_block;
+        
 
-        LoadBlock( request_block );
 
-        amount_to_copy = block_size - offset_in_block;
-        if( amount_to_copy > (int) (size - buffer_offset) )
-            amount_to_copy = (int) (size - buffer_offset);
+        if (offset_in_block != 0 || (size - buffer_offset) < (uint64)block_size) {
+            // Deal with the case where we need to load a partial block. Hopefully
+            // this doesn't happen often
+            LoadBlock( request_block );
+            if( amount_to_copy > (int) (size - buffer_offset) )
+                amount_to_copy = (int) (size - buffer_offset);
+#if 0
+            printf("Requested block: %d Offset: %d copying %d bytes\n",
+                request_block, offset_in_block, amount_to_copy);
+#endif
+            memcpy( ((uint8 *) buffer) + buffer_offset,
+                    block_data + offset_in_block, amount_to_copy );
+        } else {
+            // Use the bulk loading of blocks. First, compute the range
+            // of full blocks we need to load
+            int num_full_blocks = (size - buffer_offset)/block_size;
+            
+#if 0
+            printf("Attempting a coalesced read of %d blocks (from %d) in buffer at %d\n", 
+                num_full_blocks, request_block, buffer_offset);
+#endif
 
-        memcpy( ((uint8 *) buffer) + buffer_offset, 
-                block_data + offset_in_block, amount_to_copy );
+            LoadBlocks(request_block, num_full_blocks, ((uint8*)buffer) + buffer_offset);
+            amount_to_copy = num_full_blocks * block_size;
+        }
+
 
         buffer_offset += amount_to_copy;
     }
@@ -186,7 +218,10 @@ void SysVirtualFile::ReadFromFile( void *buffer, uint64 offset, uint64 size )
 /************************************************************************/
 /*                             LoadBlock()                              */
 /************************************************************************/
-
+/**
+ * Loads the requested_block block from the system virtual file. Extends
+ * the file if necessary
+ */
 void SysVirtualFile::LoadBlock( int requested_block )
 
 {
@@ -199,15 +234,7 @@ void SysVirtualFile::LoadBlock( int requested_block )
 /* -------------------------------------------------------------------- */
 /*      Do we need to grow the virtual file by one block?               */
 /* -------------------------------------------------------------------- */
-    if( requested_block == (int) block_index.size() )
-    {
-        int new_seg;
-
-        block_index.push_back( 
-            sysblockmap->GrowVirtualFile( image_index, 
-                                          last_bm_index, new_seg ) );
-        block_segment.push_back( new_seg );
-    }
+    GrowVirtualFile(requested_block);
 
 /* -------------------------------------------------------------------- */
 /*      Does this block exist in the virtual file?                      */
@@ -219,28 +246,127 @@ void SysVirtualFile::LoadBlock( int requested_block )
 /* -------------------------------------------------------------------- */
 /*      Do we have a dirty block loaded that needs to be saved?         */
 /* -------------------------------------------------------------------- */
-    if( loaded_block_dirty )
-    {
-        PCIDSKSegment *data_seg_obj = 
-            file->GetSegment( block_segment[loaded_block] );
-        
-        data_seg_obj->WriteToFile( block_data, 
-                                   block_size * (uint64) block_index[loaded_block],
-                                   block_size );
-        loaded_block_dirty = false;
-    }
+    FlushDirtyBlock();
 
 /* -------------------------------------------------------------------- */
 /*      Load the requested block.                                       */
 /* -------------------------------------------------------------------- */
-    PCIDSKSegment *data_seg_obj = 
+    PCIDSKSegment *data_seg_obj =
         file->GetSegment( block_segment[requested_block] );
 
-    data_seg_obj->ReadFromFile( block_data, 
+    data_seg_obj->ReadFromFile( block_data,
                                 block_size * (uint64) block_index[requested_block],
                                 block_size );
 
     loaded_block = requested_block;
     loaded_block_dirty = false;
+}
+
+/************************************************************************/
+/*                         FlushDirtyBlock()                            */
+/************************************************************************/
+/**
+ * If the block currently loaded is dirty, flush it to the file
+ */
+void SysVirtualFile::FlushDirtyBlock(void)
+{
+    if (loaded_block_dirty) {
+        PCIDSKSegment *data_seg_obj =
+            file->GetSegment( block_segment[loaded_block] );
+        
+        data_seg_obj->WriteToFile( block_data,
+                                   block_size * (uint64) block_index[loaded_block],
+                                   block_size );
+        loaded_block_dirty = false;
+    }
+}
+
+void SysVirtualFile::GrowVirtualFile(std::ptrdiff_t requested_block)
+{
+    if( requested_block == (int) block_index.size() )
+    {
+        int new_seg;
+
+        block_index.push_back( 
+            sysblockmap->GrowVirtualFile( image_index,
+                                          last_bm_index, new_seg ) );
+        block_segment.push_back( new_seg );
+    }
+}
+
+/**
+ * \breif Load a group of blocks
+ * Attempts to coalesce reading of groups of blocks into a single
+ * filesystem I/O operation. Does not cache the loaded block, nor
+ * does it modify the state of the SysVirtualFile, other than to
+ * flush the loaded block if it is dirty.
+ */
+void SysVirtualFile::LoadBlocks(int requested_block_start,
+                                int requested_block_count,
+                                void* const buffer)
+{
+    FlushDirtyBlock();
+    unsigned int blocks_read = 0;
+    unsigned int current_start = requested_block_start;
+    
+    std::size_t buffer_off = 0;
+    
+    while (blocks_read < (unsigned int)requested_block_count) {
+        // Coalesce blocks that are in the same segment
+        unsigned int cur_segment = block_segment[current_start]; // segment of current
+                // first block
+        unsigned int cur_block = current_start; // starting block ID
+        while (cur_block < (unsigned int)requested_block_count + requested_block_start &&
+            (unsigned int)block_segment[cur_block + 1] == cur_segment) {
+            // this block is in the same segment as the previous one we
+            // wanted to read.
+            cur_block++;
+        }
+        
+        // now attempt to determine if the region of blocks (from current_start
+        // to cur_block are contiguous
+        uint64 read_start = block_index[current_start];
+        uint64 read_cur = read_start * block_size;
+        unsigned int count_to_read = 1; // we'll read at least one block
+        while (read_cur + block_size ==
+            (uint64)block_index[count_to_read + current_start] * block_size && // compare count of blocks * offset with stored offset
+            count_to_read < (cur_block - current_start) ) // make sure we don't try to read more blocks than we determined fell in
+                                                            // this segment
+        {
+            read_cur += block_size;
+            count_to_read++;
+        }
+
+#if 0
+
+        // Check if we need to grow the virtual file for each of these blocks
+        for (unsigned int i = 0 ; i < count_to_read; i++) {
+            GrowVirtualFile(i + current_start);
+        }
+        
+        
+        printf("Coalescing the read of %d blocks\n", count_to_read);
+#endif
+
+        // Perform the actual read
+        PCIDSKSegment *data_seg_obj =
+            file->GetSegment( cur_segment );
+        
+        std::size_t data_size = block_size * count_to_read;
+
+#if 0
+        printf("Reading %d bytes at offset %d in buffer\n", data_size, buffer_off);
+#endif
+
+        data_seg_obj->ReadFromFile( ((uint8*)buffer) + buffer_off,
+                                    block_size * read_start,
+                                    data_size );
+                                    
+        buffer_off += data_size; // increase buffer offset
+        
+        // Increment the current start by the number of blocks we jsut read
+        current_start += count_to_read;
+        blocks_read += count_to_read;
+    }
 }
 

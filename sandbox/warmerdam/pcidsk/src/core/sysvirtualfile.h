@@ -86,6 +86,10 @@ namespace PCIDSK
         int                    last_bm_index;
 
         void                   LoadBlock( int requested_block );
+        void                   LoadBlocks( int requested_block_start, 
+            int requested_block_count, void* const buffer);
+        void                   GrowVirtualFile(std::ptrdiff_t requested_block);
+        void                   FlushDirtyBlock();
     };  
 }
 
