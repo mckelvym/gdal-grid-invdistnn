@@ -528,9 +528,10 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
         NULL 
     };
         
-    // make initial request to the server for a session, we are going to assume that 
-    // the jpip communication is stateful, rather than one-shot stateless requests
-    // append pszUrl with jpip request parameters for a stateful session (multi-shot communications)
+    // make initial request to the server for a session, we are going to 
+    // assume that the jpip communication is stateful, rather than one-shot
+    // stateless requests append pszUrl with jpip request parameters for a 
+    // stateful session (multi-shot communications)
     // "cnew=http&type=jpp-stream&stream=0&tid=0&len="
     CPLString osRequest;
     osRequest.Printf("%s?%s%i", pszUrl, "cnew=http&type=jpp-stream&stream=0&tid=0&len=", 2000);
@@ -557,243 +558,13 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
         return FALSE;        
     }
 
-    // parse the response headers, and the initial data until we get to the codestream definition
+    // parse the response headers, and the initial data until we get to the 
+    // codestream definition
     char** pszHdrs = psResult->papszHeaders;
     const char* pszTid = CSLFetchNameValue(pszHdrs, "JPIP-tid");
     const char* pszCnew = CSLFetchNameValue(pszHdrs, "JPIP-cnew");
 
-    if (pszTid && pszCnew)
-    {
-        //CPLDebug("JPIPKAK", "tid - %s", pszTid);
-        //CPLDebug("JPIPKAK", "cnew - %s", pszCnew);
-
-        pszTid = CPLStrdup(pszTid);
-        // parse cnew response
-        // JPIP-cnew:
-        // cid=DC69DF980A641A4BBDEB50E484A66578,path=MyPath,transport=http
-        char **papszTokens = CSLTokenizeString2( pszCnew, ",", CSLT_HONOURSTRINGS);
-        for (int i = 0; i < CSLCount(papszTokens); i++)
-        {
-            // looking for cid, path
-            if (EQUALN(papszTokens[i], "cid", 3))
-            {
-                char *pszKey = NULL;
-                const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
-                pszCid = CPLStrdup(pszValue);
-                CPLFree( pszKey );
-            }
-
-            if (EQUALN(papszTokens[i], "path", 4))
-            {
-                char *pszKey = NULL;
-                const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
-                pszPath = CPLStrdup(pszValue);
-                CPLFree( pszKey );
-            }
-        }
-
-        CSLDestroy(papszTokens);
-
-        if (pszPath && pszCid)
-        {
-            // ok, good to go with jpip, get to the codestream before returning successful initialisation
-            // of the driver
-            poCache = new kdu_cache();
-            poCodestream = new kdu_codestream();
-            poDecompressor = new kdu_region_decompressor();
-
-            int bFinished = FALSE;
-            bFinished = ReadFromInput(psResult->pabyData, psResult->nDataLen);
-            CPLHTTPDestroyResult(psResult);
-
-            // continue making requests in the main thread to get all the available metadata
-            // for data bin 0, and reach the codestream
-
-            // format the new request
-            // and set as pszRequestUrl;
-            // get the protocol from the original request
-            size_t found = osRequest.find_first_of("/");
-            CPLString osProtocol = osRequest.substr(0, found + 2);
-            osRequest.erase(0, found + 2);
-            // find context path
-            found = osRequest.find_first_of("/");
-            osRequest.erase(found);
-			
-            osRequestUrl.Printf("%s%s/%s?cid=%s&stream=0&len=%i", osProtocol.c_str(), osRequest.c_str(), pszPath, pszCid, 2000);
-
-            while (!bFinished)
-            {
-                CPLHTTPResult *psResult = CPLHTTPFetch(osRequestUrl, apszOptions);
-                bFinished = ReadFromInput(psResult->pabyData, psResult->nDataLen);
-                CPLHTTPDestroyResult(psResult);
-            }
-
-            // clean up osRequest, remove variable len= parameter
-            size_t pos = osRequestUrl.find_last_of("&");	
-            osRequestUrl.erase(pos);
-
-            // create codestream
-            poCache->set_read_scope(KDU_MAIN_HEADER_DATABIN, 0, 0);
-            poCodestream->create(poCache);
-            poCodestream->set_persistent();
-
-            kdu_channel_mapping* oChannels = new kdu_channel_mapping();
-            oChannels->configure(*poCodestream);
-            kdu_coords* ref_expansion = new kdu_coords(1, 1);
-					
-            // get available resolutions, image width / height etc.
-            kdu_dims view_dims = poDecompressor->get_rendered_image_dims(*poCodestream, oChannels, -1, 0,
-                                                                              *ref_expansion, *ref_expansion, KDU_WANT_OUTPUT_COMPONENTS);
-
-            nRasterXSize = view_dims.size.x;
-            nRasterYSize = view_dims.size.y;
-
-//	        nBands = poCodestream->get_num_components();
-            nBands = 4;
-
-            // TODO add color interpretation
-
-            // calculate overviews
-            siz_params* siz_in = poCodestream->access_siz();
-            kdu_params* cod_in = siz_in->access_cluster("COD");
-
-            delete oChannels;
-            delete ref_expansion;
-
-            cod_in->get("Clayers", 0, 0, nQualityLayers);
-            cod_in->get("Clevels", 0, 0, nResLevels);
-
-            // setup band objects
-            int iBand;
-    
-            for( iBand = 1; iBand <= nBands; iBand++ )
-            {
-                JPIPKAKRasterBand *poBand = 
-                    new JPIPKAKRasterBand(iBand,0,poCodestream,nResLevels,
-                                          this );
-	
-                SetBand( iBand, poBand );
-            }
-
-            // jpipkak does not support rasterband access, 
-            // when this is added nComps can be replaced by nBands
-            siz_in->get("Scomponents", 0, 0, nComps);
-            siz_in->get("Sprecision", 0, 0, nBitDepth);
-
-            // set specific metadata items
-            CPLString osNQualityLayers;
-            osNQualityLayers.Printf("%i", nQualityLayers);
-            CPLString osNResolutionLevels;
-            osNResolutionLevels.Printf("%i", nResLevels);
-            CPLString osNComps;
-            osNComps.Printf("%i", nComps);
-            CPLString osBitDepth;
-            osBitDepth.Printf("%i", nBitDepth);
-
-            SetMetadataItem("JPIP_NQUALITYLAYERS", osNQualityLayers.c_str(), "JPIP");
-            SetMetadataItem("JPIP_NRESOLUTIONLEVELS", osNResolutionLevels.c_str(), "JPIP");
-            SetMetadataItem("JPIP_NCOMPS", osNComps.c_str(), "JPIP");
-            SetMetadataItem("JPIP_SPRECISION", osBitDepth.c_str(), "JPIP");
-	
-            // parse geojp2, or gmljp2, we will assume that the core metadata of gml or a geojp2 uuid
-            // have been sent in the initial metadata response
-            // if the server has used placeholder boxes for this information then the image will
-            // be interpreted as x,y
-            GDALJP2Metadata oJP2Geo;
-            int nLen = poCache->get_databin_length(KDU_META_DATABIN, nCodestream, 0);
-            if (nLen > 0)
-            {
-                // create in memory file using vsimem
-                CPLString osFileBoxName;
-                osFileBoxName.Printf("/vsimem/jpip/%s.dat", pszCid);
-                FILE *fpLL = VSIFOpenL(osFileBoxName.c_str(), "w+");
-                poCache->set_read_scope(KDU_META_DATABIN, nCodestream, 0);
-                kdu_byte* pabyBuffer = (kdu_byte *)CPLMalloc(nLen);
-                poCache->read(pabyBuffer, nLen);
-                VSIFWriteL(pabyBuffer, nLen, 1, fpLL);
-                CPLFree( pabyBuffer );
-
-                VSIFFlushL(fpLL);
-                VSIFSeekL(fpLL, 0, SEEK_SET);
-
-                nPamFlags |= GPF_NOSAVE;
-
-                try
-                {
-                    oJP2Geo.ReadBoxes(fpLL);
-                    // parse gml first, followed by geojp2 as a fallback
-                    if (oJP2Geo.ParseGMLCoverageDesc() || oJP2Geo.ParseJP2GeoTIFF())
-                    {
-                        pszProjection = CPLStrdup(oJP2Geo.pszProjection);
-                        bGeoTransformValid = TRUE;
-
-                        memcpy(adfGeoTransform, oJP2Geo.adfGeoTransform, 
-                               sizeof(double) * 6 );
-                        nGCPCount = oJP2Geo.nGCPCount;
-                        pasGCPList = oJP2Geo.pasGCPList;
-
-                        oJP2Geo.pasGCPList = NULL;
-                        oJP2Geo.nGCPCount = 0;
-						
-                        int iBox;
-
-                        for( iBox = 0; 
-                             oJP2Geo.papszGMLMetadata
-                                 && oJP2Geo.papszGMLMetadata[iBox] != NULL; 
-                             iBox++ )
-                        {
-                            char *pszName = NULL;
-                            const char *pszXML = 
-                                CPLParseNameValue( oJP2Geo.papszGMLMetadata[iBox], 
-                                                   &pszName );
-                            CPLString osDomain;
-                            char *apszMDList[2];
-
-                            osDomain.Printf( "xml:%s", pszName );
-                            apszMDList[0] = (char *) pszXML;
-                            apszMDList[1] = NULL;
-
-                            GDALPamDataset::SetMetadata( apszMDList, osDomain );
-                            CPLFree( pszName );
-                        }
-				
-
-                        SetDescription( CPLStrdup(pszUrl));
-                    }
-                    else
-                    {
-                        // treat as cartesian, no geo metadata
-                        CPLError(CE_Warning, CPLE_AppDefined, 
-                                 "Parsed metadata boxes from jpip stream, geographic metadata not found - is the server using placeholders for this data?" );
-						
-                    }
-                }
-                catch(...)
-                {
-                    CPLError(CE_Failure, CPLE_AppDefined, 
-                             "Unable to parse geographic metadata boxes from jpip stream" );
-                }
-
-                VSIFCloseL(fpLL);
-                VSIUnlink( osFileBoxName.c_str());
-
-            }
-            else
-            {
-                CPLError(CE_Failure, CPLE_AppDefined, 
-                         "Unable to open stream to parse metadata boxes" );
-            }
-
-            return TRUE;
-        }
-        else
-        {
-            CPLHTTPDestroyResult(psResult);
-            CPLError(CE_Failure, CPLE_AppDefined, "Error parsing path and cid from cnew - %s", pszCnew);
-            return FALSE;
-        }
-    }
-    else
+    if( pszTid == NULL || pszCnew == NULL )
     {
         CPLHTTPDestroyResult( psResult );
         CPLError(CE_Failure, CPLE_AppDefined, 
@@ -801,7 +572,233 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
         return FALSE;    
     }
 
-    return FALSE; // we never really get here.
+    pszTid = CPLStrdup(pszTid);
+    // parse cnew response
+    // JPIP-cnew:
+    // cid=DC69DF980A641A4BBDEB50E484A66578,path=MyPath,transport=http
+    char **papszTokens = CSLTokenizeString2( pszCnew, ",", CSLT_HONOURSTRINGS);
+    for (int i = 0; i < CSLCount(papszTokens); i++)
+    {
+        // looking for cid, path
+        if (EQUALN(papszTokens[i], "cid", 3))
+        {
+            char *pszKey = NULL;
+            const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
+            pszCid = CPLStrdup(pszValue);
+            CPLFree( pszKey );
+        }
+
+        if (EQUALN(papszTokens[i], "path", 4))
+        {
+            char *pszKey = NULL;
+            const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
+            pszPath = CPLStrdup(pszValue);
+            CPLFree( pszKey );
+        }
+    }
+
+    CSLDestroy(papszTokens);
+
+    if( pszPath == NULL || pszCid == NULL )
+    {
+        CPLHTTPDestroyResult(psResult);
+        CPLError(CE_Failure, CPLE_AppDefined, "Error parsing path and cid from cnew - %s", pszCnew);
+        return FALSE;
+    }
+
+    // ok, good to go with jpip, get to the codestream before returning 
+    // successful initialisation of the driver
+    poCache = new kdu_cache();
+    poCodestream = new kdu_codestream();
+    poDecompressor = new kdu_region_decompressor();
+
+    int bFinished = FALSE;
+    bFinished = ReadFromInput(psResult->pabyData, psResult->nDataLen);
+    CPLHTTPDestroyResult(psResult);
+
+    // continue making requests in the main thread to get all the available 
+    // metadata for data bin 0, and reach the codestream
+
+    // format the new request
+    // and set as pszRequestUrl;
+    // get the protocol from the original request
+    size_t found = osRequest.find_first_of("/");
+    CPLString osProtocol = osRequest.substr(0, found + 2);
+    osRequest.erase(0, found + 2);
+    // find context path
+    found = osRequest.find_first_of("/");
+    osRequest.erase(found);
+			
+    osRequestUrl.Printf("%s%s/%s?cid=%s&stream=0&len=%i", osProtocol.c_str(), osRequest.c_str(), pszPath, pszCid, 2000);
+
+    while (!bFinished)
+    {
+        CPLHTTPResult *psResult = CPLHTTPFetch(osRequestUrl, apszOptions);
+        bFinished = ReadFromInput(psResult->pabyData, psResult->nDataLen);
+        CPLHTTPDestroyResult(psResult);
+    }
+
+    // clean up osRequest, remove variable len= parameter
+    size_t pos = osRequestUrl.find_last_of("&");	
+    osRequestUrl.erase(pos);
+
+    // create codestream
+    poCache->set_read_scope(KDU_MAIN_HEADER_DATABIN, 0, 0);
+    poCodestream->create(poCache);
+    poCodestream->set_persistent();
+
+    kdu_channel_mapping* oChannels = new kdu_channel_mapping();
+    oChannels->configure(*poCodestream);
+    kdu_coords* ref_expansion = new kdu_coords(1, 1);
+					
+    // get available resolutions, image width / height etc.
+    kdu_dims view_dims = poDecompressor->
+        get_rendered_image_dims(*poCodestream, oChannels, -1, 0,
+                                *ref_expansion, *ref_expansion, 
+                                KDU_WANT_OUTPUT_COMPONENTS);
+
+    nRasterXSize = view_dims.size.x;
+    nRasterYSize = view_dims.size.y;
+
+//    nBands = poCodestream->get_num_components();
+    nBands = 4;
+
+    // TODO add color interpretation
+
+    // calculate overviews
+    siz_params* siz_in = poCodestream->access_siz();
+    kdu_params* cod_in = siz_in->access_cluster("COD");
+
+    delete oChannels;
+    delete ref_expansion;
+
+    cod_in->get("Clayers", 0, 0, nQualityLayers);
+    cod_in->get("Clevels", 0, 0, nResLevels);
+
+    // setup band objects
+    int iBand;
+    
+    for( iBand = 1; iBand <= nBands; iBand++ )
+    {
+        JPIPKAKRasterBand *poBand = 
+            new JPIPKAKRasterBand(iBand,0,poCodestream,nResLevels,
+                                  this );
+	
+        SetBand( iBand, poBand );
+    }
+
+    // jpipkak does not support rasterband access, 
+    // when this is added nComps can be replaced by nBands
+    siz_in->get("Scomponents", 0, 0, nComps);
+    siz_in->get("Sprecision", 0, 0, nBitDepth);
+
+    // set specific metadata items
+    CPLString osNQualityLayers;
+    osNQualityLayers.Printf("%i", nQualityLayers);
+    CPLString osNResolutionLevels;
+    osNResolutionLevels.Printf("%i", nResLevels);
+    CPLString osNComps;
+    osNComps.Printf("%i", nComps);
+    CPLString osBitDepth;
+    osBitDepth.Printf("%i", nBitDepth);
+
+    SetMetadataItem("JPIP_NQUALITYLAYERS", osNQualityLayers.c_str(), "JPIP");
+    SetMetadataItem("JPIP_NRESOLUTIONLEVELS", osNResolutionLevels.c_str(), "JPIP");
+    SetMetadataItem("JPIP_NCOMPS", osNComps.c_str(), "JPIP");
+    SetMetadataItem("JPIP_SPRECISION", osBitDepth.c_str(), "JPIP");
+	
+/* ==================================================================== */
+/*      Parse geojp2, or gmljp2, we will assume that the core           */
+/*      metadata  of gml or a geojp2 uuid have been sent in the         */
+/*      initial metadata response.                                      */
+/*      If the server has used placeholder boxes for this               */
+/*      information then the image will be interpreted as x,y           */
+/* ==================================================================== */
+    GDALJP2Metadata oJP2Geo;
+    int nLen = poCache->get_databin_length(KDU_META_DATABIN, nCodestream, 0);
+
+    if( nLen == 0 )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, 
+                 "Unable to open stream to parse metadata boxes" );
+        return FALSE;
+    }
+
+    // create in memory file using vsimem
+    CPLString osFileBoxName;
+    osFileBoxName.Printf("/vsimem/jpip/%s.dat", pszCid);
+    FILE *fpLL = VSIFOpenL(osFileBoxName.c_str(), "w+");
+    poCache->set_read_scope(KDU_META_DATABIN, nCodestream, 0);
+    kdu_byte* pabyBuffer = (kdu_byte *)CPLMalloc(nLen);
+    poCache->read(pabyBuffer, nLen);
+    VSIFWriteL(pabyBuffer, nLen, 1, fpLL);
+    CPLFree( pabyBuffer );
+
+    VSIFFlushL(fpLL);
+    VSIFSeekL(fpLL, 0, SEEK_SET);
+
+    nPamFlags |= GPF_NOSAVE;
+
+    try
+    {
+        oJP2Geo.ReadBoxes(fpLL);
+        // parse gml first, followed by geojp2 as a fallback
+        if (oJP2Geo.ParseGMLCoverageDesc() || oJP2Geo.ParseJP2GeoTIFF())
+        {
+            pszProjection = CPLStrdup(oJP2Geo.pszProjection);
+            bGeoTransformValid = TRUE;
+
+            memcpy(adfGeoTransform, oJP2Geo.adfGeoTransform, 
+                   sizeof(double) * 6 );
+            nGCPCount = oJP2Geo.nGCPCount;
+            pasGCPList = oJP2Geo.pasGCPList;
+
+            oJP2Geo.pasGCPList = NULL;
+            oJP2Geo.nGCPCount = 0;
+						
+            int iBox;
+
+            for( iBox = 0; 
+                 oJP2Geo.papszGMLMetadata
+                     && oJP2Geo.papszGMLMetadata[iBox] != NULL; 
+                 iBox++ )
+            {
+                char *pszName = NULL;
+                const char *pszXML = 
+                    CPLParseNameValue( oJP2Geo.papszGMLMetadata[iBox], 
+                                       &pszName );
+                CPLString osDomain;
+                char *apszMDList[2];
+
+                osDomain.Printf( "xml:%s", pszName );
+                apszMDList[0] = (char *) pszXML;
+                apszMDList[1] = NULL;
+
+                GDALPamDataset::SetMetadata( apszMDList, osDomain );
+                CPLFree( pszName );
+            }
+				
+
+            SetDescription( CPLStrdup(pszUrl));
+        }
+        else
+        {
+            // treat as cartesian, no geo metadata
+            CPLError(CE_Warning, CPLE_AppDefined, 
+                     "Parsed metadata boxes from jpip stream, geographic metadata not found - is the server using placeholders for this data?" );
+						
+        }
+    }
+    catch(...)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, 
+                 "Unable to parse geographic metadata boxes from jpip stream" );
+    }
+
+    VSIFCloseL(fpLL);
+    VSIUnlink( osFileBoxName.c_str());
+
+    return TRUE;
 }
 
 /******************************************/
@@ -1296,7 +1293,7 @@ void GDALRegister_JPIPKAK()
 /************************************************************************/
 JPIPKAKAsyncRasterIO::JPIPKAKAsyncRasterIO(GDALDataset *poDS)
 {
-    poDS = (JPIPKAKDataset *)poDS;
+    this->poDS = (JPIPKAKDataset *)poDS;
     panBandMap = NULL;
     pBuf = NULL;
     nDataRead = 0;
@@ -1307,10 +1304,10 @@ JPIPKAKAsyncRasterIO::JPIPKAKAsyncRasterIO(GDALDataset *poDS)
 /************************************************************************/
 JPIPKAKAsyncRasterIO::~JPIPKAKAsyncRasterIO()
 {
-	Stop();
+    Stop();
 
-	// don't own the buffer
-        delete [] panBandMap;
+    // don't own the buffer
+    delete [] panBandMap;
 }
 
 /************************************************************************/
@@ -1430,7 +1427,6 @@ void JPIPKAKAsyncRasterIO::Stop()
     bComplete = 1;
     if (pGlobalMutex)
     {
-
         if (((bHighPriority) && (!bHighThreadFinished)) || 
             ((!bHighPriority) && (!bLowThreadFinished)))
         {
@@ -1455,9 +1451,7 @@ void JPIPKAKAsyncRasterIO::Stop()
                     CPLSleep(0.1);
                 }
             }
-
         }
-
     }
 }
 
