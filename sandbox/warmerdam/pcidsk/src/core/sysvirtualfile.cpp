@@ -308,7 +308,7 @@ void SysVirtualFile::WriteBlocks(int first_block,
     FlushDirtyBlock();
     // Iterate through all the blocks to be written, first, then
     // grow the virtual file
-    for (unsigned int i = 0; i < block_count; i++) {
+    for (unsigned int i = 0; i < (unsigned int) block_count; i++) {
         GrowVirtualFile(first_block + i);
     }
     
@@ -317,7 +317,7 @@ void SysVirtualFile::WriteBlocks(int first_block,
     std::size_t buffer_off = 0;
     std::size_t blocks_written = 0;
     std::size_t current_first_block = first_block;
-    while (blocks_written < block_count) {
+    while (blocks_written < (std::size_t) block_count) {
         unsigned int cur_segment = block_segment[current_first_block];
         unsigned int cur_block = current_first_block;
         while (cur_block < (unsigned int)block_count + first_block &&
