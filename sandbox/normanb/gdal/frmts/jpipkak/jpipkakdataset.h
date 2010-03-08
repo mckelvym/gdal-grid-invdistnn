@@ -223,6 +223,10 @@ private:
     int bHighPriority;
     int bComplete;
     kdu_channel_mapping channels;
+    kdu_coords exp_numerator, exp_denominator;
+
+    kdu_dims rr_win;  // user requested window expressed on reduced resolution level
+
     void Start();
     void Stop();
 public:

@@ -647,7 +647,8 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             this->nRasterXSize = view_dims.size.x;
             this->nRasterYSize = view_dims.size.y;
 
-	        this->nBands = this->oCodestream->get_num_components();
+//	        this->nBands = this->oCodestream->get_num_components();
+            this->nBands = 4;
 
             // TODO add color interpretation
 
@@ -661,17 +662,17 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             cod_in->get("Clayers", 0, 0, this->nQualityLayers);
             cod_in->get("Clevels", 0, 0, this->nResLevels);
 
-			// setup band objects
-	        int iBand;
+            // setup band objects
+            int iBand;
     
-			for( iBand = 1; iBand <= this->nBands; iBand++ )
-			{
-	            JPIPKAKRasterBand *poBand = 
-					new JPIPKAKRasterBand(iBand,0,this->oCodestream,this->nResLevels,
-										this );
+            for( iBand = 1; iBand <= this->nBands; iBand++ )
+            {
+                JPIPKAKRasterBand *poBand = 
+                    new JPIPKAKRasterBand(iBand,0,this->oCodestream,this->nResLevels,
+                                          this );
 	
-				this->SetBand( iBand, poBand );
-			}
+                this->SetBand( iBand, poBand );
+            }
 
             // jpipkak does not support rasterband access, 
             // when this is added this->nComps can be replaced by this->nBands
@@ -702,7 +703,7 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             if (nLen > 0)
             {
                 // create in memory file using vsimem
-				CPLString osFileBoxName;
+                CPLString osFileBoxName;
                 osFileBoxName.Printf("/vsimem/jpip/%s.dat", this->pszCid);
                 FILE *fpLL = VSIFOpenL(osFileBoxName.c_str(), "w+");
                 this->oCache->set_read_scope(KDU_META_DATABIN, this->nCodestream, 0);
@@ -1153,11 +1154,6 @@ GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
     const char* pszLayers = CSLFetchNameValue(papszOptions, "LAYERS");
     const char* pszPriority = CSLFetchNameValue(papszOptions, "PRIORITY");
 	
-    if (pszLevel)
-        ario->nLevel = atoi(pszLevel);
-    else
-        ario->nLevel = this->nResLevels;
-
     if (pszLayers)
         ario->nQualityLayers = atoi(pszLayers);
     else
@@ -1172,6 +1168,30 @@ GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
     }
     else
         ario->bHighPriority = 1;
+
+/* -------------------------------------------------------------------- */
+/*      Select an appropriate level based on the ratio of buffer        */
+/*      size to full resolution image.  We aim for the next             */
+/*      resolution *lower* than we might expect for the target          */
+/*      buffer unless it falls on a power of two.  This is because      */
+/*      the region decompressor only seems to support upsampling        */
+/*      via the numerator/denominator magic.                            */
+/* -------------------------------------------------------------------- */
+    if (pszLevel)
+        ario->nLevel = atoi(pszLevel);
+    else
+    {
+        int nRXSize = xSize, nRYSize = ySize;
+        ario->nLevel = 0;
+
+        while( ario->nLevel < nResLevels
+               && (nRXSize > bufXSize || nRYSize > bufYSize) )
+        {
+            nRXSize = (nRXSize+1) / 2;
+            nRYSize = (nRYSize+1) / 2;
+            ario->nLevel++;
+        }
+    }
 
     ario->Start();
 
@@ -1324,40 +1344,52 @@ void JPIPKAKAsyncRasterIO::Start()
                 channels.source_components[i] = panBandMap[i]-1;
         }
 
-        kdu_coords* reference_expansion = new kdu_coords(1, 1);
-
         // find current canvas width and height in the cache and check we don't
         // exceed this in our process request
         kdu_dims view_dims;	
+        kdu_coords ref_expansion;
+        ref_expansion.x = 1;
+        ref_expansion.y = 1;
+
         if (nBandCount == 1)
-            view_dims = ((JPIPKAKDataset*)this->poDS)->oDecompressor->get_rendered_image_dims(*((JPIPKAKDataset*)this->poDS)->oCodestream, NULL, 
-                                                                                              channels.source_components[0], this->nLevel, *reference_expansion);
+            view_dims = ((JPIPKAKDataset*)this->poDS)->oDecompressor->
+                get_rendered_image_dims(*((JPIPKAKDataset*)this->poDS)->oCodestream, NULL, 
+                                        channels.source_components[0], this->nLevel, 
+                                        ref_expansion );
         else
-            view_dims = ((JPIPKAKDataset*)this->poDS)->oDecompressor->get_rendered_image_dims(*((JPIPKAKDataset*)this->poDS)->oCodestream, &channels, 
-                                                                                              -1, this->nLevel, *reference_expansion);
+            view_dims = ((JPIPKAKDataset*)this->poDS)->oDecompressor->
+                get_rendered_image_dims(*((JPIPKAKDataset*)this->poDS)->oCodestream, &channels, 
+                                        -1, this->nLevel, 
+                                        ref_expansion );
 
         kdu_coords* view_siz = view_dims.access_size();
 		
-        delete reference_expansion;
-
+        // Establish the decimation implied by our resolution level.
         int nRes = 1;
         if (this->nLevel > 0)
             nRes = 2 << (this->nLevel - 1);
+
+        // setup expansion to account for the difference between 
+        // the selected level and the buffer resolution.
+        exp_numerator.x = nBufXSize;
+        exp_numerator.y = nBufYSize;
+
+        exp_denominator.x = (int) ceil(nXSize / (double) nRes);
+        exp_denominator.y = (int) ceil(nYSize / (double) nRes);
 
         // formulate jpip parameters and adjust offsets for current level
         int fx = view_siz->x;
         int fy = view_siz->y;
 
-        this->nXOff = (int) ceil(this->nXOff / (1.0 * nRes)); // roffx
-        this->nYOff = (int) ceil(this->nYOff / (1.0 * nRes)); // roffy
-        this->nXSize = (int) ceil(this->nXSize / (1.0 * nRes)); // rsizx
-        this->nYSize = (int) ceil(this->nYSize / (1.0 * nRes)); // rsizy
+        rr_win.pos.x = (int) ceil(this->nXOff / (1.0 * nRes)); // roffx
+        rr_win.pos.y = (int) ceil(this->nYOff / (1.0 * nRes)); // roffy
+        rr_win.size.x = (int) ceil(this->nXSize / (1.0 * nRes)); // rsizx
+        rr_win.size.y = (int) ceil(this->nYSize / (1.0 * nRes)); // rsizy
 
-        if ((this->nXOff + this->nXSize) > fx)
-            this->nXSize = fx - this->nXOff;
-
-        if ((this->nYOff+ this->nYSize) > fy)
-            this->nYSize = fy - this->nYOff;
+        if ( rr_win.pos.x + rr_win.size.x > fx)
+            rr_win.size.x = fx - rr_win.pos.x;
+        if ( rr_win.pos.y + rr_win.size.y > fy)
+            rr_win.size.y = fy - rr_win.pos.y;
 
         CPLString jpipUrl;
         CPLString comps;
@@ -1369,8 +1401,8 @@ void JPIPKAKAsyncRasterIO::Start()
 	
         jpipUrl.Printf("%s&type=jpp-stream&roff=%i,%i&rsiz=%i,%i&fsiz=%i,%i,closest&quality=%i&comps=%s", 
                        ((JPIPKAKDataset*)this->poDS)->osRequestUrl.c_str(),
-                       this->nXOff, this->nYOff,
-                       this->nXSize, this->nYSize,
+                       rr_win.pos.x, rr_win.pos.y,
+                       rr_win.size.x, rr_win.size.y,
                        fx, fy,
                        this->nQualityLayers, comps.c_str());
 
@@ -1385,9 +1417,7 @@ void JPIPKAKAsyncRasterIO::Start()
                      "Unable to create worker jpip  thread" );
         // run in main thread as a test
         //JPIPWorkerFunc(pRequest);
-
     }
-
 }
 
 void JPIPKAKAsyncRasterIO::Stop()
@@ -1516,7 +1546,6 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
                 const long s = nLowThreadByteCount - nDataRead;
                 nSize = s;
             }
-
         }
     }
     else
@@ -1531,42 +1560,63 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
 
     if (!(result == GARIO_PENDING))
     {
+        JPIPKAKDataset *poJDS = (JPIPKAKDataset*)this->poDS;
 
-        kdu_coords* expansion = new kdu_coords(1, 1);
+        // Establish the canvas region with the expansion factor applied,
+        // and compute region from the original window cut down to the
+        // target canvas.
+        kdu_dims view_dims;
 
-        kdu_dims* region = new kdu_dims();
-        region->access_pos()->x = this->nXOff;
-        region->access_pos()->y = this->nYOff;
-        region->access_size()->x = this->nXSize;
-        region->access_size()->y = this->nYSize;
-        ((JPIPKAKDataset*)this->poDS)->oCodestream->apply_input_restrictions(0, 0, this->nLevel, this->nQualityLayers, region);
+        view_dims = poJDS->oDecompressor->get_rendered_image_dims(
+            *poJDS->oCodestream, &channels, 
+            -1, this->nLevel, exp_numerator, exp_denominator );
 
-        kdu_dims* incomplete_region = new kdu_dims();
-        incomplete_region->assign(*region);
+        double x_ratio, y_ratio;
+        x_ratio = view_dims.size.x / (double) poDS->GetRasterXSize();
+        y_ratio = view_dims.size.y / (double) poDS->GetRasterYSize();
 
-        kdu_coords* origin = new kdu_coords(region->access_pos()->x, region->access_pos()->y);
+        kdu_dims region = rr_win;
+
+        region.pos.x = (int) ceil(nXOff * x_ratio);
+        region.pos.y = (int) ceil(nYOff * y_ratio);
+        region.size.x = (int) ceil(nXSize * x_ratio);
+        region.size.y = (int) ceil(nYSize * y_ratio);
+        
+        if( region.pos.x + region.size.x > view_dims.size.x )
+            region.size.x = view_dims.size.x - region.pos.x;
+        if( region.pos.y + region.size.y > view_dims.size.y )
+            region.size.y = view_dims.size.y - region.pos.y;
+        
+        region.pos += view_dims.pos;
+
+        // Apply region and other restrictions.
+        poJDS->oCodestream->apply_input_restrictions(
+            0, 0, this->nLevel, this->nQualityLayers, &region);
+
+        kdu_dims incomplete_region = region;
+        kdu_coords origin = region.pos;
+
         int* channel_offsets = (int *)CPLCalloc((channels.num_channels), sizeof(int));
-
 
         int bIsDecompressing = FALSE;
 		
         CPLAcquireMutex(pGlobalMutex, 100.0);
 
         if (nBandCount == 1)
-            bIsDecompressing = ((JPIPKAKDataset*)this->poDS)->oDecompressor->start(*((JPIPKAKDataset*)this->poDS)->oCodestream, NULL,
-                                                                                   channels.get_source_component(0), this->nLevel, this->nQualityLayers, 
-                                                                                   *region, *expansion,
-                                                                                   *expansion, TRUE);	
+            bIsDecompressing = poJDS->oDecompressor->start(
+                *(poJDS->oCodestream), NULL,
+                channels.get_source_component(0), this->nLevel, this->nQualityLayers, 
+                region, exp_numerator, exp_denominator, TRUE);	
         else
-            bIsDecompressing = ((JPIPKAKDataset*)this->poDS)->oDecompressor->start(*((JPIPKAKDataset*)this->poDS)->oCodestream, &channels,
-                                                                                   -1, this->nLevel, this->nQualityLayers, *region, *expansion,
-                                                                                   *expansion, TRUE);	
+            bIsDecompressing = poJDS->oDecompressor->start(
+                *(poJDS->oCodestream), 
+                &channels, -1, this->nLevel, this->nQualityLayers, 
+                region, exp_numerator, exp_denominator, TRUE);	
 		
-        *pnxbufoff = region->access_pos()->x;
-        *pnybufoff = region->access_pos()->y;
-        *pnxbufsize = region->access_size()->x;
-        *pnybufsize = region->access_size()->y;
-
+        *pnxbufoff = region.access_pos()->x;
+        *pnybufoff = region.access_pos()->y;
+        *pnxbufsize = region.access_size()->x;
+        *pnybufsize = region.access_size()->y;
 
         int nPrecisionBits = 8;
 
@@ -1584,28 +1634,25 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
             break;
         }
 
-        while ((bIsDecompressing == 1) || (incomplete_region->area() != 0))
+        while ((bIsDecompressing == 1) || (incomplete_region.area() != 0))
         {
             if (nPrecisionBits <= 8)
             {
-                bIsDecompressing = ((JPIPKAKDataset*)this->poDS)->oDecompressor->process((kdu_int32*)pBuf, 
-                                                                                         *origin, *pnxbufsize, 100000, 0, *incomplete_region, *region);
+                bIsDecompressing = poJDS->oDecompressor->
+                    process((kdu_int32*)pBuf, origin, *pnxbufsize, 100000, 0, incomplete_region, region);
             }
             else
             {
-                bIsDecompressing = ((JPIPKAKDataset*)this->poDS)->oDecompressor->process((kdu_uint16 *)pBuf, 
-                                                                                         channel_offsets, 1, *origin, *pnxbufsize, 100000, 0, *incomplete_region, *region, nPrecisionBits);
+                bIsDecompressing = poJDS->oDecompressor->
+                    process((kdu_uint16 *)pBuf, channel_offsets, 1, origin, *pnxbufsize, 100000, 0, 
+                            incomplete_region, region, nPrecisionBits);
             }			
         }
 
-        ((JPIPKAKDataset*)this->poDS)->oDecompressor->finish();
+        poJDS->oDecompressor->finish();
         CPLReleaseMutex(pGlobalMutex);
 
         CPLFree(channel_offsets);
-        delete expansion;
-        delete region;
-        delete incomplete_region;
-        delete origin;
 
         // has there been any more data read whilst we have been processing?
         long size = 0;
