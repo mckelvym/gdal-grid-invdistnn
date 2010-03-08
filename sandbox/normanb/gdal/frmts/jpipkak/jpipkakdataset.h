@@ -42,6 +42,12 @@
 
 #include <time.h>
 
+
+/************************************************************************/
+/* ==================================================================== */
+/*                           JPIPDataSegment                            */
+/* ==================================================================== */
+/************************************************************************/
 class JPIPDataSegment
 {
 private:
@@ -78,6 +84,11 @@ public:
     ~JPIPDataSegment();
 };
 
+/************************************************************************/
+/* ==================================================================== */
+/*                           JPIPKAKDataset                             */
+/* ==================================================================== */
+/************************************************************************/
 class JPIPKAKDataset: public GDALPamDataset
 {
 private:
@@ -108,13 +119,15 @@ private:
     GDAL_GCP *pasGCPList;
 
     // kakadu
-    kdu_codestream *oCodestream;
-    kdu_region_decompressor *oDecompressor;
-    kdu_cache *oCache;
+    kdu_codestream *poCodestream;
+    kdu_region_decompressor *poDecompressor;
+    kdu_cache *poCache;
+
     long ReadVBAS(GByte* pabyData, int nLen);
     JPIPDataSegment* ReadSegment(GByte* pabyData, int nLen);
     int Initialise(char* url);
     int KakaduClassId(int nClassId);
+
 public:
     JPIPKAKDataset();
     virtual ~JPIPKAKDataset();
@@ -151,7 +164,6 @@ public:
     static const GByte PRECINCT_DATA_BIN_CLASS = 0;
     static const GByte TILE_HEADER_DATA_BIN_CLASS = 2;
     static const GByte TILE_DATA_BIN_CLASS = 4;
-
 	
     friend class JPIPKAKAsyncRasterIO;
 };
@@ -170,14 +182,12 @@ class JPIPKAKRasterBand : public GDALPamRasterBand
 
     int         nDiscardLevels; 
 
-	int nBytesPerPixel;
+    int nBytesPerPixel;
 
     kdu_dims 	band_dims; 
 
     int		nOverviewCount;
     JPIPKAKRasterBand **papoOverviewBand;
-
-    //kdu_client	*jpip_client;
 
     kdu_codestream *oCodeStream;
 
@@ -187,33 +197,23 @@ class JPIPKAKRasterBand : public GDALPamRasterBand
     
     GDALColorInterp eInterp;
 
-	//GDALAsyncRasterIO* ario;
+public:
 
-    //virtual CPLErr IRasterIO( GDALRWFlag, int, int, int, int,
-                              //void *, int, int, GDALDataType,
-                              //int, int );
-  public:
-
-    		JPIPKAKRasterBand( int, int, kdu_codestream *, int,
-                                  JPIPKAKDataset * );
-    		~JPIPKAKRasterBand();
+    JPIPKAKRasterBand( int, int, kdu_codestream *, int,
+                       JPIPKAKDataset * );
+    ~JPIPKAKRasterBand();
     
     virtual CPLErr IReadBlock( int, int, void * );
 
     virtual int    GetOverviewCount();
     virtual GDALRasterBand *GetOverview( int );
-
-    //virtual GDALColorInterp GetColorInterpretation();
-    //virtual GDALColorTable *GetColorTable();
-
-    // internal
-
-    //void        ApplyPalette( jp2_palette oJP2Palette );
-    //void        ProcessYCbCrTile(kdu_tile tile, GByte *pabyBuffer, 
-                                 //int nBlockXOff, int nBlockYOff,
-                                 //int nTileOffsetX, int nTileOffsetY );
-    //void        ProcessTile(kdu_tile tile, GByte *pabyBuffer );
 };
+
+/************************************************************************/
+/* ==================================================================== */
+/*                           JPIPKAKAsyncRasterIO                       */
+/* ==================================================================== */
+/************************************************************************/
 
 class JPIPKAKAsyncRasterIO : public GDALAsyncRasterIO
 {
@@ -225,7 +225,7 @@ private:
     kdu_channel_mapping channels;
     kdu_coords exp_numerator, exp_denominator;
 
-    kdu_dims rr_win;  // user requested window expressed on reduced resolution level
+    kdu_dims rr_win; // user requested window expressed on reduced res level
 
     void Start();
     void Stop();
@@ -233,23 +233,12 @@ public:
     JPIPKAKAsyncRasterIO(GDALDataset *poDS);
     virtual ~JPIPKAKAsyncRasterIO();
 
-    /* Returns GARIO_UPDATE, GARIO_NO_MESSAGE (if pending==false and nothing in the queue
-       or if pending==true && timeout != 0 and nothing in the queue at the end of the timeout), 
-       GARIO_COMPLETE, GARIO_ERROR */
     virtual GDALAsyncStatusType GetNextUpdatedRegion(int wait, int timeout,
                                                      int* pnxbufoff,
                                                      int* pnybufoff,
                                                      int* pnxbufsize,
                                                      int* pnybufsize);
-    /* if wait = true, we wait forever if timeout=0, for the timeout time otherwise */
-    /* if wait = false, we return immediately */
-    /* the int* are output values */
-
-    // lock a whole buffer.
     virtual void LockBuffer();
-
-    // lock only a block
-    // the caller must relax a previous lock before asking for a new one
     virtual void LockBuffer(int xbufoff, int ybufoff, int xbufsize, int ybufsize);
     virtual void UnlockBuffer(); 
 
@@ -258,14 +247,14 @@ public:
     friend class JPIPKAKDataset;
 };
 
+/************************************************************************/
+/* ==================================================================== */
+/*                           JPIPRequest                                */
+/* ==================================================================== */
+/************************************************************************/
 struct JPIPRequest
 {
-	int bPriority;
-	CPLString osRequest;
-	JPIPKAKAsyncRasterIO* poARIO;
-    ~JPIPRequest()
-	{
-		// poDS is owned elsewhere
-	}
-
+    int bPriority;
+    CPLString osRequest;
+    JPIPKAKAsyncRasterIO* poARIO;
 };

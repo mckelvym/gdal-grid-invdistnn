@@ -6,7 +6,8 @@
  * Author:   Norman Barker, ITT VIS, norman.barker@gmail.com
  *
  ******************************************************************************
- * ITT Visual Information Systems grants you use of this code, under the following license:
+ * ITT Visual Information Systems grants you use of this code, under the 
+ * following license:
  * 
  * Copyright (c) 2000-2007, ITT Visual Information Solutions 
  *
@@ -112,8 +113,8 @@ JPIPKAKRasterBand::JPIPKAKRasterBand( int nBand, int nDiscardLevels,
                                       JPIPKAKDataset *poBaseDSIn )
 
 {
-    this->nBand = nBand;
-    this->poBaseDS = poBaseDSIn;
+    nBand = nBand;
+    poBaseDS = poBaseDSIn;
 
     bYCbCrReported = FALSE;
 
@@ -121,44 +122,44 @@ JPIPKAKRasterBand::JPIPKAKRasterBand( int nBand, int nDiscardLevels,
         && oCodeStream->get_bit_depth(nBand-1) <= 16
         && oCodeStream->get_signed(nBand-1) )
     {
-        this->eDataType = GDT_Int16;
-        this->nBytesPerPixel = 2;
+        eDataType = GDT_Int16;
+        nBytesPerPixel = 2;
     }
     else if( oCodeStream->get_bit_depth(nBand-1) > 8
              && oCodeStream->get_bit_depth(nBand-1) <= 16
              && !oCodeStream->get_signed(nBand-1) )
     {
-        this->eDataType = GDT_UInt16;
-        this->nBytesPerPixel = 2;
+        eDataType = GDT_UInt16;
+        nBytesPerPixel = 2;
     }
     else if( oCodeStream->get_bit_depth(nBand-1) > 16
              && oCodeStream->get_signed(nBand-1) )
     {
-        this->eDataType = GDT_Int32;
-        this->nBytesPerPixel = 4;
+        eDataType = GDT_Int32;
+        nBytesPerPixel = 4;
     }
     else if( oCodeStream->get_bit_depth(nBand-1) > 16
              && !oCodeStream->get_signed(nBand-1) )
     {
-        this->eDataType = GDT_UInt32;
-        this->nBytesPerPixel = 4;
+        eDataType = GDT_UInt32;
+        nBytesPerPixel = 4;
     }
     else
     {
-        this->eDataType = GDT_Byte;
-        this->nBytesPerPixel = 1;
+        eDataType = GDT_Byte;
+        nBytesPerPixel = 1;
     }
 
-    this->nDiscardLevels = nDiscardLevels;
-    this->oCodeStream = oCodeStream;
+    nDiscardLevels = nDiscardLevels;
+    oCodeStream = oCodeStream;
 
-    //this->jpip_client = jpip_client;
+    //jpip_client = jpip_client;
 
     oCodeStream->apply_input_restrictions( 0, 0, nDiscardLevels, 0, NULL );
     oCodeStream->get_dims( 0, band_dims );
 
-    this->nRasterXSize = band_dims.size.x;
-    this->nRasterYSize = band_dims.size.y;
+    nRasterXSize = band_dims.size.x;
+    nRasterYSize = band_dims.size.y;
 
 /* -------------------------------------------------------------------- */
 /*      Use a 2048x128 "virtual" block size unless the file is small.    */
@@ -298,7 +299,7 @@ JPIPKAKRasterBand::JPIPKAKRasterBand( int nBand, int nDiscardLevels,
 JPIPKAKRasterBand::~JPIPKAKRasterBand()
 
 {
-	//if (this->ario != NULL) this->poBaseDS->EndAsyncRasterIO(ario);
+	//if (ario != NULL) poBaseDS->EndAsyncRasterIO(ario);
 
     for( int i = 0; i < nOverviewCount; i++ )
         delete papoOverviewBand[i];
@@ -339,26 +340,26 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     CPLDebug( "JPIPKAK", "IReadBlock(%d,%d) on band %d.", 
               nBlockXOff, nBlockYOff, nBand );
 
-    int xOff = nBlockXOff * this->nBlockXSize;
-    int yOff = nBlockYOff * this->nBlockYSize;
+    int xOff = nBlockXOff * nBlockXSize;
+    int yOff = nBlockYOff * nBlockYSize;
 
     // allocate temp buffer
-    //void *pBuf = CPLMalloc(GDALGetDataTypeSize(this->eDataType)/8 * this->nBlockXSize * this->nBlockYSize);
-    //unsigned int *pBuf = (unsigned int*)CPLMalloc(sizeof(unsigned int) * this->nBlockXSize * this->nBlockYSize);
+    //void *pBuf = CPLMalloc(GDALGetDataTypeSize(eDataType)/8 * nBlockXSize * nBlockYSize);
+    //unsigned int *pBuf = (unsigned int*)CPLMalloc(sizeof(unsigned int) * nBlockXSize * nBlockYSize);
 
     // GDALAsyncRasterIO takes a 32bpp buffer for byte, int32, uint32, float, etc and 16bpp for int16, uint16
     int bufPixelSize;
-    if (this->eDataType == GDT_Int16 || this->eDataType == GDT_UInt16) bufPixelSize = 2; else bufPixelSize = 4;
-    void *pBuf = CPLMalloc(bufPixelSize * this->nBlockXSize * this->nBlockYSize);
-    //unsigned short *pBuf = (unsigned short*)CPLMalloc(sizeof(unsigned short) * this->nBlockXSize * this->nBlockYSize);
+    if (eDataType == GDT_Int16 || eDataType == GDT_UInt16) bufPixelSize = 2; else bufPixelSize = 4;
+    void *pBuf = CPLMalloc(bufPixelSize * nBlockXSize * nBlockYSize);
+    //unsigned short *pBuf = (unsigned short*)CPLMalloc(sizeof(unsigned short) * nBlockXSize * nBlockYSize);
 
     // setup options
     char *apszOptions[] = { "LEVEL=0", NULL };
 
-    GDALAsyncRasterIO* ario = this->poBaseDS->
-        BeginAsyncRasterIO(xOff, yOff, this->nBlockXSize, this->nBlockYSize, 
-                           pBuf, this->nBlockXSize, this->nBlockYSize, 
-                           this->eDataType, 1, &nBand, 0, 0, 0, apszOptions);
+    GDALAsyncRasterIO* ario = poBaseDS->
+        BeginAsyncRasterIO(xOff, yOff, nBlockXSize, nBlockYSize, 
+                           pBuf, nBlockXSize, nBlockYSize, 
+                           eDataType, 1, &nBand, 0, 0, 0, apszOptions);
 
     int pnxbufoff; // absolute x image offset
     int pnybufoff; // abolute y image offset
@@ -392,19 +393,19 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         for (int y=0; y < pnybufsize; y++)
         {
             int srcOffset = y * pnxbufsize;
-            int destOffset = ((y + relYOffset) * this->nBlockXSize) + relXOffset;
+            int destOffset = ((y + relYOffset) * nBlockXSize) + relXOffset;
 			
             // loop over samples
             // # samples = pnxbufsize
             for (int x=0; x < pnxbufsize; x++)
             {
-                if (this->eDataType == GDT_Int16) 
+                if (eDataType == GDT_Int16) 
                     pImageShort[destOffset+x] = pBufShort[srcOffset+x];
-                else if (this->eDataType == GDT_UInt16) 
+                else if (eDataType == GDT_UInt16) 
                     pImageUnsignedShort[destOffset+x] = pBufUnsignedShort[srcOffset+x];
-                else if (this->eDataType == GDT_Int32) 
+                else if (eDataType == GDT_Int32) 
                     pImageInt[destOffset+x] = pBufInt[srcOffset+x];
-                else if (this->eDataType == GDT_UInt32) 
+                else if (eDataType == GDT_UInt32) 
                     pImageUnsignedInt[destOffset+x] = pBufUnsignedInt[srcOffset+x];
                 else // GDT_Byte
                     pImageUnsignedChar[destOffset+x] = pBufUnsignedInt[srcOffset+x];
@@ -437,34 +438,34 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 /*****************************************/
 JPIPKAKDataset::JPIPKAKDataset()         
 {
-    this->pszTid = NULL;
-    this->pszPath = NULL;
-    this->pszCid = NULL;
-    this->pszProjection = NULL;
+    pszTid = NULL;
+    pszPath = NULL;
+    pszCid = NULL;
+    pszProjection = NULL;
 	
-    this->oCache = NULL;
-    this->oCodestream = NULL;
-    this->oDecompressor = NULL;
+    poCache = NULL;
+    poCodestream = NULL;
+    poDecompressor = NULL;
 
-    this->nPos = 0;
-    this->nVBASLen = 0;
-    this->nVBASFirstByte = 0;
+    nPos = 0;
+    nVBASLen = 0;
+    nVBASFirstByte = 0;
 
-    this->nClassId = 0;
-    this->nCodestream = 0;
-    this->nDatabins = 0;
-    this->bWindowDone = FALSE;
-    this->bGeoTransformValid = FALSE;
+    nClassId = 0;
+    nCodestream = 0;
+    nDatabins = 0;
+    bWindowDone = FALSE;
+    bGeoTransformValid = FALSE;
 
-    this->adfGeoTransform[0] = 0.0;
-    this->adfGeoTransform[1] = 1.0;
-    this->adfGeoTransform[2] = 0.0;
-    this->adfGeoTransform[3] = 0.0;
-    this->adfGeoTransform[4] = 0.0;
-    this->adfGeoTransform[5] = 1.0;
+    adfGeoTransform[0] = 0.0;
+    adfGeoTransform[1] = 1.0;
+    adfGeoTransform[2] = 0.0;
+    adfGeoTransform[3] = 0.0;
+    adfGeoTransform[4] = 0.0;
+    adfGeoTransform[5] = 1.0;
 
-    this->nGCPCount = 0;
-    this->pasGCPList = NULL;
+    nGCPCount = 0;
+    pasGCPList = NULL;
 }
 
 
@@ -475,34 +476,34 @@ JPIPKAKDataset::~JPIPKAKDataset()
 {
     CPLHTTPCleanup();
 
-    if (this->pszTid)
-        CPLFree(this->pszTid);
+    if (pszTid)
+        CPLFree(pszTid);
 
-    if (this->pszPath)
-        CPLFree(this->pszPath);
+    if (pszPath)
+        CPLFree(pszPath);
 
-    if (this->pszCid)
-        CPLFree(this->pszCid);
+    if (pszCid)
+        CPLFree(pszCid);
 
-    if (this->pszProjection)
-        CPLFree(this->pszProjection);
+    if (pszProjection)
+        CPLFree(pszProjection);
 
-    if (this->nGCPCount > 0 )
+    if (nGCPCount > 0 )
     {
         GDALDeinitGCPs( nGCPCount, pasGCPList );
         CPLFree( pasGCPList );
     }
 
     // frees decompressor as well
-    if (this->oCodestream)
+    if (poCodestream)
     {
-        this->oCodestream->destroy();
-        delete this->oCodestream;
+        poCodestream->destroy();
+        delete poCodestream;
     }
-    delete this->oDecompressor;
+    delete poDecompressor;
 
-    if (this->oCache)
-        delete this->oCache;
+    if (poCache)
+        delete poCache;
 }
 
 /*****************************************/
@@ -566,7 +567,7 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
         //CPLDebug("JPIPKAK", "tid - %s", pszTid);
         //CPLDebug("JPIPKAK", "cnew - %s", pszCnew);
 
-        this->pszTid = CPLStrdup(pszTid);
+        pszTid = CPLStrdup(pszTid);
         // parse cnew response
         // JPIP-cnew:
         // cid=DC69DF980A641A4BBDEB50E484A66578,path=MyPath,transport=http
@@ -578,7 +579,7 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             {
                 char *pszKey = NULL;
                 const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
-                this->pszCid = CPLStrdup(pszValue);
+                pszCid = CPLStrdup(pszValue);
                 CPLFree( pszKey );
             }
 
@@ -586,7 +587,7 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             {
                 char *pszKey = NULL;
                 const char *pszValue = CPLParseNameValue(papszTokens[i], &pszKey );
-                this->pszPath = CPLStrdup(pszValue);
+                pszPath = CPLStrdup(pszValue);
                 CPLFree( pszKey );
             }
         }
@@ -597,19 +598,19 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
         {
             // ok, good to go with jpip, get to the codestream before returning successful initialisation
             // of the driver
-            this->oCache = new kdu_cache();
-            this->oCodestream = new kdu_codestream();
-            this->oDecompressor = new kdu_region_decompressor();
+            poCache = new kdu_cache();
+            poCodestream = new kdu_codestream();
+            poDecompressor = new kdu_region_decompressor();
 
             int bFinished = FALSE;
-            bFinished = this->ReadFromInput(psResult->pabyData, psResult->nDataLen);
+            bFinished = ReadFromInput(psResult->pabyData, psResult->nDataLen);
             CPLHTTPDestroyResult(psResult);
 
             // continue making requests in the main thread to get all the available metadata
             // for data bin 0, and reach the codestream
 
             // format the new request
-            // and set as this->pszRequestUrl;
+            // and set as pszRequestUrl;
             // get the protocol from the original request
             size_t found = osRequest.find_first_of("/");
             CPLString osProtocol = osRequest.substr(0, found + 2);
@@ -618,12 +619,12 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             found = osRequest.find_first_of("/");
             osRequest.erase(found);
 			
-            this->osRequestUrl.Printf("%s%s/%s?cid=%s&stream=0&len=%i", osProtocol.c_str(), osRequest.c_str(), this->pszPath, this->pszCid, 2000);
+            osRequestUrl.Printf("%s%s/%s?cid=%s&stream=0&len=%i", osProtocol.c_str(), osRequest.c_str(), pszPath, pszCid, 2000);
 
             while (!bFinished)
             {
                 CPLHTTPResult *psResult = CPLHTTPFetch(osRequestUrl, apszOptions);
-                bFinished = this->ReadFromInput(psResult->pabyData, psResult->nDataLen);
+                bFinished = ReadFromInput(psResult->pabyData, psResult->nDataLen);
                 CPLHTTPDestroyResult(psResult);
             }
 
@@ -632,90 +633,90 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
             osRequestUrl.erase(pos);
 
             // create codestream
-            this->oCache->set_read_scope(KDU_MAIN_HEADER_DATABIN, 0, 0);
-            this->oCodestream->create(this->oCache);
-            this->oCodestream->set_persistent();
+            poCache->set_read_scope(KDU_MAIN_HEADER_DATABIN, 0, 0);
+            poCodestream->create(poCache);
+            poCodestream->set_persistent();
 
             kdu_channel_mapping* oChannels = new kdu_channel_mapping();
-            oChannels->configure(*this->oCodestream);
+            oChannels->configure(*poCodestream);
             kdu_coords* ref_expansion = new kdu_coords(1, 1);
 					
             // get available resolutions, image width / height etc.
-            kdu_dims view_dims = this->oDecompressor->get_rendered_image_dims(*this->oCodestream, oChannels, -1, 0,
+            kdu_dims view_dims = poDecompressor->get_rendered_image_dims(*poCodestream, oChannels, -1, 0,
                                                                               *ref_expansion, *ref_expansion, KDU_WANT_OUTPUT_COMPONENTS);
 
-            this->nRasterXSize = view_dims.size.x;
-            this->nRasterYSize = view_dims.size.y;
+            nRasterXSize = view_dims.size.x;
+            nRasterYSize = view_dims.size.y;
 
-//	        this->nBands = this->oCodestream->get_num_components();
-            this->nBands = 4;
+//	        nBands = poCodestream->get_num_components();
+            nBands = 4;
 
             // TODO add color interpretation
 
             // calculate overviews
-            siz_params* siz_in = this->oCodestream->access_siz();
+            siz_params* siz_in = poCodestream->access_siz();
             kdu_params* cod_in = siz_in->access_cluster("COD");
 
             delete oChannels;
             delete ref_expansion;
 
-            cod_in->get("Clayers", 0, 0, this->nQualityLayers);
-            cod_in->get("Clevels", 0, 0, this->nResLevels);
+            cod_in->get("Clayers", 0, 0, nQualityLayers);
+            cod_in->get("Clevels", 0, 0, nResLevels);
 
             // setup band objects
             int iBand;
     
-            for( iBand = 1; iBand <= this->nBands; iBand++ )
+            for( iBand = 1; iBand <= nBands; iBand++ )
             {
                 JPIPKAKRasterBand *poBand = 
-                    new JPIPKAKRasterBand(iBand,0,this->oCodestream,this->nResLevels,
+                    new JPIPKAKRasterBand(iBand,0,poCodestream,nResLevels,
                                           this );
 	
-                this->SetBand( iBand, poBand );
+                SetBand( iBand, poBand );
             }
 
             // jpipkak does not support rasterband access, 
-            // when this is added this->nComps can be replaced by this->nBands
-            siz_in->get("Scomponents", 0, 0, this->nComps);
-            siz_in->get("Sprecision", 0, 0, this->nBitDepth);
+            // when this is added nComps can be replaced by nBands
+            siz_in->get("Scomponents", 0, 0, nComps);
+            siz_in->get("Sprecision", 0, 0, nBitDepth);
 
             // set specific metadata items
             CPLString osNQualityLayers;
-            osNQualityLayers.Printf("%i", this->nQualityLayers);
+            osNQualityLayers.Printf("%i", nQualityLayers);
             CPLString osNResolutionLevels;
-            osNResolutionLevels.Printf("%i", this->nResLevels);
+            osNResolutionLevels.Printf("%i", nResLevels);
             CPLString osNComps;
-            osNComps.Printf("%i", this->nComps);
+            osNComps.Printf("%i", nComps);
             CPLString osBitDepth;
-            osBitDepth.Printf("%i", this->nBitDepth);
+            osBitDepth.Printf("%i", nBitDepth);
 
-            this->SetMetadataItem("JPIP_NQUALITYLAYERS", osNQualityLayers.c_str(), "JPIP");
-            this->SetMetadataItem("JPIP_NRESOLUTIONLEVELS", osNResolutionLevels.c_str(), "JPIP");
-            this->SetMetadataItem("JPIP_NCOMPS", osNComps.c_str(), "JPIP");
-            this->SetMetadataItem("JPIP_SPRECISION", osBitDepth.c_str(), "JPIP");
+            SetMetadataItem("JPIP_NQUALITYLAYERS", osNQualityLayers.c_str(), "JPIP");
+            SetMetadataItem("JPIP_NRESOLUTIONLEVELS", osNResolutionLevels.c_str(), "JPIP");
+            SetMetadataItem("JPIP_NCOMPS", osNComps.c_str(), "JPIP");
+            SetMetadataItem("JPIP_SPRECISION", osBitDepth.c_str(), "JPIP");
 	
             // parse geojp2, or gmljp2, we will assume that the core metadata of gml or a geojp2 uuid
             // have been sent in the initial metadata response
             // if the server has used placeholder boxes for this information then the image will
             // be interpreted as x,y
             GDALJP2Metadata oJP2Geo;
-            int nLen = this->oCache->get_databin_length(KDU_META_DATABIN, this->nCodestream, 0);
+            int nLen = poCache->get_databin_length(KDU_META_DATABIN, nCodestream, 0);
             if (nLen > 0)
             {
                 // create in memory file using vsimem
                 CPLString osFileBoxName;
-                osFileBoxName.Printf("/vsimem/jpip/%s.dat", this->pszCid);
+                osFileBoxName.Printf("/vsimem/jpip/%s.dat", pszCid);
                 FILE *fpLL = VSIFOpenL(osFileBoxName.c_str(), "w+");
-                this->oCache->set_read_scope(KDU_META_DATABIN, this->nCodestream, 0);
+                poCache->set_read_scope(KDU_META_DATABIN, nCodestream, 0);
                 kdu_byte* pabyBuffer = (kdu_byte *)CPLMalloc(nLen);
-                this->oCache->read(pabyBuffer, nLen);
+                poCache->read(pabyBuffer, nLen);
                 VSIFWriteL(pabyBuffer, nLen, 1, fpLL);
                 CPLFree( pabyBuffer );
 
                 VSIFFlushL(fpLL);
                 VSIFSeekL(fpLL, 0, SEEK_SET);
 
-                this->nPamFlags |= GPF_NOSAVE;
+                nPamFlags |= GPF_NOSAVE;
 
                 try
                 {
@@ -723,13 +724,13 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
                     // parse gml first, followed by geojp2 as a fallback
                     if (oJP2Geo.ParseGMLCoverageDesc() || oJP2Geo.ParseJP2GeoTIFF())
                     {
-                        this->pszProjection = CPLStrdup(oJP2Geo.pszProjection);
-                        this->bGeoTransformValid = TRUE;
+                        pszProjection = CPLStrdup(oJP2Geo.pszProjection);
+                        bGeoTransformValid = TRUE;
 
-                        memcpy(this->adfGeoTransform, oJP2Geo.adfGeoTransform, 
+                        memcpy(adfGeoTransform, oJP2Geo.adfGeoTransform, 
                                sizeof(double) * 6 );
-                        this->nGCPCount = oJP2Geo.nGCPCount;
-                        this->pasGCPList = oJP2Geo.pasGCPList;
+                        nGCPCount = oJP2Geo.nGCPCount;
+                        pasGCPList = oJP2Geo.pasGCPList;
 
                         oJP2Geo.pasGCPList = NULL;
                         oJP2Geo.nGCPCount = 0;
@@ -752,12 +753,12 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
                             apszMDList[0] = (char *) pszXML;
                             apszMDList[1] = NULL;
 
-                            this->GDALPamDataset::SetMetadata( apszMDList, osDomain );
+                            GDALPamDataset::SetMetadata( apszMDList, osDomain );
                             CPLFree( pszName );
                         }
 				
 
-                        this->SetDescription( CPLStrdup(pszUrl));
+                        SetDescription( CPLStrdup(pszUrl));
                     }
                     else
                     {
@@ -810,33 +811,33 @@ long JPIPKAKDataset::ReadVBAS(GByte* pabyData, int nLen)
 {
     int c = -1;
     long val = 0;
-    this->nVBASLen = 0;
+    nVBASLen = 0;
 
     while ((c & 0x80) != 0)
     {
-        if (this->nVBASLen >= 9)
+        if (nVBASLen >= 9)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "VBAS Length not supported");
             break;
         }
 
-        if (this->nPos > nLen)
+        if (nPos > nLen)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "EOF reached before completing VBAS");
             break;
         }
 
-        c = pabyData[this->nPos];
-        this->nPos++;
+        c = pabyData[nPos];
+        nPos++;
 
         val = (val << 7) | (long)(c & 0x7F);
 
-        if (this -> nVBASLen == 0)
-            this -> nVBASFirstByte = c;
+        if (nVBASLen == 0)
+            nVBASFirstByte = c;
 
-        this->nVBASLen++;
+        nVBASLen++;
     }
 
     return val;
@@ -847,7 +848,7 @@ long JPIPKAKDataset::ReadVBAS(GByte* pabyData, int nLen)
 /******************************************/
 JPIPDataSegment* JPIPKAKDataset::ReadSegment(GByte* pabyData, int nLen)
 {
-    long nId = this->ReadVBAS(pabyData, nLen);
+    long nId = ReadVBAS(pabyData, nLen);
     if (nId < 0)
         return NULL;
     else
@@ -855,19 +856,19 @@ JPIPDataSegment* JPIPKAKDataset::ReadSegment(GByte* pabyData, int nLen)
         JPIPDataSegment* segment = new JPIPDataSegment();
         segment->SetId(nId);
 
-        if (this->nVBASFirstByte == 0)
+        if (nVBASFirstByte == 0)
         {
             segment->SetEOR(TRUE);
-            segment->SetId(pabyData[this->nPos]);
+            segment->SetId(pabyData[nPos]);
         }
         else
         {
             segment->SetEOR(FALSE);
-            nId &= ~(0x70 << ((this->nVBASLen -1) * 7));
+            nId &= ~(0x70 << ((nVBASLen -1) * 7));
             segment->SetId(nId);
-            segment->SetFinal((this->nVBASFirstByte & 0x10) != 0);
+            segment->SetFinal((nVBASFirstByte & 0x10) != 0);
 
-            int m = (this->nVBASFirstByte & 0x7F) >> 5;
+            int m = (nVBASFirstByte & 0x7F) >> 5;
 
             if (m == 0)
             {
@@ -875,15 +876,15 @@ JPIPDataSegment* JPIPKAKDataset::ReadSegment(GByte* pabyData, int nLen)
                          "Invalid Bin-ID value format");
             }
             else if (m >= 2) {
-                this->nClassId = this->ReadVBAS(pabyData, nLen);
+                nClassId = ReadVBAS(pabyData, nLen);
                 if (m > 2)
-                    this->nCodestream = this->ReadVBAS(pabyData, nLen);
+                    nCodestream = ReadVBAS(pabyData, nLen);
             }
 
-            segment->SetClassId(this->nClassId);
-            segment->SetCodestreamIdx(this->nCodestream);
-            segment->SetOffset(this->ReadVBAS(pabyData, nLen));
-            segment->SetLen(this->ReadVBAS(pabyData, nLen));
+            segment->SetClassId(nClassId);
+            segment->SetCodestreamIdx(nCodestream);
+            segment->SetOffset(ReadVBAS(pabyData, nLen));
+            segment->SetLen(ReadVBAS(pabyData, nLen));
         }
 
         if ((segment->GetLen() > 0) && (!segment->IsEOR()))
@@ -892,19 +893,19 @@ JPIPDataSegment* JPIPKAKDataset::ReadSegment(GByte* pabyData, int nLen)
 			
             // copy data from input array pabyData to the data segment
             memcpy(pabyDataSegment, 
-                   pabyData + this->nPos,
+                   pabyData + nPos,
                    segment->GetLen());
 
             segment->SetData(pabyDataSegment);
         }
 
-        this->nPos += segment->GetLen();
+        nPos += segment->GetLen();
 
         if (!segment->IsEOR())
             nDatabins++;
 
         if ((segment->GetId() == JPIPKAKDataset::JPIP_EOR_WINDOW_DONE) && (segment->IsEOR()))
-            this->bWindowDone = TRUE;
+            bWindowDone = TRUE;
 
         return segment;
     }
@@ -940,7 +941,7 @@ int JPIPKAKDataset::ReadFromInput(GByte* pabyData, int nLen)
         // parse the data stream, reading the vbas and adding to the kakadu cache
         // we could parse all the boxes by hand, and just add data to the kakadu cache
         // we will do it the easy way and retrieve the metadata through the kakadu query api
-        this->nPos = 0;
+        nPos = 0;
         JPIPDataSegment* pSegment = NULL;
         while ((pSegment = ReadSegment(pabyData, nLen)) != NULL)
         {
@@ -958,7 +959,7 @@ int JPIPKAKDataset::ReadFromInput(GByte* pabyData, int nLen)
             {
                 // add data to kakadu
                 //CPLDebug("JPIPKAK", "Parsed JPIP Segment class=%i stream=%i id=%i offset=%i len=%i isFinal=%i isEOR=%i", pSegment->GetClassId(), pSegment->GetCodestreamIdx(), pSegment->GetId(), pSegment->GetOffset(), pSegment->GetLen(), pSegment->IsFinal(), pSegment->IsEOR());
-                this->oCache->add_to_databin(this->KakaduClassId(pSegment->GetClassId()), pSegment->GetCodestreamIdx(),
+                poCache->add_to_databin(KakaduClassId(pSegment->GetClassId()), pSegment->GetCodestreamIdx(),
                                              pSegment->GetId(), pSegment->GetData(), pSegment->GetOffset(), pSegment->GetLen(), pSegment->IsFinal());
 
                 delete pSegment;
@@ -1103,15 +1104,16 @@ const GDAL_GCP *JPIPKAKDataset::GetGCPs()
  *
  */
 
-GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
-                                                      int xSize, int ySize, 
-                                                      void *pBuf,
-                                                      int bufXSize, int bufYSize,
-                                                      GDALDataType bufType,
-                                                      int nBandCount, int* pBandMap,
-                                                      int nPixelSpace, int nLineSpace,
-                                                      int nBandSpace,
-                                                      char **papszOptions)
+GDALAsyncRasterIO* 
+JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
+                                   int xSize, int ySize, 
+                                   void *pBuf,
+                                   int bufXSize, int bufYSize,
+                                   GDALDataType bufType,
+                                   int nBandCount, int* pBandMap,
+                                   int nPixelSpace, int nLineSpace,
+                                   int nBandSpace,
+                                   char **papszOptions)
 {
     JPIPKAKAsyncRasterIO* ario = new JPIPKAKAsyncRasterIO(this);
     ario->pBuf = pBuf;
@@ -1132,17 +1134,17 @@ GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
     }
 
     // check we have sensible values
-    if (xOff > this->GetRasterXSize())
-        xOff = this->GetRasterXSize();
+    if (xOff > GetRasterXSize())
+        xOff = GetRasterXSize();
 
-    if (yOff > this->GetRasterYSize())
-        yOff = this->GetRasterYSize();
+    if (yOff > GetRasterYSize())
+        yOff = GetRasterYSize();
 
-    if ((xOff + xSize) > this->GetRasterXSize())
-        xSize = this->GetRasterXSize() - xOff;
+    if ((xOff + xSize) > GetRasterXSize())
+        xSize = GetRasterXSize() - xOff;
 
-    if ((yOff + ySize) > this->GetRasterYSize())
-        ySize = this->GetRasterYSize() - yOff;
+    if ((yOff + ySize) > GetRasterYSize())
+        ySize = GetRasterYSize() - yOff;
 
     ario->nXOff = xOff;
     ario->nYOff = yOff;
@@ -1157,7 +1159,7 @@ GDALAsyncRasterIO* JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
     if (pszLayers)
         ario->nQualityLayers = atoi(pszLayers);
     else
-        ario->nQualityLayers = this->nQualityLayers;
+        ario->nQualityLayers = nQualityLayers;
 
     if (pszPriority)
     {
@@ -1263,7 +1265,7 @@ GDALDataset *JPIPKAKDataset::Open(GDALOpenInfo * poOpenInfo)
 }
 
 /************************************************************************/
-/*                        GDALRegister_JPIPKAK()				*/
+/*                        GDALRegister_JPIPKAK()			*/
 /************************************************************************/
 
 void GDALRegister_JPIPKAK()
@@ -1287,36 +1289,36 @@ void GDALRegister_JPIPKAK()
         poDriver->pfnOpen = JPIPKAKDataset::Open;
         GetGDALDriverManager()->RegisterDriver( poDriver );
     }
-
 }
 
-/**********************************************/
-/*             JPIPKAKAsyncRasterIO           */
-/**********************************************/
+/************************************************************************/
+/*                         JPIPKAKAsyncRasterIO                         */
+/************************************************************************/
 JPIPKAKAsyncRasterIO::JPIPKAKAsyncRasterIO(GDALDataset *poDS)
 {
-	this->poDS = (JPIPKAKDataset *)poDS;
-	this->panBandMap = NULL;
-	this->pBuf = NULL;
-	this->nDataRead = 0;
+    poDS = (JPIPKAKDataset *)poDS;
+    panBandMap = NULL;
+    pBuf = NULL;
+    nDataRead = 0;
 }
 
-/***********************************************/
-/*              ~JPIPKAKAsyncRasterIO          */
-/***********************************************/
+/************************************************************************/
+/*                        ~JPIPKAKAsyncRasterIO                         */
+/************************************************************************/
 JPIPKAKAsyncRasterIO::~JPIPKAKAsyncRasterIO()
 {
-	this->Stop();
+	Stop();
 
 	// don't own the buffer
         delete [] panBandMap;
 }
-/************************************************/
-/*           Start()                            */
-/************************************************/
+
+/************************************************************************/
+/*                               Start()                                */
+/************************************************************************/
+
 void JPIPKAKAsyncRasterIO::Start()
 {
-
     // stop the currently running thread
     // start making requests to the server to the server
     if (pGlobalMutex == NULL)
@@ -1329,14 +1331,14 @@ void JPIPKAKAsyncRasterIO::Start()
     bComplete = 0;
 
     // check a thread is not already running
-    if (((this->bHighPriority) && (bHighThreadRunning)) || 
-        ((!this->bHighPriority) && (bLowThreadRunning)))
+    if (((bHighPriority) && (bHighThreadRunning)) || 
+        ((!bHighPriority) && (bLowThreadRunning)))
         CPLError(CE_Failure, CPLE_AppDefined, "JPIPKAKAsyncRasterIO supports at most two concurrent server communication threads");
     else
     {
         // calculate the url the worker function is going to retrieve
         // calculate the kakadu adjust image size
-        channels.configure(*(((JPIPKAKDataset*)this->poDS)->oCodestream));
+        channels.configure(*(((JPIPKAKDataset*)poDS)->poCodestream));
         // set band mapping
         if (panBandMap)
         {
@@ -1352,22 +1354,22 @@ void JPIPKAKAsyncRasterIO::Start()
         ref_expansion.y = 1;
 
         if (nBandCount == 1)
-            view_dims = ((JPIPKAKDataset*)this->poDS)->oDecompressor->
-                get_rendered_image_dims(*((JPIPKAKDataset*)this->poDS)->oCodestream, NULL, 
-                                        channels.source_components[0], this->nLevel, 
+            view_dims = ((JPIPKAKDataset*)poDS)->poDecompressor->
+                get_rendered_image_dims(*((JPIPKAKDataset*)poDS)->poCodestream, NULL, 
+                                        channels.source_components[0], nLevel, 
                                         ref_expansion );
         else
-            view_dims = ((JPIPKAKDataset*)this->poDS)->oDecompressor->
-                get_rendered_image_dims(*((JPIPKAKDataset*)this->poDS)->oCodestream, &channels, 
-                                        -1, this->nLevel, 
+            view_dims = ((JPIPKAKDataset*)poDS)->poDecompressor->
+                get_rendered_image_dims(*((JPIPKAKDataset*)poDS)->poCodestream, &channels, 
+                                        -1, nLevel, 
                                         ref_expansion );
 
         kdu_coords* view_siz = view_dims.access_size();
 		
         // Establish the decimation implied by our resolution level.
         int nRes = 1;
-        if (this->nLevel > 0)
-            nRes = 2 << (this->nLevel - 1);
+        if (nLevel > 0)
+            nRes = 2 << (nLevel - 1);
 
         // setup expansion to account for the difference between 
         // the selected level and the buffer resolution.
@@ -1381,10 +1383,10 @@ void JPIPKAKAsyncRasterIO::Start()
         int fx = view_siz->x;
         int fy = view_siz->y;
 
-        rr_win.pos.x = (int) ceil(this->nXOff / (1.0 * nRes)); // roffx
-        rr_win.pos.y = (int) ceil(this->nYOff / (1.0 * nRes)); // roffy
-        rr_win.size.x = (int) ceil(this->nXSize / (1.0 * nRes)); // rsizx
-        rr_win.size.y = (int) ceil(this->nYSize / (1.0 * nRes)); // rsizy
+        rr_win.pos.x = (int) ceil(nXOff / (1.0 * nRes)); // roffx
+        rr_win.pos.y = (int) ceil(nYOff / (1.0 * nRes)); // roffy
+        rr_win.size.x = (int) ceil(nXSize / (1.0 * nRes)); // rsizx
+        rr_win.size.y = (int) ceil(nYSize / (1.0 * nRes)); // rsizy
 
         if ( rr_win.pos.x + rr_win.size.x > fx)
             rr_win.size.x = fx - rr_win.pos.x;
@@ -1400,14 +1402,14 @@ void JPIPKAKAsyncRasterIO::Start()
         comps.erase(comps.length() -1);
 	
         jpipUrl.Printf("%s&type=jpp-stream&roff=%i,%i&rsiz=%i,%i&fsiz=%i,%i,closest&quality=%i&comps=%s", 
-                       ((JPIPKAKDataset*)this->poDS)->osRequestUrl.c_str(),
+                       ((JPIPKAKDataset*)poDS)->osRequestUrl.c_str(),
                        rr_win.pos.x, rr_win.pos.y,
                        rr_win.size.x, rr_win.size.y,
                        fx, fy,
-                       this->nQualityLayers, comps.c_str());
+                       nQualityLayers, comps.c_str());
 
         JPIPRequest* pRequest = new JPIPRequest();
-        pRequest->bPriority = this->bHighPriority;
+        pRequest->bPriority = bHighPriority;
         pRequest->osRequest = jpipUrl;
         pRequest->poARIO = this;
 
@@ -1420,17 +1422,20 @@ void JPIPKAKAsyncRasterIO::Start()
     }
 }
 
+/************************************************************************/
+/*                                Stop()                                */
+/************************************************************************/
 void JPIPKAKAsyncRasterIO::Stop()
 {
     bComplete = 1;
     if (pGlobalMutex)
     {
 
-        if (((this->bHighPriority) && (!bHighThreadFinished)) || 
-            ((!this->bHighPriority) && (!bLowThreadFinished)))
+        if (((bHighPriority) && (!bHighThreadFinished)) || 
+            ((!bHighPriority) && (!bLowThreadFinished)))
         {
             // stop the thread
-            if (this->bHighPriority)
+            if (bHighPriority)
             {
                 CPLAcquireMutex(pGlobalMutex, 100.0);
                 bHighThreadRunning = 0;
@@ -1456,9 +1461,9 @@ void JPIPKAKAsyncRasterIO::Stop()
     }
 }
 
-/***********************************************/
-/*            GetNextUpdatedRegion()           */
-/***********************************************/
+/************************************************************************/
+/*                        GetNextUpdatedRegion()                        */
+/************************************************************************/
 
 /** 
  * The function decompresses the available data to generate an image
@@ -1497,11 +1502,12 @@ void JPIPKAKAsyncRasterIO::Stop()
  *
  */
 
-GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int timeout,
-                                                               int* pnxbufoff,
-                                                               int* pnybufoff,
-                                                               int* pnxbufsize,
-                                                               int* pnybufsize)
+GDALAsyncStatusType 
+JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int timeout,
+                                           int* pnxbufoff,
+                                           int* pnybufoff,
+                                           int* pnxbufsize,
+                                           int* pnybufsize)
 {
     GDALAsyncStatusType result = GARIO_ERROR;
 
@@ -1560,16 +1566,16 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
 
     if (!(result == GARIO_PENDING))
     {
-        JPIPKAKDataset *poJDS = (JPIPKAKDataset*)this->poDS;
+        JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
 
         // Establish the canvas region with the expansion factor applied,
         // and compute region from the original window cut down to the
         // target canvas.
         kdu_dims view_dims;
 
-        view_dims = poJDS->oDecompressor->get_rendered_image_dims(
-            *poJDS->oCodestream, &channels, 
-            -1, this->nLevel, exp_numerator, exp_denominator );
+        view_dims = poJDS->poDecompressor->get_rendered_image_dims(
+            *poJDS->poCodestream, &channels, 
+            -1, nLevel, exp_numerator, exp_denominator );
 
         double x_ratio, y_ratio;
         x_ratio = view_dims.size.x / (double) poDS->GetRasterXSize();
@@ -1590,8 +1596,8 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
         region.pos += view_dims.pos;
 
         // Apply region and other restrictions.
-        poJDS->oCodestream->apply_input_restrictions(
-            0, 0, this->nLevel, this->nQualityLayers, &region);
+        poJDS->poCodestream->apply_input_restrictions(
+            0, 0, nLevel, nQualityLayers, &region);
 
         kdu_dims incomplete_region = region;
         kdu_coords origin = region.pos;
@@ -1603,14 +1609,14 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
         CPLAcquireMutex(pGlobalMutex, 100.0);
 
         if (nBandCount == 1)
-            bIsDecompressing = poJDS->oDecompressor->start(
-                *(poJDS->oCodestream), NULL,
-                channels.get_source_component(0), this->nLevel, this->nQualityLayers, 
+            bIsDecompressing = poJDS->poDecompressor->start(
+                *(poJDS->poCodestream), NULL,
+                channels.get_source_component(0), nLevel, nQualityLayers, 
                 region, exp_numerator, exp_denominator, TRUE);	
         else
-            bIsDecompressing = poJDS->oDecompressor->start(
-                *(poJDS->oCodestream), 
-                &channels, -1, this->nLevel, this->nQualityLayers, 
+            bIsDecompressing = poJDS->poDecompressor->start(
+                *(poJDS->poCodestream), 
+                &channels, -1, nLevel, nQualityLayers, 
                 region, exp_numerator, exp_denominator, TRUE);	
 		
         *pnxbufoff = region.access_pos()->x;
@@ -1638,18 +1644,25 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
         {
             if (nPrecisionBits <= 8)
             {
-                bIsDecompressing = poJDS->oDecompressor->
+                bIsDecompressing = poJDS->poDecompressor->
                     process((kdu_int32*)pBuf, origin, *pnxbufsize, 100000, 0, incomplete_region, region);
             }
             else
             {
-                bIsDecompressing = poJDS->oDecompressor->
+                bIsDecompressing = poJDS->poDecompressor->
                     process((kdu_uint16 *)pBuf, channel_offsets, 1, origin, *pnxbufsize, 100000, 0, 
                             incomplete_region, region, nPrecisionBits);
             }			
+            
+            CPLDebug( "JPIPKAK",
+                      "processed=%d,%d %dx%d   - incomplete=%d,%d %dx%d",
+                      region.pos.x, region.pos.y, 
+                      region.size.x, region.size.y,
+                      incomplete_region.pos.x, incomplete_region.pos.y,
+                      incomplete_region.size.x, incomplete_region.size.y );
         }
 
-        poJDS->oDecompressor->finish();
+        poJDS->poDecompressor->finish();
         CPLReleaseMutex(pGlobalMutex);
 
         CPLFree(channel_offsets);
@@ -1678,18 +1691,17 @@ GDALAsyncStatusType JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int tim
     return result;	
 }
 
-/***********************************************/
-/*            LockBuffer()                     */
-/***********************************************/
+/************************************************************************/
+/*                             LockBuffer()                             */
+/************************************************************************/
 void JPIPKAKAsyncRasterIO::LockBuffer()
 {
     // acquire the mutex
-	
 }
 
-/***********************************************/
-/*            LockBuffer()                     */
-/***********************************************/
+/************************************************************************/
+/*                             LockBuffer()                             */
+/************************************************************************/
 void JPIPKAKAsyncRasterIO::LockBuffer(int xbufoff, int ybufoff, int xbufsize, int ybufsize)
 {
 
@@ -1697,37 +1709,36 @@ void JPIPKAKAsyncRasterIO::LockBuffer(int xbufoff, int ybufoff, int xbufsize, in
              "Partial locks not implemented (yet)." );
 }
 
-/************************************************/
-/*            UnlockBuffer()                    */
-/************************************************/
+/************************************************************************/
+/*                            UnlockBuffer()                            */
+/************************************************************************/
 void JPIPKAKAsyncRasterIO::UnlockBuffer()
 {
     // release the mutex
 }
 
-/***********************************************/
-/*              JPIPDataSegment                */
-/***********************************************/
+/************************************************************************/
+/*                          JPIPDataSegment()                           */
+/************************************************************************/
 JPIPDataSegment::JPIPDataSegment()
 {
-    this -> nId = 0;
-    this -> nAux = 0;
-    this -> nClassId = 0;
-    this -> nCodestream = 0;
-    this -> nOffset = 0;
-    this -> nLen = 0;
-    this -> pabyData = NULL;
-    this -> bIsFinal = FALSE;
-    this -> bIsEOR = FALSE;
+    nId = 0;
+    nAux = 0;
+    nClassId = 0;
+    nCodestream = 0;
+    nOffset = 0;
+    nLen = 0;
+    pabyData = NULL;
+    bIsFinal = FALSE;
+    bIsEOR = FALSE;
 }
 
-/***********************************************/
-/*              ~JPIPDataSegment               */
-/***********************************************/
+/************************************************************************/
+/*                          ~JPIPDataSegment()                          */
+/************************************************************************/
 JPIPDataSegment::~JPIPDataSegment()
 {
-    if (this->pabyData)
-        CPLFree(this->pabyData);
+    CPLFree(pabyData);
 }
 
 static void JPIPWorkerFunc(void *req)
@@ -1758,7 +1769,6 @@ static void JPIPWorkerFunc(void *req)
     CPLString osHeaders = "HEADERS=";
     osHeaders += "Accept: jpp-stream";
     CPLString osPersistent = "PERSISTENT=1";
-
 
     char *apszOptions[] = { 
         (char *) osHeaders.c_str(),
@@ -1809,7 +1819,6 @@ static void JPIPWorkerFunc(void *req)
         if (bComplete)
             break;
     }
-
 
     CPLAcquireMutex(pGlobalMutex, 100.0);
 
