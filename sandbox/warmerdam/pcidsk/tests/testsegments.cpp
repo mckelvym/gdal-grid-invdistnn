@@ -45,6 +45,7 @@ class SegmentsTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testPCTRead );
     CPPUNIT_TEST( testPCTWrite );
     CPPUNIT_TEST( testSegDelete );
+    CPPUNIT_TEST( testSegUpdate );
     CPPUNIT_TEST( testGCPAdd );
     CPPUNIT_TEST( testGCPWrite );
     CPPUNIT_TEST( testGCPRead );
@@ -61,6 +62,7 @@ public:
     void testPCTRead();
     void testPCTWrite();
     void testSegDelete();
+    void testSegUpdate();
     void testGCPAdd();
     void testGCPWrite();
     void testGCPRead();
@@ -73,15 +75,10 @@ CPPUNIT_TEST_SUITE_REGISTRATION( SegmentsTest );
 
 void SegmentsTest::setUp()
 {
-    eChanType channel_types[1] = { CHN_8U };
-    PCIDSKFile* file = 
-        PCIDSK::Create("gcp_file.pix", 50, 50, 1, channel_types, "BAND");
-    delete file;
 }
 
 void SegmentsTest::tearDown()
 {
-    unlink("gcp_file.pix");
 }
 
 void SegmentsTest::testEltoro()
@@ -98,6 +95,7 @@ void SegmentsTest::testEltoro()
     CPPUNIT_ASSERT( seg->GetSegmentType() == SEG_GEO );
     CPPUNIT_ASSERT( seg->GetName() == "GEOref" );
     CPPUNIT_ASSERT( seg->GetSegmentNumber() == 1 );
+    CPPUNIT_ASSERT( seg->GetDescription() == "Master Georeferencing Segment for File" );
 
     seg = eltoro->GetSegment( 3 );
 
@@ -105,6 +103,10 @@ void SegmentsTest::testEltoro()
     CPPUNIT_ASSERT( seg->GetSegmentType() == SEG_LUT );
     CPPUNIT_ASSERT( seg->GetName() == "Equal" );
     CPPUNIT_ASSERT( seg->GetSegmentNumber() == 3 );
+
+    std::vector<std::string> history = seg->GetHistoryEntries();
+    CPPUNIT_ASSERT( history[0] == "FUN    :Input channel =  1 Func = EQUA                          17:25 11Apr2009" );
+    CPPUNIT_ASSERT( history[1] == "" );
 
     delete eltoro;
 }
@@ -207,6 +209,47 @@ void SegmentsTest::testPCTWrite()
     unlink( "pct_file.pix" );
 }
 
+// Test updating description and history on a segment.
+
+void SegmentsTest::testSegUpdate()
+{
+    eChanType channel_types[1] = {CHN_8U};
+    PCIDSKFile *file = 
+        PCIDSK::Create( "pct_file.pix", 50, 40, 1, channel_types, "BAND", NULL);
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    int iSeg = file->CreateSegment( "TSTPCT", "Desc", SEG_PCT, 0 );
+
+    PCIDSKSegment *seg = file->GetSegment( iSeg );
+
+    CPPUNIT_ASSERT( seg != NULL );
+
+    CPPUNIT_ASSERT( seg->GetDescription() == "Desc" );
+
+    seg->SetDescription( "New Description that is too long to really entirely fit in the space available." );
+    
+    CPPUNIT_ASSERT( seg->GetDescription() == "New Description that is too long to really entirely fit in the s" );
+
+    seg->PushHistory( "test_main", "Just testing history" );
+    seg->PushHistory( "X", "More recent, yet very long history that will have to be truncated to fit the space." );
+
+    std::vector<std::string> history = seg->GetHistoryEntries();
+    
+    CPPUNIT_ASSERT( strncmp(history[0].c_str(), 
+                            "X      :More recent, yet very long history that will have to be 15:44  ", 
+                            64 ) == 0 );
+
+    CPPUNIT_ASSERT( strncmp(history[1].c_str(), 
+                            "test_ma:Just testing history                                    ", 
+                            64 ) == 0 );
+    CPPUNIT_ASSERT( history[1][75] == '2' ); // first char of year.
+
+    delete file;
+
+    unlink( "pct_file.pix" );
+}
+
 void SegmentsTest::testSegDelete()
 {
     eChanType channel_types[1] = {CHN_8U};
@@ -252,7 +295,12 @@ void SegmentsTest::testSegDelete()
 
 void SegmentsTest::testGCPAdd()
 {
+    eChanType channel_types[1] = { CHN_8U };
     PCIDSKFile* file = 
+        PCIDSK::Create("gcp_file.pix", 50, 50, 1, channel_types, "BAND");
+    delete file;
+
+    file = 
         PCIDSK::Open("gcp_file.pix", "r+");
     
     int segnum = file->CreateSegment("GCP2TEST", "GCP2 Test Segment", SEG_GCP2, 0);
@@ -264,11 +312,17 @@ void SegmentsTest::testGCPAdd()
     CPPUNIT_ASSERT(gcp_seg->GetGCPCount() == 0);
     
     delete file;
+    unlink("gcp_file.pix");
 }
 
 void SegmentsTest::testGCPWrite()
 {
+    eChanType channel_types[1] = { CHN_8U };
     PCIDSKFile* file = 
+        PCIDSK::Create("gcp_file.pix", 50, 50, 1, channel_types, "BAND");
+    delete file;
+
+    file = 
         PCIDSK::Open("gcp_file.pix", "r+");
         
     // Get the GCP segment
@@ -315,6 +369,7 @@ void SegmentsTest::testGCPWrite()
     CPPUNIT_ASSERT(gcp_seg->GetGCPCount() == gcps.size());
     
     delete file;
+    unlink("gcp_file.pix");
 }
 
 void SegmentsTest::testGCPRead()
@@ -445,4 +500,6 @@ void SegmentsTest::testBitmapWrite()
         CPPUNIT_ASSERT( data[i] == i );
 
     delete file;
+
+    unlink( "bitmap_file.pix" );
 }

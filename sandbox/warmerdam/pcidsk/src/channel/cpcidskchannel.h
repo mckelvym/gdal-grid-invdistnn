@@ -71,9 +71,9 @@ namespace PCIDSK
 
         int         GetChannelNumber() { return channel_number; }
 
-        std::string GetMetadataValue( std::string key ) 
+        std::string GetMetadataValue( const std::string &key ) 
             { return metadata.GetMetadataValue(key); }
-        void        SetMetadataValue( std::string key, std::string value ) 
+        void        SetMetadataValue( const std::string &key, const std::string &value ) 
             { metadata.SetMetadataValue(key,value); }
         std::vector<std::string> GetMetadataKeys() 
             { return metadata.GetMetadataKeys(); }
@@ -81,7 +81,12 @@ namespace PCIDSK
         virtual void Synchronize() {}
 
         std::string GetDescription();
-        void SetDescription( std::string description );
+        void SetDescription( const std::string &description );
+
+        virtual std::vector<std::string> GetHistoryEntries() const;
+        virtual void SetHistoryEntries( const std::vector<std::string> &entries );
+        virtual void PushHistory(const std::string &app,
+                                 const std::string &message);
 
     // Just for CPCIDSKFile.
         void      InvalidateOverviewInfo();
@@ -89,6 +94,9 @@ namespace PCIDSK
     protected:
         CPCIDSKFile *file;
         MetadataSet  metadata;
+
+        void LoadHistory( const PCIDSKBuffer &image_header );
+        std::vector<std::string> history_;
 
         int       channel_number;
         uint64    ih_offset;

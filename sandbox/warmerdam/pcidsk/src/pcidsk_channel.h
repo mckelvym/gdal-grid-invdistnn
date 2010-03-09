@@ -56,14 +56,19 @@ namespace PCIDSK
         virtual int GetOverviewCount() = 0;
         virtual PCIDSKChannel *GetOverview( int i ) = 0;
 
-        virtual std::string GetMetadataValue( std::string key ) = 0;
-        virtual void SetMetadataValue( std::string key, std::string value ) = 0;
+        virtual std::string GetMetadataValue( const std::string &key ) = 0;
+        virtual void SetMetadataValue( const std::string &key, const std::string &value ) = 0;
         virtual std::vector<std::string> GetMetadataKeys() = 0;
 
         virtual void Synchronize() = 0;
 
         virtual std::string GetDescription() = 0;
-        virtual void SetDescription( std::string description ) = 0;
+        virtual void SetDescription( const std::string &description ) = 0;
+
+        virtual std::vector<std::string> GetHistoryEntries() const = 0;
+        virtual void SetHistoryEntries( const std::vector<std::string> &entries ) = 0;
+        virtual void PushHistory(const std::string &app,
+                                 const std::string &message) = 0;
     };
 } // end namespace PCIDSK
 

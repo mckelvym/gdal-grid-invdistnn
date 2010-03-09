@@ -76,6 +76,12 @@ void ChannelsTest::testChannelInfoRead()
     CPPUNIT_ASSERT( chan != NULL );
     CPPUNIT_ASSERT( chan->GetDescription() == "SPOT HRV1 Panchromatic (0.51 - 0.73 um)" );
 
+    std::vector<std::string> history = chan->GetHistoryEntries();
+
+    CPPUNIT_ASSERT( history[0] == "fimport:Imported from 1 on eltoro.pix                           17:25 11Apr2009" );
+
+    CPPUNIT_ASSERT( history[1] == "MCD    :SPOT HRV1 Panchromatic (0.51 - 0.73 um)                 17:25 11Apr2009" );
+
     delete eltoro;
 }
 
@@ -101,6 +107,20 @@ void ChannelsTest::testChannelInfoUpdate()
     channel = file->GetChannel(2);
     channel->SetDescription( "This is a very long, even a too long, description.  Make sure it is truncated." );
 
+    channel->PushHistory( "test_main", "Just testing history" );
+    channel->PushHistory( "X", "More recent, yet very long history that will have to be truncated to fit the space." );
+
+    std::vector<std::string> history = channel->GetHistoryEntries();
+    
+    CPPUNIT_ASSERT( strncmp(history[0].c_str(), 
+                            "X      :More recent, yet very long history that will have to be 15:44  ", 
+                            64 ) == 0 );
+
+    CPPUNIT_ASSERT( strncmp(history[1].c_str(), 
+                            "test_ma:Just testing history                                    ", 
+                            64 ) == 0 );
+    CPPUNIT_ASSERT( history[1][75] == '2' ); // first char of year.
+
     delete file;
 
     file = PCIDSK::Open( "channelupdate.pix", "r+", NULL );
@@ -111,6 +131,17 @@ void ChannelsTest::testChannelInfoUpdate()
     channel = file->GetChannel(2);
     CPPUNIT_ASSERT( channel->GetDescription() == "This is a very long, even a too long, description.  Make sure it" );
     
+    history = channel->GetHistoryEntries();
+    
+    CPPUNIT_ASSERT( strncmp(history[0].c_str(), 
+                            "X      :More recent, yet very long history that will have to be 15:44  ", 
+                            64 ) == 0 );
+
+    CPPUNIT_ASSERT( strncmp(history[1].c_str(), 
+                            "test_ma:Just testing history                                    ", 
+                            64 ) == 0 );
+    CPPUNIT_ASSERT( history[1][75] == '2' ); // first char of year.
+
     delete file;
 
     unlink( "channelupdate.pix" );

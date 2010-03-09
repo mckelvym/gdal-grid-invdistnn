@@ -27,6 +27,7 @@
 
 #include "pcidsk_config.h"
 #include "pcidsk_types.h"
+#include "core/pcidsk_utils.h"
 #include "pcidsk_exception.h"
 #include "pcidsk_channel.h"
 #include "core/cpcidskfile.h"
@@ -76,6 +77,8 @@ CPCIDSKChannel::CPCIDSKChannel( PCIDSKBuffer &image_header,
         
         if( pixel_type == CHN_8U )
             needs_swap = 0;
+
+        LoadHistory( image_header );
 
 /* -------------------------------------------------------------------- */
 /*      Initialize the metadata object, but do not try to load till     */
@@ -234,7 +237,7 @@ std::string CPCIDSKChannel::GetDescription()
 /*                           SetDescription()                           */
 /************************************************************************/
 
-void CPCIDSKChannel::SetDescription( std::string description )
+void CPCIDSKChannel::SetDescription( const std::string &description )
 
 {
     if( ih_offset == 0 )
@@ -243,4 +246,104 @@ void CPCIDSKChannel::SetDescription( std::string description )
     PCIDSKBuffer ih_1(64);
     ih_1.Put( description.c_str(), 0, 64 );
     file->WriteToFile( ih_1.buffer, ih_offset, 64 );
+}
+
+/************************************************************************/
+/*                            LoadHistory()                             */
+/************************************************************************/
+
+void CPCIDSKChannel::LoadHistory( const PCIDSKBuffer &image_header )
+
+{
+    // Read the history from the image header. PCIDSK supports
+    // 8 history entries per channel.
+
+    std::string hist_msg;
+    history_.clear();
+    for (unsigned int i = 0; i < 8; i++)
+    {
+        image_header.Get(384 + i * 80, 80, hist_msg);
+
+        // Some programs seem to push history records with a trailing '\0'
+        // so do some extra processing to cleanup.  FUN records on segment
+        // 3 of eltoro.pix are an example of this.
+        size_t size = hist_msg.size();
+        while( size > 0 
+               && (hist_msg[size-1] == ' ' || hist_msg[size-1] == '\0') )
+            size--;
+
+        hist_msg.resize(size);
+        
+        history_.push_back(hist_msg);
+    }
+}
+
+/************************************************************************/
+/*                         GetHistoryEntries()                          */
+/************************************************************************/
+
+std::vector<std::string> CPCIDSKChannel::GetHistoryEntries() const
+{
+    return history_;
+}
+
+/************************************************************************/
+/*                         SetHistoryEntries()                          */
+/************************************************************************/
+
+void CPCIDSKChannel::SetHistoryEntries(const std::vector<std::string> &entries)
+
+{
+    if( ih_offset == 0 )
+        ThrowPCIDSKException( "Attempt to update history on a raster that is not\na conventional band with an image header." );
+
+    PCIDSKBuffer image_header(1024);
+
+    file->ReadFromFile( image_header.buffer, ih_offset, 1024 );
+    
+    for( unsigned int i = 0; i < 8; i++ )
+    {
+        const char *msg = "";
+        if( entries.size() > i )
+            msg = entries[i].c_str();
+
+        image_header.Put( msg, 384 + i * 80, 80 );
+    }
+
+    file->WriteToFile( image_header.buffer, ih_offset, 1024 );
+
+    // Force reloading of history_
+    LoadHistory( image_header );
+}
+
+/************************************************************************/
+/*                            PushHistory()                             */
+/************************************************************************/
+
+void CPCIDSKChannel::PushHistory( const std::string &app,
+                                  const std::string &message )
+
+{
+#define MY_MIN(a,b)      ((a<b) ? a : b)
+
+    char current_time[17];
+    char history[81];
+
+    GetCurrentDateTime( current_time );
+
+    memset( history, ' ', 80 );
+    history[80] = '\0';
+
+    memcpy( history + 0, app.c_str(), MY_MIN(app.size(),7) );
+    history[7] = ':';
+    
+    memcpy( history + 8, message.c_str(), MY_MIN(message.size(),56) );
+    memcpy( history + 64, current_time, 16 );
+
+    std::vector<std::string> history_entries = GetHistoryEntries();
+
+    history_entries.insert( history_entries.begin(), history );
+    history_entries.resize(8);
+
+    SetHistoryEntries( history_entries );
 }

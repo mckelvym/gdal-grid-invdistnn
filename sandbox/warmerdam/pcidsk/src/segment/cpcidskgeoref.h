@@ -51,6 +51,12 @@ namespace PCIDSK
 
         virtual     ~CPCIDSKGeoref();
 
+        // PCIDSKSegment 
+
+        void        Initialize();
+
+        // PCIDSKGeoref
+
         void        GetTransform( double &a1, double &a2, double &xrot, 
                                   double &b1, double &yrot, double &b3 );
         std::string GetGeosys();

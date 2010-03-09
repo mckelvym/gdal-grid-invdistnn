@@ -49,7 +49,7 @@ static void Usage()
 
 {
     printf( "Usage: pcidsk_read [-p] [-l] <src_filename> [<dst_filename>]\n"
-            "                   [-ls] [-lc] [-lv] [-lg]\n" );
+            "                   [-ls] [-lc] [-lv] [-lg] [-lh]\n" );
     exit( 1 );
 }
 
@@ -164,7 +164,7 @@ void DumpSegHistory(PCIDSK::PCIDSKSegment* seg)
     printf("Segment %d's History:\n", seg->GetSegmentNumber());
     while (iter != history.end())
     {
-        printf("  Entry %d: %s\n", ++i, (*iter).c_str());
+        printf("  Entry %d: %s\n", i++, (*iter).c_str());
         iter++;
     }
 }
@@ -478,6 +478,9 @@ int main( int argc, char **argv)
                                 segobj->GetSegmentType(),
                                 PCIDSK::SegmentTypeName(segobj->GetSegmentType()).c_str(),
                                 (int) segobj->GetContentSize() );
+
+                        printf( "  %s\n", segobj->GetDescription().c_str() );
+
                         keys = segobj->GetMetadataKeys();  
                         
                         if( keys.size() > 0 )

@@ -415,14 +415,9 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
 /* -------------------------------------------------------------------- */
 /*      Create a default georeferencing segment.                        */
 /* -------------------------------------------------------------------- */
-    int segment = file->CreateSegment( "GEOref", 
-                                       "Master Georeferencing Segment for File",
-                                       SEG_GEO, 6 );
-
-    PCIDSKSegment *geo_seg = file->GetSegment( segment );
-    PCIDSKGeoref *geo = dynamic_cast<PCIDSKGeoref*>( geo_seg );
-
-    geo->WriteSimple( "PIXEL", 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 );
+    file->CreateSegment( "GEOref", 
+                         "Master Georeferencing Segment for File",
+                         SEG_GEO, 6 );
 
 /* -------------------------------------------------------------------- */
 /*      If the dataset is tiled, create the file band data.             */
@@ -438,8 +433,6 @@ PCIDSK::Create( std::string filename, int pixels, int lines,
         SysBlockMap *bm = 
             dynamic_cast<SysBlockMap *>(file->GetSegment( segment ));
 
-        bm->Initialize();
-        
         for( chan_index = 0; chan_index < channel_count; chan_index++ )
         {
             bm->CreateVirtualImageFile( pixels, lines, blocksize, blocksize,

@@ -166,7 +166,7 @@ associated with each may be fetched with GetMetadataValue().
 @see GetMetadataValue()
 
 ******************************************************************************
-\fn std::string PCIDSK::PCIDSKChannel::GetMetadataValue( std::string key );
+\fn std::string PCIDSK::PCIDSKChannel::GetMetadataValue( const std::string &key );
 
 \brief Fetch metadata value
 
@@ -181,7 +181,7 @@ does not exist on the target object.
 @see GetMetadataKeys()
 
 ******************************************************************************
-\fn void PCIDSK::PCIDSKChannel::SetMetadataValue( std::string key, std::string value );
+\fn void PCIDSK::PCIDSKChannel::SetMetadataValue( const std::string &key, const std::string &value );
 
 \brief Set metadata value
 
@@ -240,11 +240,41 @@ At some point in the future it might be extended to do this as well.
 trailing spaces stripped.
 
 ******************************************************************************
-\fn void PCIDSK::PCIDSKChannel::SetDescription( std::string description );
+\fn void PCIDSK::PCIDSKChannel::SetDescription( const std::string &description);
 
 \brief Set channel description.
 
 @param description a string of up to 64 characters.
+
+******************************************************************************
+\fn std::vector<std::string> PCIDSK::PCIDSKChannel::GetHistoryEntries() const;
+
+\brief fetch history records
+
+@return a vector of the 8 history records for this channel.
+
+******************************************************************************
+\fn void PCIDSK::PCIDSKChannel::SetHistoryEntries( const std::vector<std::string> &entries );
+
+\brief Set all history records.
+
+Normally applications will just use the PushHistory() method.  This method
+is used for bulk copying of history for special situations.
+
+@param entries - should be a vector of 8 strings of at most 80 characters.
+
+******************************************************************************
+\fn void PCIDSK::PCIDSKChannel::PushHistory( const std::string &app, const std::string &message );
+
+\brief Push a new history message.
+
+This method will push a new history message at the front of the history 
+stack.  The top seven history messages will be pushed down one to make space
+and the last one will be lost.  The current date is automatically appended to 
+the message.  
+
+@param app the application name, only 7 characters are used.
+@param message the history message, only 56 characters are used.
 
 */
 

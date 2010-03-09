@@ -874,6 +874,7 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
     PCIDSKBuffer sh(1024);
 
     char current_time[17];
+
     GetCurrentDateTime( current_time );
 
     sh.Put( " ", 0, 1024 );

@@ -70,16 +70,25 @@ CPCIDSKSegment::~CPCIDSKSegment()
     delete metadata;
 }
 
-std::string CPCIDSKSegment::GetMetadataValue( std::string key ) 
+/************************************************************************/
+/*                          GetMetadataValue()                          */
+/************************************************************************/
+std::string CPCIDSKSegment::GetMetadataValue( const std::string &key ) 
 {
     return metadata->GetMetadataValue(key);
 }
 
-void CPCIDSKSegment::SetMetadataValue( std::string key, std::string value ) 
+/************************************************************************/
+/*                          SetMetadataValue()                          */
+/************************************************************************/
+void CPCIDSKSegment::SetMetadataValue( const std::string &key, const std::string &value ) 
 {
     metadata->SetMetadataValue(key,value);
 }
 
+/************************************************************************/
+/*                           GetMetdataKeys()                           */
+/************************************************************************/
 std::vector<std::string> CPCIDSKSegment::GetMetadataKeys() 
 {
     return metadata->GetMetadataKeys();
@@ -116,9 +125,21 @@ void CPCIDSKSegment::LoadSegmentHeader()
     // Read the history from the segment header. PCIDSK supports
     // 8 history entries per segment.
     std::string hist_msg;
+    history_.clear();
     for (unsigned int i = 0; i < 8; i++)
     {
         header.Get(384 + i * 80, 80, hist_msg);
+
+        // Some programs seem to push history records with a trailing '\0'
+        // so do some extra processing to cleanup.  FUN records on segment
+        // 3 of eltoro.pix are an example of this.
+        size_t size = hist_msg.size();
+        while( size > 0 
+               && (hist_msg[size-1] == ' ' || hist_msg[size-1] == '\0') )
+            size--;
+
+        hist_msg.resize(size);
+        
         history_.push_back(hist_msg);
     }
 }
@@ -183,6 +204,17 @@ std::string CPCIDSKSegment::GetDescription()
 }
 
 /************************************************************************/
+/*                           SetDescription()                           */
+/************************************************************************/
+
+void CPCIDSKSegment::SetDescription( const std::string &description )
+{
+    header.Put( description.c_str(), 0, 64);
+
+    file->WriteToFile( header.buffer, data_offset, 1024 );
+}
+
+/************************************************************************/
 /*                              IsAtEOF()                               */
 /************************************************************************/
 
@@ -194,13 +226,67 @@ bool CPCIDSKSegment::IsAtEOF()
         return false;
 }
 
+/************************************************************************/
+/*                         GetHistoryEntries()                          */
+/************************************************************************/
+
 std::vector<std::string> CPCIDSKSegment::GetHistoryEntries() const
 {
     return history_;
 }
 
-void CPCIDSKSegment::SetHistoryEntry(unsigned int id, std::string const& message)
+/************************************************************************/
+/*                         SetHistoryEntries()                          */
+/************************************************************************/
+
+void CPCIDSKSegment::SetHistoryEntries(const std::vector<std::string> &entries)
+
 {
-    
+    for( unsigned int i = 0; i < 8; i++ )
+    {
+        const char *msg = "";
+        if( entries.size() > i )
+            msg = entries[i].c_str();
+
+        header.Put( msg, 384 + i * 80, 80 );
+    }
+
+    file->WriteToFile( header.buffer, data_offset, 1024 );
+
+    // Force reloading of history_
+    LoadSegmentHeader();
 }
+
+/************************************************************************/
+/*                            PushHistory()                             */
+/************************************************************************/
+
+void CPCIDSKSegment::PushHistory( const std::string &app,
+                                  const std::string &message )
+
+{
+#define MY_MIN(a,b)      ((a<b) ? a : b)
+
+    char current_time[17];
+    char history[81];
+
+    GetCurrentDateTime( current_time );
+
+    memset( history, ' ', 80 );
+    history[80] = '\0';
+
+    memcpy( history + 0, app.c_str(), MY_MIN(app.size(),7) );
+    history[7] = ':';
+    
+    memcpy( history + 8, message.c_str(), MY_MIN(message.size(),56) );
+    memcpy( history + 64, current_time, 16 );
+
+    std::vector<std::string> history_entries = GetHistoryEntries();
+
+    history_entries.insert( history_entries.begin(), history );
+    history_entries.resize(8);
+
+    SetHistoryEntries( history_entries );
+}
+
 

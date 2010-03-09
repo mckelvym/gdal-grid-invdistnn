@@ -56,14 +56,15 @@ namespace PCIDSK
 
         virtual        ~SysBlockMap();
 
+        virtual void    Synchronize();
+        virtual void    Initialize();
+
         SysVirtualFile *GetVirtualFile( int image );
         int             CreateVirtualFile();
         int             CreateVirtualImageFile( int width, int height, 
                                                 int block_width, int block_height,
                                                 eChanType chan_type,
                                                 std::string compression );
-        void            Synchronize();
-        void            Initialize();
         int             GrowVirtualFile( int image, int &last_block,
                                          int &block_segment_ret );
         void            SetVirtualFileSize( int image, uint64 file_length );

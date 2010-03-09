@@ -350,7 +350,7 @@ PCIDSKChannel *CPCIDSKBitmap::GetOverview( int i )
 /*                          GetMetadataValue()                          */
 /************************************************************************/
 
-std::string CPCIDSKBitmap::GetMetadataValue( std::string key )
+std::string CPCIDSKBitmap::GetMetadataValue( const std::string &key )
 
 {
     return CPCIDSKSegment::GetMetadataValue( key );
@@ -360,7 +360,8 @@ std::string CPCIDSKBitmap::GetMetadataValue( std::string key )
 /*                          SetMetadataValue()                          */
 /************************************************************************/
 
-void CPCIDSKBitmap::SetMetadataValue( std::string key, std::string value )
+void CPCIDSKBitmap::SetMetadataValue( const std::string &key, 
+                                      const std::string &value )
 
 {
     CPCIDSKSegment::SetMetadataValue( key, value );
@@ -402,9 +403,41 @@ std::string CPCIDSKBitmap::GetDescription()
 /*                           SetDescription()                           */
 /************************************************************************/
 
-void CPCIDSKBitmap::SetDescription( std::string description )
+void CPCIDSKBitmap::SetDescription( const std::string &description )
 
 {
-// TODO    CPCIDSKSegment::SetDescription( description );
+    CPCIDSKSegment::SetDescription( description );
 }
+
+/************************************************************************/
+/*                         GetHistoryEntries()                          */
+/************************************************************************/
+
+std::vector<std::string> CPCIDSKBitmap::GetHistoryEntries() const
+
+{
+    return CPCIDSKSegment::GetHistoryEntries();
+}
+
+/************************************************************************/
+/*                         SetHistoryEntries()                          */
+/************************************************************************/
+
+void CPCIDSKBitmap::SetHistoryEntries( const std::vector<std::string> &entries )
+
+{
+    CPCIDSKSegment::SetHistoryEntries( entries );
+}
+
+/************************************************************************/
+/*                            PushHistory()                             */
+/************************************************************************/
+
+void CPCIDSKBitmap::PushHistory( const std::string &app, 
+                                 const std::string &message )
+
+{
+    CPCIDSKSegment::PushHistory( app, message );
+}
+                                 
 
