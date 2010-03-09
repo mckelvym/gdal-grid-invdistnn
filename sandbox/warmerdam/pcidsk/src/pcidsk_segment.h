@@ -46,6 +46,8 @@ namespace PCIDSK
     public:
         virtual	~PCIDSKSegment() {}
 
+        virtual void Initialize() {}
+
         virtual void WriteToFile( const void *buffer, uint64 offset, uint64 size)=0;
         virtual void ReadFromFile( void *buffer, uint64 offset, uint64 size ) = 0;
 

@@ -42,6 +42,7 @@ namespace PCIDSK
         CHN_C16U=4,     /*!< 16-bit unsigned integer, complex */
         CHN_C16S=5,     /*!< 16-bit signed integer, complex */
         CHN_C32R=6,     /*!< 32-bit IEEE-754 Float, complex */
+        CHN_BIT=7,      /*!< 1bit unsigned (packed bitmap) */
         CHN_UNKNOWN=99 /*!< unknown channel type */
     } eChanType;
 

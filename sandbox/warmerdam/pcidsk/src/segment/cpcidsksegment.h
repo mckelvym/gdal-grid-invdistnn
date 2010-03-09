@@ -59,7 +59,7 @@ namespace PCIDSK
         void        LoadSegmentPointer( const char *segment_pointer );
         void        LoadSegmentHeader();
 
-        PCIDSKBuffer &GetHeader();
+        PCIDSKBuffer &GetHeader() { return header; }
 
         void      WriteToFile( const void *buffer, uint64 offset, uint64 size );
         void      ReadFromFile( void *buffer, uint64 offset, uint64 size );

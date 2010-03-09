@@ -37,7 +37,7 @@ namespace PCIDSK
 /*                            PCIDSKChannel                             */
 /************************************************************************/
 
-//! Interface to one PCIDSK channel (band).
+//! Interface to one PCIDSK channel (band) or bitmap segment.
 
     class PCIDSK_DLL PCIDSKChannel 
     {

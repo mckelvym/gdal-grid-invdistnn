@@ -28,7 +28,7 @@
 /** 
 
 ******************************************************************************
-\fn int PCIDSK::PCIDSKChannel::GetWidth()
+\fn int PCIDSK::PCIDSKChannel::GetWidth() const
   
 \brief Fetch image width.
 
@@ -37,7 +37,7 @@
 
 
 ******************************************************************************
-\fn int PCIDSK::PCIDSKChannel::GetHeight()
+\fn int PCIDSK::PCIDSKChannel::GetHeight() const
   
 \brief Fetch image height.
 
@@ -45,7 +45,7 @@
 
 
 ******************************************************************************
-\fn int PCIDSK::PCIDSKChannel::GetBlockWidth()
+\fn int PCIDSK::PCIDSKChannel::GetBlockWidth() const
   
 \brief Fetch image block width.
 
@@ -58,7 +58,7 @@ For tiled files it is a tile.
 
 
 ******************************************************************************
-\fn int PCIDSK::PCIDSKChannel::GetBlockHeight()
+\fn int PCIDSK::PCIDSKChannel::GetBlockHeight() const
   
 \brief Fetch image block height.
 
@@ -71,7 +71,7 @@ For tiled files it is a tile.
 
 
 ******************************************************************************
-\fn int PCIDSK::PCIDSKChannel::GetBlockCount()
+\fn int PCIDSK::PCIDSKChannel::GetBlockCount() const
   
 \brief Fetch image block count.
 
@@ -80,7 +80,7 @@ For tiled files it is a tile.
 
 
 ******************************************************************************
-\fn eChanType PCIDSK::PCIDSKChannel::GetType();
+\fn eChanType PCIDSK::PCIDSKChannel::GetType() const
 
 \brief Fetch pixel data type.
 
@@ -113,6 +113,11 @@ The win_xoff, win_yoff, win_xsize, and win_ysize parameters may be used to
 select a subwindow of the desired block.  By default the whole block is
 returned.
 
+Bitmap segment access is also handled via the PCIDSKChannel interface, and
+the buffer contains eight pixels packed into each byte which the first pixel
+in the high order bit (0x80) of the first byte.  Note that DataTypeSize()
+does not return an accurate size for bit buffers.
+
 @param block_index zero based block index to read.
 
 @param buffer the buffer into which the block will be read.
@@ -124,7 +129,6 @@ returned.
 @param win_xsize the width of the window to read from the block.
 
 @param win_ysize the height of the window to read from the block.
-
 
 ******************************************************************************
 \fn int PCIDSK::PCIDSKChannel::WriteBlock( int block_index, void *buffer );

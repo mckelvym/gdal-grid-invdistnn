@@ -48,6 +48,8 @@ class SegmentsTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testGCPAdd );
     CPPUNIT_TEST( testGCPWrite );
     CPPUNIT_TEST( testGCPRead );
+    CPPUNIT_TEST( testBitmapRead );
+    CPPUNIT_TEST( testBitmapWrite );
     
     CPPUNIT_TEST_SUITE_END();
 
@@ -62,6 +64,8 @@ public:
     void testGCPAdd();
     void testGCPWrite();
     void testGCPRead();
+    void testBitmapRead();
+    void testBitmapWrite();
 };
 
 // Registers the fixture into the 'registry'
@@ -311,8 +315,6 @@ void SegmentsTest::testGCPWrite()
     CPPUNIT_ASSERT(gcp_seg->GetGCPCount() == gcps.size());
     
     delete file;
-    
-    
 }
 
 void SegmentsTest::testGCPRead()
@@ -336,5 +338,104 @@ void SegmentsTest::testGCPRead()
     
     CPPUNIT_ASSERT(gcps_read.size() == 22);
     
+    delete file;
+}
+
+void SegmentsTest::testBitmapRead()
+
+{
+    PCIDSKFile* file = PCIDSK::Open("irvine.pix", "r");
+    
+    CPPUNIT_ASSERT(file != NULL);
+    
+    // Get bitmap segment.
+    PCIDSKSegment* seg = file->GetSegment(10);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+
+    PCIDSKChannel  *bitmap = dynamic_cast<PCIDSKChannel*>(seg);
+    
+    CPPUNIT_ASSERT(bitmap != NULL);
+
+    // Confirm expected sizes.
+
+    CPPUNIT_ASSERT( bitmap->GetType() == CHN_BIT );
+    CPPUNIT_ASSERT( bitmap->GetWidth() == 512 );
+    CPPUNIT_ASSERT( bitmap->GetHeight() == 512 );
+    CPPUNIT_ASSERT( bitmap->GetBlockWidth() == 512 );
+    CPPUNIT_ASSERT( bitmap->GetBlockHeight() == 8 );
+    CPPUNIT_ASSERT( bitmap->GetBlockCount() == 64 );
+    CPPUNIT_ASSERT( bitmap->GetOverviewCount() == 0 );
+
+    // Confirm the channel machinery is working.
+    CPPUNIT_ASSERT( bitmap->GetDescription() 
+                    == "Training site for type 2 water" );
+
+    // Fetch all the data and do a sort of checksum.
+    unsigned char data[512];
+    uint64 checksum = 0;
+
+    for( int i = 0; i < bitmap->GetBlockCount(); i++ )
+    {
+        bitmap->ReadBlock( i, data );
+
+        for( unsigned int j = 0; j < sizeof(data); j++ )
+            checksum += (i+j+1) * data[j];
+    }
+
+    CPPUNIT_ASSERT( checksum == 1256278 );
+    
+    delete file;
+}
+
+void SegmentsTest::testBitmapWrite()
+
+{
+    PCIDSKFile* file = 
+        PCIDSK::Create("bitmap_file.pix", 50, 50, 0, NULL, "PIXEL");
+        
+    // Get the GCP segment
+    int seg_num = file->CreateSegment("BIT_TEST", "Bitmap Test write", 
+                                      SEG_BIT, 0);
+
+    PCIDSKSegment* seg = file->GetSegment(seg_num);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    
+    PCIDSKChannel* bitmap = dynamic_cast<PCIDSKChannel*>(seg);
+    
+    CPPUNIT_ASSERT(bitmap != NULL);
+
+    // Confirm expected sizes.
+
+    CPPUNIT_ASSERT( bitmap->GetType() == CHN_BIT );
+    CPPUNIT_ASSERT( bitmap->GetWidth() == 50 );
+    CPPUNIT_ASSERT( bitmap->GetHeight() == 50 );
+    CPPUNIT_ASSERT( bitmap->GetBlockWidth() == 50 );
+    CPPUNIT_ASSERT( bitmap->GetBlockHeight() == 8 );
+    CPPUNIT_ASSERT( bitmap->GetBlockCount() == 7 );
+    CPPUNIT_ASSERT( bitmap->GetOverviewCount() == 0 );
+
+    // Write simple bitmap block.
+    unsigned char data[50];
+    unsigned int  i;
+
+    for( i = 0; i < sizeof(data); i++ )
+        data[i] = i;
+
+    bitmap->WriteBlock( 2, data );
+
+    // Confirm unwritten block is all zeros.
+    bitmap->ReadBlock( 3, data );
+
+    for( i = 0; i < sizeof(data); i++ )
+        CPPUNIT_ASSERT( data[i] == 0 );
+
+    // Confirm written block is as expected
+    bitmap->ReadBlock( 2, data );
+
+    for( i = 0; i < sizeof(data); i++ )
+        CPPUNIT_ASSERT( data[i] == i );
+
     delete file;
 }

@@ -45,6 +45,7 @@
 #include "segment/sysblockmap.h"
 #include "segment/cpcidskrpcmodel.h"
 #include "segment/cpcidskgcp2segment.h"
+#include "segment/cpcidskbitmap.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -232,6 +233,10 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
 
       case SEG_VEC:
         segobj = new CPCIDSKVectorSegment( this, segment, segment_pointer );
+        break;
+
+      case SEG_BIT:
+        segobj = new CPCIDSKBitmap( this, segment, segment_pointer );
         break;
 
       case SEG_SYS:
@@ -722,6 +727,7 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
 /*	Set the size of fixed length segments.				*/
 /* -------------------------------------------------------------------- */
     int expected_data_blocks = 0;
+    bool prezero = false;
 
     switch( seg_type )
     {
@@ -747,38 +753,15 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
 	expected_data_blocks = 6;
 	break;
 
-/* -------------------------------------------------------------------- */
-/*      We do some complicated stuff here to avoid exceeding the        */
-/*      largest number representable in a int32 (2GB).                  */
-/* -------------------------------------------------------------------- */
-#ifdef notdef
       case SEG_BIT:
-        {
-            int	  nBlocksPerScanline, nExtraPixels;
-            int   nBlocksPerPixel, nExtraScanlines;
-            
-            nExtraScanlines = IDB->lines % 4096;
-            nBlocksPerPixel = IDB->lines / 4096;
-            
-            nExtraPixels = IDB->pixels % 4096;
-            nBlocksPerScanline = IDB->pixels / 4096;
-            
-            nBlocks = (nExtraPixels * nExtraScanlines + 4095) / 4096
-                + nBlocksPerScanline * IDB->lines
-                + nBlocksPerPixel * nExtraPixels
-                + 2;
+      {
+          uint64 bytes = ((width * (uint64) height) + 7) / 8;
+          expected_data_blocks = (int) ((bytes + 511) / 512);
+          prezero = true;
+      }
+      break;
 
-	    if ((double)IDB->pixels * (double)IDB->lines/8.0 > (double)512*(double)2147483647)
-		IMPError( 68, ERRTYP_UFATAL,
-                      MkName(NLSLookup("@CantCreatePCIDSKWithBMPlarger1024GcurrentBMP_NUM_NUM_NUM_:Cannot "
-		      "create PCIDSK with a bitmap larger than 1024GB in size.\n"
-                      "The bitmap is %dp x %dl~= %6.1fMB.\n"),
-                      IDB->pixels, IDB->lines , 
-                      IDB->pixels * (double) IDB->lines
-                      / 1000000.0 ));
-        }
-        break
-
+#ifdef notdef
       case SEG_TEX:
         if( nBlocks < 66 )
             nBlocks = 66;
@@ -857,7 +840,7 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
     if( seg_start == 0 )
     {
         seg_start = GetFileSize();
-        ExtendFile( data_blocks + 2 );
+        ExtendFile( data_blocks + 2, prezero );
     }
 
 /* -------------------------------------------------------------------- */
@@ -908,6 +891,13 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
 /*      Write segment header.                                           */
 /* -------------------------------------------------------------------- */
     WriteToFile( sh.buffer, seg_start * 512, 1024 );
+
+/* -------------------------------------------------------------------- */
+/*      Initialize the newly created segment.                           */
+/* -------------------------------------------------------------------- */
+    PCIDSKSegment *seg_obj = GetSegment( segment );
+
+    seg_obj->Initialize();
 
     return segment;
 }

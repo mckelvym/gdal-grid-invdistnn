@@ -40,6 +40,11 @@ using namespace PCIDSK;
 /**
  * Return size of data type.
  *
+ * Note that type CHN_BIT exists to represent one bit backed data from
+ * bitmap segments, but because the return of this functions is measured
+ * in bytes, the size of a CHN_BIT pixel cannot be properly returned (one
+ * eighth of a byte), so "1" is returned instead.
+ *
  * @param chan_type the channel type enumeration value.
  *
  * @return the size of the passed data type in bytes, or zero for unknown 
@@ -65,6 +70,8 @@ int PCIDSK::DataTypeSize( eChanType chan_type )
         return 4;
       case CHN_C32R:
         return 8;
+      case CHN_BIT:
+        return 1; // not really accurate!
       default:
         return 0;
     }
@@ -104,6 +111,8 @@ std::string PCIDSK::DataTypeName( eChanType chan_type )
         return "C16S";
       case CHN_C32R:
         return "C32R";
+      case CHN_BIT:
+        return "BIT";
       default:
         return "UNK";
     }
@@ -136,6 +145,8 @@ eChanType PCIDSK::GetDataTypeFromName(std::string const& type_name)
         return CHN_16S;
     } else if (type_name.find("32R") != std::string::npos) {
         return CHN_32R;
+    } else if (type_name.find("BIT") != std::string::npos) {
+        return CHN_BIT;
     } else {
         return CHN_UNKNOWN;
     }

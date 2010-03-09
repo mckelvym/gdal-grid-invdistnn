@@ -66,6 +66,22 @@ void PrintVector(const std::vector<double> &vec)
     }
 }
 
+/************************************************************************/
+/*                        ReportBitmapSegment()                         */
+/************************************************************************/
+
+void ReportBitmapSegment( PCIDSK::PCIDSKChannel *bitmap )
+
+{
+    printf("\tBitmap Size:%dx%d, Block Size:%dx%d\n", 
+           bitmap->GetWidth(), bitmap->GetHeight(),
+           bitmap->GetBlockWidth(), bitmap->GetBlockHeight() );
+}
+
+/************************************************************************/
+/*                          ReportRPCSegment()                          */
+/************************************************************************/
+
 void ReportRPCSegment(PCIDSK::PCIDSKRPCSegment *rpcseg)
 {
     printf("\tSensor Name: %s\n", rpcseg->GetSensorName().c_str());
@@ -114,6 +130,10 @@ void ReportRPCSegment(PCIDSK::PCIDSKRPCSegment *rpcseg)
     printf("\tGeosys String: [%s]\n", rpcseg->GetGeosysString().c_str());
 }
 
+/************************************************************************/
+/*                          ReportGCPSegment()                          */
+/************************************************************************/
+
 void ReportGCPSegment(PCIDSK::PCIDSKGCPSegment *segobj)
 {
     std::vector<PCIDSK::GCP> gcps = segobj->GetGCPs();
@@ -133,6 +153,9 @@ void ReportGCPSegment(PCIDSK::PCIDSKGCPSegment *segobj)
     }
 }
 
+/************************************************************************/
+/*                           DumpSegHistory()                           */
+/************************************************************************/
 void DumpSegHistory(PCIDSK::PCIDSKSegment* seg)
 {
     std::vector<std::string> history(seg->GetHistoryEntries());
@@ -493,6 +516,14 @@ int main( int argc, char **argv)
                     if (segobj != NULL && (gcpseg = dynamic_cast<PCIDSK::PCIDSKGCPSegment*>(segobj)))
                     {
                         ReportGCPSegment(gcpseg);
+                    }
+
+                    PCIDSK::PCIDSKChannel* bitmap = NULL;
+                    if (segobj != NULL 
+                        && segobj->GetSegmentType() == PCIDSK::SEG_BIT
+                        && (bitmap = dynamic_cast<PCIDSK::PCIDSKChannel*>(segobj)))
+                    {
+                        ReportBitmapSegment(bitmap);
                     }
                 }
                 catch( PCIDSK::PCIDSKException ex )

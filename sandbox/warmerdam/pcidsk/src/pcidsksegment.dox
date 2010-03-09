@@ -40,7 +40,7 @@ Some segments types such as binary (SEG_BIN) provide no custom interfaces
 and can only be accessed using the generic PCIDSKSegment methods.   Others,
 such as georeferencing segments (SEG_GEO) offer additional segment specific
 interfaces via multiple inheritance.  Use dynamic casts to get access to
-the type specific interfaces. 
+the type specific interfaces.  
 
 Example:
 
@@ -54,6 +54,8 @@ Example:
       printf( "Geosys = %s\n", georef->GetGeosys() );
   }
 @endcode
+
+@see PCIDSKGeoref, PCIDSKVectorSegment, PCIDSK_PCT, PCIDSKChannel
 
 ******************************************************************************
 \fn void PCIDSK::PCIDSKSegment::WriteToFile( const void *buffer, uint64 offset, uint64 size);

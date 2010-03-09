@@ -166,7 +166,7 @@ PCIDSK::PCIDSKSegment methods for reading segment data.
 
 ******************************************************************************
 
-\fn void PCIDSK::PCIDSKFile::GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp, const char *filename = "" );
+\fn void PCIDSK::PCIDSKFile::GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp, std::string filename = "" );
 
 \brief Fetch details for IO to named file. 
 
@@ -273,7 +273,7 @@ associated with each may be fetched with GetMetadataValue().
 @see GetMetadataValue()
 
 ******************************************************************************
-\fn std::string PCIDSK::PCIDSKFile::GetMetadataValue( std::string key );
+\fn std::string PCIDSK::PCIDSKFile::GetMetadataValue( const std::string& key );
 
 \brief Fetch metadata value
 
@@ -288,7 +288,7 @@ does not exist on the target object.
 @see GetMetadataKeys()
 
 ******************************************************************************
-\fn void PCIDSK::PCIDSKFile::SetMetadataValue( std::string key, std::string value );
+\fn void PCIDSK::PCIDSKFile::SetMetadataValue( const std::string& key, const std::string& value );
 
 \brief Set metadata value
 

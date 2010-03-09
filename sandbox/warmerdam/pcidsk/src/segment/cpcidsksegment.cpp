@@ -175,7 +175,11 @@ void CPCIDSKSegment::WriteToFile( const void *buffer, uint64 offset, uint64 size
 
 std::string CPCIDSKSegment::GetDescription()
 {
-    return "";
+    std::string target;
+
+    header.Get( 0, 64, target );
+
+    return target;
 }
 
 /************************************************************************/
