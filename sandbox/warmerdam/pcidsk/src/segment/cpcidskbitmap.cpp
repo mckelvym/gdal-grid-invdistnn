@@ -188,6 +188,41 @@ eChanType CPCIDSKBitmap::GetType() const
 }
 
 /************************************************************************/
+/*                          PCIDSK_CopyBits()                           */
+/*                                                                      */
+/*      Copy bit strings - adapted from GDAL.                           */
+/************************************************************************/
+
+static void 
+PCIDSK_CopyBits( const uint8 *pabySrcData, int nSrcOffset, int nSrcStep, 
+                 uint8 *pabyDstData, int nDstOffset, int nDstStep,
+                 int nBitCount, int nStepCount )
+
+{
+    int iStep;
+    int iBit;
+
+    for( iStep = 0; iStep < nStepCount; iStep++ )
+    {
+        for( iBit = 0; iBit < nBitCount; iBit++ )
+        {
+            if( pabySrcData[nSrcOffset>>3] 
+                & (0x80 >>(nSrcOffset & 7)) )
+                pabyDstData[nDstOffset>>3] |= (0x80 >> (nDstOffset & 7));
+            else
+                pabyDstData[nDstOffset>>3] &= ~(0x80 >> (nDstOffset & 7));
+
+
+            nSrcOffset++;
+            nDstOffset++;
+        } 
+
+        nSrcOffset += (nSrcStep - nBitCount);
+        nDstOffset += (nDstStep - nBitCount);
+    }
+}
+
+/************************************************************************/
 /*                             ReadBlock()                              */
 /************************************************************************/
 
@@ -196,29 +231,72 @@ int CPCIDSKBitmap::ReadBlock( int block_index, void *buffer,
                               int win_xsize, int win_ysize )
 
 {
-    uint64 block_size = (block_width * block_height) / 8;
+    uint64 block_size = (block_width * block_height + 7) / 8;
+    uint8 *wrk_buffer = (uint8 *) buffer;
 
-    if( win_xoff == -1 && win_yoff == -1
-        && win_xsize == -1 && win_ysize == -1 )
+    if( block_index < 0 || block_index >= GetBlockCount() )
     {
-        if( (block_index+1) * block_height <= height )
-            ReadFromFile( buffer, block_size * block_index, block_size );
-        else
+        ThrowPCIDSKException( "Requested non-existant block (%d)", 
+                              block_index );
+    }
+/* -------------------------------------------------------------------- */
+/*      If we are doing subwindowing, we will need to create a          */
+/*      temporary bitmap to load into.  If we are concerned about       */
+/*      high performance access to small windows in big bitmaps we      */
+/*      will eventually want to reimplement this to avoid reading       */
+/*      the whole block to subwindow from.                              */
+/* -------------------------------------------------------------------- */
+    if( win_ysize != -1 )
+    {
+        if( win_xoff < 0 || win_xoff + win_xsize > GetBlockWidth()
+            || win_yoff < 0 || win_yoff + win_ysize > GetBlockHeight() )
         {
-            uint64 short_block_size;
-
-            memset( buffer, 0, block_size );
-
-            short_block_size = 
-                ((height - block_index*block_height) * block_width + 7) / 8;
-
-            ReadFromFile( buffer, block_size * block_index, short_block_size );
+            ThrowPCIDSKException( 
+                "Invalid window in CPCIDSKBitmap::ReadBlock(): xoff=%d,yoff=%d,xsize=%d,ysize=%d",
+                win_xoff, win_yoff, win_xsize, win_ysize );
         }
-        return 1;
+
+        wrk_buffer = (uint8 *) malloc(block_size);
+        if( wrk_buffer == NULL )
+            ThrowPCIDSKException( "Out of memory allocating %d bytes in CPCIDSKBitmap::ReadBlock()", 
+                                  (int) block_size );
     }
 
-    // TODO
-    ThrowPCIDSKException("Windowing on bitmap blocks not yet supported." );
+/* -------------------------------------------------------------------- */
+/*      Read the block, taking care in the case of partial blocks at    */
+/*      the bottom of the image.                                        */
+/* -------------------------------------------------------------------- */
+    if( (block_index+1) * block_height <= height )
+        ReadFromFile( wrk_buffer, block_size * block_index, block_size );
+    else
+    {
+        uint64 short_block_size;
+        
+        memset( buffer, 0, block_size );
+        
+        short_block_size = 
+            ((height - block_index*block_height) * block_width + 7) / 8;
+        
+        ReadFromFile( wrk_buffer, block_size * block_index, short_block_size );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Perform subwindowing if needed.                                 */
+/* -------------------------------------------------------------------- */
+    if( win_ysize != -1 )
+    {
+        int y_out;
+
+        for( y_out = 0; y_out <  win_ysize; y_out++ )
+        {
+            PCIDSK_CopyBits( wrk_buffer, 
+                             win_xoff + (y_out+win_yoff)*block_width, 0, 
+                             (uint8*) buffer, y_out * win_xsize, 0, 
+                             win_xsize, 1 );
+        }
+
+        free( wrk_buffer );
+    }
 
     return 0;
 }

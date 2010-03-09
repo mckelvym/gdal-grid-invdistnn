@@ -384,6 +384,13 @@ void SegmentsTest::testBitmapRead()
     }
 
     CPPUNIT_ASSERT( checksum == 1256278 );
+
+    // Test a windowed read.
+    data[2] = 0;
+
+    bitmap->ReadBlock( 9, data, 96, 4, 5, 3 );
+    CPPUNIT_ASSERT( data[0] == 255 && data[1] == 184 );
+    CPPUNIT_ASSERT( data[2] == 0 );
     
     delete file;
 }
