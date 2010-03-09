@@ -223,37 +223,40 @@ void CPCIDSKGCP2Segment::RebuildSegmentData(void)
         GCP::EElevationDatum datum;
         (*iter).GetElevationInfo(datum, unit);
         
-        char unit_c;
+        char unit_c[2];
         
         switch (unit)
         {
         case GCP::EMetres:
         case GCP::EUnknown:
-            unit_c = 'M';
+            unit_c[0] = 'M';
             break;
         case GCP::EAmericanFeet:
-            unit_c = 'A';
+            unit_c[0] = 'A';
             break;
         case GCP::EInternationalFeet:
-            unit_c = 'F';
+            unit_c[0] = 'F';
             break;
         }
         
-        char datum_c;
+        char datum_c[2];
         
         switch(datum)
         {
         case GCP::EEllipsoidal:
-            datum_c = 'E';
+            datum_c[0] = 'E';
             break;
         case GCP::EMeanSeaLevel:
-            datum_c = 'M';
+            datum_c[0] = 'M';
             break;
         }
+
+		unit_c[1] = '\0';
+		datum_c[1] = '\0';
         
         // Write out elevation information
-        pimpl_->seg_data.Put(&unit_c, offset + 46, 1);
-        pimpl_->seg_data.Put(&datum_c, offset + 47, 1);
+        pimpl_->seg_data.Put(unit_c, offset + 46, 1);
+        pimpl_->seg_data.Put(datum_c, offset + 47, 1);
         
         pimpl_->seg_data.Put((*iter).GetX(), offset + 48, 22);
         pimpl_->seg_data.Put((*iter).GetY(), offset + 70, 22);

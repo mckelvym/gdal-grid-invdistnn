@@ -32,7 +32,7 @@ OBJ = \
 	segment/cpcidskbitmap.o
 
 
-CXXFLAGS = -g -Wall -fPIC -I. $(JPEG_FLAGS)
+CXXFLAGS = -g -O0 -Wall -fPIC -I. $(JPEG_FLAGS)
 
 default:	pcidsk.a libpcidsk.so
 
