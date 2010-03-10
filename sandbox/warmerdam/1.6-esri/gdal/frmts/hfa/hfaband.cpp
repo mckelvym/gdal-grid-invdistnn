@@ -211,7 +211,7 @@ HFABand::HFABand( HFAInfo_t * psInfoIn, HFAEntry * poNodeIn )
 
         if( VSIStatL( osFullRRD, &sStatBuf ) == 0 )
         {
-            psOvHFA = HFAGetDependent( psInfo, osFullRRD );
+            psOvHFA = HFAGetDependent( psInfo, osRRDFilename );
             if( psOvHFA )
                 poBandProxyNode = 
                     psOvHFA->poRoot->GetNamedChild( poNode->GetName() );
