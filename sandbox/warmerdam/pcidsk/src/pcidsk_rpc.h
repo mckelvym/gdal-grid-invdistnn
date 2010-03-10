@@ -31,6 +31,7 @@
 #include <string>
 
 namespace PCIDSK {
+//! Interface to PCIDSK RPC segment.
     class PCIDSKRPCSegment 
     {
     public:
