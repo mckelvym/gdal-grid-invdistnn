@@ -33,6 +33,7 @@
 #include "core/cpcidskfile.h"
 #include "channel/cpcidskchannel.h"
 #include "channel/ctiledchannel.h"
+#include <cstring>
 #include <cassert>
 #include <cstdlib>
 #include <cstring>

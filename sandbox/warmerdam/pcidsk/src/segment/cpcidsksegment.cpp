@@ -33,6 +33,7 @@
 #include "pcidsk_exception.h"
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <vector>
 #include <string>
 
