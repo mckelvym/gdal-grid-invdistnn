@@ -195,6 +195,32 @@ HFABand::HFABand( HFAInfo_t * psInfoIn, HFAEntry * poNodeIn )
     }
 
 /* -------------------------------------------------------------------- */
+/*      If there are no overviews mentioned in this file, probe for     */
+/*      an .rrd file anyways.                                           */
+/* -------------------------------------------------------------------- */
+    HFAEntry *poBandProxyNode = poNode;
+    HFAInfo_t *psOvHFA = psInfo;
+
+    if( nOverviews == 0 
+        && EQUAL(CPLGetExtension(psInfo->pszFilename),"aux") )
+    {
+        CPLString osRRDFilename = CPLResetExtension( psInfo->pszFilename,"rrd");
+        CPLString osFullRRD = CPLFormFilename( psInfo->pszPath, osRRDFilename,
+                                               NULL );
+        VSIStatBufL sStatBuf;
+
+        if( VSIStatL( osFullRRD, &sStatBuf ) == 0 )
+        {
+            psOvHFA = HFAGetDependent( psInfo, osFullRRD );
+            if( psOvHFA )
+                poBandProxyNode = 
+                    psOvHFA->poRoot->GetNamedChild( poNode->GetName() );
+            else
+                psOvHFA = psInfo;
+        }
+    }
+
+/* -------------------------------------------------------------------- */
 /*      If there are no named overviews, try looking for unnamed        */
 /*      overviews within the same layer, as occurs in floodplain.img    */
 /*      for instance.                                                   */
@@ -203,7 +229,7 @@ HFABand::HFABand( HFAInfo_t * psInfoIn, HFAEntry * poNodeIn )
     {
         HFAEntry	*poChild;
 
-        for( poChild = poNode->GetChild(); 
+        for( poChild = poBandProxyNode->GetChild(); 
              poChild != NULL;
              poChild = poChild->GetNext() ) 
         {
@@ -211,7 +237,7 @@ HFABand::HFABand( HFAInfo_t * psInfoIn, HFAEntry * poNodeIn )
             {
                 papoOverviews = (HFABand **) 
                     CPLRealloc(papoOverviews, sizeof(void*) * ++nOverviews );
-                papoOverviews[nOverviews-1] = new HFABand( psInfo, poChild );
+                papoOverviews[nOverviews-1] = new HFABand( psOvHFA, poChild );
                 if (papoOverviews[nOverviews-1]->nWidth == 0)
                 {
                     nWidth = nHeight = 0;
