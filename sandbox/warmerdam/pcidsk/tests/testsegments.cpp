@@ -30,6 +30,7 @@
 #include "pcidsk_georef.h"
 #include "pcidsk_pct.h"
 #include "pcidsk_gcp.h"
+#include "pcidsk_tex.h"
 #include "pcidsk_gcpsegment.h"
 #include <cppunit/extensions/HelperMacros.h>
 #include <unistd.h>
@@ -51,6 +52,8 @@ class SegmentsTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testGCPRead );
     CPPUNIT_TEST( testBitmapRead );
     CPPUNIT_TEST( testBitmapWrite );
+    CPPUNIT_TEST( testTextRead );
+    CPPUNIT_TEST( testTextWrite );
     
     CPPUNIT_TEST_SUITE_END();
 
@@ -68,6 +71,8 @@ public:
     void testGCPRead();
     void testBitmapRead();
     void testBitmapWrite();
+    void testTextRead();
+    void testTextWrite();
 };
 
 // Registers the fixture into the 'registry'
@@ -503,3 +508,61 @@ void SegmentsTest::testBitmapWrite()
 
     unlink( "bitmap_file.pix" );
 }
+
+void SegmentsTest::testTextRead()
+{
+    PCIDSKFile *file;
+
+    file = PCIDSK::Open( "irvine.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    PCIDSKSegment *seg = file->GetSegment( 30 );
+
+    CPPUNIT_ASSERT( seg != NULL );
+
+    PCIDSK_TEX *tex_seg = dynamic_cast<PCIDSK_TEX*>(seg);
+
+    CPPUNIT_ASSERT( tex_seg != NULL );
+
+    std::string text = tex_seg->ReadText();
+
+    CPPUNIT_ASSERT( text.size() == 1480 );
+    CPPUNIT_ASSERT( text.substr(0,30) == " !\n !	Attribute data tocreate " );
+    
+    delete file;
+}
+
+void SegmentsTest::testTextWrite()
+{
+    eChanType channel_types[1] = {CHN_8U};
+    PCIDSKFile *file = 
+        PCIDSK::Create( "text_file.pix", 50, 40, 0, channel_types, "BAND",NULL);
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    int iSeg = file->CreateSegment( "TSTTEX", "Desc", SEG_TEX, 0 );
+
+    PCIDSKSegment *seg = file->GetSegment( iSeg );
+
+    CPPUNIT_ASSERT( seg != NULL );
+    CPPUNIT_ASSERT( seg->GetContentSize() == 32768 );
+
+    PCIDSK_TEX *tex_seg = dynamic_cast<PCIDSK_TEX*>(seg);
+
+    CPPUNIT_ASSERT( tex_seg != NULL );
+
+    std::string text;
+
+    text = "\n\rabc\r\ndef\nxxx\ryyy";
+
+    tex_seg->WriteText( text );
+
+    std::string text2 = tex_seg->ReadText();
+
+    CPPUNIT_ASSERT( text2 == "\nabc\ndef\nxxx\nyyy\n" );
+
+    delete file;
+    unlink( "text_file.pix" );
+}
+

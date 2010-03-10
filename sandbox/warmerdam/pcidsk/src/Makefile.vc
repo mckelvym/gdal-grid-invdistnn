@@ -30,7 +30,8 @@ OBJ = \
 	segment\cpcidskrpcmodel.obj \
 	segment\metadatasegment_p.obj \
 	segment\sysblockmap.obj \
-	segment\cpcidskbitmap.obj 
+	segment\cpcidskbitmap.obj \
+	segment\cpcidsk_tex.obj 
 
 default:	pcidsk.lib
 

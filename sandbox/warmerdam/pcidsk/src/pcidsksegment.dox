@@ -55,7 +55,7 @@ Example:
   }
 @endcode
 
-@see PCIDSKGeoref, PCIDSKVectorSegment, PCIDSK_PCT, PCIDSKChannel
+@see PCIDSKGeoref, PCIDSKVectorSegment, PCIDSK_PCT, PCIDSKChannel, PCIDSK_TEX, PCIDSKGCPSegment, PCIDSKRPCSegment
 
 ******************************************************************************
 \fn void PCIDSK::PCIDSKSegment::WriteToFile( const void *buffer, uint64 offset, uint64 size);

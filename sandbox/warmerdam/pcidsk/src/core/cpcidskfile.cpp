@@ -46,6 +46,7 @@
 #include "segment/cpcidskrpcmodel.h"
 #include "segment/cpcidskgcp2segment.h"
 #include "segment/cpcidskbitmap.h"
+#include "segment/cpcidsk_tex.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -237,6 +238,10 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
 
       case SEG_BIT:
         segobj = new CPCIDSKBitmap( this, segment, segment_pointer );
+        break;
+
+      case SEG_TEX:
+        segobj = new CPCIDSK_TEX( this, segment, segment_pointer );
         break;
 
       case SEG_SYS:
@@ -753,6 +758,11 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
 	expected_data_blocks = 6;
 	break;
 
+      case SEG_TEX:
+        expected_data_blocks = 64;
+        prezero = true;
+        break;
+
       case SEG_BIT:
       {
           uint64 bytes = ((width * (uint64) height) + 7) / 8;
@@ -760,13 +770,6 @@ int CPCIDSKFile::CreateSegment( std::string name, std::string description,
           prezero = true;
       }
       break;
-
-#ifdef notdef
-      case SEG_TEX:
-        if( nBlocks < 66 )
-            nBlocks = 66;
-        break;
-#endif
 
       default:
         break;
