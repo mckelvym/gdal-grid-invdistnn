@@ -106,6 +106,7 @@ private:
     int nResLevels;
     int nComps;
     int nBitDepth;
+    GDALDataType eDT;
 
     int nCodestream;
     long nDatabins;
@@ -166,6 +167,7 @@ public:
     static const GByte TILE_DATA_BIN_CLASS = 4;
 	
     friend class JPIPKAKAsyncRasterIO;
+    friend class JPIPKAKRasterBand;
 };
 
 /************************************************************************/
@@ -182,8 +184,6 @@ class JPIPKAKRasterBand : public GDALPamRasterBand
 
     int         nDiscardLevels; 
 
-    int nBytesPerPixel;
-
     kdu_dims 	band_dims; 
 
     int		nOverviewCount;
@@ -192,9 +192,6 @@ class JPIPKAKRasterBand : public GDALPamRasterBand
     kdu_codestream *oCodeStream;
 
     GDALColorTable oCT;
-
-    int         bYCbCrReported;
-    
     GDALColorInterp eInterp;
 
 public:
