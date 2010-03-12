@@ -2,7 +2,8 @@
  * $Id: gdaldataset.cpp 16796 2009-04-17 23:35:04Z normanb $
  *
  * Project:  GDAL Core
- * Purpose:  Implementation of GDALDefaultAsyncRasterIO
+ * Purpose:  Implementation of GDALDefaultAsyncRasterIO and the 
+ *           GDALAsyncRasterIO base class.
  * Author:   Frank Warmerdam, warmerdam@pobox.com
  *
  ******************************************************************************
@@ -44,6 +45,57 @@ GDALGetDefaultAsyncRasterIO( GDALDataset* poDS,
                              int nBandSpace, char **papszOptions);
 CPL_C_END
 
+/************************************************************************/
+/* ==================================================================== */
+/*                         GDALAsyncRasterIO                            */
+/* ==================================================================== */
+/************************************************************************/
+
+/************************************************************************/
+/*                         GDALAsyncRasterIO()                          */
+/************************************************************************/
+
+GDALAsyncRasterIO::GDALAsyncRasterIO()
+{
+}
+
+/************************************************************************/
+/*                         ~GDALAsyncRasterIO()                         */
+/************************************************************************/
+GDALAsyncRasterIO::~GDALAsyncRasterIO()
+{
+}
+
+/************************************************************************/
+/*                      GDALGetNextUpdatedRegion()                      */
+/************************************************************************/
+GDALAsyncStatusType CPL_STDCALL 
+GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int timeout, 
+                         int* pnxbufoff, int* pnybufoff, 
+                         int* pnxbufsize, int* pnybufsize)
+{
+    VALIDATE_POINTER1(hARIO, "GDALGetNextUpdatedRegion", GARIO_ERROR);
+    return ((GDALAsyncRasterIO *)hARIO)->GetNextUpdatedRegion(
+        timeout, pnxbufoff, pnybufoff, pnxbufsize, pnybufsize);
+}
+
+/************************************************************************/
+/*                           GDALLockBuffer()                           */
+/************************************************************************/
+void CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO)
+{
+    VALIDATE_POINTER0(hARIO, "GDALAsyncRasterIO");
+    ((GDALAsyncRasterIO *)hARIO) ->LockBuffer();
+}
+
+/************************************************************************/
+/*                          GDALUnlockBuffer()                          */
+/************************************************************************/
+void CPL_STDCALL GDALUnlockBuffer(GDALAsyncRasterIOH hARIO)
+{
+    VALIDATE_POINTER0(hARIO, "GDALAsyncRasterIO");
+    ((GDALAsyncRasterIO *)hARIO) ->UnlockBuffer();
+}
 
 /************************************************************************/
 /* ==================================================================== */
@@ -68,16 +120,11 @@ class GDALDefaultAsyncRasterIO : public GDALAsyncRasterIO
                              int nBandSpace, char **papszOptions);
     ~GDALDefaultAsyncRasterIO();
 
-    virtual GDALAsyncStatusType GetNextUpdatedRegion(int bWait, int nTimeout,
+    virtual GDALAsyncStatusType GetNextUpdatedRegion(int nTimeout,
                                                      int* pnBufXOff,
                                                      int* pnBufYOff,
                                                      int* pnBufXSize,
                                                      int* pnBufYSize);
-
-    virtual void LockBuffer() {}
-    virtual void LockBuffer(int nBufXOff, int nBufYOff, 
-                            int nBufXSize, int nBufYSize) {}
-    virtual void UnlockBuffer() {} 
 };
 
 /************************************************************************/
@@ -163,7 +210,7 @@ GDALDefaultAsyncRasterIO::~GDALDefaultAsyncRasterIO()
 /************************************************************************/
 
 GDALAsyncStatusType
-GDALDefaultAsyncRasterIO::GetNextUpdatedRegion(int bWait, int nTimeout,
+GDALDefaultAsyncRasterIO::GetNextUpdatedRegion(int nTimeout,
                                                int* pnBufXOff,
                                                int* pnBufYOff,
                                                int* pnBufXSize,

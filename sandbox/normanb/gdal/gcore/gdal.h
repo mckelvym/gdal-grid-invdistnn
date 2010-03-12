@@ -331,14 +331,13 @@ void CPL_DLL CPL_STDCALL GDALSetDescription( GDALMajorObjectH, const char * );
   int CPL_DLL CPL_STDCALL GDALGetLineSpace(GDALAsyncRasterIOH hARIO);
   int CPL_DLL CPL_STDCALL GDALGetBandSpace(GDALAsyncRasterIOH hARIO);
   int CPL_DLL CPL_STDCALL GDALGetNDataRead(GDALAsyncRasterIOH hARIO);
-  GDALAsyncStatusType CPL_DLL CPL_STDCALL GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int wait, int timeout, int* pnxbufoff,
-                                                   int* pnybufoff,
-                                                   int* pnxbufsize,
-                                                   int* pnybufsize); 
-  void CPL_DLL CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO);
-//  void CPL_DLL CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO, int xbufoff, int ybufoff, int xbufsize, int ybufsize);
-  void CPL_DLL CPL_STDCALL GDALUnlockBuffer(GDALAsyncRasterIOH hARIO); 
 
+GDALAsyncStatusType CPL_DLL CPL_STDCALL 
+GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int nTimeout,
+                         int* pnXBufOff, int* pnYBufOff, 
+                         int* pnXBufSize, int* pnYBufSize );
+void CPL_DLL CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO);
+void CPL_DLL CPL_STDCALL GDALUnlockBuffer(GDALAsyncRasterIOH hARIO); 
 
 /* ==================================================================== */
 /*      GDALDataset class ... normally this represents one file.        */
@@ -356,17 +355,17 @@ CPLErr CPL_DLL  CPL_STDCALL GDALAddBand( GDALDatasetH hDS, GDALDataType eType,
                              char **papszOptions );
 
 
-GDALAsyncRasterIOH CPL_DLL CPL_STDCALL GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
-										int xSize, int ySize,
-										void *pBuf,
-										int bufXSize, int bufYSize,
-										GDALDataType bufType,
-										int nBandCount, int* pBandMap,
-										int nPixelSpace, int nLineSpace,
-										int nBandSpace,
-										char **papszOptions);
+GDALAsyncRasterIOH CPL_DLL CPL_STDCALL 
+GDALBeginAsyncRasterIO(GDALDatasetH hDS, int nXOff, int nYOff,
+                       int nXSize, int nYSize,
+                       void *pBuf, int nBufXSize, int nBufYSize,
+                       GDALDataType eBufType,
+                       int nBandCount, int* panBandMap,
+                       int nPixelSpace, int nLineSpace, int nBandSpace,
+                       char **papszOptions);
 
-void  CPL_DLL CPL_STDCALL GDALEndAsyncRasterIO(GDALDatasetH hDS, GDALAsyncRasterIOH hAsynchRasterIOH);
+void  CPL_DLL CPL_STDCALL 
+GDALEndAsyncRasterIO(GDALDatasetH hDS, GDALAsyncRasterIOH hAsynchRasterIOH);
 
 CPLErr CPL_DLL CPL_STDCALL GDALDatasetRasterIO( 
     GDALDatasetH hDS, GDALRWFlag eRWFlag,

@@ -283,17 +283,14 @@ class CPL_DLL GDALDataset : public GDALMajorObject
 
     virtual CPLErr          CreateMaskBand( int nFlags );
 
-	virtual GDALAsyncRasterIO* BeginAsyncRasterIO(int xOff, int yOff,
-									int xSize, int ySize, 
-									void *pBuf,
-									int bufXSize, int bufYSize,
-									GDALDataType bufType,
-									int nBandCount, int* bandMap,
-									int nPixelSpace, int nLineSpace,
-									int nBandSpace,
-									char **papszOptions);
-
-	virtual void EndAsyncRasterIO(GDALAsyncRasterIO *);
+    virtual GDALAsyncRasterIO* 
+        BeginAsyncRasterIO(int nXOff, int nYOff, int nXSize, int nYSize,
+                           void *pBuf, int nBufXSize, int nBufYSize,
+                           GDALDataType eBufType,
+                           int nBandCount, int* panBandMap,
+                           int nPixelSpace, int nLineSpace, int nBandSpace,
+                           char **papszOptions);
+    virtual void EndAsyncRasterIO(GDALAsyncRasterIO *);
 
     CPLErr      RasterIO( GDALRWFlag, int, int, int, int,
                           void *, int, int, GDALDataType,
@@ -775,10 +772,9 @@ class CPL_DLL GDALAsyncRasterIO
     int          nPixelSpace;
     int          nLineSpace;
     int          nBandSpace;
-    long         nDataRead;
 
   public:
-    GDALAsyncRasterIO(GDALDataset* poDS = NULL);
+    GDALAsyncRasterIO();
     virtual ~GDALAsyncRasterIO();
 
     GDALDataset* GetGDALDataset() {return poDS;}
@@ -796,29 +792,14 @@ class CPL_DLL GDALAsyncRasterIO
     int GetLineSpace() {return nLineSpace;}
     int GetBandSpace() {return nBandSpace;}
 
-    int GetNDataRead(){return nDataRead;}
-	
-    /* Returns GARIO_UPDATE, GARIO_NO_MESSAGE (if pending==false and nothing in the queue or if pending==true && timeout != 0 and nothing in the queue at the end of the timeout), GARIO_COMPLETE, GARIO_ERROR */
-    virtual GDALAsyncStatusType GetNextUpdatedRegion(int bWait, int nTimeout,
-                                                     int* pnBufXOff,
-                                                     int* pnBufYOff,
-                                                     int* pnBufXSize,
-                                                     int* pnBufXSize) = 0;
-
-    /* if pending = true, we wait forever if timeout=0, for the timeout time otherwise */
-    /* if pending = false, we return immediately */
-    /* the int* are output values */
-
-    // lock a whole buffer.
-    virtual void LockBuffer() = 0;
-
-    // lock only a block
-    // the caller must relax a previous lock before asking for a new one
+    virtual GDALAsyncStatusType 
+        GetNextUpdatedRegion(int nTimeout,
+                             int* pnBufXOff, int* pnBufYOff,
+                             int* pnBufXSize, int* pnBufXSize) = 0;
+    virtual void LockBuffer() {}
     virtual void LockBuffer(int nBufXOff, int nBufYOff, 
-                            int nBufXSize, int nBufYSize) = 0;
-    virtual void UnlockBuffer() = 0; 
-	
-    friend class GDALDataset;
+                            int nBufXSize, int nBufYSize) {}
+    virtual void UnlockBuffer() {}
 };
 
 

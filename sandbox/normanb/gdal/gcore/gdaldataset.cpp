@@ -2392,6 +2392,66 @@ int CPL_STDCALL GDALDumpOpenDatasets( FILE *fp )
 /************************************************************************/
 /*                        BeginAsyncRasterIO()                          */
 /************************************************************************/
+
+/**
+ * \brief Sets up an asynchronous data request
+ *
+ * This method sets up an asynchronus data request. 
+ *
+ * The nPixelSpace, nLineSpace and nBandSpace parameters allow reading into or
+ * writing from various organization of buffers. 
+ *
+ * This method is the same as the C GDALBeginAsyncRasterIO() function.
+ *
+ * @param nXOff The pixel offset to the top left corner of the region
+ * of the band to be accessed.  This would be zero to start from the left side.
+ *
+ * @param nYOff The line offset to the top left corner of the region
+ * of the band to be accessed.  This would be zero to start from the top.
+ *
+ * @param nXSize The width of the region of the band to be accessed in pixels.
+ *
+ * @param nYSize The height of the region of the band to be accessed in lines.
+ *
+ * @param pBuf The buffer into which the data should be read. This buffer must 
+ * contain at least nBufXSize * nBufYSize * nBandCount words of type eBufType.  
+ * It is organized in left to right,top to bottom pixel order.  Spacing is 
+ * controlled by the nPixelSpace, and nLineSpace parameters.
+ *
+ * @param nBufXSize the width of the buffer image into which the desired region
+ * is to be read, or from which it is to be written.
+ *
+ * @param nBufYSize the height of the buffer image into which the desired
+ * region is to be read, or from which it is to be written.
+ *
+ * @param eBufType the type of the pixel values in the pData data buffer.  The
+ * pixel values will automatically be translated to/from the GDALRasterBand
+ * data type as needed.
+ *
+ * @param nBandCount the number of bands being read or written. 
+ *
+ * @param panBandMap the list of nBandCount band numbers being read/written.
+ * Note band numbers are 1 based.   This may be NULL to select the first 
+ * nBandCount bands.
+ *
+ * @param nPixelSpace The byte offset from the start of one pixel value in
+ * pData to the start of the next pixel value within a scanline.  If defaulted
+ * (0) the size of the datatype eBufType is used.
+ *
+ * @param nLineSpace The byte offset from the start of one scanline in
+ * pData to the start of the next.  If defaulted the size of the datatype
+ * eBufType * nBufXSize is used.
+ *
+ * @param nBandSpace the byte offset from the start of one bands data to the
+ * start of the next.  If defaulted (zero) the value will be 
+ * nLineSpace * nBufYSize implying band sequential organization
+ * of the data buffer. 
+ *
+ * @param papszOptions Driver specific control options in a string list or NULL.
+ * 
+ * @return The GDALAsyncRasterIO object representing the request.
+ */
+
 GDALAsyncRasterIO* 
 GDALDataset::BeginAsyncRasterIO(int nXOff, int nYOff,
                                 int nXSize, int nYSize,
@@ -2442,6 +2502,18 @@ GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
 /************************************************************************/
 /*                        EndAsyncRasterIO()                            */
 /************************************************************************/
+
+/**
+ * End asynchronous request.
+ *
+ * This method destroys an asynchronous io request and recovers all 
+ * resources associated with it.
+ * 
+ * This method is the same as the C function GDALEndAsyncRasterIO(). 
+ *
+ * @param poARIO pointer to a GDALAsyncRasterIO
+ */
+
 void GDALDataset::EndAsyncRasterIO(GDALAsyncRasterIO *poARIO )
 {
     delete poARIO;
@@ -2457,194 +2529,3 @@ void CPL_STDCALL GDALEndAsyncRasterIO(GDALDatasetH hDS, GDALAsyncRasterIOH hAsyn
     ((GDALDataset *) hDS) -> EndAsyncRasterIO((GDALAsyncRasterIO *)hAsyncRasterIOH);	
 }
 
-/*************************************************************************/
-/*                        GDALAsyncRasterIO()                            */
-/*************************************************************************/
-
-GDALAsyncRasterIO::GDALAsyncRasterIO(GDALDataset* poDS)
-{
-    this->poDS = poDS;
-}
-
-/*************************************************************************/
-/*                        ~GDALAsyncRasterIO()                           */
-/*************************************************************************/
-GDALAsyncRasterIO::~GDALAsyncRasterIO()
-{
-}
-
-/**************************************************************************/
-/*                        GDALGetGDALDataset()                            */
-/**************************************************************************/
-GDALDatasetH CPL_STDCALL GDALGetGDALDataset(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-    VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", NULL);
-    return (GDALDatasetH)((GDALAsyncRasterIO *)hAsyncRasterIOH)->GetGDALDataset();
-}
-
-/***************************************************************************/
-/*                       GDALGetXOffset()                                  */
-/***************************************************************************/
-int CPL_STDCALL GDALGetXOffset(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", -1);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetXOffset();
-}
-
-/***************************************************************************/
-/*                       GDALGetYOffset()                                  */
-/***************************************************************************/
-int CPL_STDCALL GDALGetYOffset(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", -1);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetYOffset();
-}
-
-/***************************************************************************/
-/*                       GDALGetXSize()                                    */
-/***************************************************************************/
-int CPL_STDCALL GDALGetXSize(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", -1);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetXSize();
-}
-
-/***************************************************************************/
-/*                       GDALGetYSize()                                    */
-/***************************************************************************/
-int CPL_STDCALL GDALGetYSize(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", -1);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetYSize();
-}
-
-/***************************************************************************/
-/*                       GDALGetBuffer()                                   */
-/***************************************************************************/
-void * CPL_STDCALL GDALGetBuffer(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", NULL);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetBuffer();
-}
-
-/***************************************************************************/
-/*                       GDALGetBufferXSize()                              */
-/***************************************************************************/
-int CPL_STDCALL GDALGetBufferXSize(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", -1);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetBufferXSize();
-}
-
-/***************************************************************************/
-/*                       GDALGetBufferYSize()                              */
-/***************************************************************************/
-int CPL_STDCALL GDALGetBufferYSize(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", -1);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetBufferYSize();
-}
-
-
-/***************************************************************************/
-/*                       GDALGetBufferType()                               */
-/***************************************************************************/
-GDALDataType CPL_STDCALL GDALGetBufferType(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", GDT_Unknown);
-	return (GDALDataType)((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetBufferType();
-}
-
-/***************************************************************************/
-/*                       GDALGetBandCount()                                */
-/***************************************************************************/
-int CPL_STDCALL GDALGetBandCount(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", -1);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetBandCount();
-}
-
-/***************************************************************************/
-/*                       GDALGetBandMap()                                  */
-/***************************************************************************/
-int* CPL_STDCALL GDALGetBandMap(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", NULL);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetBandMap();
-}
-
-/****************************************************************************/
-/*                       GDALGetPixelSpace()                                */
-/****************************************************************************/
-int CPL_STDCALL GDALGetPixelSpace(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", 0);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetPixelSpace();
-}
-
-/****************************************************************************/
-/*                       GDALGetLineSpace()                                 */
-/****************************************************************************/
-int CPL_STDCALL GDALGetLineSpace(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", 0);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetLineSpace();
-}
-
-/****************************************************************************/
-/*                       GDALGetBandSpace()                                 */
-/****************************************************************************/
-int CPL_STDCALL GDALGetBandSpace(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", 0);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetBandSpace();
-}
-
-/****************************************************************************/
-/*                       GDALGetNDataRead()                                 */
-/****************************************************************************/
-int CPL_STDCALL GDALGetNDataRead(GDALAsyncRasterIOH hAsyncRasterIOH)
-{
-	VALIDATE_POINTER1(hAsyncRasterIOH, "GDALAsyncRasterIO", 0);
-	return ((GDALAsyncRasterIO *)hAsyncRasterIOH) -> GetNDataRead();
-}
-
-
-/****************************************************************************/
-/*                      GDALGetNextUpdatedRegion()                          */
-/****************************************************************************/
-GDALAsyncStatusType CPL_STDCALL GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int wait, int timeout, int* pnxbufoff,
-                                                   int* pnybufoff,
-                                                   int* pnxbufsize,
-                                                   int* pnybufsize)
-{
-	VALIDATE_POINTER1(hARIO, "GDALAsyncRasterIO", GARIO_ERROR);
-	return ((GDALAsyncRasterIO *)hARIO) -> GetNextUpdatedRegion(wait, timeout, pnxbufoff, pnybufoff, pnxbufsize, pnybufsize);
-}
-
-/*****************************************************************************/
-/*                     GDALLockBuffer()                                      */
-/*****************************************************************************/
-/*void CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO, int xbufoff, int ybufoff, int xbufsize, int ybufsize)
-{
-	VALIDATE_POINTER0(hARIO, "GDALAsyncRasterIO");
-	((GDALAsyncRasterIO *)hARIO) ->LockBuffer(xbufoff, ybufoff, xbufsize, ybufsize);
-}*/
-
-/*****************************************************************************/
-/*                     GDALLockBuffer()                                      */
-/*****************************************************************************/
-void CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO)
-{
-	VALIDATE_POINTER0(hARIO, "GDALAsyncRasterIO");
-	((GDALAsyncRasterIO *)hARIO) ->LockBuffer();
-}
-
-/*****************************************************************************/
-/*                    GDALUnlockBuffer()                                     */
-/*****************************************************************************/
-void CPL_STDCALL GDALUnlockBuffer(GDALAsyncRasterIOH hARIO)
-{
-	VALIDATE_POINTER0(hARIO, "GDALAsyncRasterIO");
-	((GDALAsyncRasterIO *)hARIO) ->UnlockBuffer();
-}

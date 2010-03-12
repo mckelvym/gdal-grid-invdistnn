@@ -215,6 +215,7 @@ public:
 class JPIPKAKAsyncRasterIO : public GDALAsyncRasterIO
 {
 private:
+    int nDataRead;
     int nLevel;
     int nQualityLayers;
     int bHighPriority;
@@ -227,18 +228,14 @@ private:
     void Start();
     void Stop();
 public:
-    JPIPKAKAsyncRasterIO(GDALDataset *poDS);
+    JPIPKAKAsyncRasterIO();
     virtual ~JPIPKAKAsyncRasterIO();
 
-    virtual GDALAsyncStatusType GetNextUpdatedRegion(int wait, int timeout,
+    virtual GDALAsyncStatusType GetNextUpdatedRegion(int timeout,
                                                      int* pnxbufoff,
                                                      int* pnybufoff,
                                                      int* pnxbufsize,
                                                      int* pnybufsize);
-    virtual void LockBuffer();
-    virtual void LockBuffer(int xbufoff, int ybufoff, int xbufsize, int ybufsize);
-    virtual void UnlockBuffer(); 
-
     void SetComplete(int bFinished){this->bComplete = bFinished;};
 
     friend class JPIPKAKDataset;

@@ -258,13 +258,10 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
     do 
     {
-        ario->LockBuffer();
-        status = ario->GetNextUpdatedRegion(true, 0, 
+        status = ario->GetNextUpdatedRegion(1000, 
                                             &nXBufOff, &nYBufOff, 
                                             &nXBufSize, &nYBufSize );
-
-        ario->UnlockBuffer();
-    } while (status == GARIO_UPDATE );
+    } while (status != GARIO_ERROR && status != GARIO_COMPLETE );
 
     poBaseDS->EndAsyncRasterIO(ario);
 
@@ -884,73 +881,7 @@ const GDAL_GCP *JPIPKAKDataset::GetGCPs()
 
 /*************************************************************************/
 /*                     BeginAsyncRasterIO()                              */
-/*                                                                       */
-/*  Caller is responsible for freeing the input buffer and the band map  */
-/*  Options include LEVEL=, LAYERS=, PRIORITY= for resolution level,     */
-/*  number of quality layers, and thread retrieval priority              */
-/*  xOff, yOff, xSize, ySize are at 1:1					 */
 /*************************************************************************/
-
-/**
- * \brief Sets up an asynchronous data request
- *
- * This method sets up an asynchronus data request. Please see jpipkak.html for
- * additional usage information.
- *
- * The nPixelSpace, nLineSpace and nBandSpace parameters allow reading into or
- * writing from various organization of buffers. 
- *
- * This method is the same as the C GDALBeginAsyncRasterIO() function.
- *
- * @param nXOff The pixel offset to the top left corner of the region
- * of the band to be accessed.  This would be zero to start from the left side.
- *
- * @param nYOff The line offset to the top left corner of the region
- * of the band to be accessed.  This would be zero to start from the top.
- *
- * @param nXSize The width of the region of the band to be accessed in pixels.
- *
- * @param nYSize The height of the region of the band to be accessed in lines.
- *
- * @param pBuf The buffer into which the data should be read. This buffer must 
- * contain at least nBufXSize * nBufYSize * nBandCount words of type eBufType.  
- * It is organized in left to right,top to bottom pixel order.  Spacing is 
- * controlled by the nPixelSpace, and nLineSpace parameters.
- *
- * @param nBufXSize the width of the buffer image into which the desired region
- * is to be read, or from which it is to be written.
- *
- * @param nBufYSize the height of the buffer image into which the desired
- * region is to be read, or from which it is to be written.
- *
- * @param eBufType the type of the pixel values in the pData data buffer.  The
- * pixel values will automatically be translated to/from the GDALRasterBand
- * data type as needed.
- *
- * @param nBandCount the number of bands being read or written. 
- *
- * @param panBandMap the list of nBandCount band numbers being read/written.
- * Note band numbers are 1 based.   This may be NULL to select the first 
- * nBandCount bands.
- *
- * @param nPixelSpace The byte offset from the start of one pixel value in
- * pData to the start of the next pixel value within a scanline.  If defaulted
- * (0) the size of the datatype eBufType is used.
- *
- * @param nLineSpace The byte offset from the start of one scanline in
- * pData to the start of the next.  If defaulted the size of the datatype
- * eBufType * nBufXSize is used.
- *
- * @param nBandSpace the byte offset from the start of one bands data to the
- * start of the next.  If defaulted (zero) the value will be 
- * nLineSpace * nBufYSize implying band sequential organization
- * of the data buffer. 
- *
- * @param papszOptions Options include LEVEL=, LAYERS=, PRIORITY= for 
- * resolution level, number of quality layers, and thread retrieval 
- * priority       
- *
- */
 
 GDALAsyncRasterIO* 
 JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
@@ -976,7 +907,8 @@ JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
 /* -------------------------------------------------------------------- */
 /*      Record request information.                                     */
 /* -------------------------------------------------------------------- */
-    JPIPKAKAsyncRasterIO* ario = new JPIPKAKAsyncRasterIO(this);
+    JPIPKAKAsyncRasterIO* ario = new JPIPKAKAsyncRasterIO();
+    ario->poDS = this;
     ario->pBuf = pBuf;
     ario->nBufXSize = bufXSize;
     ario->nBufYSize = bufYSize;
@@ -1078,16 +1010,9 @@ JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
 /*                  EndAsyncRasterIO()                                  */
 /************************************************************************/
 
-/**
- * End asynchronous request.
- *
- * @param poARIO pointer to a GDALAsyncRasterIO
- *
- */
-
 void JPIPKAKDataset::EndAsyncRasterIO(GDALAsyncRasterIO *poARIO)
 {
-	delete poARIO;
+    delete poARIO;
 }
 
 
@@ -1168,9 +1093,8 @@ void GDALRegister_JPIPKAK()
 /************************************************************************/
 /*                         JPIPKAKAsyncRasterIO                         */
 /************************************************************************/
-JPIPKAKAsyncRasterIO::JPIPKAKAsyncRasterIO(GDALDataset *poDS)
+JPIPKAKAsyncRasterIO::JPIPKAKAsyncRasterIO()
 {
-    this->poDS = (JPIPKAKDataset *)poDS;
     panBandMap = NULL;
     pBuf = NULL;
     nDataRead = 0;
@@ -1324,45 +1248,8 @@ void JPIPKAKAsyncRasterIO::Stop()
 /*                        GetNextUpdatedRegion()                        */
 /************************************************************************/
 
-/** 
- * The function decompresses the available data to generate an image
- * (according to the dataset buffer type set in 
- * JPIPKAKDataset->BeginAsyncRasterIO) The window width, height (at the 
- * requested discard level) decompressed is returned in the region pointer and 
- * can be rendered by the client. The status of the rendering operation is one 
- * of GARIO_PENDING, GARIO_UPDATE, GARIO_ERROR, GARIO_COMPLETE from the 
- * GDALAsyncStatusType structure. GARIO_UPDATE, GARIO_PENDING require more 
- * reads of GetNextUpdatedRegion to get the full image data, this is the 
- * progressive rendering of JPIP. GARIO_COMPLETE indicates the window is complete.
- *
- * GDALAsyncStatusType is a structure used byGetNextUpdatedRegion to indicate 
- * whether the function should be called again when either kakadu has more data 
- * in its cache to decompress, or the server has not sent an End Of Response 
- * (EOR) message to indicate the request window is complete. 
- *
- * The region passed into this function is passed by reference, and the caller 
- * can read this region when the result returns to find the region that has been 
- * decompressed. The image data is packed into the buffer, e.g. RGB if the region 
- * requested has 3 components.
- *
- * @param wait
- *
- * @param timeout
- *
- * @param pnxbufoff
- *
- * @param pnybufoff
- *
- * @param pnxbufsize
- *
- * @param pnybufsize
- *
- * @return GDALAsyncStatusType
- *
- */
-
 GDALAsyncStatusType 
-JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int timeout,
+JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int timeout,
                                            int* pnxbufoff,
                                            int* pnybufoff,
                                            int* pnxbufsize,
@@ -1384,13 +1271,12 @@ JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int timeout,
     }
 
     // wait for new data if required
-    if ((nSize == 0) && (wait))
+    if ((nSize == 0) && timeout > 0 )
     {
         // poll for change in cache size
         clock_t end_wait = 0;
 
-        if (timeout > 0)
-            end_wait = clock() + timeout * CLOCKS_PER_SEC; 
+        end_wait = clock() + timeout * CLOCKS_PER_SEC / 1000; 
 		
         while ((nSize == 0) && ((bHighPriority && bHighThreadRunning) ||
                                 (!bHighPriority && bLowThreadRunning)))
@@ -1413,187 +1299,159 @@ JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int wait, int timeout,
             }
         }
     }
-    else
+
+    // if there is no pending data and we don't want to wait.
+    if( nSize == 0 )
     {
         *pnxbufoff = 0;
         *pnybufoff = 0;
         *pnxbufsize = 0;
         *pnybufsize = 0;		
-        if (!wait & !bComplete)
-            result =  GARIO_PENDING;
+        return GARIO_PENDING;
     }
 
-    if (!(result == GARIO_PENDING))
+    JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
+
+    // Establish the canvas region with the expansion factor applied,
+    // and compute region from the original window cut down to the
+    // target canvas.
+    kdu_dims view_dims;
+
+    view_dims = poJDS->poDecompressor->get_rendered_image_dims(
+        *poJDS->poCodestream, &channels, 
+        -1, nLevel, exp_numerator, exp_denominator );
+
+    double x_ratio, y_ratio;
+    x_ratio = view_dims.size.x / (double) poDS->GetRasterXSize();
+    y_ratio = view_dims.size.y / (double) poDS->GetRasterYSize();
+
+    kdu_dims region = rr_win;
+
+    region.pos.x = (int) ceil(nXOff * x_ratio);
+    region.pos.y = (int) ceil(nYOff * y_ratio);
+    region.size.x = (int) ceil(nXSize * x_ratio);
+    region.size.y = (int) ceil(nYSize * y_ratio);
+
+    region.size.x = MIN(region.size.x,nBufXSize);
+    region.size.y = MIN(region.size.y,nBufYSize);
+        
+    if( region.pos.x + region.size.x > view_dims.size.x )
+        region.size.x = view_dims.size.x - region.pos.x;
+    if( region.pos.y + region.size.y > view_dims.size.y )
+        region.size.y = view_dims.size.y - region.pos.y;
+        
+    region.pos += view_dims.pos;
+
+    // Set up channel list requested.  
+    std::vector<int> component_indices;
+    int i;
+
+    for( i=0; i < nBandCount; i++ )
+        component_indices.push_back( panBandMap[i]-1 );
+        
+    // Apply region and other restrictions.
+    poJDS->poCodestream->apply_input_restrictions(
+        nBandCount, &(component_indices[0]), nLevel, nQualityLayers, 
+        &region, KDU_WANT_CODESTREAM_COMPONENTS);
+
+    channels.configure(*(poJDS->poCodestream));
+
+    for( i=0; i < nBandCount; i++ )
+        channels.source_components[i] = panBandMap[i]-1;
+
+    kdu_dims incomplete_region = region;
+    kdu_coords origin = region.pos;
+
+    int bIsDecompressing = FALSE;
+		
+    CPLAcquireMutex(pGlobalMutex, 100.0);
+
+    bIsDecompressing = poJDS->poDecompressor->start(
+        *(poJDS->poCodestream), 
+        &channels, -1, nLevel, nQualityLayers, 
+        region, exp_numerator, exp_denominator, TRUE);	
+		
+    *pnxbufoff = 0;
+    *pnybufoff = 0;
+    *pnxbufsize = region.access_size()->x;
+    *pnybufsize = region.access_size()->y;
+
+    int nPrecisionBits = 8;
+
+    switch(eBufType)
     {
-        JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
-
-        // Establish the canvas region with the expansion factor applied,
-        // and compute region from the original window cut down to the
-        // target canvas.
-        kdu_dims view_dims;
-
-        view_dims = poJDS->poDecompressor->get_rendered_image_dims(
-            *poJDS->poCodestream, &channels, 
-            -1, nLevel, exp_numerator, exp_denominator );
-
-        double x_ratio, y_ratio;
-        x_ratio = view_dims.size.x / (double) poDS->GetRasterXSize();
-        y_ratio = view_dims.size.y / (double) poDS->GetRasterYSize();
-
-        kdu_dims region = rr_win;
-
-        region.pos.x = (int) ceil(nXOff * x_ratio);
-        region.pos.y = (int) ceil(nYOff * y_ratio);
-        region.size.x = (int) ceil(nXSize * x_ratio);
-        region.size.y = (int) ceil(nYSize * y_ratio);
-
-        region.size.x = MIN(region.size.x,nBufXSize);
-        region.size.y = MIN(region.size.y,nBufYSize);
-        
-        if( region.pos.x + region.size.x > view_dims.size.x )
-            region.size.x = view_dims.size.x - region.pos.x;
-        if( region.pos.y + region.size.y > view_dims.size.y )
-            region.size.y = view_dims.size.y - region.pos.y;
-        
-        region.pos += view_dims.pos;
-
-        // Set up channel list requested.  
-        std::vector<int> component_indices;
-        int i;
-
-        for( i=0; i < nBandCount; i++ )
-            component_indices.push_back( panBandMap[i]-1 );
-        
-        // Apply region and other restrictions.
-        poJDS->poCodestream->apply_input_restrictions(
-            nBandCount, &(component_indices[0]), nLevel, nQualityLayers, 
-            &region, KDU_WANT_CODESTREAM_COMPONENTS);
-
-        channels.configure(*(poJDS->poCodestream));
-
-        for( i=0; i < nBandCount; i++ )
-            channels.source_components[i] = panBandMap[i]-1;
-
-        kdu_dims incomplete_region = region;
-        kdu_coords origin = region.pos;
-
-        int bIsDecompressing = FALSE;
-		
-        CPLAcquireMutex(pGlobalMutex, 100.0);
-
-        bIsDecompressing = poJDS->poDecompressor->start(
-            *(poJDS->poCodestream), 
-            &channels, -1, nLevel, nQualityLayers, 
-            region, exp_numerator, exp_denominator, TRUE);	
-		
-        *pnxbufoff = 0;
-        *pnybufoff = 0;
-        *pnxbufsize = region.access_size()->x;
-        *pnybufsize = region.access_size()->y;
-
-        int nPrecisionBits = 8;
-
-        switch(eBufType)
-        {
-          case GDT_Byte:
-            nPrecisionBits = 8;
-            break;
-          case GDT_UInt16:
-          case GDT_Int16:
-            nPrecisionBits = 16;
-            break;
-          default:
-            nPrecisionBits = 8;
-            break;
-        }
-        
-        // Setup channel buffers
-        std::vector<kdu_byte*> channel_bufs;
-
-        for( i=0; i < nBandCount; i++ )
-            channel_bufs.push_back( ((kdu_byte *) pBuf) + i * nBandSpace );
-
-        int pixel_gap = nPixelSpace / (nPrecisionBits / 8);
-        int row_gap = nLineSpace / (nPrecisionBits / 8);
-
-        while ((bIsDecompressing == 1) || (incomplete_region.area() != 0))
-        {
-            if( nPrecisionBits == 8 )
-            {
-                bIsDecompressing = poJDS->poDecompressor->
-                    process(&(channel_bufs[0]), false, 
-                            pixel_gap, origin, row_gap, 1000000, 0, 
-                            incomplete_region, region,
-                            8, false );
-            }
-            else if( nPrecisionBits == 16 )
-            {
-                bIsDecompressing = poJDS->poDecompressor->
-                    process((kdu_uint16**) &(channel_bufs[0]), false,
-                            pixel_gap, origin, row_gap, 1000000, 0, 
-                            incomplete_region, region,
-                            16, false );
-            }
-
-            CPLDebug( "JPIPKAK",
-                      "processed=%d,%d %dx%d   - incomplete=%d,%d %dx%d",
-                      region.pos.x, region.pos.y, 
-                      region.size.x, region.size.y,
-                      incomplete_region.pos.x, incomplete_region.pos.y,
-                      incomplete_region.size.x, incomplete_region.size.y );
-        }
-
-        poJDS->poDecompressor->finish();
-        CPLReleaseMutex(pGlobalMutex);
-
-        // has there been any more data read whilst we have been processing?
-        long size = 0;
-        if (bHighPriority)
-        {
-            const long x = nHighThreadByteCount - nDataRead;
-            size = x;
-        }
-        else
-        {
-            const long x = nLowThreadByteCount - nDataRead;
-            size = x;
-        }
-
-        if ((bComplete) && (nSize == size))
-            result = GARIO_COMPLETE;
-        else
-            result = GARIO_UPDATE;
-
-        nDataRead += nSize;
+      case GDT_Byte:
+        nPrecisionBits = 8;
+        break;
+      case GDT_UInt16:
+      case GDT_Int16:
+        nPrecisionBits = 16;
+        break;
+      default:
+        nPrecisionBits = 8;
+        break;
     }
+        
+    // Setup channel buffers
+    std::vector<kdu_byte*> channel_bufs;
+
+    for( i=0; i < nBandCount; i++ )
+        channel_bufs.push_back( ((kdu_byte *) pBuf) + i * nBandSpace );
+
+    int pixel_gap = nPixelSpace / (nPrecisionBits / 8);
+    int row_gap = nLineSpace / (nPrecisionBits / 8);
+
+    while ((bIsDecompressing == 1) || (incomplete_region.area() != 0))
+    {
+        if( nPrecisionBits == 8 )
+        {
+            bIsDecompressing = poJDS->poDecompressor->
+                process(&(channel_bufs[0]), false, 
+                        pixel_gap, origin, row_gap, 1000000, 0, 
+                        incomplete_region, region,
+                        8, false );
+        }
+        else if( nPrecisionBits == 16 )
+        {
+            bIsDecompressing = poJDS->poDecompressor->
+                process((kdu_uint16**) &(channel_bufs[0]), false,
+                        pixel_gap, origin, row_gap, 1000000, 0, 
+                        incomplete_region, region,
+                        16, false );
+        }
+
+        CPLDebug( "JPIPKAK",
+                  "processed=%d,%d %dx%d   - incomplete=%d,%d %dx%d",
+                  region.pos.x, region.pos.y, 
+                  region.size.x, region.size.y,
+                  incomplete_region.pos.x, incomplete_region.pos.y,
+                  incomplete_region.size.x, incomplete_region.size.y );
+    }
+
+    poJDS->poDecompressor->finish();
+    CPLReleaseMutex(pGlobalMutex);
+
+    // has there been any more data read whilst we have been processing?
+    long size = 0;
+    if (bHighPriority)
+    {
+        const long x = nHighThreadByteCount - nDataRead;
+        size = x;
+    }
+    else
+    {
+        const long x = nLowThreadByteCount - nDataRead;
+        size = x;
+    }
+
+    if ((bComplete) && (nSize == size))
+        result = GARIO_COMPLETE;
+    else
+        result = GARIO_UPDATE;
+
+    nDataRead += nSize;
 
     return result;	
-}
-
-/************************************************************************/
-/*                             LockBuffer()                             */
-/************************************************************************/
-void JPIPKAKAsyncRasterIO::LockBuffer()
-{
-    // acquire the mutex
-}
-
-/************************************************************************/
-/*                             LockBuffer()                             */
-/************************************************************************/
-void JPIPKAKAsyncRasterIO::LockBuffer(int xbufoff, int ybufoff, int xbufsize, int ybufsize)
-{
-
-    CPLError(CE_Failure, CPLE_AppDefined, 
-             "Partial locks not implemented (yet)." );
-}
-
-/************************************************************************/
-/*                            UnlockBuffer()                            */
-/************************************************************************/
-void JPIPKAKAsyncRasterIO::UnlockBuffer()
-{
-    // release the mutex
 }
 
 /************************************************************************/
