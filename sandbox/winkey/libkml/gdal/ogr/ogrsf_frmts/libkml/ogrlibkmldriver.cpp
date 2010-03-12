@@ -40,14 +40,6 @@ OGRLIBKMLDriver::~OGRLIBKMLDriver (  )
 }
 
 /******************************************************************************
- ~OGRLIBKMLDriver()
-******************************************************************************/
-
-OGRLIBKMLDriver::~OGRLIBKMLDriver()
-{
-}
-
-/******************************************************************************
  GetName()
 ******************************************************************************/
 
@@ -110,7 +102,6 @@ OGRDataSource *OGRLIBKMLDriver::CreateDataSource (
 OGRErr OGRLIBKMLDriver::DeleteDataSource (
     const char *pszName )
 {
-#warning implement DeleteDataSource()
 
     /***** dir *****/
 

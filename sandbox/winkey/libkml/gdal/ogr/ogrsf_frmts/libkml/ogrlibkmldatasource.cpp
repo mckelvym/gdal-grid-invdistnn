@@ -102,7 +102,7 @@ int OGRLIBKMLDataSource::OpenKmz (
 
     /***** create a SRS                                    *****/
     /***** this was shamelessly swiped from the kml driver *****/
-
+    
     OGRSpatialReference *poOgrSRS =
         new OGRSpatialReference ( "GEOGCS[\"WGS 84\", "
                                   "   DATUM[\"WGS_1984\","
@@ -416,7 +416,8 @@ int OGRLIBKMLDataSource::Create (
     const char *pszFilename,
     char **papszOptions )
 {
-    /***** kml *****/
+
+  /***** kml *****/
 
 /*  if (EQUAL( CPLGetExtension(pszFilename), "kml" )) {
 
@@ -526,7 +527,6 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer (
     OGRwkbGeometryType eGType,
     char **papszOptions )
 {
-    OGRLayer *poLayer = new OGRLIBKMLLayer(pszLayerName, poSpatialRef, eGType);
 
     DocumentPtr poKmlDocument =
         boost::static_pointer_cast < Document > ( m_poKmlDoc_kml );

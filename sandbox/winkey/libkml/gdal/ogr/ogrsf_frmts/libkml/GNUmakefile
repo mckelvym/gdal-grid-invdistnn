@@ -1,6 +1,5 @@
-#
-# Builds OGR LIBKML driver
-#
+
+
 include ../../../GDALmake.opt
 
 CORE_OBJ = ogrlibkmlgeometry.o \
@@ -11,13 +10,16 @@ CORE_OBJ = ogrlibkmlgeometry.o \
            ogrlibkmldatasetstyle.o \
            ogrlibkmlstyle.o
 
-OBJ = $(OGR_OBJ)
+OGR_OBJ =	ogrlibkmldriver.o ogrlibkmldatasource.o ogrlibkmllayer.o
 
-CPPFLAGS :=	-I.. -I../.. $(GDAL_INCLUDE) $(LIBKML_INCLUDE) $(CPPFLAGS)
+OBJ =	$(CORE_OBJ) $(OGR_OBJ)
 
-#CFLAGS	:= $(filter-out -Wall,$(CFLAGS))
+CPPFLAGS := -I. -I.. -I../.. -I$(GDAL_ROOT)/port -I$(GDAL_ROOT)/gcore -I$(GDAL_ROOT)/alg \
+	-I$(GDAL_ROOT)/ogr -I$(GDAL_ROOT)/ogrsf_frmts $(LIBKML_INCLUDE) $(CPPFLAGS)
 
-default: $(O_OBJ:.o=.$(OBJ_EXT))
+#CFLAGS	:=	$(filter-out -Wall,$(CFLAGS))
+
+default:	$(O_OBJ:.o=.$(OBJ_EXT))
 
 clean:
 	rm -f *.o $(O_OBJ)
