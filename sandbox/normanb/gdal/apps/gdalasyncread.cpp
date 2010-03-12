@@ -35,7 +35,7 @@
 
 CPL_CVSID("$Id$");
 
-/*  ******************************************************************* */
+/* ******************************************************************** */
 /*                               Usage()                                */
 /* ******************************************************************** */
 
@@ -50,7 +50,7 @@ static void Usage()
             "       [-of format] [-b band]\n"
             "       [-outsize xsize[%%] ysize[%%]]\n"
             "       [-srcwin xoff yoff xsize ysize]\n"
-            "       [-co \"NAME=VALUE\"]* [-ao \"NAME=VALUE\"]\n"
+            "       [-co \"NAME=VALUE\"]* [-ao \"NAME=VALUE\"] -multi\n"
             "       src_dataset dst_dataset\n\n" );
 
     printf( "%s\n\n", GDALVersionInfo( "--version" ) );
@@ -92,6 +92,7 @@ int main( int argc, char ** argv )
     int                 bQuiet = FALSE;
     GDALProgressFunc    pfnProgress = GDALTermProgress;
     int                 iSrcFileArg = -1, iDstFileArg = -1;
+    int                 bMulti = FALSE;
 
     anSrcWin[0] = 0;
     anSrcWin[1] = 0;
@@ -197,6 +198,10 @@ int main( int argc, char ** argv )
             anSrcWin[3] = atoi(argv[++i]);
         }   
 
+        else if( EQUAL(argv[i],"-multi") )
+        {
+            bMulti = TRUE;
+        }   
         else if( argv[i][0] == '-' )
         {
             printf( "Option %s incomplete, or not recognised.\n\n", 
@@ -384,41 +389,6 @@ int main( int argc, char ** argv )
         eOutputType = poSrcDS->GetRasterBand(1)->GetRasterDataType();
 
 /* -------------------------------------------------------------------- */
-/*      Create the output file.                                         */
-/* -------------------------------------------------------------------- */
-    hDstDS = GDALCreate( hDriver, pszDest, nOXSize, nOYSize, 
-                         nBandCount, eOutputType, 
-                         papszCreateOptions );
-    poDstDS = (GDALDataset *) hDstDS;
-                                      
-/* -------------------------------------------------------------------- */
-/*      Copy georeferencing.                                            */
-/* -------------------------------------------------------------------- */
-    double adfGeoTransform[6];
-
-    if( poSrcDS->GetGeoTransform( adfGeoTransform ) == CE_None )
-    {
-        adfGeoTransform[0] += anSrcWin[0] * adfGeoTransform[1]
-            + anSrcWin[1] * adfGeoTransform[2];
-        adfGeoTransform[3] += anSrcWin[0] * adfGeoTransform[4]
-            + anSrcWin[1] * adfGeoTransform[5];
-        
-        adfGeoTransform[1] *= anSrcWin[2] / (double) nOXSize;
-        adfGeoTransform[2] *= anSrcWin[3] / (double) nOYSize;
-        adfGeoTransform[4] *= anSrcWin[2] / (double) nOXSize;
-        adfGeoTransform[5] *= anSrcWin[3] / (double) nOYSize;
-        
-        poDstDS->SetGeoTransform( adfGeoTransform );
-    }
-
-    poDstDS->SetProjection( poSrcDS->GetProjectionRef() );
-    
-/* -------------------------------------------------------------------- */
-/*      Transfer generally applicable metadata.                         */
-/* -------------------------------------------------------------------- */
-    poDstDS->SetMetadata( poSrcDS->GetMetadata() );
-
-/* -------------------------------------------------------------------- */
 /*      Allocate one big buffer for the whole imagery area to           */
 /*      transfer.                                                       */
 /* -------------------------------------------------------------------- */
@@ -451,9 +421,60 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
     GDALAsyncStatusType eAStatus;
     CPLErr eErr = CE_None;
+    int iMultiCounter = 0;
+
+    hDstDS = NULL;
 
     do
     {  
+/* ==================================================================== */
+/*      Create the output file, and initialize if needed.               */
+/* ==================================================================== */
+        if( hDstDS == NULL )
+        {
+            CPLString osOutFilename = pszDest;
+
+            if( bMulti )
+                osOutFilename.Printf( "%s_%d", pszDest, iMultiCounter++ );
+
+            hDstDS = GDALCreate( hDriver, osOutFilename, nOXSize, nOYSize, 
+                                 nBandCount, eOutputType, 
+                                 papszCreateOptions );
+            poDstDS = (GDALDataset *) hDstDS;
+                                      
+/* -------------------------------------------------------------------- */
+/*      Copy georeferencing.                                            */
+/* -------------------------------------------------------------------- */
+            double adfGeoTransform[6];
+    
+            if( poSrcDS->GetGeoTransform( adfGeoTransform ) == CE_None )
+            {
+                adfGeoTransform[0] += anSrcWin[0] * adfGeoTransform[1]
+                    + anSrcWin[1] * adfGeoTransform[2];
+                adfGeoTransform[3] += anSrcWin[0] * adfGeoTransform[4]
+                    + anSrcWin[1] * adfGeoTransform[5];
+                
+                adfGeoTransform[1] *= anSrcWin[2] / (double) nOXSize;
+                adfGeoTransform[2] *= anSrcWin[3] / (double) nOYSize;
+                adfGeoTransform[4] *= anSrcWin[2] / (double) nOXSize;
+                adfGeoTransform[5] *= anSrcWin[3] / (double) nOYSize;
+                
+                poDstDS->SetGeoTransform( adfGeoTransform );
+            }
+
+            poDstDS->SetProjection( poSrcDS->GetProjectionRef() );
+    
+/* -------------------------------------------------------------------- */
+/*      Transfer generally applicable metadata.                         */
+/* -------------------------------------------------------------------- */
+            poDstDS->SetMetadata( poSrcDS->GetMetadata() );
+        }
+
+/* ==================================================================== */
+/*      Fetch an update and write it to the output file.                */
+/* ==================================================================== */
+
+
         int nUpXOff, nUpYOff, nUpXSize, nUpYSize;
 
         eAStatus = poAsyncReq->GetNextUpdatedRegion( 100, 
@@ -480,7 +501,17 @@ int main( int argc, char ** argv )
                                nPixelSpace, nLineSpace, nBandSpace );
         poAsyncReq->UnlockBuffer();
 
-        GDALFlushCache( hDstDS );
+/* -------------------------------------------------------------------- */
+/*      In multi mode we will close this file and reopen another for    */
+/*      the next request.                                               */
+/* -------------------------------------------------------------------- */
+        if( bMulti )
+        {
+            GDALClose( hDstDS );
+            hDstDS = NULL;
+        }
+        else
+            GDALFlushCache( hDstDS );
 
     } while( eAStatus != GARIO_ERROR && eAStatus != GARIO_COMPLETE
              && eErr == CE_None );
@@ -492,7 +523,9 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
     VSIFree( pImage );
 
-    GDALClose( hDstDS );
+    if( hDstDS )
+        GDALClose( hDstDS );
+
     GDALClose( hSrcDS );
 
     CPLFree( panBandList );
