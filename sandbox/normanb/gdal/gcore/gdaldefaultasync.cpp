@@ -67,10 +67,53 @@ GDALAsyncRasterIO::~GDALAsyncRasterIO()
 }
 
 /************************************************************************/
+/*                        GetNextUpdatedRegion()                        */
+/************************************************************************/
+
+/**
+ * \fn GDALAsyncStatusType GDALAsyncRasterIO::GetNextUpdatedRegion( int nTimeout, int* pnBufXOff, int* pnBufYOff, int* pnBufXSize, int* pnBufXSize) = 0;
+ * 
+ * \brief Get async IO update
+ *
+ * Provide an opportunity for an asynchronous IO request to update the
+ * image buffer and return an indication of the area of the buffer that
+ * has been updated.  
+ *
+ * The nTimeout parameter can be used to wait for additional data to 
+ * become available.  The timeout does not limit the amount
+ * of time this method may spend actually processing available data.
+ *
+ * The following return status are possible.
+ * - GARIO_PENDING: No imagery was altered in the buffer, but there is still 
+ * activity pending, and the application should continue to call 
+ * GetNextUpdatedRegion() as time permits.
+ * - GARIO_UPDATE: Some of the imagery has been updated, but there is still 
+ * activity pending.
+ * - GARIO_ERROR: Something has gone wrong. The asynchronous request should 
+ * be ended.
+ * - GARIO_COMPLETE: An update has occured and there is no more pending work 
+ * on this request. The request should be ended and the buffer used. 
+ *
+ * @param nTimeout the number of milliseconds to wait for additional updates, 
+ * or zero if no waiting should be done.
+ * @param pnBufXOff location to return the X offset of the area of the
+ * request buffer that has been updated.
+ * @param pnBufYOff location to return the Y offset of the area of the
+ * request buffer that has been updated.
+ * @param pnBufXSize location to return the X size of the area of the
+ * request buffer that has been updated.
+ * @param pnBufYSize location to return the Y size of the area of the
+ * request buffer that has been updated.
+ * 
+ * @return GARIO_ status, details described above. 
+ */
+
+/************************************************************************/
 /*                      GDALGetNextUpdatedRegion()                      */
 /************************************************************************/
+
 GDALAsyncStatusType CPL_STDCALL 
-GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int timeout, 
+GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int timeout,
                          int* pnxbufoff, int* pnybufoff, 
                          int* pnxbufsize, int* pnybufsize)
 {
@@ -80,12 +123,46 @@ GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int timeout,
 }
 
 /************************************************************************/
+/*                             LockBuffer()                             */
+/************************************************************************/
+
+/**
+ * \brief Lock image buffer.
+ *
+ * Locks the image buffer passed into GDALDataset::BeginAsyncRasterIO(). 
+ * This is useful to ensure the image buffer is not being modified while
+ * it is being used by the application.  UnlockBuffer() should be used
+ * to release this lock when it is no longer needed.
+ */
+
+void GDALAsyncRasterIO::LockBuffer()
+
+{
+}
+
+
+/************************************************************************/
 /*                           GDALLockBuffer()                           */
 /************************************************************************/
 void CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO)
 {
     VALIDATE_POINTER0(hARIO, "GDALAsyncRasterIO");
     ((GDALAsyncRasterIO *)hARIO) ->LockBuffer();
+}
+
+/************************************************************************/
+/*                            UnlockBuffer()                            */
+/************************************************************************/
+
+/**
+ * \brief Unlock image buffer.
+ *
+ * Releases a lock on the image buffer previously taken with LockBuffer().
+ */
+
+void GDALAsyncRasterIO::UnlockBuffer()
+
+{
 }
 
 /************************************************************************/

@@ -2396,11 +2396,25 @@ int CPL_STDCALL GDALDumpOpenDatasets( FILE *fp )
 /**
  * \brief Sets up an asynchronous data request
  *
- * This method sets up an asynchronus data request. 
+ * This method establish an asynchronous raster read request for the
+ * indicated window on the dataset into the indicated buffer.  The parameters
+ * for windowing, buffer size, buffer type and buffer organization are similar
+ * to those for GDALDataset::RasterIO(); however, this call only launches
+ * the request and filling the buffer is accomplished via calls to 
+ * GetNextUpdatedRegion() on the return GDALAsyncRasterIO session object.
+ * 
+ * Once all processing for the created session is complete, or if no further
+ * refinement of the request is required, the GDALAsyncRasterIO object should
+ * be destroyed with the GDALDataset::EndAsyncRasterIO() method. 
+ * 
+ * Note that the data buffer (pData) will potentially continue to be 
+ * updated as long as the session lives, but it is not deallocated when
+ * the session (GDALAsyncRasterIO) is destroyed with EndAsyncRasterIO().  It
+ * should be deallocated by the application at that point. 
  *
- * The nPixelSpace, nLineSpace and nBandSpace parameters allow reading into or
- * writing from various organization of buffers. 
- *
+ * Additional information on asynchronous IO in GDAL may be found at: 
+ *   http://trac.osgeo.org/gdal/wiki/rfc24_progressive_data_support
+ * 
  * This method is the same as the C GDALBeginAsyncRasterIO() function.
  *
  * @param nXOff The pixel offset to the top left corner of the region
@@ -2448,6 +2462,7 @@ int CPL_STDCALL GDALDumpOpenDatasets( FILE *fp )
  * of the data buffer. 
  *
  * @param papszOptions Driver specific control options in a string list or NULL.
+ * Consult driver documentation for options supported.
  * 
  * @return The GDALAsyncRasterIO object representing the request.
  */

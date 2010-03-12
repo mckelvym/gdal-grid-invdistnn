@@ -753,7 +753,9 @@ GDALRegenerateOverviewsMultiBand(int nBands, GDALRasterBand** papoSrcBands,
 /* ******************************************************************** */
 
 /**
- * Class used as a session object for remote streaming data services
+ * Class used as a session object for asynchronous IO requests.  They are
+ * created with GDALDataset::BeginAsyncRasterIO(), and destroyed with
+ * GDALDataset::EndAsyncRasterIO().
  */
 class CPL_DLL GDALAsyncRasterIO
 {
@@ -796,10 +798,8 @@ class CPL_DLL GDALAsyncRasterIO
         GetNextUpdatedRegion(int nTimeout,
                              int* pnBufXOff, int* pnBufYOff,
                              int* pnBufXSize, int* pnBufXSize) = 0;
-    virtual void LockBuffer() {}
-    virtual void LockBuffer(int nBufXOff, int nBufYOff, 
-                            int nBufXSize, int nBufYSize) {}
-    virtual void UnlockBuffer() {}
+    virtual void LockBuffer();
+    virtual void UnlockBuffer();
 };
 
 
