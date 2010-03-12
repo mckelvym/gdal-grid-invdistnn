@@ -42,29 +42,56 @@ using kmldom::Geometry;
 #include "ogrlibkmlfield.h"
 #include "ogrlibkmlfeaturestyle.h"
 
-PlacemarkPtr feat2kml(
-	OGRLayer *poKOgrLayer,
-	OGRFeature *poOgrFeat,
-	KmlFactory *poKmlFactory)
+PlacemarkPtr feat2kml (
+    OGRLayer * poOgrLayer,
+    OGRFeature * poOgrFeat,
+    KmlFactory * poKmlFactory )
 {
-	
-	PlacemarkPtr poKmlPlacemark = poKmlFactory->CreatePlacemark();
-	
-	/***** style *****/
-	
-	featurestyle2kml(poKOgrLayer, poOgrFeat, poKmlFactory, poKmlPlacemark);
-	
-	/***** geometry *****/
-	
-	OGRGeometry *poOgrGeom = poOgrFeat->GetGeometryRef();
-	ElementPtr poKmlElement = geom2kml(poOgrGeom, -1, 0, poKmlFactory);
-  poKmlPlacemark->set_geometry(boost::static_pointer_cast<Geometry>(poKmlElement));
 
-  /***** fields *****/
-  
-  field2kml(poOgrFeat, poKmlFactory, poKmlPlacemark);
+    PlacemarkPtr poKmlPlacemark = poKmlFactory->CreatePlacemark (  );
 
-	
-	
-	return poKmlPlacemark;
+    /***** style *****/
+
+    featurestyle2kml ( poOgrLayer, poOgrFeat, poKmlFactory, poKmlPlacemark );
+
+    /***** geometry *****/
+
+    OGRGeometry *poOgrGeom = poOgrFeat->GetGeometryRef (  );
+    ElementPtr poKmlElement = geom2kml ( poOgrGeom, -1, 0, poKmlFactory );
+
+    poKmlPlacemark->set_geometry ( boost::static_pointer_cast < Geometry >
+                                   ( poKmlElement ) );
+
+    /***** fields *****/
+
+    field2kml ( poOgrFeat, poKmlFactory, poKmlPlacemark );
+
+
+
+    return poKmlPlacemark;
+}
+
+OGRFeature *kml2feat (
+    PlacemarkPtr poKmlPlacemark,
+    OGRLayer * poOgrLayer,
+    OGRFeatureDefn * poOgrFeatDefn )
+{
+
+    OGRFeature *poOgrFeat = new OGRFeature ( poOgrFeatDefn );
+
+    /***** style *****/
+
+    kml2featurestyle ( poKmlPlacemark, poOgrLayer, poOgrFeat );
+
+    /***** geometry *****/
+
+    OGRGeometry *poOgrGeom = kml2geom ( poKmlPlacemark->get_geometry (  ) );
+
+    poOgrFeat->SetGeometryDirectly ( poOgrGeom );
+
+    /***** fields *****/
+
+    kml2field ( poOgrFeat, poKmlPlacemark );
+
+    return poOgrFeat;
 }

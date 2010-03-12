@@ -32,10 +32,10 @@
 
 
 /******************************************************************************
- OGRLIBKMLDriver()
+ ~OGRLIBKMLDriver()
 ******************************************************************************/
 
-OGRLIBKMLDriver::OGRLIBKMLDriver() : bUpdate(0)
+OGRLIBKMLDriver::~OGRLIBKMLDriver (  )
 {
 }
 
@@ -51,8 +51,10 @@ OGRLIBKMLDriver::~OGRLIBKMLDriver()
  GetName()
 ******************************************************************************/
 
-const char *OGRLIBKMLDriver::GetName()
+const char *OGRLIBKMLDriver::GetName (
+     )
 {
+
     return "LIBKML";
 }
 
@@ -60,13 +62,15 @@ const char *OGRLIBKMLDriver::GetName()
  Open()
 ******************************************************************************/
 
-OGRDataSource *OGRLIBKMLDriver::Open(const char *pszFilename, int bUpdate)
+OGRDataSource *OGRLIBKMLDriver::Open (
+    const char *pszFilename,
+    int bUpdate )
 {
-    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource();
+    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource (  );
 
-    if (!poDS->Open(pszFilename, bUpdate))
-    {
+    if ( !poDS->Open ( pszFilename, bUpdate ) ) {
         delete poDS;
+        
         poDS = NULL;
     }
 
@@ -77,16 +81,18 @@ OGRDataSource *OGRLIBKMLDriver::Open(const char *pszFilename, int bUpdate)
  CreateDataSource()
 ******************************************************************************/
 
-OGRDataSource *OGRLIBKMLDriver::CreateDataSource(const char* pszName, char** papszOptions)
+OGRDataSource *OGRLIBKMLDriver::CreateDataSource (
+    const char *pszName,
+    char **papszOptions )
 {
-    CPLAssert( NULL != pszName );
-    CPLDebug( "LIBKML", "Attempt to create: %s", pszName );
+    CPLAssert ( NULL != pszName );
+    CPLDebug ( "LIBKML", "Attempt to create: %s", pszName );
 
-    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource();
+    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource (  );
 
-    if (!poDS->Create(pszName, papszOptions))
-    {
+    if ( !poDS->Create ( pszName, papszOptions ) ) {
         delete poDS;
+
         poDS = NULL;
     }
 
@@ -95,11 +101,63 @@ OGRDataSource *OGRLIBKMLDriver::CreateDataSource(const char* pszName, char** pap
 
 /******************************************************************************
  DeleteDataSource()
+
+ note: this method recursivly deletes an entire dir if the datasource is a dir
+       and all the files are kml or kmz
+ 
 ******************************************************************************/
 
-OGRErr OGRLIBKMLDriver::DeleteDataSource(const char *pszName)
+OGRErr OGRLIBKMLDriver::DeleteDataSource (
+    const char *pszName )
 {
 #warning implement DeleteDataSource()
+
+    /***** dir *****/
+
+    VSIStatBufL sStatBuf = {};
+    if ( !VSIStatL (pszName, &sStatBuf) && VSI_ISDIR(sStatBuf.st_mode) ) {
+        
+        char ** papszDirList = NULL;
+        if (!( papszDirList = VSIReadDir(pszName))) {
+            if ( VSIRmdir (pszName) < 0)
+                 return OGRERR_FAILURE;
+        }
+
+        int nFiles = CSLCount (papszDirList);
+        int iFile;
+        for (iFile = 0; iFile < nFiles; iFile++) {
+            if (OGRERR_FAILURE == this->DeleteDataSource(papszDirList[iFile])) {
+                CSLDestroy(papszDirList);
+                return OGRERR_FAILURE;
+            }
+        }
+
+        if (VSIRmdir (pszName) < 0) {
+            CSLDestroy(papszDirList);
+            return OGRERR_FAILURE;
+        }
+
+        CSLDestroy(papszDirList);
+    }
+
+   /***** kml *****/
+
+    else if ( EQUAL ( CPLGetExtension ( pszName ), "kml" ) ) {
+        if (VSIUnlink (pszName) < 0)
+            return OGRERR_FAILURE;
+    }
+    
+    /***** kmz *****/
+
+    else if ( EQUAL ( CPLGetExtension ( pszName ), "kmz" ) ) {
+        if (VSIUnlink (pszName) < 0)
+            return OGRERR_FAILURE;
+    }
+
+    /***** do not delete other types of files *****/
+    
+    else
+        return OGRERR_FAILURE;
 
     return OGRERR_NONE;
 }
@@ -108,13 +166,15 @@ OGRErr OGRLIBKMLDriver::DeleteDataSource(const char *pszName)
  TestCapability()
 ******************************************************************************/
 
-int OGRLIBKMLDriver::TestCapability(const char* pszCap)
+int OGRLIBKMLDriver::TestCapability (
+    const char *pszCap )
 {
-  if( EQUAL(pszCap,ODrCCreateDataSource) )
-    return bUpdate;
-  else if( EQUAL(pszCap,ODrCDeleteDataSource) )
-    return bUpdate;
-  else
+    if ( EQUAL ( pszCap, ODrCCreateDataSource ) )
+        return TRUE;
+
+    else if ( EQUAL ( pszCap, ODrCDeleteDataSource ) )
+        return bUpdate;
+
     return FALSE;
 }
 
@@ -122,8 +182,10 @@ int OGRLIBKMLDriver::TestCapability(const char* pszCap)
  RegisterOGRLIBKML()
 ******************************************************************************/
 
-void RegisterOGRLIBKML()
+void RegisterOGRLIBKML (
+     )
 {
-  OGRSFDriverRegistrar::GetRegistrar()->RegisterDriver(new OGRLIBKMLDriver());
-}
+    OGRSFDriverRegistrar::GetRegistrar (  )->
+        RegisterDriver ( new OGRLIBKMLDriver );
 
+}

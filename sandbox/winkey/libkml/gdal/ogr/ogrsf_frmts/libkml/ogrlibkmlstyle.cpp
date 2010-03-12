@@ -32,6 +32,7 @@
 #include <kml/base/color32.h>
 
 using kmldom::KmlFactory;;
+using kmldom::StylePtr;
 using kmldom::LineStylePtr;
 using kmldom::PolyStylePtr;
 using kmldom::IconStylePtr;
@@ -41,137 +42,448 @@ using kmlbase::Color32;
 
 #include "ogrlibkmlstyle.h"
 
-#warning all of this neends more work. units, scale, hotspots, and more
+/******************************************************************************
+ prototypes
+******************************************************************************/
+
+LineStylePtr pen2kml (
+    OGRStyleTool * poOgrST,
+    KmlFactory * poKmlFactory );
+
+PolyStylePtr brush2kml (
+    OGRStyleTool * poOgrST,
+    KmlFactory * poKmlFactory );
+
+IconStylePtr symbol2kml (
+    OGRStyleTool * poOgrST,
+    KmlFactory * poKmlFactory );
+
+LabelStylePtr label2kml (
+    OGRStyleTool * poOgrST,
+    KmlFactory * poKmlFactory );
+
+
+/******************************************************************************
+ generic function to parse a stylestring and add to a kml style
+
+args:
+            pszStyleString  the stylestring to parse
+            poKmlStyle      the kml style to add to
+            poKmlFactory    the kml dom factory
+
+returns:
+            nothing
+
+******************************************************************************/
+
+void addstylestring2kml (
+    const char *pszStyleString,
+    StylePtr poKmlStyle,
+    KmlFactory * poKmlFactory )
+{
+
+    /***** create and init a style mamager with the style string *****/
+
+    OGRStyleMgr *poOgrSM = new OGRStyleMgr;
+
+    poOgrSM->InitStyleString ( pszStyleString );
+
+    /***** loop though the style parts *****/
+
+    int i;
+
+    for ( i = 0; i < poOgrSM->GetPartCount ( NULL ); i++ ) {
+        OGRStyleTool *poOgrST = poOgrSM->GetPart ( i, NULL );
+
+        switch ( poOgrST->GetType (  ) ) {
+        case OGRSTCPen:
+            {
+                LineStylePtr poKmlLineStyle =
+                    pen2kml ( poOgrST, poKmlFactory );
+                poKmlStyle->set_linestyle ( poKmlLineStyle );
+
+                break;
+            }
+        case OGRSTCBrush:
+            {
+                PolyStylePtr poKmlPolyStyle =
+                    brush2kml ( poOgrST, poKmlFactory );
+                poKmlStyle->set_polystyle ( poKmlPolyStyle );
+
+                break;
+            }
+        case OGRSTCSymbol:
+            {
+                IconStylePtr poKmlIconStyle =
+                    symbol2kml ( poOgrST, poKmlFactory );
+                poKmlStyle->set_iconstyle ( poKmlIconStyle );
+
+                break;
+            }
+        case OGRSTCLabel:
+#warning do the label case
+        case OGRSTCNone:
+        default:
+            break;
+        }
+    }
+
+    delete poOgrSM;
+}
+
+/******************************************************************************
+ kml2pen
+******************************************************************************/
+
+OGRStylePen *kml2pen (
+    LineStylePtr poKmlLineStyle );
+
+/******************************************************************************
+ kml2brush
+******************************************************************************/
+
+OGRStyleBrush *kml2brush (
+    PolyStylePtr poKmlPolyStyle );
+
+/******************************************************************************
+ kml2brush
+******************************************************************************/
+
+OGRStyleSymbol *kml2symbol (
+    IconStylePtr poKmlIconStyle );
+
+/******************************************************************************
+ kml2label
+******************************************************************************/
+
+OGRStyleLabel *kml2label (
+    LabelStylePtr poKmlLabelStyle );
+
+/******************************************************************************
+ kml2stylemgr
+******************************************************************************/
+
+void kml2stylestring (
+    StylePtr poKmlStyle,
+    OGRStyleMgr * poOgrSM )
+{
+
+    /***** linestyle / pen *****/
+
+    if ( poKmlStyle->has_linestyle (  ) ) {
+        LineStylePtr poKmlLineStyle = poKmlStyle->get_linestyle (  );
+
+        OGRStylePen *poOgrStylePen = kml2pen ( poKmlLineStyle );
+
+        poOgrSM->AddPart ( poOgrStylePen );
+    }
+
+    /***** polystyle / brush *****/
+
+    if ( poKmlStyle->has_polystyle (  ) ) {
+        PolyStylePtr poKmlPolyStyle = poKmlStyle->get_polystyle (  );
+
+        OGRStyleBrush *poOgrStyleBrush = kml2brush ( poKmlPolyStyle );
+
+        poOgrSM->AddPart ( poOgrStyleBrush );
+    }
+
+    /***** iconstyle / symbol *****/
+
+    if ( poKmlStyle->has_iconstyle (  ) ) {
+        IconStylePtr poKmlIconStyle = poKmlStyle->get_iconstyle (  );
+
+        OGRStyleSymbol *poOgrStyleSymbol = kml2symbol ( poKmlIconStyle );
+
+        poOgrSM->AddPart ( poOgrStyleSymbol );
+    }
+
+    /***** labelstyle / label *****/
+
+    if ( poKmlStyle->has_labelstyle (  ) ) {
+        LabelStylePtr poKmlLabelStyle = poKmlStyle->get_labelstyle (  );
+
+        OGRStyleLabel *poOgrStyleLabel = kml2label ( poKmlLabelStyle );
+
+        poOgrSM->AddPart ( poOgrStyleLabel );
+    }
+
+}
 
 /******************************************************************************
  pen
 ******************************************************************************/
 
-LineStylePtr pen2kml(
-	OGRStyleTool *poOgrST,
-  KmlFactory *poKmlFactory)
+LineStylePtr pen2kml (
+    OGRStyleTool * poOgrST,
+    KmlFactory * poKmlFactory )
 {
-	GBool nullcheck;
-	
-	LineStylePtr poKmlLineStyle = poKmlFactory->CreateLineStyle();
+    GBool nullcheck;
 
-  OGRStylePen *poStylePen = (OGRStylePen *)poOgrST;
+    LineStylePtr poKmlLineStyle = poKmlFactory->CreateLineStyle (  );
 
-  /***** pen color *****/
-	
-	int r, g, b, a;
-  
-  const char *color = poStylePen->Color(nullcheck);
-	if (!nullcheck && poStylePen->GetRGBFromString(color, r, g, b, a)) {
-    poKmlLineStyle->set_color(Color32(a, b, g, r));
-	}
+    OGRStylePen *poStylePen = ( OGRStylePen * ) poOgrST;
 
-	double width = poStylePen->Width(nullcheck);
-	if (nullcheck)
-		width = 1.0;
-  
-  poKmlLineStyle->set_width(width);
-  
-  return poKmlLineStyle;
+    /***** pen color *****/
+
+    int nR,
+        nG,
+        nB,
+        nA;
+
+    const char *pszcolor = poStylePen->Color ( nullcheck );
+
+    if ( !nullcheck
+         && poStylePen->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
+        poKmlLineStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+    }
+
+    double dfWidth = poStylePen->Width ( nullcheck );
+
+    if ( nullcheck )
+        dfWidth = 1.0;
+
+    poKmlLineStyle->set_width ( dfWidth );
+
+    return poKmlLineStyle;
 }
 
 /******************************************************************************
  brush
 ******************************************************************************/
 
-PolyStylePtr brush2kml(
-	OGRStyleTool *poOgrST,
-  KmlFactory *poKmlFactory)
+PolyStylePtr brush2kml (
+    OGRStyleTool * poOgrST,
+    KmlFactory * poKmlFactory )
 {
-	GBool nullcheck;
+    GBool nullcheck;
 
-  PolyStylePtr poKmlPolyStyle = poKmlFactory->CreatePolyStyle();
+    PolyStylePtr poKmlPolyStyle = poKmlFactory->CreatePolyStyle (  );
 
-  OGRStyleBrush *poStyleBrush = (OGRStyleBrush *)poOgrST;
+    OGRStyleBrush *poStyleBrush = ( OGRStyleBrush * ) poOgrST;
 
-  /***** brush color *****/
-	
-	int r, g, b, a;
+    /***** brush color *****/
+
+    int nR,
+        nG,
+        nB,
+        nA;
+
+    const char *pszcolor = poStyleBrush->ForeColor ( nullcheck );
+
+    if ( !nullcheck
+         && poStyleBrush->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
+        poKmlPolyStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+    }
 
 
-	const char *color = poStyleBrush->ForeColor(nullcheck);
-	if (!nullcheck && poStyleBrush->GetRGBFromString(color, r, g, b, a)) {
-		poKmlPolyStyle->set_color(Color32(a, b, g, r));
-	}
 
-  
-	  
-  return poKmlPolyStyle;
+    return poKmlPolyStyle;
 }
 
 /******************************************************************************
  symbol
 ******************************************************************************/
 
-IconStylePtr symbol2kml(
-	OGRStyleTool *poOgrST,
-  KmlFactory *poKmlFactory)
+IconStylePtr symbol2kml (
+    OGRStyleTool * poOgrST,
+    KmlFactory * poKmlFactory )
 {
-	GBool nullcheck;
-	GBool nullcheck2;
+    GBool nullcheck;
+    GBool nullcheck2;
 
-  IconStylePtr poKmlIconStyle = poKmlFactory->CreateIconStyle();
-  
-  OGRStyleSymbol *poStyleSymbol = (OGRStyleSymbol *)poOgrST;
+    IconStylePtr poKmlIconStyle = poKmlFactory->CreateIconStyle (  );
 
-  /***** id (kml icon) *****/
-	const char *id = poStyleSymbol->Id(nullcheck);
-	if (!nullcheck)
-  {}
+    OGRStyleSymbol *poStyleSymbol = ( OGRStyleSymbol * ) poOgrST;
+
+    /***** id (kml icon) *****/
+
+    const char *pszId = poStyleSymbol->Id ( nullcheck );
+
+    if ( !nullcheck ) {
+    }
 #warning set the icon		id = NULL;
 
-  /***** heading *****/
-  
-	double heading = poStyleSymbol->Angle(nullcheck);
-	if (!nullcheck)
-		poKmlIconStyle->set_heading(heading);
+    /***** heading *****/
 
-  /***** scale *****/
-  
-	double scale = poStyleSymbol->Size(nullcheck);
-	if (!nullcheck)
-		poKmlIconStyle->set_scale(scale);
+    double heading = poStyleSymbol->Angle ( nullcheck );
 
-  /***** color *****/
-	int r, g, b, a;
-	const char *color = poStyleSymbol->Color(nullcheck);
-	if (!nullcheck && poOgrST->GetRGBFromString(color, r,g, b, a)) {
-		poKmlIconStyle->set_color(Color32(a, b, g, r));
-	}
+    if ( !nullcheck )
+        poKmlIconStyle->set_heading ( heading );
 
-  /***** hotspot *****/
-  
-	double dx = poStyleSymbol->SpacingX(nullcheck);
-	double dy = poStyleSymbol->SpacingY(nullcheck2);
-	if (!nullcheck && !nullcheck2) {
-    HotSpotPtr poKmlHotSpot = poKmlFactory->CreateHotSpot();
-    poKmlHotSpot->set_x(dx);
-		poKmlHotSpot->set_y(dy);
+    /***** scale *****/
+
+    double dfScale = poStyleSymbol->Size ( nullcheck );
+
+    if ( !nullcheck )
+        poKmlIconStyle->set_scale ( dfScale );
+
+    /***** color *****/
+
+    int nR,
+        nG,
+        nB,
+        nA;
+
+    const char *pszcolor = poStyleSymbol->Color ( nullcheck );
+
+    if ( !nullcheck && poOgrST->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
+        poKmlIconStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+    }
+
+    /***** hotspot *****/
+
+    double dfDx = poStyleSymbol->SpacingX ( nullcheck );
+    double dfDy = poStyleSymbol->SpacingY ( nullcheck2 );
+
+    if ( !nullcheck && !nullcheck2 ) {
+        HotSpotPtr poKmlHotSpot = poKmlFactory->CreateHotSpot (  );
+
+        poKmlHotSpot->set_x ( dfDx );
+        poKmlHotSpot->set_y ( dfDy );
 #warning set units
-    poKmlIconStyle->set_hotspot(poKmlHotSpot);
-	}
-	
-	return poKmlIconStyle;
+        poKmlIconStyle->set_hotspot ( poKmlHotSpot );
+    }
+
+    return poKmlIconStyle;
 }
 
 /******************************************************************************
  label
 ******************************************************************************/
 
-LabelStylePtr label2kml(
-	OGRStyleTool *poOgrST,
-  KmlFactory *poKmlFactory)
+LabelStylePtr label2kml (
+    OGRStyleTool * poOgrST,
+    KmlFactory * poKmlFactory )
 {
 
-	LabelStylePtr poKmlLabelStyle = poKmlFactory->CreateLabelStyle();
+    LabelStylePtr poKmlLabelStyle = poKmlFactory->CreateLabelStyle (  );
+
 
 #warning do the labelstyle *****/
-  
-  return poKmlLabelStyle;
+
+    return poKmlLabelStyle;
 }
 
+/******************************************************************************
+ kml2pen
+******************************************************************************/
+
+OGRStylePen *kml2pen (
+    LineStylePtr poKmlLineStyle )
+{
+
+    OGRStylePen *poOgrStylePen = new OGRStylePen (  );
+
+    /***** width *****/
+
+    if ( poKmlLineStyle->has_width (  ) )
+        poOgrStylePen->SetWidth ( poKmlLineStyle->get_width (  ) );
+
+    /***** color *****/
+
+    if ( poKmlLineStyle->has_color (  ) ) {
+        Color32 poKmlColor = poKmlLineStyle->get_color (  );
+        char szColor[9] = { };
+        snprintf ( szColor, sizeof ( szColor ), "#%X%X%X%X",
+                   poKmlColor.get_red (  ),
+                   poKmlColor.get_green (  ),
+                   poKmlColor.get_blue (  ), poKmlColor.get_alpha (  ) );
+        poOgrStylePen->SetColor ( szColor );
+    }
+
+    return poOgrStylePen;
+}
+
+/******************************************************************************
+ kml2brush
+******************************************************************************/
+
+OGRStyleBrush *kml2brush (
+    PolyStylePtr poKmlPolyStyle )
+{
+
+    OGRStyleBrush *poOgrStyleBrush = new OGRStyleBrush (  );
+
+    /***** color *****/
+
+    if ( poKmlPolyStyle->has_color (  ) ) {
+        Color32 poKmlColor = poKmlPolyStyle->get_color (  );
+        char szColor[9] = { };
+        snprintf ( szColor, sizeof ( szColor ), "#%X%X%X%X",
+                   poKmlColor.get_red (  ),
+                   poKmlColor.get_green (  ),
+                   poKmlColor.get_blue (  ), poKmlColor.get_alpha (  ) );
+        poOgrStyleBrush->SetForeColor ( szColor );
+    }
+
+    return poOgrStyleBrush;
+}
+
+/******************************************************************************
+ kml2symbol
+******************************************************************************/
+
+OGRStyleSymbol *kml2symbol (
+    IconStylePtr poKmlIconStyle )
+{
+
+    OGRStyleSymbol *poOgrStyleSymbol = new OGRStyleSymbol (  );
+
+    /***** id (kml icon) *****/
+
+#warning set the icon		id = NULL;
+
+    /***** heading *****/
+
+    if ( poKmlIconStyle->has_heading (  ) )
+        poOgrStyleSymbol->SetAngle ( poKmlIconStyle->get_heading (  ) );
+
+    /***** scale *****/
+
+    if ( poKmlIconStyle->has_scale (  ) )
+        poOgrStyleSymbol->SetSize ( poKmlIconStyle->get_scale (  ) );
+
+    /***** color *****/
+
+    if ( poKmlIconStyle->has_color (  ) ) {
+        Color32 poKmlColor = poKmlIconStyle->get_color (  );
+        char szColor[9] = { };
+        snprintf ( szColor, sizeof ( szColor ), "#%X%X%X%X",
+                   poKmlColor.get_red (  ),
+                   poKmlColor.get_green (  ),
+                   poKmlColor.get_blue (  ), poKmlColor.get_alpha (  ) );
+        poOgrStyleSymbol->SetColor ( szColor );
+    }
+
+    /***** hotspot *****/
+
+    if ( poKmlIconStyle->has_hotspot (  ) ) {
+        HotSpotPtr poKmlHotSpot = poKmlIconStyle->get_hotspot (  );
+
+        if ( poKmlHotSpot->has_x (  ) )
+            poOgrStyleSymbol->SetSpacingX ( poKmlHotSpot->get_x (  ) );
+        if ( poKmlHotSpot->has_y (  ) )
+            poOgrStyleSymbol->SetSpacingY ( poKmlHotSpot->get_y (  ) );
+
+#warning set units
+
+    }
+
+    return poOgrStyleSymbol;
+}
+
+/******************************************************************************
+ kml2label
+******************************************************************************/
+
+OGRStyleLabel *kml2label (
+    LabelStylePtr poKmlLabelStyle )
+{
+
+    OGRStyleLabel *poOgrStyleLabel = new OGRStyleLabel (  );
+
+#warning do the labelstyle
+
+    return poOgrStyleLabel;
+}

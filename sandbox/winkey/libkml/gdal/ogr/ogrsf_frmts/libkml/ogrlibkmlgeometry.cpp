@@ -33,269 +33,465 @@
 using kmldom::KmlFactory;
 using kmldom::CoordinatesPtr;
 using kmldom::PointPtr;
+using kmldom::Point;
 using kmldom::LineStringPtr;
+using kmldom::LineString;
 using kmldom::LinearRingPtr;
+using kmldom::LinearRing;
 using kmldom::OuterBoundaryIsPtr;
 using kmldom::OuterBoundaryIs;
 using kmldom::InnerBoundaryIsPtr;
 using kmldom::InnerBoundaryIs;
 using kmldom::PolygonPtr;
+using kmldom::Polygon;
 using kmldom::MultiGeometryPtr;
+using kmldom::MultiGeometry;
 using kmldom::GeometryPtr;
 using kmldom::ElementPtr;
 using kmldom::GeometryPtr;
 using kmldom::Geometry;
 
+using kmlbase::Vec3;
+
 #include "ogrlibkmlgeometry.h"
 
-/*******************************************************************************
-	funtion to write out a ogr geometry to kml
-	
+/******************************************************************************
+ funtion to write out a ogr geometry to kml
+
 args:
-						poOgrGeom		the ogr geometry
-						extra		used in recursion, just pass -1
-						wkb25D	used in recursion, just pass 0
-						poKmlFactory	pointer to the libkml dom factory
+          poOgrGeom     the ogr geometry
+          extra         used in recursion, just pass -1
+          wkb25D        used in recursion, just pass 0
+          poKmlFactory  pointer to the libkml dom factory
 
 returns:
-						ElementPtr to the geometry created
+          ElementPtr to the geometry created
 
-*******************************************************************************/
+******************************************************************************/
 
-ElementPtr geom2kml(
-	OGRGeometry *poOgrGeom,
-	int extra,
-	int wkb25D,
-	KmlFactory* poKmlFactory)
+ElementPtr geom2kml (
+    OGRGeometry * poOgrGeom,
+    int extra,
+    int wkb25D,
+    KmlFactory * poKmlFactory )
 {
-	int i;
-	
-	if (!poOgrGeom) {
-		return NULL;
-	}
+    int i;
 
-  /***** ogr geom vars *****/
-  
-  OGRPoint *poOgrPoint = NULL;
-  OGRLineString *poOgrLineString;
-  OGRPolygon *poOgrPolygon;
-  OGRGeometryCollection *poOgrMultiGeom;
-  
-  /***** libkml geom vars *****/
-  
-  CoordinatesPtr coordinates;
-	PointPtr poKmlPoint;
-  LineStringPtr poKmlLineString;
-  LinearRingPtr poKmlLinearRing;
-  OuterBoundaryIsPtr poKmlOuterRing;
-  InnerBoundaryIsPtr poKmlInnerRing;
-  PolygonPtr poKmlPolygon;
-  MultiGeometryPtr multigeometry;
+    if ( !poOgrGeom ) {
+        return NULL;
+    }
 
-  ElementPtr poKmlGeometry;
-  ElementPtr poKmlTmpGeometry;
-  
-  /***** other vars *****/
-  
-  double x,y,z;
+    /***** ogr geom vars *****/
 
-  int numpoints = 0;
-  int nGeom;
-  int type = poOgrGeom->getGeometryType();
-	wkb25D = type & wkb25DBit;
-	
-	switch (type) {
-		
-		case wkbPoint:
+    OGRPoint *poOgrPoint = NULL;
+    OGRLineString *poOgrLineString;
+    OGRPolygon *poOgrPolygon;
+    OGRGeometryCollection *poOgrMultiGeom;
 
-      poOgrPoint = (OGRPoint *) poOgrGeom;
+    /***** libkml geom vars *****/
 
-      x = poOgrPoint->getX();
-      y = poOgrPoint->getY();
+    CoordinatesPtr coordinates;
+    PointPtr poKmlPoint;
+    LineStringPtr poKmlLineString;
+    LinearRingPtr poKmlLinearRing;
+    OuterBoundaryIsPtr poKmlOuterRing;
+    InnerBoundaryIsPtr poKmlInnerRing;
+    PolygonPtr poKmlPolygon;
+    MultiGeometryPtr poKmlMultiGeometry;
 
-      if (x > 180)
-		    x -= 360;
-      
-      coordinates = poKmlFactory->CreateCoordinates();
-      coordinates->add_latlng(y, x);
-      poKmlGeometry = poKmlPoint = poKmlFactory->CreatePoint();
-			poKmlPoint->set_coordinates(coordinates);
+    ElementPtr poKmlGeometry;
+    ElementPtr poKmlTmpGeometry;
 
-      break;
+    /***** other vars *****/
 
-		case wkbPoint25D:
-      poOgrPoint = (OGRPoint *) poOgrGeom;
+    double x,
+        y,
+        z;
 
-      x = poOgrPoint->getX();
-      y = poOgrPoint->getY();
-      z = poOgrPoint->getZ();
+    int numpoints = 0;
+    int nGeom;
+    int type = poOgrGeom->getGeometryType (  );
 
-      if (x > 180)
-		    x -= 360;
-      
-      coordinates = poKmlFactory->CreateCoordinates();
-      coordinates->add_latlngalt(y, x, z);
-      poKmlGeometry = poKmlPoint = poKmlFactory->CreatePoint();
-			poKmlPoint->set_coordinates(coordinates);
+    wkb25D = type & wkb25DBit;
 
-      break;
-		
-		case wkbLineString:
-      poOgrLineString = (OGRLineString *) poOgrGeom;
+    switch ( type ) {
 
-      coordinates = poKmlFactory->CreateCoordinates();
+    case wkbPoint:
 
-      numpoints = poOgrLineString->getNumPoints();
-      for (i = 0; i < numpoints; i++) {
-        poOgrLineString->getPoint(i, poOgrPoint);
+        poOgrPoint = ( OGRPoint * ) poOgrGeom;
 
-        x = poOgrPoint->getX();
-        y = poOgrPoint->getY();
+        x = poOgrPoint->getX (  );
+        y = poOgrPoint->getY (  );
 
-        coordinates->add_latlng(y, x);
-      }
+        if ( x > 180 )
+            x -= 360;
 
-	    /***** check if its a wkbLinearRing *****/
-			
-			if (extra < 0) {
-        
-        poKmlGeometry = poKmlLineString = poKmlFactory->CreateLineString();
-        poKmlLineString->set_coordinates(coordinates);
-        poKmlLineString->set_altitudemode(kmldom::ALTITUDEMODE_CLAMPTOGROUND);
+        coordinates = poKmlFactory->CreateCoordinates (  );
+        coordinates->add_latlng ( y, x );
+        poKmlGeometry = poKmlPoint = poKmlFactory->CreatePoint (  );
+        poKmlPoint->set_coordinates ( coordinates );
 
-      	break;
-			}
-      
+        break;
+
+    case wkbPoint25D:
+        poOgrPoint = ( OGRPoint * ) poOgrGeom;
+
+        x = poOgrPoint->getX (  );
+        y = poOgrPoint->getY (  );
+        z = poOgrPoint->getZ (  );
+
+        if ( x > 180 )
+            x -= 360;
+
+        coordinates = poKmlFactory->CreateCoordinates (  );
+        coordinates->add_latlngalt ( y, x, z );
+        poKmlGeometry = poKmlPoint = poKmlFactory->CreatePoint (  );
+        poKmlPoint->set_coordinates ( coordinates );
+
+        break;
+
+    case wkbLineString:
+        poOgrLineString = ( OGRLineString * ) poOgrGeom;
+
+        coordinates = poKmlFactory->CreateCoordinates (  );
+
+        numpoints = poOgrLineString->getNumPoints (  );
+        poOgrPoint = new OGRPoint();
+#warning we need to create a new point for the retirn of each point
+        for ( i = 0; i < numpoints; i++ ) {
+            poOgrLineString->getPoint ( i, poOgrPoint );
+
+            x = poOgrPoint->getX (  );
+            y = poOgrPoint->getY (  );
+
+            coordinates->add_latlng ( y, x );
+        }
+        delete poOgrPoint;
+
+        /***** check if its a wkbLinearRing *****/
+
+        if ( extra < 0 ) {
+
+            poKmlGeometry = poKmlLineString =
+                poKmlFactory->CreateLineString (  );
+            poKmlLineString->set_coordinates ( coordinates );
+            poKmlLineString->
+                set_altitudemode ( kmldom::ALTITUDEMODE_CLAMPTOGROUND );
+
+            break;
+        }
+
       /***** fallthough *****/
-		
-		case wkbLinearRing: //this case is for readability only
 
-      poKmlLinearRing = poKmlFactory->CreateLinearRing();
-      poKmlLinearRing->set_coordinates(coordinates);
-      
-      if (!extra) {
-        poKmlOuterRing = poKmlFactory->CreateOuterBoundaryIs();
-        poKmlOuterRing->set_linearring(poKmlLinearRing);
-        poKmlGeometry = poKmlOuterRing;
-      }
-      else {
-        poKmlGeometry = poKmlInnerRing = poKmlFactory->CreateInnerBoundaryIs();
-        poKmlInnerRing->set_linearring(poKmlLinearRing);
-      }
-      
-		case wkbLineString25D:
-      
-      poOgrLineString = (OGRLineString *) poOgrGeom;
+    case wkbLinearRing:        //this case is for readability only
 
-      coordinates = poKmlFactory->CreateCoordinates();
+        poKmlLinearRing = poKmlFactory->CreateLinearRing (  );
+        poKmlLinearRing->set_coordinates ( coordinates );
 
-      numpoints = poOgrLineString->getNumPoints();
-      for (i = 0; i < numpoints; i++) {
-        poOgrLineString->getPoint(i, poOgrPoint);
+        if ( !extra ) {
+            poKmlOuterRing = poKmlFactory->CreateOuterBoundaryIs (  );
+            poKmlOuterRing->set_linearring ( poKmlLinearRing );
+            poKmlGeometry = poKmlOuterRing;
+        }
+        else {
+            poKmlGeometry = poKmlInnerRing =
+                poKmlFactory->CreateInnerBoundaryIs (  );
+            poKmlInnerRing->set_linearring ( poKmlLinearRing );
+        }
 
-        x = poOgrPoint->getX();
-        y = poOgrPoint->getY();
-        z = poOgrPoint->getZ();
+    case wkbLineString25D:
 
-        coordinates->add_latlngalt(y, x, z);
-      }
-      
-			/***** check if its a wkbLinearRing *****/
-			
-			if (extra < 0) {
-				
-				poKmlGeometry = poKmlLineString = poKmlFactory->CreateLineString();
-        poKmlLineString->set_coordinates(coordinates);
-        poKmlLineString->set_altitudemode(kmldom::ALTITUDEMODE_ABSOLUTE);
-        
-				break;
-			}
-			/***** fallthough *****/
-		
-		//case wkbLinearRing25D: // this case is for readability only
+        poOgrLineString = ( OGRLineString * ) poOgrGeom;
 
-      poKmlLinearRing = poKmlFactory->CreateLinearRing();
-      poKmlLinearRing->set_coordinates(coordinates);
-      
-      if (!extra) {
-        poKmlGeometry = poKmlOuterRing = poKmlFactory->CreateOuterBoundaryIs();
-        poKmlOuterRing->set_linearring(poKmlLinearRing);
-      }
-      else {
-        poKmlGeometry = poKmlInnerRing = poKmlFactory->CreateInnerBoundaryIs();
-        poKmlInnerRing->set_linearring(poKmlLinearRing);
-      }
+        coordinates = poKmlFactory->CreateCoordinates (  );
 
-      break;
-		
-		case wkbPolygon:
-      
-		  poOgrPolygon = (OGRPolygon *) poOgrGeom;
-        
-      poKmlGeometry = poKmlPolygon = poKmlFactory->CreatePolygon();
-      poKmlPolygon->set_altitudemode(kmldom::ALTITUDEMODE_CLAMPTOGROUND);
+        numpoints = poOgrLineString->getNumPoints (  );
+        for ( i = 0; i < numpoints; i++ ) {
+            poOgrLineString->getPoint ( i, poOgrPoint );
 
-      poKmlTmpGeometry = geom2kml(poOgrPolygon->getExteriorRing(),
-                                  0, wkb25D, poKmlFactory);
-      poKmlPolygon->set_outerboundaryis(boost::static_pointer_cast<OuterBoundaryIs>(poKmlTmpGeometry));
+            x = poOgrPoint->getX (  );
+            y = poOgrPoint->getY (  );
+            z = poOgrPoint->getZ (  );
 
-      nGeom = poOgrPolygon->getNumInteriorRings();
-      for (i = 0; i < nGeom ; i++) {
-        poKmlTmpGeometry = geom2kml(poOgrPolygon->getInteriorRing(i),
-                                    i + 1, wkb25D, poKmlFactory);
-        poKmlPolygon->add_innerboundaryis(boost::static_pointer_cast<InnerBoundaryIs>(poKmlTmpGeometry));
-      }
+            coordinates->add_latlngalt ( y, x, z );
+        }
 
-      break;
-      
+            /***** check if its a wkbLinearRing *****/
+
+        if ( extra < 0 ) {
+
+            poKmlGeometry = poKmlLineString =
+                poKmlFactory->CreateLineString (  );
+            poKmlLineString->set_coordinates ( coordinates );
+            poKmlLineString->
+                set_altitudemode ( kmldom::ALTITUDEMODE_ABSOLUTE );
+
+            break;
+        }
+            /***** fallthough *****/
+
+        //case wkbLinearRing25D: // this case is for readability only
+
+        poKmlLinearRing = poKmlFactory->CreateLinearRing (  );
+        poKmlLinearRing->set_coordinates ( coordinates );
+
+        if ( !extra ) {
+            poKmlGeometry = poKmlOuterRing =
+                poKmlFactory->CreateOuterBoundaryIs (  );
+            poKmlOuterRing->set_linearring ( poKmlLinearRing );
+        }
+        else {
+            poKmlGeometry = poKmlInnerRing =
+                poKmlFactory->CreateInnerBoundaryIs (  );
+            poKmlInnerRing->set_linearring ( poKmlLinearRing );
+        }
+
+        break;
+
+    case wkbPolygon:
+
+        poOgrPolygon = ( OGRPolygon * ) poOgrGeom;
+
+        poKmlGeometry = poKmlPolygon = poKmlFactory->CreatePolygon (  );
+        poKmlPolygon->set_altitudemode ( kmldom::ALTITUDEMODE_CLAMPTOGROUND );
+
+        poKmlTmpGeometry = geom2kml ( poOgrPolygon->getExteriorRing (  ),
+                                      0, wkb25D, poKmlFactory );
+        poKmlPolygon->set_outerboundaryis ( boost::static_pointer_cast <
+                                            OuterBoundaryIs >
+                                            ( poKmlTmpGeometry ) );
+
+        nGeom = poOgrPolygon->getNumInteriorRings (  );
+        for ( i = 0; i < nGeom; i++ ) {
+            poKmlTmpGeometry = geom2kml ( poOgrPolygon->getInteriorRing ( i ),
+                                          i + 1, wkb25D, poKmlFactory );
+            poKmlPolygon->add_innerboundaryis ( boost::static_pointer_cast <
+                                                InnerBoundaryIs >
+                                                ( poKmlTmpGeometry ) );
+        }
+
+        break;
+
     case wkbPolygon25D:
 
-      poOgrPolygon = (OGRPolygon *) poOgrGeom;
-        
-      poKmlGeometry = poKmlPolygon = poKmlFactory->CreatePolygon();
-      poKmlPolygon->set_altitudemode(kmldom::ALTITUDEMODE_ABSOLUTE);
+        poOgrPolygon = ( OGRPolygon * ) poOgrGeom;
 
-      poKmlTmpGeometry = geom2kml(poOgrPolygon->getExteriorRing(),
-                                  0, wkb25D, poKmlFactory);
-      poKmlPolygon->set_outerboundaryis(boost::static_pointer_cast<OuterBoundaryIs>(poKmlTmpGeometry));
+        poKmlGeometry = poKmlPolygon = poKmlFactory->CreatePolygon (  );
+        poKmlPolygon->set_altitudemode ( kmldom::ALTITUDEMODE_ABSOLUTE );
 
-      nGeom = poOgrPolygon->getNumInteriorRings();
-      for (i = 0; i < nGeom ; i++) {
-        poKmlTmpGeometry = geom2kml(poOgrPolygon->getInteriorRing(i),
-                                    i + 1, wkb25D, poKmlFactory);
-        poKmlPolygon->add_innerboundaryis(boost::static_pointer_cast<InnerBoundaryIs>(poKmlTmpGeometry));
-      }
+        poKmlTmpGeometry = geom2kml ( poOgrPolygon->getExteriorRing (  ),
+                                      0, wkb25D, poKmlFactory );
+        poKmlPolygon->set_outerboundaryis ( boost::static_pointer_cast <
+                                            OuterBoundaryIs >
+                                            ( poKmlTmpGeometry ) );
 
-      break;
-      
-		case wkbMultiPoint:
-		case wkbMultiLineString:
-		case wkbMultiPolygon:
-		case wkbGeometryCollection:
+        nGeom = poOgrPolygon->getNumInteriorRings (  );
+        for ( i = 0; i < nGeom; i++ ) {
+            poKmlTmpGeometry = geom2kml ( poOgrPolygon->getInteriorRing ( i ),
+                                          i + 1, wkb25D, poKmlFactory );
+            poKmlPolygon->add_innerboundaryis ( boost::static_pointer_cast <
+                                                InnerBoundaryIs >
+                                                ( poKmlTmpGeometry ) );
+        }
+
+        break;
+
+    case wkbMultiPoint:
+    case wkbMultiLineString:
+    case wkbMultiPolygon:
+    case wkbGeometryCollection:
     case wkbMultiPoint25D:
-		case wkbMultiLineString25D:
-		case wkbMultiPolygon25D:
-		case wkbGeometryCollection25D:
+    case wkbMultiLineString25D:
+    case wkbMultiPolygon25D:
+    case wkbGeometryCollection25D:
 
-      poOgrMultiGeom = (OGRGeometryCollection *) poOgrGeom;
+        poOgrMultiGeom = ( OGRGeometryCollection * ) poOgrGeom;
 
-      poKmlGeometry = multigeometry = poKmlFactory->CreateMultiGeometry();
-      
-      nGeom = poOgrMultiGeom->getNumGeometries();
-      for (i = 0; i < nGeom ; i++) {
-				poKmlTmpGeometry = geom2kml(poOgrMultiGeom->getGeometryRef(i),
-                                    -1, wkb25D, poKmlFactory);
-        multigeometry->add_geometry(boost::static_pointer_cast<Geometry>(poKmlTmpGeometry));
-			}
+        poKmlGeometry = poKmlMultiGeometry =
+            poKmlFactory->CreateMultiGeometry (  );
 
-			break;
+        nGeom = poOgrMultiGeom->getNumGeometries (  );
+        for ( i = 0; i < nGeom; i++ ) {
+            poKmlTmpGeometry = geom2kml ( poOgrMultiGeom->getGeometryRef ( i ),
+                                          -1, wkb25D, poKmlFactory );
+            poKmlMultiGeometry->add_geometry ( boost::static_pointer_cast <
+                                               Geometry >
+                                               ( poKmlTmpGeometry ) );
+        }
+
+        break;
 
     case wkbUnknown:
-		case wkbNone:
-		default:
-			break;
-		
-	}
-	
-	return poKmlGeometry;
+    case wkbNone:
+    default:
+        break;
+
+    }
+
+    return poKmlGeometry;
+}
+
+/******************************************************************************
+ function to read a kml geometry and translate to ogr
+
+Args:
+            poKmlGeometry   pointer to the kml geometry to translate
+
+Returns:
+            pointer to the new ogr geometry object
+
+******************************************************************************/
+
+OGRGeometry *kml2geom (
+    GeometryPtr poKmlGeometry )
+{
+
+    /***** ogr geom vars *****/
+
+    OGRPoint *poOgrPoint;
+    OGRLineString *poOgrLineString;
+    OGRLinearRing *poOgrLinearRing;
+    OGRPolygon *poOgrPolygon;
+    OGRGeometryCollection *poOgrMultiGeometry;
+    OGRGeometry *poOgrGeometry = NULL;
+    OGRGeometry *poOgrTmpGeometry = NULL;
+
+
+    /***** libkml geom vars *****/
+
+    CoordinatesPtr poKmlCoordinates;
+    PointPtr poKmlPoint;
+    LineStringPtr poKmlLineString;
+    LinearRingPtr poKmlLinearRing;
+    OuterBoundaryIsPtr poKmlOuterRing;
+    InnerBoundaryIsPtr poKmlInnerRing;
+    PolygonPtr poKmlPolygon;
+    MultiGeometryPtr poKmlMultiGeometry;
+    GeometryPtr poKmlTmpGeometry;
+
+    Vec3 oKmlVec;
+
+    size_t nRings,
+        nCoords,
+        nGeom,
+        i;
+
+    switch ( poKmlGeometry->Type (  ) ) {
+    case kmldom::Type_Point:
+        poKmlPoint = boost::static_pointer_cast < Point > ( poKmlGeometry );
+        if ( poKmlPoint->has_coordinates (  ) ) {
+            poKmlCoordinates = poKmlPoint->get_coordinates (  );
+            oKmlVec = poKmlCoordinates->get_coordinates_array_at ( 0 );
+
+            if ( oKmlVec.has_altitude (  ) )
+                poOgrPoint = new OGRPoint ( oKmlVec.get_longitude (  ),
+                                            oKmlVec.get_latitude (  ),
+                                            oKmlVec.get_altitude (  ) );
+            else
+                poOgrPoint = new OGRPoint ( oKmlVec.get_longitude (  ),
+                                            oKmlVec.get_latitude (  ) );
+
+            poOgrGeometry = poOgrPoint;
+        }
+
+        break;
+
+    case kmldom::Type_LineString:
+        poKmlLineString = boost::static_pointer_cast < LineString >
+            ( poKmlGeometry );
+        if ( poKmlLineString->has_coordinates (  ) ) {
+            poKmlCoordinates = poKmlLineString->get_coordinates (  );
+
+            poOgrLineString = new OGRLineString (  );
+
+            nCoords = poKmlCoordinates->get_coordinates_array_size (  );
+            for ( i = 0; i < nCoords; i++ ) {
+                oKmlVec = poKmlCoordinates->get_coordinates_array_at ( i );
+                if ( oKmlVec.has_altitude (  ) )
+                    poOgrLineString->
+                        addPoint ( oKmlVec.get_longitude (  ),
+                                   oKmlVec.get_latitude (  ),
+                                   oKmlVec.get_altitude (  ) );
+                else
+                    poOgrLineString->
+                        addPoint ( oKmlVec.get_longitude (  ),
+                                   oKmlVec.get_latitude (  ) );
+
+                poOgrGeometry = poOgrLineString;
+            }
+        }
+
+        break;
+    case kmldom::Type_LinearRing:
+        poKmlLinearRing = boost::static_pointer_cast < LinearRing >
+            ( poKmlGeometry );
+        if ( poKmlLinearRing->has_coordinates (  ) ) {
+            poKmlCoordinates = poKmlLinearRing->get_coordinates (  );
+
+            poOgrLinearRing = new OGRLinearRing (  );
+
+            nCoords = poKmlCoordinates->get_coordinates_array_size (  );
+            for ( i = 0; i < nCoords; i++ ) {
+                oKmlVec = poKmlCoordinates->get_coordinates_array_at ( i );
+                if ( oKmlVec.has_altitude (  ) )
+                    poOgrLinearRing->
+                        addPoint ( oKmlVec.get_longitude (  ),
+                                   oKmlVec.get_latitude (  ),
+                                   oKmlVec.get_altitude (  ) );
+                else
+                    poOgrLinearRing->
+                        addPoint ( oKmlVec.get_longitude (  ),
+                                   oKmlVec.get_latitude (  ) );
+
+                poOgrGeometry = poOgrLinearRing;
+            }
+        }
+
+        break;
+    case kmldom::Type_Polygon:
+        poKmlPolygon = boost::static_pointer_cast < Polygon >
+            ( poKmlGeometry );
+
+        poOgrPolygon = new OGRPolygon (  );
+        if ( poKmlPolygon->has_outerboundaryis (  ) ) {
+
+            poKmlOuterRing = poKmlPolygon->get_outerboundaryis (  );
+            poKmlLinearRing = poKmlOuterRing->get_linearring (  );
+            poOgrTmpGeometry = kml2geom ( poKmlLinearRing );
+
+            poOgrPolygon->
+                addRingDirectly ( ( OGRLinearRing * ) poOgrTmpGeometry );
+
+        }
+        nRings = poKmlPolygon->get_innerboundaryis_array_size (  );
+        for ( i = 0; i < nRings; i++ ) {
+            poKmlInnerRing = poKmlPolygon->get_innerboundaryis_array_at ( i );
+            poKmlLinearRing = poKmlInnerRing->get_linearring (  );
+            poOgrTmpGeometry = kml2geom ( poKmlLinearRing );
+
+            poOgrPolygon->
+                addRingDirectly ( ( OGRLinearRing * ) poOgrTmpGeometry );
+        }
+        poOgrGeometry = poOgrPolygon;
+
+        break;
+    case kmldom::Type_MultiGeometry:
+        poKmlMultiGeometry = boost::static_pointer_cast < MultiGeometry >
+            ( poKmlGeometry );
+
+        poOgrMultiGeometry = new OGRGeometryCollection (  );
+        nGeom = poKmlMultiGeometry->get_geometry_array_size (  );
+        for ( i = 0; i < nGeom; i++ ) {
+            poKmlTmpGeometry = poKmlMultiGeometry->get_geometry_array_at ( i );
+            poOgrTmpGeometry = kml2geom ( poKmlTmpGeometry );
+
+            poOgrMultiGeometry->addGeometryDirectly ( poOgrTmpGeometry );
+        }
+        poOgrGeometry = poOgrMultiGeometry;
+        break;
+    default:
+        break;
+    }
+
+    return poOgrGeometry;
 }

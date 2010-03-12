@@ -31,129 +31,155 @@
 #include <kml/engine.h>
 #include <kml/dom.h>
 
+using kmldom::KmlFactory;
+using kmldom::DocumentPtr;
+using kmldom::ContainerPtr;
+using kmldom::Container;
+using kmldom::ElementPtr;
+using kmlengine::KmzFile;
+using kmlengine::KmzFilePtr;
+
+using kmlengine::KmlFile;
+using kmlengine::KmlFilePtr;
+
 class OGRLIBKMLDataSource;
+
 /******************************************************************************
   layer class
 ******************************************************************************/
 
-class OGRLIBKMLLayer : public OGRLayer
+class OGRLIBKMLLayer:public OGRLayer
 {
-    OGRFeatureDefn      *poFeatureDefn;
+    OGRFeatureDefn *poFeatureDefn;
 
-    FILE                *fp;
-    int                  bUpdate;
-    int                  nNextFID;
-    int                  isFolder;
-    kmldom::FolderPtr poKmlFolder;
-    kmlengine::KmlFile  *kmlfile;
-    kmldom::KmlFactory  *poKmlFactory;
-    //kmldom::DocumentPtr poKmlDoc_kmlDocument
-   
+    FILE                      fp;
+    int                       bUpdate;
+    int                       nFeatures;
+    int                       iFeature;
+    const char                *m_pszLayerName;
+    ContainerPtr              m_poKmlLayer;
+    ElementPtr                m_poKmlLayerRoot;
+    KmlFile                  *m_poKmlKmlfile;
+
+    DocumentPtr               m_poKmlDocument;
+    OGRStyleTable            *m_poStyleTable;
+    OGRLIBKMLDataSource      *m_poOgrDS;
+    OGRFeatureDefn           *m_poOgrFeatureDefn;
+    OGRSpatialReference      *m_poOgrSRS;
   public:
-    OGRLIBKMLLayer       ( const char *pszFilename,
-                           OGRSpatialReference *poSpatialRef,
-                           OGRwkbGeometryType eGType );
-   ~OGRLIBKMLLayer();
+    OGRLIBKMLLayer            ( const char *pszLayerName,
+                                OGRSpatialReference * poSpatialRef,
+                                OGRwkbGeometryType eGType,
+                                OGRLIBKMLDataSource *poOgrDS,
+                                ElementPtr poKmlRoot);
+    ~OGRLIBKMLLayer           (  );
 
-    void                 ResetReading();
-    OGRFeature *         GetNextFeature();
+    void                      ResetReading  (  );
+    OGRFeature               *GetNextFeature (  );
+    OGRFeatureDefn           *GetLayerDefn (  ) { return m_poOgrFeatureDefn; };
+    //OGRErr                    SetAttributeFilter (const char * );
+    OGRErr                    SetNextByIndex ( long nIndex );
+    OGRFeature               *GetFeature ( long nFID );
+    OGRErr                    SetFeature ( OGRFeature * poFeature );
+    OGRErr                    CreateFeature ( OGRFeature * poOgrFeat );
+    OGRErr                    DeleteFeature ( long nFID );
 
-    OGRFeatureDefn *     GetLayerDefn();
-    OGRErr               SetAttributeFilter( const char * );
+    OGRSpatialReference      *GetSpatialRef (  ) { return m_poOgrSRS; };
+
+    int                       GetFeatureCount ( int bForce = TRUE );
+    OGRErr                    GetExtent ( OGREnvelope * psExtent,
+                                          int bForce = TRUE );
 
 
-    OGRErr               SetNextByIndex( long nIndex );
-    OGRFeature          *GetFeature( long nFID );
-    OGRErr               SetFeature( OGRFeature *poFeature );
-    OGRErr               CreateFeature( OGRFeature *poOgrFeat );
-    OGRErr               DeleteFeature( long nFID );
- 
-    OGRSpatialReference *GetSpatialRef();
+    //const char               *GetInfo ( const char * );
 
-    int                  GetFeatureCount( int bForce = TRUE );
-    OGRErr               GetExtent( OGREnvelope *psExtent,
-                                    int bForce = TRUE);
+    OGRErr                    CreateField ( OGRFieldDefn * poField,
+                                            int bApproxOK = TRUE );
 
-    
-    const char          *GetInfo( const char * );
+    OGRErr                    SyncToDisk (  );
 
-    OGRErr               CreateField( OGRFieldDefn *poField,
-                                      int bApproxOK = TRUE );
-
-    OGRErr               SyncToDisk();
-
-    OGRStyleTable       *GetStyleTable();
-    void                 SetStyleTableDirectly( OGRStyleTable *poStyleTable );
-    void                 SetStyleTable(OGRStyleTable *poStyleTable);
-
-    int                  TestCapability( const char * );
+    OGRStyleTable            *GetStyleTable (  );
+    void                      SetStyleTableDirectly ( OGRStyleTable * poStyleTable );
+    void                      SetStyleTable ( OGRStyleTable * poStyleTable );
+    const char               *GetName();
+    int                       TestCapability ( const char * );
 };
 
 /******************************************************************************
   datasource class
 ******************************************************************************/
 
-class OGRLIBKMLDataSource : public OGRDataSource {
-    char            *pszName;
+class OGRLIBKMLDataSource:public OGRDataSource
+{
+    char                     *pszName;
     
-    OGRLIBKMLLayer **papoLayers;
-    int              nLayers;
-    int              bUpdate;
-    
-    kmlengine::KmzFile *kmzfile;
-    kmlengine::KmlFile *kmlfile;
-    kmldom::KmlFactory *poKmlFactory;
-    //kmldom::DocumentPtr poKmlDoc_kmlDocument
-    
+    OGRLIBKMLLayer          **papoLayers;
+    int                       nLayers;
+    int                       bUpdate;
+
+    KmzFile                  *m_poKmlKmzfile;
+    KmlFile                  *kmlfile;
+    KmlFactory               *m_poKmlFactory;
+    ContainerPtr              m_poKmlDoc_kml;
+    OGRStyleTable            *m_poStyleTable;
+
   public:
-                     OGRLIBKMLDataSource();
-                    ~OGRLIBKMLDataSource();
+    OGRLIBKMLDataSource       (  );
+    ~OGRLIBKMLDataSource      (  );
 
-    const char      *GetName() { return pszName; };
-    
-    int              GetLayerCount() { return nLayers; }
-    OGRLayer        *GetLayer(int);
-    // TODO: unused? mloskot
-    // OGRLayer        *GetLayerByName(const char *);
-    // OGRErr           DeleteLayer(int);
-    
-    OGRLayer        *CreateLayer( const char *pszName, 
-                                  OGRSpatialReference *poSpatialRef = NULL,
-                                  OGRwkbGeometryType eGType = wkbUnknown,
-                                  char ** papszOptions = NULL );
+    const char               *GetName (  ) { return pszName; };
 
-    OGRStyleTable   *GetStyleTable();
-    void             SetStyleTableDirectly( OGRStyleTable *poStyleTable );
-    void             SetStyleTable(OGRStyleTable *poStyleTable);
+    int                       GetLayerCount (  ) { return nLayers; }
+    OGRLayer                 *GetLayer ( int );
+    OGRLayer                 *GetLayerByName ( const char * );
+    OGRErr                    DeleteLayer ( int );
 
-    int              Open( const char *pszFilename,
-                           int bUpdate);
-    int              Create ( const char *pszFilename,
-                              char **papszOptions );
 
-    int              TestCapability( const char * );
+    OGRLayer                 *CreateLayer ( const char *pszName,
+                                            OGRSpatialReference * poSpatialRef = NULL,
+                                            OGRwkbGeometryType eGType = wkbUnknown,
+                                            char **papszOptions = NULL );
+
+    OGRStyleTable            *GetStyleTable (  );
+    void                      SetStyleTableDirectly ( OGRStyleTable * poStyleTable );
+    void                      SetStyleTable ( OGRStyleTable * poStyleTable );
+
+    int                       Open ( const char *pszFilename,
+                                     int bUpdate );
+    int                       Create ( const char *pszFilename,
+                                       char **papszOptions );
+
+    int                       TestCapability (const char * );
+    KmlFactory               *GetKmlFactory() { return m_poKmlFactory; };
+    KmzFile                  *GetKmz() { return m_poKmlKmzfile; };
+
+  private:
+    int                       OpenKmz ( const char *pszFilename,
+                                        int bUpdate );
+    int                       OpenKml ( const char *pszFilename,
+                                        int bUpdate );
+    int                       OpenDir ( const char *pszFilename,
+                                        int bUpdate );
 };
+
 
 /******************************************************************************
   driver class
 ******************************************************************************/
 
-class OGRLIBKMLDriver : public OGRSFDriver
+class OGRLIBKMLDriver:public OGRSFDriver
 {
-private:
+    int bUpdate;
+  public:
+    ~OGRLIBKMLDriver          (  );
 
-    int            bUpdate;
-public:
-                  OGRLIBKMLDriver();
-                  ~OGRLIBKMLDriver();
-                
-    const char    *GetName();
-    OGRDataSource *Open( const char *pszFilename,
-                         int bUpdate );
-    OGRDataSource *CreateDataSource( const char *pszFilename,
-                                     char **papszOptions );
+    const char               *GetName (  );
+    OGRDataSource            *Open ( const char *pszFilename,
+                                     int bUpdate );
+    OGRDataSource            *CreateDataSource ( const char *pszFilename,
+                                                 char **papszOptions );
 
-    OGRErr         DeleteDataSource( const char *pszName );
+    OGRErr                    DeleteDataSource ( const char *pszName );
 
-    int            TestCapability( const char * );
+    int                       TestCapability ( const char * );
 };

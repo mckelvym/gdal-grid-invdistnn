@@ -28,6 +28,8 @@
 
 #include <ogrsf_frmts.h>
 #include <ogr_featurestyle.h>
+#include <string>
+using namespace std;
 
 #include <kml/dom.h>
 
@@ -38,191 +40,245 @@ using kmldom::PolyStylePtr;
 using kmldom::LineStylePtr;
 using kmldom::LabelStylePtr;
 using kmldom::StylePtr;
+using kmldom::Style;
 using kmldom::StyleMapPtr;
+using kmldom::StyleSelectorPtr;
+
 
 #include "ogrlibkmlstyle.h"
 
-void featurestyle2kml(
-	OGRLayer *poOgrLayer,
-	OGRFeature *poOgrFeat,
-  KmlFactory *poKmlFactory,
-  PlacemarkPtr poKmlPlacemark)
+/******************************************************************************
+ function to write out a features style to kml
+
+args:
+            poOgrLayer      the layer the feature is in
+            poOgrFeat       the feature
+            poKmlFactory    the kml dom factory
+            poKmlPlacemark  the placemark to add it to
+
+returns:
+            nothing
+******************************************************************************/
+
+void featurestyle2kml (
+    OGRLayer * poOgrLayer,
+    OGRFeature * poOgrFeat,
+    KmlFactory * poKmlFactory,
+    PlacemarkPtr poKmlPlacemark )
 {
-	
-	/***** get the style table *****/
-	
-	OGRStyleTable *poOgrSTBL;
-	
-	const char *stylestring = poOgrFeat->GetStyleString();
-	
-	/***** does the feature have style? *****/
-	
-	if (stylestring) {
+
+    /***** get the style table *****/
+
+    OGRStyleTable *poOgrSTBL;
+
+    const char *pszStyleString = poOgrFeat->GetStyleString (  );
+
+    /***** does the feature have style? *****/
+
+    if ( pszStyleString ) {
 
     /***** does it ref a style table? *****/
-    
-		if (*stylestring == '@') {
-			
-			/***** is the name in the layer style table *****/
-			
-			OGRStyleTable *hSTBLLayer;
-			const char *testy = NULL;
-			
-			if ((hSTBLLayer = poOgrLayer->GetStyleTable()))
-				testy = hSTBLLayer->Find(stylestring);
-			
-			if (testy)
-        poKmlPlacemark->set_styleurl("#stylemap");//(char *)stylestring + 1);
-				
-			
-			/***** assume its a dataset style, mayby the user will add it later *****/
-			
-			else
-				poKmlPlacemark->set_styleurl("style/style.kml#stylemap");//(char *)stylestring + 1);
-		}
-		
+
+        if ( *pszStyleString == '@' ) {
+
+            /***** is the name in the layer style table *****/
+
+            OGRStyleTable *hSTBLLayer;
+            const char *pszTest = NULL;
+
+            if ( ( hSTBLLayer = poOgrLayer->GetStyleTable (  ) ) )
+                pszTest = hSTBLLayer->Find ( pszStyleString );
+
+            if ( pszTest ) {
+                string oTmp = "#";
+
+                oTmp.append ( pszStyleString + 1 );
+
+                poKmlPlacemark->set_styleurl ( oTmp );
+            }
+
+
+            /***** assume its a dataset style, mayby the user will add it later *****/
+
+            else {
+                string oTmp = "style/style.kml#";
+
+                oTmp.append ( pszStyleString + 1 );
+
+                poKmlPlacemark->set_styleurl ( oTmp );
+            }
+        }
+
     /***** no style table ref *****/
-    
-    else {
 
-      StylePtr poKmlStyle = poKmlFactory->CreateStyle();
-      
-			/***** create and init a style mamager with the style string *****/
-			
-			OGRStyleMgr *poOgrSM = new OGRStyleMgr;
-			poOgrSM->InitStyleString(stylestring);
+        else {
+            StylePtr poKmlStyle = poKmlFactory->CreateStyle (  );
 
-      
-			/***** loop though the style parts *****/
-      
-			int i;
-			for(i = 0; i < poOgrSM->GetPartCount(NULL) ; i++) {
-				OGRStyleTool *poOgrST = poOgrSM->GetPart(i, NULL);
-				
-				switch(poOgrST->GetType()) {
-					case OGRSTCPen:
-          {
-            LineStylePtr poKmlLineStyle = pen2kml(poOgrST, poKmlFactory);
-            poKmlStyle->set_linestyle(poKmlLineStyle);
+            /***** parse the style string *****/
 
-            break;
-          }
-					case OGRSTCBrush:
-          {
-						PolyStylePtr poKmlPolyStyle = brush2kml(poOgrST, poKmlFactory);
-						poKmlStyle->set_polystyle(poKmlPolyStyle);
+            addstylestring2kml ( pszStyleString, poKmlStyle, poKmlFactory );
 
-            break;
-          }
-					case OGRSTCSymbol:
-          {
-            IconStylePtr poKmlIconStyle = symbol2kml(poOgrST, poKmlFactory);
-            poKmlStyle->set_iconstyle(poKmlIconStyle);
+            /***** add the style to the placemark *****/
 
-            break;
-          }
-					case OGRSTCLabel:
-#warning do the label case
-					case OGRSTCNone:
-					default:
-						break;
-				}
-			}
-      
-			poKmlPlacemark->set_styleselector(poKmlStyle);
-			
-      delete poOgrSM;
-      
-		}
-	} /* end style sting */
-	
-	/***** get the style table *****/
-	
-	else if ((poOgrSTBL = poOgrFeat->GetStyleTable())) {
-		
+            poKmlPlacemark->set_styleselector ( poKmlStyle );
 
-    StylePtr poKmlStyle = poKmlFactory->CreateStyle();
-      
-		/***** parse the style table *****/
-		
-		poOgrSTBL->ResetStyleStringReading();
-		const char *stylestring;
-		while ((stylestring = poOgrSTBL->GetNextStyle())) {
+        }
+    }
 
-			if (*stylestring == '@') {
-				
-				/***** is the name in the layer style table *****/
-				
-				OGRStyleTable *poOgrSTBLLayer;
-				const char *testy = NULL;
-				
-				if ((poOgrSTBLLayer = poOgrLayer->GetStyleTable()))
-					poOgrSTBLLayer->Find(stylestring);
+    /***** get the style table *****/
 
-#warning fixme
-				if (testy)
-					poKmlPlacemark->set_styleurl("#stylemap");//(char *)stylestring + 1);
-				
-				/***** assume its a dataset style, mayby the user will add it later *****/
-#warning fixme
-				
-				else
-					poKmlPlacemark->set_styleurl("style/style.kml#stylemap");//(char *)stylestring + 1);
-			}
-			
-			else {
-				
-				/***** create and init a style mamager with the style string *****/
-				
-				OGRStyleMgr *poOgrSM = new OGRStyleMgr;
-  			poOgrSM->InitStyleString(stylestring);;
-				
-				/***** loop though the style parts *****/
-				
-				int i;
-				for(i = 0; i < poOgrSM->GetPartCount(NULL) ; i++) {
-					OGRStyleTool *poOgrST = poOgrSM->GetPart(i, NULL);
-					
-				  switch(poOgrST->GetType()) {
-					  case OGRSTCPen:
-            {
-              LineStylePtr poKmlLineStyle = pen2kml(poOgrST, poKmlFactory);
-              poKmlStyle->set_linestyle(poKmlLineStyle);
+    else if ( ( poOgrSTBL = poOgrFeat->GetStyleTable (  ) ) ) {
 
-              break;
+
+        StylePtr poKmlStyle = poKmlFactory->CreateStyle (  );
+
+        /***** parse the style table *****/
+
+        poOgrSTBL->ResetStyleStringReading (  );
+        const char *pszStyleString;
+
+        while ( ( pszStyleString = poOgrSTBL->GetNextStyle (  ) ) ) {
+
+            if ( *pszStyleString == '@' ) {
+
+                /***** is the name in the layer style table *****/
+
+                OGRStyleTable *poOgrSTBLLayer;
+                const char *pszTest = NULL;
+
+                if ( ( poOgrSTBLLayer = poOgrLayer->GetStyleTable (  ) ) )
+                    poOgrSTBLLayer->Find ( pszStyleString );
+
+                if ( pszTest ) {
+                    string oTmp = "#";
+
+                    oTmp.append ( pszStyleString + 1 );
+
+                    poKmlPlacemark->set_styleurl ( oTmp );
+                }
+
+                /***** assume its a dataset style,      *****/
+                /***** mayby the user will add it later *****/
+
+                else {
+                    string oTmp = "style/style.kml#";
+
+                    oTmp.append ( pszStyleString + 1 );
+
+                    poKmlPlacemark->set_styleurl ( oTmp );
+                }
             }
-					  case OGRSTCBrush:
-            {
-						  PolyStylePtr poKmlPolyStyle = brush2kml(poOgrST, poKmlFactory);
-						  poKmlStyle->set_polystyle(poKmlPolyStyle);
 
-              break;
-            }
-					  case OGRSTCSymbol:
-            {
-              IconStylePtr poKmlIconStyle = symbol2kml(poOgrST, poKmlFactory);
-              poKmlStyle->set_iconstyle(poKmlIconStyle);
+            else {
 
-              break;
-            }
-					  case OGRSTCLabel:
-            {
-              LabelStylePtr poKmlLabelStyle = label2kml(poOgrST, poKmlFactory);
-              poKmlStyle->set_labelstyle(poKmlLabelStyle);
+                /***** parse the style string *****/
 
-              break;
+                addstylestring2kml ( pszStyleString, poKmlStyle,
+                                     poKmlFactory );
+
+                /***** add the style to the placemark *****/
+
+                poKmlPlacemark->set_styleselector ( poKmlStyle );
+
             }
-              
-					  case OGRSTCNone:
-					  default:
-						  break;
-				  }
-				}
-				
-        poKmlPlacemark->set_styleselector(poKmlStyle);
-			
-        delete poOgrSM;
-			}
-		}
-	}
+        }
+    }
+}
+
+/******************************************************************************
+ function to read a kml style into ogr's featurestyle
+******************************************************************************/
+
+void kml2featurestyle (
+    PlacemarkPtr poKmlPlacemark,
+    OGRLayer * poOgrLayer,
+    OGRFeature * poOgrFeat )
+{
+
+    /***** does the placemark have a styleselector and a style url? *****/
+
+    if ( poKmlPlacemark->has_styleselector (  )
+         && poKmlPlacemark->has_styleurl (  ) ) {
+
+#warning do the style and styleurl part
+
+
+
+    }
+
+    /***** does the placemark have a style selector *****/
+
+    else if ( poKmlPlacemark->has_styleselector (  ) ) {
+
+        StyleSelectorPtr poKmlStyleSelector =
+            poKmlPlacemark->get_styleselector (  );
+
+        /***** is the style a style? *****/
+
+        if ( poKmlStyleSelector->IsA ( kmldom::Type_Style ) ) {
+            StylePtr poKmlStyle =
+                boost::static_pointer_cast < Style > ( poKmlStyleSelector );
+
+            OGRStyleMgr *poOgrSM = new OGRStyleMgr;
+
+            poOgrSM->InitStyleString ( NULL );
+
+            /***** read the style *****/
+
+            kml2stylestring ( poKmlStyle, poOgrSM );
+
+            /***** add the style to the feature *****/
+
+            poOgrSM->SetFeatureStyleString ( poOgrFeat );
+        }
+
+        /***** is the style a stylemap? *****/
+
+        else if ( poKmlStyleSelector->IsA ( kmldom::Type_StyleMap ) ) {
+#warning need to figure out what to do with a style map
+        }
+
+        /***** is the style a style url *****/
+
+        else if ( poKmlPlacemark->has_styleurl (  ) ) {
+
+            const string poKmlStyleUrl = poKmlPlacemark->get_styleurl (  );
+
+            /***** is the name in the layer style table *****/
+
+            char *pszTmp = CPLStrdup ( poKmlStyleUrl.c_str (  ) );
+
+            OGRStyleTable *poOgrSTBLLayer;
+            const char *pszTest = NULL;
+
+            if ( *pszTmp == '#'
+                 && ( poOgrSTBLLayer = poOgrLayer->GetStyleTable (  ) ) )
+                pszTest = poOgrSTBLLayer->Find ( pszTmp + 1 );
+
+            if ( pszTest ) {
+
+                *pszTmp = '@';
+                poOgrFeat->SetStyleStringDirectly ( pszTmp );
+
+            }
+
+            /***** is it a dataset style? *****/
+
+            else if ( !strncmp ( pszTest, "style/style.kml#", 16 ) ) {
+
+                pszTmp[15] = '@';
+                poOgrFeat->SetStyleString ( pszTmp + 15 );
+
+                CPLFree ( pszTmp );
+
+            }
+
+            /**** its someplace else *****/
+
+            else {
+
+#warning we need to handle style urls in other places
+            }
+        }
+    }
 }

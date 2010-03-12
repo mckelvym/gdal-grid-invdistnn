@@ -26,7 +26,36 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-void field2kml(
-	OGRFeature *poOgrFeat,
-	KmlFactory *poKmlFactory,
-  PlacemarkPtr poKmlPlacemark);
+/******************************************************************************
+ function to output ogr fields in kml
+
+ args:
+        poOgrFeat       pointer to the feature the field is in
+        poKmlFactory    pointer to the libkml dom factory
+        poKmlPlacemark  pointer to the placemark to add to
+ 
+ returns:
+        nothing
+
+ env vars:
+  LIBKML_TIMESTAMP_FIELD         default: OFTDate or OFTDateTime named timestamp
+  LIBKML_TIMESPAN_BEGIN_FIELD    default: OFTDate or OFTDateTime named begin
+  LIBKML_TIMESPAN_END_FIELD      default: OFTDate or OFTDateTime named end
+  LIBKML_DESCRIPTION_FIELD       default: none
+  LIBKML_NAME_FIELD              default: OFTString field named name
+
+
+******************************************************************************/
+
+void field2kml (
+    OGRFeature * poOgrFeat,
+    KmlFactory * poKmlFactory,
+    PlacemarkPtr poKmlPlacemark );
+
+/******************************************************************************
+ function to read kml into ogr fields
+******************************************************************************/
+
+void kml2field (
+    OGRFeature * poOgrFeat,
+    PlacemarkPtr poKmlPlacemark );

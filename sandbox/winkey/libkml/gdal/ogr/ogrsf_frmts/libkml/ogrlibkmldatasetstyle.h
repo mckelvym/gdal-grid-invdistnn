@@ -26,37 +26,14 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-/*******************************************************************************
-	funtion to write out a ogr geometry to kml
-	
-args:
-						poOgrGeom		the ogr geometry
-						extra		used in recursion, just pass -1
-						wkb25D	used in recursion, just pass 0
-						poKmlFactory	pointer to the libkml dom factory
+#include <ogr_featurestyle.h>
 
-returns:
-						ElementPtr to the geometry created
+#include <kml/dom.h>
 
-*******************************************************************************/
+using kmldom::KmlFactory;
+using kmldom::DocumentPtr;
 
-ElementPtr geom2kml (
-    OGRGeometry * poOgrGeom,
-    int extra,
-    int wkb25D,
-    KmlFactory * poKmlFactory );
-
-
-/******************************************************************************
- function to read a kml geometry and translate to ogr
-
-Args:
-            poKmlGeometry   pointer to the kml geometry to translate
-
-Returns:
-            pointer to the new ogr geometry object
-
-******************************************************************************/
-
-OGRGeometry *kml2geom (
-    GeometryPtr poKmlGeometry );
+void datasetstyletable2kml (
+    OGRStyleTable * poOgrStyleTable,
+    KmlFactory * poKmlFactory,
+    DocumentPtr poKmlDocument );
