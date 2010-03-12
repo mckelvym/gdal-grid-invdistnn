@@ -36,7 +36,7 @@
 
 CPL_CVSID("$Id$");
 
-CURL *http_persistent_handle;
+CURL *http_persistent_handle = NULL;
 
 
 /************************************************************************/
@@ -109,7 +109,7 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
               "GDAL/OGR not compiled with libcurl support, remote requests not supported." );
     return NULL;
 #else
-    CURL *http_handle;
+    CURL *http_handle = NULL;
 
     const char *pszPersistent = CSLFetchNameValue( papszOptions, "PERSISTENT" );
     if (pszPersistent)
