@@ -40,7 +40,10 @@ PlacemarkPtr feat2kml (
     OGRFeature * poOgrFeat,
     KmlFactory * poKmlFactory );
 
-/*********
+/******************************************************************************
+ function to read a kml placemark into a ogr feature
+******************************************************************************/
+
 OGRFeature *kml2feat(
     PlacemarkPtr poKmlPlacemark,
     OGRLayer * poOgrLayer,
