@@ -456,11 +456,11 @@ int main( int argc, char ** argv )
     {  
         int nUpXOff, nUpYOff, nUpXSize, nUpYSize;
 
-        eAStatus = poAsyncReq->GetNextUpdatedRegion( true, 100, 
+        eAStatus = poAsyncReq->GetNextUpdatedRegion( 100, 
                                                      &nUpXOff, &nUpYOff, 
                                                      &nUpXSize, &nUpYSize );
 
-        if( eAStatus != GARIO_UPDATE )
+        if( eAStatus != GARIO_UPDATE && eAStatus != GARIO_COMPLETE )
             continue;
 
         if( !bQuiet )
@@ -476,9 +476,11 @@ int main( int argc, char ** argv )
                                + nUpXOff * nPixelSpace 
                                + nUpYOff * nLineSpace, 
                                nUpXSize, nUpYSize, eOutputType,
-                               nBandCount, panBandList, 
+                               nBandCount, NULL, 
                                nPixelSpace, nLineSpace, nBandSpace );
         poAsyncReq->UnlockBuffer();
+
+        GDALFlushCache( hDstDS );
 
     } while( eAStatus != GARIO_ERROR && eAStatus != GARIO_COMPLETE
              && eErr == CE_None );
@@ -502,7 +504,3 @@ int main( int argc, char ** argv )
     GDALDumpOpenDatasets( stderr );
     GDALDestroyDriverManager();
 }
-
-
-
-
