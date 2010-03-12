@@ -26,18 +26,17 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-LineStylePtr pen2kml(
-	OGRStyleTool *poOgrST,
-  KmlFactory *poKmlFactory);
+void addstylestring2kml (
+    const char *stylestring,
+    StylePtr poKmlStyle,
+    KmlFactory * poKmlFactory );
 
-PolyStylePtr brush2kml(
-	OGRStyleTool *poOgrST,
-  KmlFactory *poKmlFactory);
 
-IconStylePtr symbol2kml(
-	OGRStyleTool *poOgrST,
-  KmlFactory *poKmlFactory);
 
-LabelStylePtr label2kml(
-	OGRStyleTool *poOgrST,
-  KmlFactory *poKmlFactory);
+/******************************************************************************
+ kml2stylemgr
+******************************************************************************/
+
+void kml2stylestring(
+    StylePtr poKmlStyle,
+    OGRStyleMgr *poOgrSM);

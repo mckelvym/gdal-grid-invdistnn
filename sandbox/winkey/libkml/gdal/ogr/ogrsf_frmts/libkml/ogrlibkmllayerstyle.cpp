@@ -41,88 +41,47 @@ using kmldom::LabelStylePtr;
 #include "ogrlibkmlstyle.h"
 #include "ogrlibkmllayerstyle.h"
 
-void styletable2kml(
-	OGRStyleTable *poOgrStyleTable,
-	KmlFactory *poKmlFactory,
-  DocumentPtr poKmlDocument)
+void styletable2kml (
+    OGRStyleTable * poOgrStyleTable,
+    KmlFactory * poKmlFactory,
+    DocumentPtr poKmlDocument )
 {
-	
+
   /***** parse the style table *****/
-		
-	poOgrStyleTable->ResetStyleStringReading();
-	const char *pszStyleString;
-	while ((pszStyleString = poOgrStyleTable->GetNextStyle())) {
-			const char *pszStyleName = poOgrStyleTable->GetLastStyleName();
-			
-		if (*pszStyleString == '@')
-			fprintf(stderr, "Warning: kml does not support url's at the layer level\n");
-			
-		/* we would actualy have to parse the dataset style and combine
-		   the 2 styles into 1. only one linestyle etc.. per style aswell */
-			
-		/* but this is not practical as the style.kml can't be swaped out later */
-			
-		else {
-				
-			/***** add the style header to the kml *****/
 
-      StylePtr poKmlStyle = poKmlFactory->CreateStyle();
+    poOgrStyleTable->ResetStyleStringReading (  );
+    const char *pszStyleString;
 
-      poKmlStyle->set_id(pszStyleName + 1);
-        
-			/***** create and init a style mamager with the style string *****/
-				
-			OGRStyleMgr *poOgrSM = new OGRStyleMgr;
-  		poOgrSM->InitStyleString(pszStyleString);;
-				
-			/***** loop though the style parts *****/
-				
-			int i;
-			for(i = 0; i < poOgrSM->GetPartCount(NULL) ; i++) {
-				OGRStyleTool *poOgrST = poOgrSM->GetPart(i, NULL);
-					
-			  switch(poOgrST->GetType()) {
-				  case OGRSTCPen:
-          {
-            LineStylePtr poKmlLineStyle = pen2kml(poOgrST, poKmlFactory);
-            poKmlStyle->set_linestyle(poKmlLineStyle);
+    while ( ( pszStyleString = poOgrStyleTable->GetNextStyle (  ) ) ) {
+        const char *pszStyleName = poOgrStyleTable->GetLastStyleName (  );
 
-            break;
-          }
-				  case OGRSTCBrush:
-          {
-					  PolyStylePtr poKmlPolyStyle = brush2kml(poOgrST, poKmlFactory);
-					  poKmlStyle->set_polystyle(poKmlPolyStyle);
+        if ( *pszStyleString == '@' )
+            fprintf ( stderr,
+                      "Warning: kml does not support url's at the layer level\n" );
 
-            break;
-          }
-		  	  case OGRSTCSymbol:
-          {
-            IconStylePtr poKmlIconStyle = symbol2kml(poOgrST, poKmlFactory);
-            poKmlStyle->set_iconstyle(poKmlIconStyle);
+        /* we would actualy have to parse the dataset style and combine
+           the 2 styles into 1. only one linestyle etc.. per style aswell */
 
-            break;
-          }
-	  		  case OGRSTCLabel:
-          {
-            LabelStylePtr poKmlLabelStyle = label2kml(poOgrST, poKmlFactory);
-            poKmlStyle->set_labelstyle(poKmlLabelStyle);
+        /* but this is not practical as the style.kml can't be swaped out later */
 
-            break;
-          }
-              
-				  case OGRSTCNone:
-				  default:
-					  break;
-			  }
-	  	}
-				
-      poKmlDocument->set_styleselector(poKmlStyle);
-			
-      delete poOgrSM;
+        else {
 
-		}				
-  }
+            /***** add the style header to the kml *****/
 
-  return;
+            StylePtr poKmlStyle = poKmlFactory->CreateStyle (  );
+
+            poKmlStyle->set_id ( pszStyleName + 1 );
+
+            /***** parse the style string *****/
+
+            addstylestring2kml ( pszStyleString, poKmlStyle, poKmlFactory );
+
+            /***** add the style to the document *****/
+
+            poKmlDocument->set_styleselector ( poKmlStyle );
+
+        }
+    }
+
+    return;
 }

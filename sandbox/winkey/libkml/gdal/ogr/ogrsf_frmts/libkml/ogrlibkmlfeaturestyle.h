@@ -26,8 +26,17 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-void featurestyle2kml(
-	OGRLayer *poKOgrLayer,
-	OGRFeature *poOgrFeat,
-  KmlFactory *poKmlFactory,
-  PlacemarkPtr poKmlPlacemark);
+void featurestyle2kml (
+    OGRLayer * poKOgrLayer,
+    OGRFeature * poOgrFeat,
+    KmlFactory * poKmlFactory,
+    PlacemarkPtr poKmlPlacemark );
+
+/******************************************************************************
+ function to read a kml style into ogr's featurestyle
+******************************************************************************/
+
+void kml2featurestyle (
+    PlacemarkPtr poKmlPlacemark,
+    OGRLayer * poOgrLayer,
+    OGRFeature *poOgrFeat);

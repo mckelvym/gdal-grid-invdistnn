@@ -31,7 +31,17 @@
 using kmldom::KmlFactory;
 using kmldom::PlacemarkPtr;
 
-PlacemarkPtr feat2kml(
-	OGRLayer *poKOgrLayer,
-	OGRFeature *poOgrFeat,
-	KmlFactory *poKmlFactory);
+/******************************************************************************
+ function to output a ogr feature to a kml placemark
+******************************************************************************/
+
+PlacemarkPtr feat2kml (
+    OGRLayer * poKOgrLayer,
+    OGRFeature * poOgrFeat,
+    KmlFactory * poKmlFactory );
+
+/*********
+OGRFeature *kml2feat(
+    PlacemarkPtr poKmlPlacemark,
+    OGRLayer * poOgrLayer,
+    OGRFeatureDefn *poOgrFeatDefn);

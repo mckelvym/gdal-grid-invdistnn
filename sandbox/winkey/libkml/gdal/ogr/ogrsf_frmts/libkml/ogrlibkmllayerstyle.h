@@ -33,7 +33,7 @@
 using kmldom::KmlFactory;
 using kmldom::DocumentPtr;
 
-void styletable2kml(
-	OGRStyleTable *poOgrStyleTable,
-	KmlFactory *poKmlFactory,
-  DocumentPtr poKmlDocument);
+void styletable2kml (
+    OGRStyleTable * poOgrStyleTable,
+    KmlFactory * poKmlFactory,
+    DocumentPtr poKmlDocument );
