@@ -31,9 +31,15 @@
 #include <kml/dom.h>
 
 using kmldom::KmlFactory;
-using kmldom::DocumentPtr;
+using kmldom::ContainerPtr;
+using kmldom::StylePtr;
 
 void datasetstyletable2kml (
     OGRStyleTable * poOgrStyleTable,
     KmlFactory * poKmlFactory,
-    DocumentPtr poKmlDocument );
+    ContainerPtr poKmlContainer );
+
+void kml2datasetstyletable (
+    OGRStyleTable * poOgrStyleTable,
+    StylePtr poKmlStyle );
+

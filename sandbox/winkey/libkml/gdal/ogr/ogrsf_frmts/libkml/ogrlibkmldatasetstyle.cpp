@@ -33,7 +33,7 @@
 using kmldom::KmlFactory;
 using kmldom::DocumentPtr;
 using kmldom::StylePtr;
-using kmldom::Style;
+using kmldom::ObjectPtr;
 using kmldom::StyleSelectorPtr;
 using kmldom::IconStylePtr;
 using kmldom::PolyStylePtr;
@@ -46,7 +46,7 @@ using kmldom::LabelStylePtr;
 void datasetstyletable2kml (
     OGRStyleTable * poOgrStyleTable,
     KmlFactory * poKmlFactory,
-    DocumentPtr poKmlDocument )
+    ContainerPtr poKmlContainer  )
 {
 
   /***** parse the style table *****/
@@ -67,9 +67,11 @@ void datasetstyletable2kml (
 
         addstylestring2kml ( pszStyleString, poKmlStyle, poKmlFactory );
 
-        /***** add the style to the document *****/
+        /***** add the style to the container *****/
 
-        poKmlDocument->set_styleselector ( poKmlStyle );
+        ObjectPtr pokmlObject = boost::static_pointer_cast <kmldom::Object> (poKmlStyle) ;
+        poKmlContainer->add_feature ( boost::static_pointer_cast <kmldom::Feature>(pokmlObject));
+        
 
     }
 
@@ -80,47 +82,40 @@ void datasetstyletable2kml (
 
 void kml2datasetstyletable (
     OGRStyleTable * poOgrStyleTable,
-    DocumentPtr poKmlDocument )
+    StylePtr poKmlStyle )
 {
 
-#warning fix tyhis documents can have multiple styles
+    
+    /***** no reason to add it if it don't have an id *****/
+    
+    if ( poKmlStyle->has_id (  ) ) {  
 
-   /***** does the Document have a style selector *****/
+        OGRStyleMgr *poOgrSM = new OGRStyleMgr ( poOgrStyleTable );
 
-    if ( poKmlDocument->has_styleselector (  ) ) {
+        poOgrSM->InitStyleString ( NULL );
 
-        StyleSelectorPtr poKmlStyleSelector =
-            poKmlDocument->get_styleselector (  );
+        /***** read the style *****/
 
-        /***** is the style a style? *****/
+        kml2stylestring ( poKmlStyle, poOgrSM );
 
-        if ( poKmlStyleSelector->IsA ( kmldom::Type_Style ) && poKmlStyleSelector->has_id (  ) ) {  // note: no reason to add it if it don't have an id'
-            StylePtr poKmlStyle =
-                boost::static_pointer_cast < Style > ( poKmlStyleSelector );
+        /***** add the style to the style table *****/
 
-            OGRStyleMgr *poOgrSM = new OGRStyleMgr ( poOgrStyleTable );
-
-            poOgrSM->InitStyleString ( NULL );
-
-            /***** read the style *****/
-
-            kml2stylestring ( poKmlStyle, poOgrSM );
-
-            /***** add the style to the style table *****/
+        const std::string oName = poKmlStyle->get_id (  );
 
 
-            const std::string oName = poKmlStyle->get_id (  );
+        poOgrSM->AddStyle ( CPLString (  ). Printf ( "@%s",
+                                                    oName.c_str (  ) ),
+                            NULL );
+        
+        /***** cleanup the style manager *****/
 
-
-            poOgrSM->AddStyle ( CPLString (  ).
-                                Printf ( "@%s", oName.c_str (  ) ), NULL );
-
-        }
-
-        /***** is the style a stylemap? *****/
-
-        else if ( poKmlStyleSelector->IsA ( kmldom::Type_StyleMap ) ) {
-#warning need to figure out what to do with a style map
-        }
+        delete poOgrSM;
     }
+
+    else {
+        CPLError ( CE_Failure, CPLE_AppDefined,
+                   "ERROR Parseing kml Style: No id");
+    }
+
+    return;
 }

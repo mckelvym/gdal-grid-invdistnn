@@ -82,28 +82,9 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 
     /***** store the root element pointer *****/
 
-    m_poKmlLayerRoot = poKmlRoot;
-
-    /***** if its the <Kml> we want its child *****/
+    m_poKmlLayer = boost::static_pointer_cast <kmldom::Container>( poKmlRoot);
     
-    if (poKmlRoot->IsA (kmldom::Type_kml) ) {
-        KmlPtr poKml = boost::static_pointer_cast <Kml> (poKmlRoot);
-        if (poKml->has_feature() ) {
-            m_poKmlLayer = boost::static_pointer_cast <Container>(poKml->get_feature());
-        }   
-    }
-
-    /***** if its a container we will use this *****/
-    
-    else if (poKmlRoot->IsA (kmldom::Type_Container) ) {
-        m_poKmlLayer = boost::static_pointer_cast <Container>( poKmlRoot);
-    }
-
-    else {
-        printf ("not a kml or a container\n");
         
-#warning what if the root is not a kml or a container?
-    }
     
     nFeatures = m_poKmlLayer->get_feature_array_size() ;
     iFeature = 0;

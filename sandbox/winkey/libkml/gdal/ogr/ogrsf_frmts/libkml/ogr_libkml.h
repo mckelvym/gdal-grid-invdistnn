@@ -32,9 +32,9 @@
 #include <kml/dom.h>
 
 using kmldom::KmlFactory;
+using kmldom::KmlPtr;
 using kmldom::DocumentPtr;
 using kmldom::ContainerPtr;
-using kmldom::Container;
 using kmldom::ElementPtr;
 using kmlengine::KmzFile;
 using kmlengine::KmzFilePtr;
@@ -112,15 +112,34 @@ class OGRLIBKMLLayer:public OGRLayer
 class OGRLIBKMLDataSource:public OGRDataSource
 {
     char                     *pszName;
+
+    /***** layers *****/
     
     OGRLIBKMLLayer          **papoLayers;
     int                       nLayers;
-    int                       bUpdate;
+    int                       nAlloced;
+    
 
+    int                       bUpdate;
+    int                       bUpdated;
+    
+    /***** for kml files *****/
+    int                       m_isKml;
+    KmlPtr                    m_poKmlDSKml;
+    ContainerPtr              m_poKmlDSContainer;
+
+    /***** this needs reworked *****/
+    
     KmzFile                  *m_poKmlKmzfile;
     KmlFile                  *kmlfile;
-    KmlFactory               *m_poKmlFactory;
     ContainerPtr              m_poKmlDoc_kml;
+
+    /***** the kml factory *****/
+    
+    KmlFactory               *m_poKmlFactory;
+    
+    /***** style table pointer *****/
+    
     OGRStyleTable            *m_poStyleTable;
 
   public:
@@ -152,7 +171,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     int                       TestCapability (const char * );
     KmlFactory               *GetKmlFactory() { return m_poKmlFactory; };
     KmzFile                  *GetKmz() { return m_poKmlKmzfile; };
-
+    int                       IsKml() {return m_isKml;};
   private:
     int                       OpenKmz ( const char *pszFilename,
                                         int bUpdate );
