@@ -173,12 +173,41 @@ class OGRLIBKMLDataSource:public OGRDataSource
     KmzFile                  *GetKmz() { return m_poKmlKmzfile; };
     int                       IsKml() {return m_isKml;};
   private:
+
+    /***** methods to write out various datasource types at destroy *****/
+
+    void                      WriteKml();
+
+    /***** methods to open various datasource types *****/
+        
     int                       OpenKmz ( const char *pszFilename,
                                         int bUpdate );
     int                       OpenKml ( const char *pszFilename,
                                         int bUpdate );
     int                       OpenDir ( const char *pszFilename,
                                         int bUpdate );
+
+    /***** methods to create various datasource types *****/
+    
+    int                       CreateKml ( const char *pszFilename,
+                                          char **papszOptions );
+    int                       CreateKmz ( const char *pszFilename,
+                                          char **papszOptions );
+    int                       CreateDir ( const char *pszFilename,
+                                          char **papszOptions );
+
+    /***** methods to create layers on various datasource types *****/
+    
+    OGRLayer                 *CreateLayerKml ( const char *pszLayerName,
+                                               OGRSpatialReference * poOgrSRS,
+                                               OGRwkbGeometryType eGType,
+                                               char **papszOptions );
+        
+    /***** methods to write a styletable to various datasource types *****/
+
+    void                      SetStyleTable2Kml ( OGRStyleTable * poStyleTable );
+    
+     
 };
 
 

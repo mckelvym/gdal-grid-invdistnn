@@ -56,12 +56,28 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
     papoLayers = NULL;
     nLayers = 0;
     nAlloced = 0;
-    
+
     m_poKmlKmzfile = NULL;
     m_poKmlDSKml = NULL;
     m_poKmlDSContainer = NULL;
     m_poStyleTable = NULL;
-    
+
+}
+
+void OGRLIBKMLDataSource::WriteKml (
+     )
+{
+    std::string oKmlFilename ( pszName );
+    if ( m_poKmlDSKml ) {
+        std::string oKmlOut = kmldom::SerializePretty ( m_poKmlDSKml );
+        kmlbase::File::WriteStringToFile ( oKmlOut, oKmlFilename );
+    }
+    else if ( m_poKmlDSContainer ) {
+        std::string oKmlOut = kmldom::SerializePretty ( m_poKmlDSContainer );
+        kmlbase::File::WriteStringToFile ( oKmlOut, oKmlFilename );
+    }
+
+    return;
 }
 
 /******************************************************************************
@@ -74,30 +90,21 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
     /***** some types of output require the write to happen at the very end *****/
 
     /***** kml *****/
-    
-    if ( bUpdate && EQUAL ( CPLGetExtension ( pszName ), "kml" ) ) {
-        std::string oKmlFilename(pszName);
-        if (m_poKmlDSKml) {
-            std::string oKmlOut = kmldom::SerializePretty ( m_poKmlDSKml );
-            kmlbase::File::WriteStringToFile (oKmlOut, oKmlFilename);
-        }
-        else if (m_poKmlDSContainer) {
-            std::string oKmlOut = kmldom::SerializePretty ( m_poKmlDSContainer );
-            kmlbase::File::WriteStringToFile (oKmlOut, oKmlFilename);
-        }
-    }
-    
+
+    if ( bUpdate && bUpdated && IsKml (  ) )
+        WriteKml (  );
+
     /***** kmz *****/
 
-    else if ( bUpdate && EQUAL ( CPLGetExtension ( pszName ), "kmz" ) ) {
+    else if ( bUpdate && bUpdated && IsKml (  ) ) {
 
     }
-    
- 
- 
+
+
+
 
     CPLFree ( pszName );
-    
+
     delete m_poKmlKmzfile;
 
     for ( int i = 0; i < nLayers; i++ )
@@ -136,7 +143,7 @@ int OGRLIBKMLDataSource::OpenKmz (
 
     /***** create a SRS                                    *****/
     /***** this was shamelessly swiped from the kml driver *****/
-    
+
     OGRSpatialReference *poOgrSRS =
         new OGRSpatialReference ( "GEOGCS[\"WGS 84\", "
                                   "   DATUM[\"WGS_1984\","
@@ -153,7 +160,7 @@ int OGRLIBKMLDataSource::OpenKmz (
 
     kmlengine::href_vector_t oKmlLinksVector;
     if ( !kmlengine::GetLinks ( oKmlKml, &oKmlLinksVector ) ) {
-        printf("gotcha\n");
+        printf ( "gotcha\n" );
 #warning this does not work, i think mayby it finds style links
         /***** there is no links *****/
         /***** we will concider the Doc.kml a layer *****/
@@ -255,7 +262,7 @@ int OGRLIBKMLDataSource::OpenKml (
 {
     std::string oKmlKml;
 
-    if ( !kmlbase::File::ReadFileToString( pszFilename, &oKmlKml )) {
+    if ( !kmlbase::File::ReadFileToString ( pszFilename, &oKmlKml ) ) {
         CPLError ( CE_Failure, CPLE_OpenFailed,
                    "%s is not a valid kml file", pszFilename );
         return FALSE;
@@ -263,7 +270,7 @@ int OGRLIBKMLDataSource::OpenKml (
 
     /***** create a SRS                                    *****/
     /***** this was shamelessly swiped from the kml driver *****/
-    
+
     OGRSpatialReference *poOgrSRS =
         new OGRSpatialReference ( "GEOGCS[\"WGS 84\", "
                                   "   DATUM[\"WGS_1984\","
@@ -275,150 +282,159 @@ int OGRLIBKMLDataSource::OpenKml (
                                   "       UNIT[\"degree\",0.01745329251994328,"
                                   "           AUTHORITY[\"EPSG\",\"9122\"]],"
                                   "           AUTHORITY[\"EPSG\",\"4326\"]]" );
-    
+
 
 
     /***** parse the kml into the DOM *****/
 
     std::string oKmlErrors;
-        
+
     ElementPtr poKmlRoot = kmldom::Parse ( oKmlKml, &oKmlErrors );
 
     if ( !poKmlRoot ) {
         CPLError ( CE_Failure, CPLE_OpenFailed,
                    "ERROR Parseing kml %s :%s",
-                    pszFilename, oKmlErrors.c_str (  ) );
+                   pszFilename, oKmlErrors.c_str (  ) );
 #warning do cleanup here
         return FALSE;
     }
 
     /***** is the root a <kml> *****/
-    
-    if (poKmlRoot->IsA (kmldom::Type_kml) ) {
-        m_poKmlDSKml = boost::static_pointer_cast <kmldom::Kml>(poKmlRoot);
 
-        FeaturePtr poKmlFeat = m_poKmlDSKml->get_feature();
+    if ( poKmlRoot->IsA ( kmldom::Type_kml ) ) {
+        m_poKmlDSKml =
+            boost::static_pointer_cast < kmldom::Kml > ( poKmlRoot );
+
+        FeaturePtr poKmlFeat = m_poKmlDSKml->get_feature (  );
 
         /***** is the child of root some type of container *****/
-        
-        if (poKmlFeat->IsA (kmldom::Type_Container))
-            m_poKmlDSContainer = boost::static_pointer_cast <kmldom::Container>(poKmlFeat);
+
+        if ( poKmlFeat->IsA ( kmldom::Type_Container ) )
+            m_poKmlDSContainer =
+                boost::static_pointer_cast < kmldom::Container > ( poKmlFeat );
 
         /***** its not we have no layers to read *****/
-        
+
         else {
             CPLError ( CE_Failure, CPLE_OpenFailed,
                        "ERROR Parseing kml %s :%s %s",
                        pszFilename, "This file does not fit the OGR model,",
-                      "there is no container element at the root.");
+                       "there is no container element at the root." );
 #warning do cleanup here
             return FALSE;
         }
     }
 
     /***** is the root some type of container *****/
-    
-    else if (poKmlRoot->IsA (kmldom::Type_Container))
-        m_poKmlDSContainer = boost::static_pointer_cast <kmldom::Container>(poKmlRoot);
+
+    else if ( poKmlRoot->IsA ( kmldom::Type_Container ) )
+        m_poKmlDSContainer =
+            boost::static_pointer_cast < kmldom::Container > ( poKmlRoot );
 
     /***** its not we have no layers to read *****/
-        
+
     else {
         CPLError ( CE_Failure, CPLE_OpenFailed,
                    "ERROR Parseing kml %s :%s %s",
-                    pszFilename, "This file does not fit the OGR model,",
-                    "there is no container element at the root.");
+                   pszFilename, "This file does not fit the OGR model,",
+                   "there is no container element at the root." );
 #warning do cleanup here
         return FALSE;
     }
 
     /***** get how many features the container has *****/
-    
-    size_t nKmlFeatures = m_poKmlDSContainer->get_feature_array_size ();
+
+    size_t nKmlFeatures = m_poKmlDSContainer->get_feature_array_size (  );
 
 
     /***** alocate memory for the layer array *****/
 
     papoLayers =
-        ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) * nKmlFeatures);
+        ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) *
+                                          nKmlFeatures );
 
     nAlloced = nKmlFeatures;
-    
+
     /***** loop over the container to seperate the style, layers, etc *****/
-    
+
     int nPlacemarks = 0;
     size_t iKmlFeature;
-    for (iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
-        FeaturePtr poKmlFeat = m_poKmlDSContainer->get_feature_array_at (iKmlFeature);
+
+    for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
+        FeaturePtr poKmlFeat =
+            m_poKmlDSContainer->get_feature_array_at ( iKmlFeature );
 
         /***** style *****/
-        
-        if (poKmlFeat->IsA(kmldom::Type_Style)) {
-            if (!m_poStyleTable)
-                m_poStyleTable = new OGRStyleTable();
-                ElementPtr poKmlElement = boost::static_pointer_cast <kmldom::Element>(poKmlFeat);
-            kml2datasetstyletable (m_poStyleTable, boost::static_pointer_cast <kmldom::Style>(poKmlElement));
+
+        if ( poKmlFeat->IsA ( kmldom::Type_Style ) ) {
+            if ( !m_poStyleTable )
+                m_poStyleTable = new OGRStyleTable (  );
+            ElementPtr poKmlElement =
+                boost::static_pointer_cast < kmldom::Element > ( poKmlFeat );
+            kml2datasetstyletable ( m_poStyleTable,
+                                    boost::static_pointer_cast <
+                                    kmldom::Style > ( poKmlElement ) );
         }
 
         /***** schema *****/
 
-        if (poKmlFeat->IsA(kmldom::Type_Schema)) {
+        if ( poKmlFeat->IsA ( kmldom::Type_Schema ) ) {
         }
 
         /***** container *****/
 
-        if (poKmlFeat->IsA(kmldom::Type_Container)) {
+        if ( poKmlFeat->IsA ( kmldom::Type_Container ) ) {
 
             /***** see if the container has a name *****/
 
             std::string oKmlFeatName;
-            if (poKmlFeat->has_name()) {
-                oKmlFeatName = poKmlFeat->get_name();
+            if ( poKmlFeat->has_name (  ) ) {
+                oKmlFeatName = poKmlFeat->get_name (  );
             }
 
             /***** use the feature index number as the name *****/
             /***** not sure i like this c++ ich *****/
-            
+
             else {
                 std::stringstream oOut;
                 oOut << iKmlFeature;
-                oKmlFeatName = oOut.str();
+                oKmlFeatName = oOut.str (  );
             }
-            
+
             /***** create the layer *****/
 
 #warning we need a way to pass schema data for a layerdefn
             OGRLIBKMLLayer *poOgrLayer =
-                new OGRLIBKMLLayer ( oKmlFeatName.c_str(),
+                new OGRLIBKMLLayer ( oKmlFeatName.c_str (  ),
                                      poOgrSRS, wkbUnknown, this,
                                      poKmlFeat );
-            
+
             papoLayers[nLayers++] = poOgrLayer;
         }
-        
-        if (poKmlFeat->IsA(kmldom::Type_Placemark)) {
+
+        if ( poKmlFeat->IsA ( kmldom::Type_Placemark ) ) {
             nPlacemarks++;
         }
     }
 
     /***** if there is placemarks in the root its a layer *****/
 
-    
-    if (nPlacemarks) {
+
+    if ( nPlacemarks ) {
 
 #warning the layer name needs to be the basename of the file
 #warning we need a way to pass schema data for a layerdefn
-        OGRLIBKMLLayer *poOgrLayer =
-            new OGRLIBKMLLayer ( pszFilename,
-                                 poOgrSRS, wkbUnknown, this,
-                                 m_poKmlDSContainer );
+        OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( pszFilename,
+                                                          poOgrSRS, wkbUnknown,
+                                                          this,
+                                                          m_poKmlDSContainer );
 
 
         papoLayers[nLayers++] = poOgrLayer;
     }
 
     delete poOgrSRS;
-    
+
     return TRUE;
 }
 
@@ -432,14 +448,14 @@ int OGRLIBKMLDataSource::OpenDir (
     int bUpdate )
 {
 
-    char ** papszDirList = NULL;
-    
-    if (!( papszDirList = VSIReadDir(pszFilename)))
+    char **papszDirList = NULL;
+
+    if ( !( papszDirList = VSIReadDir ( pszFilename ) ) )
         return FALSE;
-   
+
    /***** create a SRS                                    *****/
    /***** this was shamelessly swiped from the kml driver *****/
-    
+
     OGRSpatialReference *poOgrSRS =
         new OGRSpatialReference ( "GEOGCS[\"WGS 84\", "
                                   "   DATUM[\"WGS_1984\","
@@ -452,26 +468,29 @@ int OGRLIBKMLDataSource::OpenDir (
                                   "           AUTHORITY[\"EPSG\",\"9122\"]],"
                                   "           AUTHORITY[\"EPSG\",\"4326\"]]" );
 
-    
-    
-    int nFiles = CSLCount (papszDirList);
+
+
+    int nFiles = CSLCount ( papszDirList );
 
     /***** alocate memory for the layer array *****/
 
     papoLayers =
-        ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) * nFiles);
-    
+        ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) *
+                                          nFiles );
+
     int iFile;
-    for (iFile = 0; iFile < nFiles; iFile++) {
+
+    for ( iFile = 0; iFile < nFiles; iFile++ ) {
 
         if ( !EQUAL ( CPLGetExtension ( papszDirList[iFile] ), "kml" ) )
             continue;
-        
+
         /***** read the file *****/
         std::string oKmlKml;
-        const char *pszFilePath = CPLFormFilename(pszFilename, papszDirList[iFile], NULL);
-        
-        if ( !kmlbase::File::ReadFileToString( pszFilePath, &oKmlKml )) {
+        const char *pszFilePath =
+            CPLFormFilename ( pszFilename, papszDirList[iFile], NULL );
+
+        if ( !kmlbase::File::ReadFileToString ( pszFilePath, &oKmlKml ) ) {
             CPLError ( CE_Failure, CPLE_OpenFailed,
                        "%s is not a valid kml file", pszFilename );
             continue;
@@ -482,37 +501,36 @@ int OGRLIBKMLDataSource::OpenDir (
         std::string oKmlErrors;
         ElementPtr poKmlRoot = kmldom::Parse ( oKmlKml, &oKmlErrors );
 
-        
+
         if ( !poKmlRoot ) {
             CPLError ( CE_Failure, CPLE_OpenFailed,
                        "ERROR Parseing kml layer %s from %s :%s",
-                       pszFilePath,
-                       pszFilename, oKmlErrors.c_str (  ) );
+                       pszFilePath, pszFilename, oKmlErrors.c_str (  ) );
 
             continue;
         }
 
         /***** create the layer *****/
 
-        OGRLIBKMLLayer *poOgrLayer =
-            new OGRLIBKMLLayer ( pszFilePath,
-                                 poOgrSRS, wkbUnknown, this,
-                                 poKmlRoot );
+        OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( pszFilePath,
+                                                          poOgrSRS, wkbUnknown,
+                                                          this,
+                                                          poKmlRoot );
 
 
         papoLayers[nLayers++] = poOgrLayer;
-    
- 
+
+
 
     }
 
     delete poOgrSRS;
-    
-    if (!nLayers) {
+
+    if ( !nLayers ) {
         return FALSE;
 #warning we need to do cleanup here
     }
-    
+
     return TRUE;
 }
 
@@ -526,19 +544,19 @@ int OGRLIBKMLDataSource::Open (
 {
 
     pszName = CPLStrdup ( pszFilename );
-    
+
     /***** dir *****/
 
-    VSIStatBufL sStatBuf = {};
-    if ( !VSIStatL (pszFilename, &sStatBuf) &&
-         VSI_ISDIR(sStatBuf.st_mode) )
+    VSIStatBufL sStatBuf = { };
+    if ( !VSIStatL ( pszFilename, &sStatBuf ) &&
+         VSI_ISDIR ( sStatBuf.st_mode ) )
         return OpenDir ( pszFilename, bUpdate );
-        
+
    /***** kml *****/
 
     else if ( EQUAL ( CPLGetExtension ( pszFilename ), "kml" ) )
         return OpenKml ( pszFilename, bUpdate );
-    
+
     /***** kmz *****/
 
     else if ( EQUAL ( CPLGetExtension ( pszFilename ), "kmz" ) )
@@ -546,6 +564,55 @@ int OGRLIBKMLDataSource::Open (
 
     else
         return FALSE;
+
+    return TRUE;
+}
+
+/******************************************************************************
+ method to create a single file .kml ds
+******************************************************************************/
+
+int OGRLIBKMLDataSource::CreateKml (
+    const char *pszFilename,
+    char **papszOptions )
+{
+    m_poKmlFactory = KmlFactory::GetFactory (  );
+    m_poKmlDSKml = m_poKmlFactory->CreateKml (  );
+    DocumentPtr poKmlDocument = m_poKmlFactory->CreateDocument (  );
+
+    m_poKmlDSKml->set_feature ( poKmlDocument );
+    m_isKml = TRUE;
+
+    return true;
+}
+
+/******************************************************************************
+ method to create a .kmz ds
+******************************************************************************/
+
+int OGRLIBKMLDataSource::CreateKmz (
+    const char *pszFilename,
+    char **papszOptions )
+{
+
+
+    /***** create the doc.kml  *****/
+
+    const char *namefield = CPLGetConfigOption ( "LIBKML_USE_DOC.KML", "yes" );
+
+    if ( !strcmp ( namefield, "yes" ) ) {
+        DocumentPtr poKmlDocument = m_poKmlFactory->CreateDocument (  );
+
+        KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
+
+        poKmlKml->set_feature ( poKmlDocument );
+
+        std::string strKmlOut = kmldom::SerializePretty ( poKmlKml );
+
+        m_poKmlKmzfile->AddFile ( strKmlOut, "Doc.Kml" );
+
+        m_poKmlDoc_kml = poKmlDocument;
+    }
 
     return TRUE;
 }
@@ -564,63 +631,28 @@ int OGRLIBKMLDataSource::Create (
     char **papszOptions )
 {
 
+    int bResult = FALSE;
+
     /***** kml *****/
 
-    if (EQUAL( CPLGetExtension(pszFilename), "kml" )) {
-
-        m_poKmlFactory = KmlFactory::GetFactory (  );
-        m_poKmlDSKml = m_poKmlFactory->CreateKml (  );
-        DocumentPtr poKmlDocument = m_poKmlFactory->CreateDocument (  );
-        m_poKmlDSKml->set_feature ( poKmlDocument );
-        m_isKml = TRUE;
-        
+    if ( EQUAL ( CPLGetExtension ( pszFilename ), "kml" ) ) {
+        bResult = CreateKml ( pszFilename, papszOptions );
     }
 
     /***** kmz *****/
 
-    else if ( EQUAL ( CPLGetExtension ( pszFilename ), "kmz" ) ) {
-        
-        if ( !( m_poKmlKmzfile = KmzFile::Create ( pszFilename ) ) ) {
-            CPLError ( CE_Failure, CPLE_OpenFailed,
-                       "Failed to create kmz file %s.", pszFilename );
-            return false;
-        }
-
-        nLayers = 0;
-
-        /***** set up the factory everything will use *****/
-
-        m_poKmlFactory = KmlFactory::GetFactory (  );
-
-#warning all files should be added to the kmz at dataset close
-        
-        /***** create the doc.kml it has to be the first file in *****/
-
-        const char *namefield =
-            CPLGetConfigOption ( "LIBKML_USE_DOC.KML", "yes" );
-        if ( !strcmp ( namefield, "yes" ) ) {
-            DocumentPtr poKmlDocument = m_poKmlFactory->CreateDocument (  );
-
-            KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
-
-            poKmlKml->set_feature ( poKmlDocument );
-
-            std::string strKmlOut = kmldom::SerializePretty ( poKmlKml );
-
-            m_poKmlKmzfile->AddFile ( strKmlOut, "Doc.Kml" );
-
-            m_poKmlDoc_kml = poKmlDocument;
-        }
+    if ( EQUAL ( CPLGetExtension ( pszFilename ), "kmz" ) ) {
+        bResult = CreateKmz ( pszFilename, papszOptions );
     }
 
     /***** dir *****/
-    
+
     else {
 
-        
+
     }
-    
-    return true;
+
+    return bResult;
 }
 
 /******************************************************************************
@@ -667,6 +699,43 @@ OGRErr OGRLIBKMLDataSource::DeleteLayer (
     return OGRERR_UNSUPPORTED_OPERATION;
 }
 
+/******************************************************************************
+ method to create a layer in a single file .kml
+******************************************************************************/
+
+OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
+    const char *pszLayerName,
+    OGRSpatialReference * poOgrSRS,
+    OGRwkbGeometryType eGType,
+    char **papszOptions )
+{
+
+    OGRLIBKMLLayer *poOgrLayer = NULL;
+
+    FolderPtr poKmlFolder = m_poKmlFactory->CreateFolder (  );
+
+    m_poKmlDSContainer->add_feature ( poKmlFolder );
+
+        /***** create the layer *****/
+
+    poOgrLayer = new OGRLIBKMLLayer ( pszLayerName, poOgrSRS, eGType, this,
+                                      poKmlFolder );
+
+        /***** check to see if we have enough space to store the layer *****/
+
+    if ( nLayers == nAlloced ) {
+        void *tmp = CPLRealloc ( papoLayers,
+                                 sizeof ( OGRLIBKMLLayer * ) * ++nAlloced );
+
+        papoLayers = ( OGRLIBKMLLayer ** ) tmp;
+    }
+
+        /***** add the layer to the array of layers *****/
+
+    papoLayers[nLayers++] = poOgrLayer;
+
+    return ( OGRLayer * ) poOgrLayer;
+}
 
 /******************************************************************************
  CreateLayer()
@@ -679,34 +748,18 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer (
     char **papszOptions )
 {
 
-    OGRLIBKMLLayer *poOgrLayer = NULL;
-    
+    OGRLayer *poOgrLayer = NULL;
+
     /***** kml DS *****/
 
-    if (IsKml()) {
-        FolderPtr poKmlFolder = m_poKmlFactory->CreateFolder();
-        m_poKmlDSContainer->add_feature(poKmlFolder);
+    if ( IsKml (  ) ) {
+        poOgrLayer = CreateLayerKml ( pszLayerName, poOgrSRS,
+                                      eGType, papszOptions );
 
-        /***** create the layer *****/
-
-        poOgrLayer = new OGRLIBKMLLayer ( pszLayerName, poOgrSRS, eGType, this,
-                                          poKmlFolder );
-
-        /***** check to see if we have enough space to store the layer *****/
-
-        if (nLayers == nAlloced) {
-            void *tmp = CPLRealloc (papoLayers,
-                                   sizeof ( OGRLIBKMLLayer * ) * ++nAlloced);
-            papoLayers = (OGRLIBKMLLayer**) tmp;
-        }
-
-        /***** add the layer to the array of layers *****/
-
-        papoLayers[nLayers++] = poOgrLayer;
     }
 
-    
-    
+
+
 
 #warning we should check if the later name already exsists
 
@@ -743,6 +796,12 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer (
     }
 
 */
+
+    /***** mark the dataset as updated *****/
+
+    if ( poOgrLayer )
+        bUpdated = TRUE;
+
     return poOgrLayer;
 }
 
@@ -758,6 +817,45 @@ OGRStyleTable *OGRLIBKMLDataSource::GetStyleTable (
 }
 
 /******************************************************************************
+    method to write a style table to a single file .kml ds
+******************************************************************************/
+
+void OGRLIBKMLDataSource::SetStyleTable2Kml (
+    OGRStyleTable * poStyleTable )
+{
+            /***** go though the root features looking for styles *****/
+
+    size_t nKmlFeatures = m_poKmlDSContainer->get_feature_array_size (  );
+    size_t iKmlFeature;
+
+    for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
+        FeaturePtr poKmlFeat =
+            m_poKmlDSContainer->get_feature_array_at ( iKmlFeature );
+
+            /***** is it a style *****/
+
+        if ( poKmlFeat->IsA ( kmldom::Type_Style ) ) {
+
+                /***** see if it has an id *****/
+
+            if ( poKmlFeat->has_id (  ) ) {
+                const std::string oKmlID = poKmlFeat->get_id (  );
+
+                    /***** delete the style *****/
+
+                m_poKmlDSContainer->DeleteFeatureById ( oKmlID );
+            }
+        }
+    }
+
+        /***** add the new style table to the container *****/
+
+    datasetstyletable2kml ( poStyleTable, m_poKmlFactory, m_poKmlDSContainer );
+
+    return;
+}
+
+/******************************************************************************
 
 ******************************************************************************/
 
@@ -766,47 +864,17 @@ void OGRLIBKMLDataSource::SetStyleTableDirectly (
 {
 
     m_poStyleTable = poStyleTable;
-    
+
     /***** a kml datasource? *****/
 
-    if (IsKml()) {
-
-        /***** go though the root features looking for styles *****/
-
-        size_t nKmlFeatures = m_poKmlDSContainer->get_feature_array_size ();
-        size_t iKmlFeature;
-        for (iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
-            FeaturePtr poKmlFeat = m_poKmlDSContainer->get_feature_array_at (iKmlFeature);
-
-            /***** is it a style *****/
-
-            if (poKmlFeat->IsA(kmldom::Type_Style)) {
-                
-                /***** see if it has an id *****/
-
-                if (poKmlFeat->has_id()) {
-                    const std::string oKmlID = poKmlFeat->get_id ();
-
-                    /***** delete the style *****/
-                    
-                    m_poKmlDSContainer->DeleteFeatureById(oKmlID);
-                }
-            }
-        }
-
-        /***** add the new style table to the container *****/
-
-        
-        datasetstyletable2kml (m_poStyleTable, m_poKmlFactory, m_poKmlDSContainer);
-        
-                
-                
-
-    }
+    if ( IsKml (  ) )
+        SetStyleTable2Kml ( m_poStyleTable );
 
 
-    
-    
+
+
+
+
 /*
    
     
@@ -835,7 +903,7 @@ void OGRLIBKMLDataSource::SetStyleTable (
 {
 
     SetStyleTableDirectly ( poStyleTable->Clone (  ) );
-    
+
     return;
 }
 
