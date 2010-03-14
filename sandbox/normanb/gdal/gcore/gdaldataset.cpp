@@ -35,8 +35,8 @@
 CPL_CVSID("$Id$");
 
 CPL_C_START
-GDALAsyncRasterIO *
-GDALGetDefaultAsyncRasterIO( GDALDataset *poDS,
+GDALAsyncReader *
+GDALGetDefaultAsyncReader( GDALDataset *poDS,
                              int nXOff, int nYOff,
                              int nXSize, int nYSize,
                              void *pBuf,
@@ -2390,7 +2390,7 @@ int CPL_STDCALL GDALDumpOpenDatasets( FILE *fp )
 
 
 /************************************************************************/
-/*                        BeginAsyncRasterIO()                          */
+/*                        BeginAsyncReader()                          */
 /************************************************************************/
 
 /**
@@ -2401,21 +2401,21 @@ int CPL_STDCALL GDALDumpOpenDatasets( FILE *fp )
  * for windowing, buffer size, buffer type and buffer organization are similar
  * to those for GDALDataset::RasterIO(); however, this call only launches
  * the request and filling the buffer is accomplished via calls to 
- * GetNextUpdatedRegion() on the return GDALAsyncRasterIO session object.
+ * GetNextUpdatedRegion() on the return GDALAsyncReader session object.
  * 
  * Once all processing for the created session is complete, or if no further
- * refinement of the request is required, the GDALAsyncRasterIO object should
- * be destroyed with the GDALDataset::EndAsyncRasterIO() method. 
+ * refinement of the request is required, the GDALAsyncReader object should
+ * be destroyed with the GDALDataset::EndAsyncReader() method. 
  * 
  * Note that the data buffer (pData) will potentially continue to be 
  * updated as long as the session lives, but it is not deallocated when
- * the session (GDALAsyncRasterIO) is destroyed with EndAsyncRasterIO().  It
+ * the session (GDALAsyncReader) is destroyed with EndAsyncReader().  It
  * should be deallocated by the application at that point. 
  *
  * Additional information on asynchronous IO in GDAL may be found at: 
  *   http://trac.osgeo.org/gdal/wiki/rfc24_progressive_data_support
  * 
- * This method is the same as the C GDALBeginAsyncRasterIO() function.
+ * This method is the same as the C GDALBeginAsyncReader() function.
  *
  * @param nXOff The pixel offset to the top left corner of the region
  * of the band to be accessed.  This would be zero to start from the left side.
@@ -2464,23 +2464,23 @@ int CPL_STDCALL GDALDumpOpenDatasets( FILE *fp )
  * @param papszOptions Driver specific control options in a string list or NULL.
  * Consult driver documentation for options supported.
  * 
- * @return The GDALAsyncRasterIO object representing the request.
+ * @return The GDALAsyncReader object representing the request.
  */
 
-GDALAsyncRasterIO* 
-GDALDataset::BeginAsyncRasterIO(int nXOff, int nYOff,
-                                int nXSize, int nYSize,
-                                void *pBuf,
-                                int nBufXSize, int nBufYSize,
-                                GDALDataType eBufType,
-                                int nBandCount, int* panBandMap,
-                                int nPixelSpace, int nLineSpace,
-                                int nBandSpace, char **papszOptions)
+GDALAsyncReader* 
+GDALDataset::BeginAsyncReader(int nXOff, int nYOff,
+                              int nXSize, int nYSize,
+                              void *pBuf,
+                              int nBufXSize, int nBufYSize,
+                              GDALDataType eBufType,
+                              int nBandCount, int* panBandMap,
+                              int nPixelSpace, int nLineSpace,
+                              int nBandSpace, char **papszOptions)
 {
     // See gdaldefaultasync.cpp
 
     return
-        GDALGetDefaultAsyncRasterIO( this, 
+        GDALGetDefaultAsyncReader( this, 
                                      nXOff, nYOff, nXSize, nYSize,
                                      pBuf, nBufXSize, nBufYSize, eBufType,
                                      nBandCount, panBandMap,
@@ -2489,11 +2489,11 @@ GDALDataset::BeginAsyncRasterIO(int nXOff, int nYOff,
 }
 
 /************************************************************************/
-/*                        GDALBeginAsyncRasterIO()                      */
+/*                        GDALBeginAsyncReader()                      */
 /************************************************************************/
 
-GDALAsyncRasterIOH CPL_STDCALL 
-GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
+GDALAsyncReaderH CPL_STDCALL 
+GDALBeginAsyncReader(GDALDatasetH hDS, int xOff, int yOff,
                        int xSize, int ySize,
                        void *pBuf,
                        int bufXSize, int bufYSize,
@@ -2505,8 +2505,8 @@ GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
 
 {
     VALIDATE_POINTER1( hDS, "GDALDataset", NULL );
-    return (GDALAsyncRasterIOH)((GDALDataset *) hDS)->
-        BeginAsyncRasterIO(xOff, yOff,
+    return (GDALAsyncReaderH)((GDALDataset *) hDS)->
+        BeginAsyncReader(xOff, yOff,
                            xSize, ySize,
                            pBuf, bufXSize, bufYSize,
                            bufType, nBandCount, bandMap,
@@ -2515,7 +2515,7 @@ GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
 }
 
 /************************************************************************/
-/*                        EndAsyncRasterIO()                            */
+/*                        EndAsyncReader()                            */
 /************************************************************************/
 
 /**
@@ -2524,23 +2524,23 @@ GDALBeginAsyncRasterIO(GDALDatasetH hDS, int xOff, int yOff,
  * This method destroys an asynchronous io request and recovers all 
  * resources associated with it.
  * 
- * This method is the same as the C function GDALEndAsyncRasterIO(). 
+ * This method is the same as the C function GDALEndAsyncReader(). 
  *
- * @param poARIO pointer to a GDALAsyncRasterIO
+ * @param poARIO pointer to a GDALAsyncReader
  */
 
-void GDALDataset::EndAsyncRasterIO(GDALAsyncRasterIO *poARIO )
+void GDALDataset::EndAsyncReader(GDALAsyncReader *poARIO )
 {
     delete poARIO;
 }
 
 /************************************************************************/
-/*                        GDALEndAsyncRasterIO()                        */
+/*                        GDALEndAsyncReader()                        */
 /************************************************************************/
-void CPL_STDCALL GDALEndAsyncRasterIO(GDALDatasetH hDS, GDALAsyncRasterIOH hAsyncRasterIOH)
+void CPL_STDCALL GDALEndAsyncReader(GDALDatasetH hDS, GDALAsyncReaderH hAsyncReaderH)
 {
     VALIDATE_POINTER0( hDS, "GDALDataset" );
-    VALIDATE_POINTER0( hAsyncRasterIOH, "GDALAsyncRasterIO" );
-    ((GDALDataset *) hDS) -> EndAsyncRasterIO((GDALAsyncRasterIO *)hAsyncRasterIOH);	
+    VALIDATE_POINTER0( hAsyncReaderH, "GDALAsyncReader" );
+    ((GDALDataset *) hDS) -> EndAsyncReader((GDALAsyncReader *)hAsyncReaderH);	
 }
 

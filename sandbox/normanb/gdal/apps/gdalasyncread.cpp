@@ -405,12 +405,12 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
 /*      Establish view window                                           */
 /* -------------------------------------------------------------------- */
-    GDALAsyncRasterIO *poAsyncReq;
+    GDALAsyncReader *poAsyncReq;
     int nPixelSpace = nBytesPerPixel;
     int nLineSpace = nBytesPerPixel * nOXSize;
     int nBandSpace = nBytesPerPixel / nBandCount;
 
-    poAsyncReq = poSrcDS->BeginAsyncRasterIO( 
+    poAsyncReq = poSrcDS->BeginAsyncReader( 
         anSrcWin[0], anSrcWin[1], anSrcWin[2], anSrcWin[3],
         pImage, nOXSize, nOYSize, eOutputType, 
         nBandCount, panBandList, 
@@ -516,7 +516,7 @@ int main( int argc, char ** argv )
     } while( eAStatus != GARIO_ERROR && eAStatus != GARIO_COMPLETE
              && eErr == CE_None );
                                              
-    poSrcDS->EndAsyncRasterIO( poAsyncReq );
+    poSrcDS->EndAsyncReader( poAsyncReq );
 
 /* -------------------------------------------------------------------- */
 /*      Cleanup.                                                        */

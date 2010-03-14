@@ -146,17 +146,17 @@ public:
     JPIPKAKDataset();
     virtual ~JPIPKAKDataset();
     // progressive methods
-    virtual GDALAsyncRasterIO* BeginAsyncRasterIO(int xOff, int yOff,
-                                                  int xSize, int ySize, 
-                                                  void *pBuf,
-                                                  int bufXSize, int bufYSize,
-                                                  GDALDataType bufType,
-                                                  int nBandCount, int* bandMap,
-                                                  int nPixelSpace, int nLineSpace,
-                                                  int nBandSpace,
-                                                  char **papszOptions);
+    virtual GDALAsyncReader* BeginAsyncReader(int xOff, int yOff,
+                                              int xSize, int ySize, 
+                                              void *pBuf,
+                                              int bufXSize, int bufYSize,
+                                              GDALDataType bufType,
+                                              int nBandCount, int* bandMap,
+                                              int nPixelSpace, int nLineSpace,
+                                              int nBandSpace,
+                                              char **papszOptions);
 
-    virtual void EndAsyncRasterIO(GDALAsyncRasterIO *);
+    virtual void EndAsyncReader(GDALAsyncReader *);
     int GetNQualityLayers(){return nQualityLayers;}
     int GetNResolutionLevels(){return nResLevels;}
     int GetNComponents(){return nComps;}
@@ -179,7 +179,7 @@ public:
     static const GByte TILE_HEADER_DATA_BIN_CLASS = 2;
     static const GByte TILE_DATA_BIN_CLASS = 4;
 	
-    friend class JPIPKAKAsyncRasterIO;
+    friend class JPIPKAKAsyncReader;
     friend class JPIPKAKRasterBand;
     friend void JPIPWorkerFunc(void*);
 };
@@ -222,11 +222,11 @@ public:
 
 /************************************************************************/
 /* ==================================================================== */
-/*                           JPIPKAKAsyncRasterIO                       */
+/*                           JPIPKAKAsyncReader                         */
 /* ==================================================================== */
 /************************************************************************/
 
-class JPIPKAKAsyncRasterIO : public GDALAsyncRasterIO
+class JPIPKAKAsyncReader : public GDALAsyncReader
 {
 private:
     int nDataRead;
@@ -242,8 +242,8 @@ private:
     void Start();
     void Stop();
 public:
-    JPIPKAKAsyncRasterIO();
-    virtual ~JPIPKAKAsyncRasterIO();
+    JPIPKAKAsyncReader();
+    virtual ~JPIPKAKAsyncReader();
 
     virtual GDALAsyncStatusType GetNextUpdatedRegion(int timeout,
                                                      int* pnxbufoff,
@@ -264,5 +264,5 @@ struct JPIPRequest
 {
     int bPriority;
     CPLString osRequest;
-    JPIPKAKAsyncRasterIO* poARIO;
+    JPIPKAKAsyncReader* poARIO;
 };

@@ -42,7 +42,7 @@ class GDALDriver;
 class GDALRasterAttributeTable;
 class GDALProxyDataset;
 class GDALProxyRasterBand;
-class GDALAsyncRasterIO;
+class GDALAsyncReader;
 
 
 /* -------------------------------------------------------------------- */
@@ -283,14 +283,14 @@ class CPL_DLL GDALDataset : public GDALMajorObject
 
     virtual CPLErr          CreateMaskBand( int nFlags );
 
-    virtual GDALAsyncRasterIO* 
-        BeginAsyncRasterIO(int nXOff, int nYOff, int nXSize, int nYSize,
-                           void *pBuf, int nBufXSize, int nBufYSize,
-                           GDALDataType eBufType,
-                           int nBandCount, int* panBandMap,
-                           int nPixelSpace, int nLineSpace, int nBandSpace,
-                           char **papszOptions);
-    virtual void EndAsyncRasterIO(GDALAsyncRasterIO *);
+    virtual GDALAsyncReader* 
+        BeginAsyncReader(int nXOff, int nYOff, int nXSize, int nYSize,
+                         void *pBuf, int nBufXSize, int nBufYSize,
+                         GDALDataType eBufType,
+                         int nBandCount, int* panBandMap,
+                         int nPixelSpace, int nLineSpace, int nBandSpace,
+                         char **papszOptions);
+    virtual void EndAsyncReader(GDALAsyncReader *);
 
     CPLErr      RasterIO( GDALRWFlag, int, int, int, int,
                           void *, int, int, GDALDataType,
@@ -749,15 +749,15 @@ GDALRegenerateOverviewsMultiBand(int nBands, GDALRasterBand** papoSrcBands,
 
 
 /* ******************************************************************** */
-/*                          GDALAsyncRasterIO                           */
+/*                          GDALAsyncReader                             */
 /* ******************************************************************** */
 
 /**
- * Class used as a session object for asynchronous IO requests.  They are
- * created with GDALDataset::BeginAsyncRasterIO(), and destroyed with
- * GDALDataset::EndAsyncRasterIO().
+ * Class used as a session object for asynchronous requests.  They are
+ * created with GDALDataset::BeginAsyncReader(), and destroyed with
+ * GDALDataset::EndAsyncReader().
  */
-class CPL_DLL GDALAsyncRasterIO
+class CPL_DLL GDALAsyncReader
 {
   protected:
     GDALDataset* poDS;
@@ -776,8 +776,8 @@ class CPL_DLL GDALAsyncRasterIO
     int          nBandSpace;
 
   public:
-    GDALAsyncRasterIO();
-    virtual ~GDALAsyncRasterIO();
+    GDALAsyncReader();
+    virtual ~GDALAsyncReader();
 
     GDALDataset* GetGDALDataset() {return poDS;}
     int GetXOffset() {return nXOff;}

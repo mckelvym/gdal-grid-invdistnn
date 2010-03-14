@@ -2,8 +2,8 @@
  * $Id: gdaldataset.cpp 16796 2009-04-17 23:35:04Z normanb $
  *
  * Project:  GDAL Core
- * Purpose:  Implementation of GDALDefaultAsyncRasterIO and the 
- *           GDALAsyncRasterIO base class.
+ * Purpose:  Implementation of GDALDefaultAsyncReader and the 
+ *           GDALAsyncReader base class.
  * Author:   Frank Warmerdam, warmerdam@pobox.com
  *
  ******************************************************************************
@@ -33,36 +33,34 @@
 CPL_CVSID("$Id: gdaldataset.cpp 16796 2009-04-17 23:35:04Z normanb $");
 
 CPL_C_START
-GDALAsyncRasterIO *
-GDALGetDefaultAsyncRasterIO( GDALDataset* poDS,
-                             int nXOff, int nYOff,
-                             int nXSize, int nYSize,
-                             void *pBuf,
-                             int nBufXSize, int nBufYSize,
-                             GDALDataType eBufType,
-                             int nBandCount, int* panBandMap,
-                             int nPixelSpace, int nLineSpace,
-                             int nBandSpace, char **papszOptions);
+GDALAsyncReader *
+GDALGetDefaultAsyncReader( GDALDataset* poDS,
+                           int nXOff, int nYOff, int nXSize, int nYSize,
+                           void *pBuf, int nBufXSize, int nBufYSize,
+                           GDALDataType eBufType,
+                           int nBandCount, int* panBandMap,
+                           int nPixelSpace, int nLineSpace,
+                           int nBandSpace, char **papszOptions );
 CPL_C_END
 
 /************************************************************************/
 /* ==================================================================== */
-/*                         GDALAsyncRasterIO                            */
+/*                         GDALAsyncReader                              */
 /* ==================================================================== */
 /************************************************************************/
 
 /************************************************************************/
-/*                         GDALAsyncRasterIO()                          */
+/*                          GDALAsyncReader()                           */
 /************************************************************************/
 
-GDALAsyncRasterIO::GDALAsyncRasterIO()
+GDALAsyncReader::GDALAsyncReader()
 {
 }
 
 /************************************************************************/
-/*                         ~GDALAsyncRasterIO()                         */
+/*                         ~GDALAsyncReader()                           */
 /************************************************************************/
-GDALAsyncRasterIO::~GDALAsyncRasterIO()
+GDALAsyncReader::~GDALAsyncReader()
 {
 }
 
@@ -71,7 +69,7 @@ GDALAsyncRasterIO::~GDALAsyncRasterIO()
 /************************************************************************/
 
 /**
- * \fn GDALAsyncStatusType GDALAsyncRasterIO::GetNextUpdatedRegion( int nTimeout, int* pnBufXOff, int* pnBufYOff, int* pnBufXSize, int* pnBufXSize) = 0;
+ * \fn GDALAsyncStatusType GDALAsyncReader::GetNextUpdatedRegion( int nTimeout, int* pnBufXOff, int* pnBufYOff, int* pnBufXSize, int* pnBufXSize) = 0;
  * 
  * \brief Get async IO update
  *
@@ -113,12 +111,12 @@ GDALAsyncRasterIO::~GDALAsyncRasterIO()
 /************************************************************************/
 
 GDALAsyncStatusType CPL_STDCALL 
-GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int timeout,
+GDALGetNextUpdatedRegion(GDALAsyncReaderH hARIO, int timeout,
                          int* pnxbufoff, int* pnybufoff, 
                          int* pnxbufsize, int* pnybufsize)
 {
     VALIDATE_POINTER1(hARIO, "GDALGetNextUpdatedRegion", GARIO_ERROR);
-    return ((GDALAsyncRasterIO *)hARIO)->GetNextUpdatedRegion(
+    return ((GDALAsyncReader *)hARIO)->GetNextUpdatedRegion(
         timeout, pnxbufoff, pnybufoff, pnxbufsize, pnybufsize);
 }
 
@@ -129,13 +127,13 @@ GDALGetNextUpdatedRegion(GDALAsyncRasterIOH hARIO, int timeout,
 /**
  * \brief Lock image buffer.
  *
- * Locks the image buffer passed into GDALDataset::BeginAsyncRasterIO(). 
+ * Locks the image buffer passed into GDALDataset::BeginAsyncReader(). 
  * This is useful to ensure the image buffer is not being modified while
  * it is being used by the application.  UnlockBuffer() should be used
  * to release this lock when it is no longer needed.
  */
 
-void GDALAsyncRasterIO::LockBuffer()
+void GDALAsyncReader::LockBuffer()
 
 {
 }
@@ -144,10 +142,10 @@ void GDALAsyncRasterIO::LockBuffer()
 /************************************************************************/
 /*                           GDALLockBuffer()                           */
 /************************************************************************/
-void CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO)
+void CPL_STDCALL GDALLockBuffer(GDALAsyncReaderH hARIO)
 {
-    VALIDATE_POINTER0(hARIO, "GDALAsyncRasterIO");
-    ((GDALAsyncRasterIO *)hARIO) ->LockBuffer();
+    VALIDATE_POINTER0(hARIO, "GDALAsyncReader");
+    ((GDALAsyncReader *)hARIO) ->LockBuffer();
 }
 
 /************************************************************************/
@@ -160,7 +158,7 @@ void CPL_STDCALL GDALLockBuffer(GDALAsyncRasterIOH hARIO)
  * Releases a lock on the image buffer previously taken with LockBuffer().
  */
 
-void GDALAsyncRasterIO::UnlockBuffer()
+void GDALAsyncReader::UnlockBuffer()
 
 {
 }
@@ -168,25 +166,25 @@ void GDALAsyncRasterIO::UnlockBuffer()
 /************************************************************************/
 /*                          GDALUnlockBuffer()                          */
 /************************************************************************/
-void CPL_STDCALL GDALUnlockBuffer(GDALAsyncRasterIOH hARIO)
+void CPL_STDCALL GDALUnlockBuffer(GDALAsyncReaderH hARIO)
 {
-    VALIDATE_POINTER0(hARIO, "GDALAsyncRasterIO");
-    ((GDALAsyncRasterIO *)hARIO) ->UnlockBuffer();
+    VALIDATE_POINTER0(hARIO, "GDALAsyncReader");
+    ((GDALAsyncReader *)hARIO) ->UnlockBuffer();
 }
 
 /************************************************************************/
 /* ==================================================================== */
-/*                     GDALDefaultAsyncRasterIO                         */
+/*                     GDALDefaultAsyncReader                           */
 /* ==================================================================== */
 /************************************************************************/
 
-class GDALDefaultAsyncRasterIO : public GDALAsyncRasterIO
+class GDALDefaultAsyncReader : public GDALAsyncReader
 {
   private:
     char **         papszOptions;
 
   public:
-    GDALDefaultAsyncRasterIO(GDALDataset* poDS,
+    GDALDefaultAsyncReader(GDALDataset* poDS,
                              int nXOff, int nYOff,
                              int nXSize, int nYSize,
                              void *pBuf,
@@ -195,7 +193,7 @@ class GDALDefaultAsyncRasterIO : public GDALAsyncRasterIO
                              int nBandCount, int* panBandMap,
                              int nPixelSpace, int nLineSpace,
                              int nBandSpace, char **papszOptions);
-    ~GDALDefaultAsyncRasterIO();
+    ~GDALDefaultAsyncReader();
 
     virtual GDALAsyncStatusType GetNextUpdatedRegion(int nTimeout,
                                                      int* pnBufXOff,
@@ -205,11 +203,11 @@ class GDALDefaultAsyncRasterIO : public GDALAsyncRasterIO
 };
 
 /************************************************************************/
-/*                    GDALGetDefaultAsyncRasterIO()                     */
+/*                     GDALGetDefaultAsyncReader()                      */
 /************************************************************************/
 
-GDALAsyncRasterIO *
-GDALGetDefaultAsyncRasterIO( GDALDataset* poDS,
+GDALAsyncReader *
+GDALGetDefaultAsyncReader( GDALDataset* poDS,
                              int nXOff, int nYOff,
                              int nXSize, int nYSize,
                              void *pBuf,
@@ -220,7 +218,7 @@ GDALGetDefaultAsyncRasterIO( GDALDataset* poDS,
                              int nBandSpace, char **papszOptions)
 
 {
-    return new GDALDefaultAsyncRasterIO( poDS,
+    return new GDALDefaultAsyncReader( poDS,
                                          nXOff, nYOff, nXSize, nYSize,
                                          pBuf, nBufXSize, nBufYSize, eBufType,
                                          nBandCount, panBandMap,
@@ -229,11 +227,11 @@ GDALGetDefaultAsyncRasterIO( GDALDataset* poDS,
 }
 
 /************************************************************************/
-/*                      GDALDefaultAsyncRasterIO()                      */
+/*                       GDALDefaultAsyncReader()                       */
 /************************************************************************/
 
-GDALDefaultAsyncRasterIO::
-GDALDefaultAsyncRasterIO( GDALDataset* poDS,
+GDALDefaultAsyncReader::
+GDALDefaultAsyncReader( GDALDataset* poDS,
                           int nXOff, int nYOff,
                           int nXSize, int nYSize,
                           void *pBuf,
@@ -272,10 +270,10 @@ GDALDefaultAsyncRasterIO( GDALDataset* poDS,
 }
 
 /************************************************************************/
-/*                     ~GDALDefaultAsyncRasterIO()                      */
+/*                      ~GDALDefaultAsyncReader()                       */
 /************************************************************************/
 
-GDALDefaultAsyncRasterIO::~GDALDefaultAsyncRasterIO()
+GDALDefaultAsyncReader::~GDALDefaultAsyncReader()
 
 {
     CPLFree( panBandMap );
@@ -287,7 +285,7 @@ GDALDefaultAsyncRasterIO::~GDALDefaultAsyncRasterIO()
 /************************************************************************/
 
 GDALAsyncStatusType
-GDALDefaultAsyncRasterIO::GetNextUpdatedRegion(int nTimeout,
+GDALDefaultAsyncReader::GetNextUpdatedRegion(int nTimeout,
                                                int* pnBufXOff,
                                                int* pnBufYOff,
                                                int* pnBufXSize,

@@ -185,7 +185,7 @@ JPIPKAKRasterBand::JPIPKAKRasterBand( int nBand, int nDiscardLevels,
 JPIPKAKRasterBand::~JPIPKAKRasterBand()
 
 {
-	//if (ario != NULL) poBaseDS->EndAsyncRasterIO(ario);
+	//if (ario != NULL) poBaseDS->EndAsyncReader(ario);
 
     for( int i = 0; i < nOverviewCount; i++ )
         delete papoOverviewBand[i];
@@ -231,8 +231,8 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
     // TODO: Handle overviews properly.
 
-    GDALAsyncRasterIO* ario = poBaseDS->
-        BeginAsyncRasterIO(xOff, yOff, nBlockXSize, nBlockYSize, 
+    GDALAsyncReader* ario = poBaseDS->
+        BeginAsyncReader(xOff, yOff, nBlockXSize, nBlockYSize, 
                            pImage, nBlockXSize, nBlockYSize, 
                            eDataType, 1, &nBand, 0, 0, 0, NULL);
 
@@ -250,7 +250,7 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                                             &nXBufSize, &nYBufSize );
     } while (status != GARIO_ERROR && status != GARIO_COMPLETE );
 
-    poBaseDS->EndAsyncRasterIO(ario);
+    poBaseDS->EndAsyncReader(ario);
 
     if (status == GARIO_ERROR)
         return CE_Failure;
@@ -878,11 +878,11 @@ const GDAL_GCP *JPIPKAKDataset::GetGCPs()
 }
 
 /*************************************************************************/
-/*                     BeginAsyncRasterIO()                              */
+/*                     BeginAsyncReader()                              */
 /*************************************************************************/
 
-GDALAsyncRasterIO* 
-JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
+GDALAsyncReader* 
+JPIPKAKDataset::BeginAsyncReader(int xOff, int yOff,
                                    int xSize, int ySize, 
                                    void *pBuf,
                                    int bufXSize, int bufYSize,
@@ -905,7 +905,7 @@ JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
 /* -------------------------------------------------------------------- */
 /*      Record request information.                                     */
 /* -------------------------------------------------------------------- */
-    JPIPKAKAsyncRasterIO* ario = new JPIPKAKAsyncRasterIO();
+    JPIPKAKAsyncReader* ario = new JPIPKAKAsyncReader();
     ario->poDS = this;
     ario->pBuf = pBuf;
     ario->nBufXSize = bufXSize;
@@ -1005,10 +1005,10 @@ JPIPKAKDataset::BeginAsyncRasterIO(int xOff, int yOff,
 }
 
 /************************************************************************/
-/*                  EndAsyncRasterIO()                                  */
+/*                  EndAsyncReader()                                  */
 /************************************************************************/
 
-void JPIPKAKDataset::EndAsyncRasterIO(GDALAsyncRasterIO *poARIO)
+void JPIPKAKDataset::EndAsyncReader(GDALAsyncReader *poARIO)
 {
     delete poARIO;
 }
@@ -1089,9 +1089,9 @@ void GDALRegister_JPIPKAK()
 }
 
 /************************************************************************/
-/*                         JPIPKAKAsyncRasterIO                         */
+/*                         JPIPKAKAsyncReader                         */
 /************************************************************************/
-JPIPKAKAsyncRasterIO::JPIPKAKAsyncRasterIO()
+JPIPKAKAsyncReader::JPIPKAKAsyncReader()
 {
     panBandMap = NULL;
     pBuf = NULL;
@@ -1099,9 +1099,9 @@ JPIPKAKAsyncRasterIO::JPIPKAKAsyncRasterIO()
 }
 
 /************************************************************************/
-/*                        ~JPIPKAKAsyncRasterIO                         */
+/*                        ~JPIPKAKAsyncReader                         */
 /************************************************************************/
-JPIPKAKAsyncRasterIO::~JPIPKAKAsyncRasterIO()
+JPIPKAKAsyncReader::~JPIPKAKAsyncReader()
 {
     Stop();
 
@@ -1113,7 +1113,7 @@ JPIPKAKAsyncRasterIO::~JPIPKAKAsyncRasterIO()
 /*                               Start()                                */
 /************************************************************************/
 
-void JPIPKAKAsyncRasterIO::Start()
+void JPIPKAKAsyncReader::Start()
 {
     JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
 
@@ -1125,7 +1125,7 @@ void JPIPKAKAsyncRasterIO::Start()
     // check a thread is not already running
     if (((bHighPriority) && (poJDS->bHighThreadRunning)) || 
         ((!bHighPriority) && (poJDS->bLowThreadRunning)))
-        CPLError(CE_Failure, CPLE_AppDefined, "JPIPKAKAsyncRasterIO supports at most two concurrent server communication threads");
+        CPLError(CE_Failure, CPLE_AppDefined, "JPIPKAKAsyncReader supports at most two concurrent server communication threads");
     else
     {
         // calculate the url the worker function is going to retrieve
@@ -1193,7 +1193,7 @@ void JPIPKAKAsyncRasterIO::Start()
         pRequest->osRequest = jpipUrl;
         pRequest->poARIO = this;
 
-        //CPLDebug("JPIPKAKAsyncRasterIO", "THREADING TURNED OFF");
+        //CPLDebug("JPIPKAKAsyncReader", "THREADING TURNED OFF");
         if (CPLCreateThread(JPIPWorkerFunc, pRequest) == -1)
             CPLError(CE_Failure, CPLE_AppDefined, 
                      "Unable to create worker jpip  thread" );
@@ -1205,7 +1205,7 @@ void JPIPKAKAsyncRasterIO::Start()
 /************************************************************************/
 /*                                Stop()                                */
 /************************************************************************/
-void JPIPKAKAsyncRasterIO::Stop()
+void JPIPKAKAsyncReader::Stop()
 {
     JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
 
@@ -1245,7 +1245,7 @@ void JPIPKAKAsyncRasterIO::Stop()
 /************************************************************************/
 
 GDALAsyncStatusType 
-JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int timeout,
+JPIPKAKAsyncReader::GetNextUpdatedRegion(int timeout,
                                            int* pnxbufoff,
                                            int* pnybufoff,
                                            int* pnxbufsize,
