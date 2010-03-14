@@ -140,10 +140,16 @@ void OGRLIBKMLDataSource::WriteKmz (
         poKmlKmzfile->AddFile ( oKmlOut, oName.c_str() );
     }
 
-    /***** write the style table *****/
+   /***** write the style table *****/
 
-#warning implement write out of style table to kmz
+    if (m_poKmlStyleKml) {
+        KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
+        poKmlKml->set_feature ( m_poKmlStyleKml );
+        std::string strKmlOut = kmldom::SerializePretty ( poKmlKml );
 
+        poKmlKmzfile->AddFile ( strKmlOut, "style/style.kml" );
+    }
+    
     delete poKmlKmzfile;
     
     return;
@@ -967,6 +973,23 @@ void OGRLIBKMLDataSource::SetStyleTable2Kml (
 }
 
 /******************************************************************************
+    method to write a style table to a kmz ds
+******************************************************************************/
+
+void OGRLIBKMLDataSource::SetStyleTable2Kmz (
+    OGRStyleTable * poStyleTable )
+{
+
+    /***** replace the style document with a new one *****/
+    
+    m_poKmlStyleKml =  m_poKmlFactory->CreateDocument();
+    
+    datasetstyletable2kml ( poStyleTable, m_poKmlFactory, m_poKmlStyleKml );
+
+    return;
+}
+
+/******************************************************************************
 
 ******************************************************************************/
 
@@ -980,28 +1003,15 @@ void OGRLIBKMLDataSource::SetStyleTableDirectly (
 
     if ( IsKml (  ) )
         SetStyleTable2Kml ( m_poStyleTable );
-
-
-
-
-
-
-/*
-   
     
-
-    
-    DocumentPtr poKmlDocument = m_poKmlFactory->CreateDocument (  );
-    KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
-
-    datasetstyletable2kml ( m_poStyleTable, m_poKmlFactory, poKmlDocument );
+    else if ( IsKmz (  ) )
+        SetStyleTable2Kmz ( m_poStyleTable );
 
 
-    poKmlKml->set_feature ( poKmlDocument );
-    std::string strKmlOut = kmldom::SerializePretty ( poKmlKml );
 
-    m_poKmlKmzfile->AddFile ( strKmlOut, "style/style.kml" );
-*/
+
+
+
     return;
 }
 

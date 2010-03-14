@@ -133,6 +133,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
 
     int                       m_isKmz;
     ContainerPtr              m_poKmlDocKml;
+    ContainerPtr              m_poKmlStyleKml;
     
     /***** the kml factory *****/
     
@@ -212,6 +213,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     /***** methods to write a styletable to various datasource types *****/
 
     void                      SetStyleTable2Kml ( OGRStyleTable * poStyleTable );
+    void                      SetStyleTable2Kmz ( OGRStyleTable * poStyleTable );
     
      
 };
