@@ -157,7 +157,7 @@ ElementPtr geom2kml (
 
         numpoints = poOgrLineString->getNumPoints (  );
         poOgrPoint = new OGRPoint();
-#warning we need to create a new point for the retirn of each point
+
         for ( i = 0; i < numpoints; i++ ) {
             poOgrLineString->getPoint ( i, poOgrPoint );
 
