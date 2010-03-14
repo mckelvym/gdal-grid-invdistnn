@@ -118,6 +118,7 @@ void OGRLIBKMLDataSource::WriteKmz (
         KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
         poKmlKml->set_feature ( m_poKmlDocKml );
         std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
+#warning check the return code
         poKmlKmzfile->AddFile ( oKmlOut, "doc.kml" );
 
     }
@@ -135,13 +136,15 @@ void OGRLIBKMLDataSource::WriteKmz (
         std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
         std::string oName = papoLayers[iLayer]->GetName (  );
         oName.append(".kml");
-
+#warning check the return code
         poKmlKmzfile->AddFile ( oKmlOut, oName.c_str() );
     }
 
     /***** write the style table *****/
 
 #warning implement write out of style table to kmz
+
+    delete poKmlKmzfile;
     
     return;
 }
@@ -163,7 +166,7 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
     /***** kmz *****/
 
     else if ( bUpdate && bUpdated && IsKmz (  ) ) {
-
+        WriteKmz (  );
     }
 
 
@@ -1025,8 +1028,7 @@ int OGRLIBKMLDataSource::TestCapability (
 {
 
     if ( EQUAL ( pszCap, ODsCCreateLayer ) )
-        return TRUE;
-#warning minizip cannot delete a file from an archive we need to test for this case
+        return bUpdate;
     else if ( EQUAL ( pszCap, ODsCDeleteLayer ) )
         return bUpdate;
     else
