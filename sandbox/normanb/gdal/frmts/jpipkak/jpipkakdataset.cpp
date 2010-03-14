@@ -356,9 +356,10 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
     kdu_customize_errors(new kdu_cpl_error_message( CE_Failure ) );
 
     // create necessary http headers
-    CPLString osHeaders = "HEADERS=";
-    osHeaders += "Accept: jpp-stream";
-    CPLString osPersistent = "PERSISTENT=1";
+    CPLString osHeaders = "HEADERS=Accept: jpp-stream";
+    CPLString osPersistent;
+
+    osPersistent.Printf( "PERSISTENT=JPIPKAK:%p", this );
 
     char *apszOptions[] = { 
         (char *) osHeaders.c_str(),
@@ -372,7 +373,8 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
     // stateful session (multi-shot communications)
     // "cnew=http&type=jpp-stream&stream=0&tid=0&len="
     CPLString osRequest;
-    osRequest.Printf("%s?%s%i", pszUrl, "cnew=http&type=jpp-stream&stream=0&tid=0&len=", 2000);
+    osRequest.Printf("%s?%s%i", pszUrl, 
+                     "cnew=http&type=jpp-stream&stream=0&tid=0&len=", 2000);
 	
     CPLHTTPResult *psResult = CPLHTTPFetch(osRequest, apszOptions);
 	
