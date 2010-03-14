@@ -204,6 +204,10 @@ class OGRLIBKMLDataSource:public OGRDataSource
                                                OGRSpatialReference * poOgrSRS,
                                                OGRwkbGeometryType eGType,
                                                char **papszOptions );
+    OGRLayer                 *CreateLayerKmz ( const char *pszLayerName,
+                                               OGRSpatialReference * poOgrSRS,
+                                               OGRwkbGeometryType eGType,
+                                               char **papszOptions );
         
     /***** methods to write a styletable to various datasource types *****/
 

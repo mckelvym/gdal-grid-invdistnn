@@ -687,6 +687,8 @@ int OGRLIBKMLDataSource::CreateKmz (
         m_poKmlDocKml = m_poKmlFactory->CreateDocument (  );
     }
 
+    m_isKmz = TRUE;
+    
     return TRUE;
 }
 
@@ -814,6 +816,66 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
 }
 
 /******************************************************************************
+ method to create a layer in a .kmz
+******************************************************************************/
+
+OGRLayer *OGRLIBKMLDataSource::CreateLayerKmz (
+    const char *pszLayerName,
+    OGRSpatialReference * poOgrSRS,
+    OGRwkbGeometryType eGType,
+    char **papszOptions )
+{
+
+    /***** add a network link to doc.kml *****/
+    
+    const char *pszUseDocKml = 
+        CPLGetConfigOption ( "LIBKML_USE_DOC.KML", "yes" );
+
+    if ( EQUAL ( pszUseDocKml, "yes" ) && m_poKmlDocKml ) {
+        
+        DocumentPtr poKmlDocument = boost::static_pointer_cast < kmldom::Document > ( m_poKmlDocKml );
+        
+        NetworkLinkPtr poKmlNetLink = m_poKmlFactory->CreateNetworkLink (  );
+        LinkPtr poKmlLink = m_poKmlFactory->CreateLink (  );
+
+        std::string oHref;
+        oHref.append ( pszLayerName );
+        oHref.append ( ".kml" );
+        poKmlLink->set_href ( oHref );
+
+        poKmlNetLink->set_link ( poKmlLink );
+        poKmlDocument->add_feature ( poKmlNetLink );
+        
+    }
+
+    /***** create the layer *****/
+
+    OGRLIBKMLLayer *poOgrLayer = NULL;
+
+    DocumentPtr poKmlDocument = m_poKmlFactory->CreateDocument (  );
+
+    /***** create the layer *****/
+
+    poOgrLayer = new OGRLIBKMLLayer ( pszLayerName, poOgrSRS, eGType, this,
+                                      poKmlDocument );
+
+    /***** check to see if we have enough space to store the layer *****/
+
+    if ( nLayers == nAlloced ) {
+        void *tmp = CPLRealloc ( papoLayers,
+                                 sizeof ( OGRLIBKMLLayer * ) * ++nAlloced );
+
+        papoLayers = ( OGRLIBKMLLayer ** ) tmp;
+    }
+
+    /***** add the layer to the array of layers *****/
+
+    papoLayers[nLayers++] = poOgrLayer;
+
+    return ( OGRLayer * ) poOgrLayer;
+}
+
+/******************************************************************************
  CreateLayer()
 ******************************************************************************/
 
@@ -834,44 +896,14 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer (
 
     }
 
+    else if ( IsKmz (  ) ) {
+        poOgrLayer = CreateLayerKmz ( pszLayerName, poOgrSRS,
+                                      eGType, papszOptions );
 
-
-
-#warning we should check if the later name already exsists
-
-#warning minizip adds a seconf file with the same name, it can not overwrite
-
-    /***** add the layer to doc.kml *****/
-
-    /***** is our dataset a kmz? *****/
-/*
-    if ( m_poKmlKmzfile ) {
-
-        poKmlDocument =
-            boost::static_pointer_cast < Document > ( m_poKmlDoc_kml );
-
-        NetworkLinkPtr poKmlNetworkLink =
-            m_poKmlFactory->CreateNetworkLink (  );
-        LinkPtr poKmlLink = m_poKmlFactory->CreateLink (  );
-
-#warning we need to clean up poKmlKml
-        KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
-
-        std::string oHref;
-        oHref.append ( pszLayerName );
-        oHref.append ( ".kml" );
-        poKmlLink->set_href ( oHref );
-
-        poKmlNetworkLink->set_link ( poKmlLink );
-        poKmlDocument->add_feature ( poKmlNetworkLink );
-        poKmlKml->set_feature ( poKmlDocument );
-
-        std::string strKmlOut = kmldom::SerializePretty ( poKmlKml );
-
-        m_poKmlKmzfile->AddFile ( strKmlOut, "Doc.Kml" );
     }
 
-*/
+
+
 
     /***** mark the dataset as updated *****/
 
