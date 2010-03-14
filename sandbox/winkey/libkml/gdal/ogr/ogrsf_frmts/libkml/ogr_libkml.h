@@ -103,6 +103,7 @@ class OGRLIBKMLLayer:public OGRLayer
     void                      SetStyleTable ( OGRStyleTable * poStyleTable );
     const char               *GetName();
     int                       TestCapability ( const char * );
+    ContainerPtr              GetKmlLayer () {return m_poKmlLayer;};
 };
 
 /******************************************************************************
@@ -128,12 +129,11 @@ class OGRLIBKMLDataSource:public OGRDataSource
     KmlPtr                    m_poKmlDSKml;
     ContainerPtr              m_poKmlDSContainer;
 
-    /***** this needs reworked *****/
-    
-    KmzFile                  *m_poKmlKmzfile;
-    KmlFile                  *kmlfile;
-    ContainerPtr              m_poKmlDoc_kml;
+    /***** for kmz files *****/
 
+    int                       m_isKmz;
+    ContainerPtr              m_poKmlDocKml;
+    
     /***** the kml factory *****/
     
     KmlFactory               *m_poKmlFactory;
@@ -170,14 +170,16 @@ class OGRLIBKMLDataSource:public OGRDataSource
 
     int                       TestCapability (const char * );
     KmlFactory               *GetKmlFactory() { return m_poKmlFactory; };
-    KmzFile                  *GetKmz() { return m_poKmlKmzfile; };
+    //KmzFile                  *GetKmz() { return m_poKmlKmzfile; };
     int                       IsKml() {return m_isKml;};
+    int                       IsKmz() {return m_isKmz;};
   private:
 
     /***** methods to write out various datasource types at destroy *****/
 
     void                      WriteKml();
-
+    void                      WriteKmz();
+    
     /***** methods to open various datasource types *****/
         
     int                       OpenKmz ( const char *pszFilename,
