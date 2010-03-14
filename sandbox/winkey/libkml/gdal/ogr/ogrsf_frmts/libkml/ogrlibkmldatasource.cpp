@@ -56,7 +56,9 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
     papoLayers = NULL;
     nLayers = 0;
     nAlloced = 0;
-
+    
+    bUpdated = FALSE;
+    
     m_isKml = FALSE;
     m_poKmlDSKml = NULL;
     m_poKmlDSContainer = NULL;
@@ -75,7 +77,7 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
 void OGRLIBKMLDataSource::WriteKml (
      )
 {
-    std::string oKmlFilename ( pszName );
+    std::string oKmlFilename = pszName;
     if ( m_poKmlDSKml ) {
         std::string oKmlOut = kmldom::SerializePretty ( m_poKmlDSKml );
 #warning check the return code
@@ -663,7 +665,7 @@ int OGRLIBKMLDataSource::CreateKml (
     m_poKmlDSKml->set_feature ( poKmlDocument );
     m_poKmlDSContainer = poKmlDocument;
     m_isKml = TRUE;
-
+    
     return true;
 }
 
@@ -704,6 +706,9 @@ int OGRLIBKMLDataSource::Create (
 
     int bResult = FALSE;
 
+    pszName = CPLStrdup ( pszFilename );
+    bUpdate = TRUE;
+    
     /***** kml *****/
 
     if ( EQUAL ( CPLGetExtension ( pszFilename ), "kml" ) ) {
