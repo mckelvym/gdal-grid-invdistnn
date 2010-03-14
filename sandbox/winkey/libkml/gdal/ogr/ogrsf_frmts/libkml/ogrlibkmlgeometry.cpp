@@ -204,7 +204,7 @@ ElementPtr geom2kml (
         poOgrLineString = ( OGRLineString * ) poOgrGeom;
 
         coordinates = poKmlFactory->CreateCoordinates (  );
-
+        poOgrPoint = new OGRPoint();
         numpoints = poOgrLineString->getNumPoints (  );
         for ( i = 0; i < numpoints; i++ ) {
             poOgrLineString->getPoint ( i, poOgrPoint );
@@ -215,8 +215,9 @@ ElementPtr geom2kml (
 
             coordinates->add_latlngalt ( y, x, z );
         }
+        delete poOgrPoint;
 
-            /***** check if its a wkbLinearRing *****/
+        /***** check if its a wkbLinearRing *****/
 
         if ( extra < 0 ) {
 
