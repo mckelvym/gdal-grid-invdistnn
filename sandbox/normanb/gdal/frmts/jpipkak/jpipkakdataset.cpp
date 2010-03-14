@@ -31,19 +31,6 @@
 
 #include "jpipkakdataset.h"
 
-static void *pGlobalMutex = NULL;
-static void JPIPWorkerFunc(void *);
-
-// support two communication threads to the server, a main and an overview thread
-static volatile int bHighThreadRunning = 0;
-static volatile int bLowThreadRunning = 0;
-static volatile int bHighThreadFinished = 0;
-static volatile int bLowThreadFinished = 0;
-
-// transmission counts
-static volatile long nHighThreadByteCount = 0;
-static volatile long nLowThreadByteCount = 0;
-
 /************************************************************************/
 /* ==================================================================== */
 /*                     Set up messaging services                        */
@@ -304,8 +291,17 @@ JPIPKAKDataset::JPIPKAKDataset()
 
     nGCPCount = 0;
     pasGCPList = NULL;
-}
 
+    bHighThreadRunning = 0;
+    bLowThreadRunning = 0;
+    bHighThreadFinished = 0;
+    bLowThreadFinished = 0;
+    nHighThreadByteCount = 0;
+    nLowThreadByteCount = 0;
+
+    pGlobalMutex = CPLCreateMutex();
+    CPLReleaseMutex(pGlobalMutex);
+}
 
 /*****************************************/
 /*         ~JPIPKAKDataset()             */
@@ -1119,20 +1115,16 @@ JPIPKAKAsyncRasterIO::~JPIPKAKAsyncRasterIO()
 
 void JPIPKAKAsyncRasterIO::Start()
 {
+    JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
+
     // stop the currently running thread
     // start making requests to the server to the server
-    if (pGlobalMutex == NULL)
-    {
-        pGlobalMutex = CPLCreateMutex();
-        CPLReleaseMutex(pGlobalMutex);
-    }
-
     nDataRead = 0;
     bComplete = 0;
 
     // check a thread is not already running
-    if (((bHighPriority) && (bHighThreadRunning)) || 
-        ((!bHighPriority) && (bLowThreadRunning)))
+    if (((bHighPriority) && (poJDS->bHighThreadRunning)) || 
+        ((!bHighPriority) && (poJDS->bLowThreadRunning)))
         CPLError(CE_Failure, CPLE_AppDefined, "JPIPKAKAsyncRasterIO supports at most two concurrent server communication threads");
     else
     {
@@ -1215,29 +1207,31 @@ void JPIPKAKAsyncRasterIO::Start()
 /************************************************************************/
 void JPIPKAKAsyncRasterIO::Stop()
 {
+    JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
+
     bComplete = 1;
-    if (pGlobalMutex)
+    if (poJDS->pGlobalMutex)
     {
-        if (((bHighPriority) && (!bHighThreadFinished)) || 
-            ((!bHighPriority) && (!bLowThreadFinished)))
+        if (((bHighPriority) && (!poJDS->bHighThreadFinished)) || 
+            ((!bHighPriority) && (!poJDS->bLowThreadFinished)))
         {
             // stop the thread
             if (bHighPriority)
             {
-                CPLAcquireMutex(pGlobalMutex, 100.0);
-                bHighThreadRunning = 0;
-                CPLReleaseMutex(pGlobalMutex);
+                CPLAcquireMutex(poJDS->pGlobalMutex, 100.0);
+                poJDS->bHighThreadRunning = 0;
+                CPLReleaseMutex(poJDS->pGlobalMutex);
 		
-                while (!bHighThreadFinished)
+                while (!poJDS->bHighThreadFinished)
                     CPLSleep(0.1);
             }
             else
             {
-                CPLAcquireMutex(pGlobalMutex, 100.0);
-                bLowThreadRunning = 0;
-                CPLReleaseMutex(pGlobalMutex);
+                CPLAcquireMutex(poJDS->pGlobalMutex, 100.0);
+                poJDS->bLowThreadRunning = 0;
+                CPLReleaseMutex(poJDS->pGlobalMutex);
 		
-                while (!bLowThreadFinished)
+                while (!poJDS->bLowThreadFinished)
                 {
                     CPLSleep(0.1);
                 }
@@ -1258,17 +1252,18 @@ JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int timeout,
                                            int* pnybufsize)
 {
     GDALAsyncStatusType result = GARIO_ERROR;
+    JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
 
     long nSize = 0;
     // take a snapshot of the volatile variables
     if (bHighPriority)
     {
-        const long s = nHighThreadByteCount - nDataRead;
+        const long s = poJDS->nHighThreadByteCount - nDataRead;
         nSize = s;
     }
     else
     {
-        const long s = nLowThreadByteCount - nDataRead;
+        const long s = poJDS->nLowThreadByteCount - nDataRead;
         nSize = s;
     }
 
@@ -1280,8 +1275,8 @@ JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int timeout,
 
         end_wait = clock() + timeout * CLOCKS_PER_SEC / 1000; 
 		
-        while ((nSize == 0) && ((bHighPriority && bHighThreadRunning) ||
-                                (!bHighPriority && bLowThreadRunning)))
+        while ((nSize == 0) && ((bHighPriority && poJDS->bHighThreadRunning) ||
+                                (!bHighPriority && poJDS->bLowThreadRunning)))
         {
             if (end_wait)
                 if (clock() > end_wait)
@@ -1291,12 +1286,12 @@ JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int timeout,
 
             if (bHighPriority)
             {
-                const long s = nHighThreadByteCount - nDataRead;
+                const long s = poJDS->nHighThreadByteCount - nDataRead;
                 nSize = s;
             }
             else
             {
-                const long s = nLowThreadByteCount - nDataRead;
+                const long s = poJDS->nLowThreadByteCount - nDataRead;
                 nSize = s;
             }
         }
@@ -1311,8 +1306,6 @@ JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int timeout,
         *pnybufsize = 0;		
         return GARIO_PENDING;
     }
-
-    JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
 
     // Establish the canvas region with the expansion factor applied,
     // and compute region from the original window cut down to the
@@ -1366,7 +1359,7 @@ JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int timeout,
 
     int bIsDecompressing = FALSE;
 		
-    CPLAcquireMutex(pGlobalMutex, 100.0);
+    CPLAcquireMutex(poJDS->pGlobalMutex, 100.0);
 
     bIsDecompressing = poJDS->poDecompressor->start(
         *(poJDS->poCodestream), 
@@ -1431,18 +1424,18 @@ JPIPKAKAsyncRasterIO::GetNextUpdatedRegion(int timeout,
     }
 
     poJDS->poDecompressor->finish();
-    CPLReleaseMutex(pGlobalMutex);
+    CPLReleaseMutex(poJDS->pGlobalMutex);
 
     // has there been any more data read whilst we have been processing?
     long size = 0;
     if (bHighPriority)
     {
-        const long x = nHighThreadByteCount - nDataRead;
+        const long x = poJDS->nHighThreadByteCount - nDataRead;
         size = x;
     }
     else
     {
-        const long x = nLowThreadByteCount - nDataRead;
+        const long x = poJDS->nLowThreadByteCount - nDataRead;
         size = x;
     }
 
@@ -1480,34 +1473,41 @@ JPIPDataSegment::~JPIPDataSegment()
     CPLFree(pabyData);
 }
 
+/************************************************************************/
+/*                           JPIPWorkerFunc()                           */
+/************************************************************************/
 static void JPIPWorkerFunc(void *req)
 {
     int nCurrentTransmissionLength = 2000;
     int nMinimumTransmissionLength = 2000;
 
     JPIPRequest *pRequest = (JPIPRequest *)req;
+    JPIPKAKDataset *poJDS = 
+        (JPIPKAKDataset*)(pRequest->poARIO->GetGDALDataset());
 	
     int bPriority = pRequest->bPriority;
 
-    CPLAcquireMutex(pGlobalMutex, 100.0);
+    CPLAcquireMutex(poJDS->pGlobalMutex, 100.0);
 
     // set the running status
     if (bPriority)
     {
-        bHighThreadRunning = 1;
-        bHighThreadFinished = 0;
+        poJDS->bHighThreadRunning = 1;
+        poJDS->bHighThreadFinished = 0;
     }
     else
     {
-        bLowThreadRunning = 1;
-        bLowThreadFinished = 0;
+        poJDS->bLowThreadRunning = 1;
+        poJDS->bLowThreadFinished = 0;
     }
 
-    CPLReleaseMutex(pGlobalMutex);
+    CPLReleaseMutex(poJDS->pGlobalMutex);
 
     CPLString osHeaders = "HEADERS=";
     osHeaders += "Accept: jpp-stream";
-    CPLString osPersistent = "PERSISTENT=1";
+    CPLString osPersistent;
+
+    osPersistent.Printf( "PERSISTENT=JPIPKAK:%p", poJDS );
 
     char *apszOptions[] = { 
         (char *) osHeaders.c_str(),
@@ -1520,7 +1520,7 @@ static void JPIPWorkerFunc(void *req)
         // modulate the len= parameter to use the currently available bandwidth
         long nStart = clock();
 
-        if (((bPriority) && (!bHighThreadRunning)) || ((!bPriority) && (!bLowThreadRunning)))
+        if (((bPriority) && (!poJDS->bHighThreadRunning)) || ((!bPriority) && (!poJDS->bLowThreadRunning)))
             break;
 
         // make jpip requests
@@ -1542,37 +1542,37 @@ static void JPIPWorkerFunc(void *req)
             nCurrentTransmissionLength = (int) MAX(bytes / ((1.0 * (nEnd - nStart)) / CLOCKS_PER_SEC), nMinimumTransmissionLength);
 		
 
-        CPLAcquireMutex(pGlobalMutex, 100.0);
+        CPLAcquireMutex(poJDS->pGlobalMutex, 100.0);
 
         int bComplete = ((JPIPKAKDataset*)pRequest->poARIO->GetGDALDataset())->ReadFromInput(psResult->pabyData, psResult->nDataLen);
         if (bPriority)
-            nHighThreadByteCount += psResult->nDataLen;
+            poJDS->nHighThreadByteCount += psResult->nDataLen;
         else
-            nLowThreadByteCount += psResult->nDataLen;
+            poJDS->nLowThreadByteCount += psResult->nDataLen;
 
         pRequest->poARIO->SetComplete(bComplete);
 		
-        CPLReleaseMutex(pGlobalMutex);
+        CPLReleaseMutex(poJDS->pGlobalMutex);
         CPLHTTPDestroyResult(psResult);
 
         if (bComplete)
             break;
     }
 
-    CPLAcquireMutex(pGlobalMutex, 100.0);
+    CPLAcquireMutex(poJDS->pGlobalMutex, 100.0);
 
     if (bPriority)
     {
-        bHighThreadRunning = 0;
-        bHighThreadFinished = 1;
+        poJDS->bHighThreadRunning = 0;
+        poJDS->bHighThreadFinished = 1;
     }
     else
     {
-        bLowThreadRunning = 0;
-        bLowThreadFinished = 1;
+        poJDS->bLowThreadRunning = 0;
+        poJDS->bLowThreadFinished = 1;
     }
 
-    CPLReleaseMutex(pGlobalMutex);
+    CPLReleaseMutex(poJDS->pGlobalMutex);
 
     // end of thread
     delete pRequest;

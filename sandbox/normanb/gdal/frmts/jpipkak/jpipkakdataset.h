@@ -42,6 +42,7 @@
 
 #include <time.h>
 
+static void JPIPWorkerFunc(void *);
 
 /************************************************************************/
 /* ==================================================================== */
@@ -129,6 +130,18 @@ private:
     int Initialise(char* url);
     int KakaduClassId(int nClassId);
 
+    void *pGlobalMutex;
+ 
+    // support two communication threads to the server, a main and an overview thread
+    volatile int bHighThreadRunning;
+    volatile int bLowThreadRunning;
+    volatile int bHighThreadFinished;
+    volatile int bLowThreadFinished;
+    
+    // transmission counts
+    volatile long nHighThreadByteCount;
+    volatile long nLowThreadByteCount;
+
 public:
     JPIPKAKDataset();
     virtual ~JPIPKAKDataset();
@@ -168,6 +181,7 @@ public:
 	
     friend class JPIPKAKAsyncRasterIO;
     friend class JPIPKAKRasterBand;
+    friend void JPIPWorkerFunc(void*);
 };
 
 /************************************************************************/
