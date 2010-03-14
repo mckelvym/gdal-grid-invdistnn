@@ -69,7 +69,7 @@ GDALAsyncReader::~GDALAsyncReader()
 /************************************************************************/
 
 /**
- * \fn GDALAsyncStatusType GDALAsyncReader::GetNextUpdatedRegion( int nTimeout, int* pnBufXOff, int* pnBufYOff, int* pnBufXSize, int* pnBufXSize) = 0;
+ * \fn GDALAsyncStatusType GDALAsyncReader::GetNextUpdatedRegion( double dfTimeout, int* pnBufXOff, int* pnBufYOff, int* pnBufXSize, int* pnBufXSize) = 0;
  * 
  * \brief Get async IO update
  *
@@ -77,7 +77,7 @@ GDALAsyncReader::~GDALAsyncReader()
  * image buffer and return an indication of the area of the buffer that
  * has been updated.  
  *
- * The nTimeout parameter can be used to wait for additional data to 
+ * The dfTimeout parameter can be used to wait for additional data to 
  * become available.  The timeout does not limit the amount
  * of time this method may spend actually processing available data.
  *
@@ -92,8 +92,9 @@ GDALAsyncReader::~GDALAsyncReader()
  * - GARIO_COMPLETE: An update has occured and there is no more pending work 
  * on this request. The request should be ended and the buffer used. 
  *
- * @param nTimeout the number of milliseconds to wait for additional updates, 
- * or zero if no waiting should be done.
+ * @param dfTimeout the number of seconds to wait for additional updates.  Use 
+ * -1 to wait indefinately, or zero to not wait at all if there is no data
+ * available.
  * @param pnBufXOff location to return the X offset of the area of the
  * request buffer that has been updated.
  * @param pnBufYOff location to return the Y offset of the area of the
@@ -111,7 +112,7 @@ GDALAsyncReader::~GDALAsyncReader()
 /************************************************************************/
 
 GDALAsyncStatusType CPL_STDCALL 
-GDALGetNextUpdatedRegion(GDALAsyncReaderH hARIO, int timeout,
+GDALGetNextUpdatedRegion(GDALAsyncReaderH hARIO, double timeout,
                          int* pnxbufoff, int* pnybufoff, 
                          int* pnxbufsize, int* pnybufsize)
 {
@@ -131,21 +132,28 @@ GDALGetNextUpdatedRegion(GDALAsyncReaderH hARIO, int timeout,
  * This is useful to ensure the image buffer is not being modified while
  * it is being used by the application.  UnlockBuffer() should be used
  * to release this lock when it is no longer needed.
+ *
+ * @param dfTimeout the time in seconds to wait attempting to lock the buffer.
+ * -1.0 to wait indefinately and 0 to not wait at all if it can't be
+ * acquired immediately.  Default is -1.0 (infinite wait).
+ *
+ * @return TRUE if successful, or FALSE on an error.
  */
 
-void GDALAsyncReader::LockBuffer()
+int GDALAsyncReader::LockBuffer( double dfTimeout )
 
 {
+    return TRUE;
 }
 
 
 /************************************************************************/
 /*                           GDALLockBuffer()                           */
 /************************************************************************/
-void CPL_STDCALL GDALLockBuffer(GDALAsyncReaderH hARIO)
+void CPL_STDCALL GDALLockBuffer(GDALAsyncReaderH hARIO, double dfTimeout )
 {
-    VALIDATE_POINTER0(hARIO, "GDALAsyncReader");
-    ((GDALAsyncReader *)hARIO) ->LockBuffer();
+    VALIDATE_POINTER0(hARIO, "GDALLockBuffer");
+    ((GDALAsyncReader *)hARIO)->LockBuffer( dfTimeout );
 }
 
 /************************************************************************/
@@ -168,8 +176,8 @@ void GDALAsyncReader::UnlockBuffer()
 /************************************************************************/
 void CPL_STDCALL GDALUnlockBuffer(GDALAsyncReaderH hARIO)
 {
-    VALIDATE_POINTER0(hARIO, "GDALAsyncReader");
-    ((GDALAsyncReader *)hARIO) ->UnlockBuffer();
+    VALIDATE_POINTER0(hARIO, "GDALUnlockBuffer");
+    ((GDALAsyncReader *)hARIO)->UnlockBuffer();
 }
 
 /************************************************************************/
@@ -195,7 +203,7 @@ class GDALDefaultAsyncReader : public GDALAsyncReader
                              int nBandSpace, char **papszOptions);
     ~GDALDefaultAsyncReader();
 
-    virtual GDALAsyncStatusType GetNextUpdatedRegion(int nTimeout,
+    virtual GDALAsyncStatusType GetNextUpdatedRegion(double dfTimeout,
                                                      int* pnBufXOff,
                                                      int* pnBufYOff,
                                                      int* pnBufXSize,
@@ -285,11 +293,11 @@ GDALDefaultAsyncReader::~GDALDefaultAsyncReader()
 /************************************************************************/
 
 GDALAsyncStatusType
-GDALDefaultAsyncReader::GetNextUpdatedRegion(int nTimeout,
-                                               int* pnBufXOff,
-                                               int* pnBufYOff,
-                                               int* pnBufXSize,
-                                               int* pnBufYSize )
+GDALDefaultAsyncReader::GetNextUpdatedRegion(double dfTimeout,
+                                             int* pnBufXOff,
+                                             int* pnBufYOff,
+                                             int* pnBufXSize,
+                                             int* pnBufYSize )
 
 {
     CPLErr eErr;

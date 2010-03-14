@@ -336,7 +336,8 @@ GDALAsyncStatusType CPL_DLL CPL_STDCALL
 GDALGetNextUpdatedRegion(GDALAsyncReaderH hARIO, int nTimeout,
                          int* pnXBufOff, int* pnYBufOff, 
                          int* pnXBufSize, int* pnYBufSize );
-void CPL_DLL CPL_STDCALL GDALLockBuffer(GDALAsyncReaderH hARIO);
+void CPL_DLL CPL_STDCALL GDALLockBuffer(GDALAsyncReaderH hARIO,
+                                        double dfTimeout);
 void CPL_DLL CPL_STDCALL GDALUnlockBuffer(GDALAsyncReaderH hARIO); 
 
 /* ==================================================================== */

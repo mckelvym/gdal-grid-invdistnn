@@ -795,10 +795,10 @@ class CPL_DLL GDALAsyncReader
     int GetBandSpace() {return nBandSpace;}
 
     virtual GDALAsyncStatusType 
-        GetNextUpdatedRegion(int nTimeout,
+        GetNextUpdatedRegion(double dfTimeout,
                              int* pnBufXOff, int* pnBufYOff,
                              int* pnBufXSize, int* pnBufXSize) = 0;
-    virtual void LockBuffer();
+    virtual int LockBuffer( double dfTimeout = -1.0 );
     virtual void UnlockBuffer();
 };
 

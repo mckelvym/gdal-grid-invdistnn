@@ -50,7 +50,8 @@ static void Usage()
             "       [-of format] [-b band]\n"
             "       [-outsize xsize[%%] ysize[%%]]\n"
             "       [-srcwin xoff yoff xsize ysize]\n"
-            "       [-co \"NAME=VALUE\"]* [-ao \"NAME=VALUE\"] -multi\n"
+            "       [-co \"NAME=VALUE\"]* [-ao \"NAME=VALUE\"]\n"
+            "       [-to timeout] [-multi]\n"
             "       src_dataset dst_dataset\n\n" );
 
     printf( "%s\n\n", GDALVersionInfo( "--version" ) );
@@ -93,6 +94,7 @@ int main( int argc, char ** argv )
     GDALProgressFunc    pfnProgress = GDALTermProgress;
     int                 iSrcFileArg = -1, iDstFileArg = -1;
     int                 bMulti = FALSE;
+    double              dfTimeout = -1.0;
 
     anSrcWin[0] = 0;
     anSrcWin[1] = 0;
@@ -182,6 +184,11 @@ int main( int argc, char ** argv )
         else if( EQUAL(argv[i],"-ao") && i < argc-1 )
         {
             papszAsyncOptions = CSLAddString( papszAsyncOptions, argv[++i] );
+        }   
+
+        else if( EQUAL(argv[i],"-to") && i < argc-1 )
+        {
+            dfTimeout = atof(argv[++i] );
         }   
 
         else if( EQUAL(argv[i],"-outsize") && i < argc-2 )
@@ -477,7 +484,7 @@ int main( int argc, char ** argv )
 
         int nUpXOff, nUpYOff, nUpXSize, nUpYSize;
 
-        eAStatus = poAsyncReq->GetNextUpdatedRegion( 100, 
+        eAStatus = poAsyncReq->GetNextUpdatedRegion( dfTimeout,
                                                      &nUpXOff, &nUpYOff, 
                                                      &nUpXSize, &nUpYSize );
 

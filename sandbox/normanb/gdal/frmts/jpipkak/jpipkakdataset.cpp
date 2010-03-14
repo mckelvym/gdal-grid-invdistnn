@@ -245,7 +245,7 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
     do 
     {
-        status = ario->GetNextUpdatedRegion(1000, 
+        status = ario->GetNextUpdatedRegion(-1.0, 
                                             &nXBufOff, &nYBufOff, 
                                             &nXBufSize, &nYBufSize );
     } while (status != GARIO_ERROR && status != GARIO_COMPLETE );
@@ -1245,11 +1245,11 @@ void JPIPKAKAsyncReader::Stop()
 /************************************************************************/
 
 GDALAsyncStatusType 
-JPIPKAKAsyncReader::GetNextUpdatedRegion(int timeout,
-                                           int* pnxbufoff,
-                                           int* pnybufoff,
-                                           int* pnxbufsize,
-                                           int* pnybufsize)
+JPIPKAKAsyncReader::GetNextUpdatedRegion(double dfTimeout,
+                                         int* pnxbufoff,
+                                         int* pnybufoff,
+                                         int* pnxbufsize,
+                                         int* pnybufsize)
 {
     GDALAsyncStatusType result = GARIO_ERROR;
     JPIPKAKDataset *poJDS = (JPIPKAKDataset*)poDS;
@@ -1268,18 +1268,18 @@ JPIPKAKAsyncReader::GetNextUpdatedRegion(int timeout,
     }
 
     // wait for new data if required
-    if ((nSize == 0) && timeout > 0 )
+    if ((nSize == 0) && dfTimeout != 0 )
     {
         // poll for change in cache size
         clock_t end_wait = 0;
 
-        end_wait = clock() + timeout * CLOCKS_PER_SEC / 1000; 
+        end_wait = clock() + (int) (dfTimeout * CLOCKS_PER_SEC); 
 		
         while ((nSize == 0) && ((bHighPriority && poJDS->bHighThreadRunning) ||
                                 (!bHighPriority && poJDS->bLowThreadRunning)))
         {
             if (end_wait)
-                if (clock() > end_wait)
+                if (clock() > end_wait && dfTimeout >= 0 )
                     break;
 
             CPLSleep(0.1);

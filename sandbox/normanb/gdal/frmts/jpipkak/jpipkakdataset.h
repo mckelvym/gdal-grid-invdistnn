@@ -245,7 +245,7 @@ public:
     JPIPKAKAsyncReader();
     virtual ~JPIPKAKAsyncReader();
 
-    virtual GDALAsyncStatusType GetNextUpdatedRegion(int timeout,
+    virtual GDALAsyncStatusType GetNextUpdatedRegion(double timeout,
                                                      int* pnxbufoff,
                                                      int* pnybufoff,
                                                      int* pnxbufsize,
