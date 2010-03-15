@@ -318,10 +318,13 @@ int OGRLIBKMLDataSource::OpenKml (
     int nPlacemarks = 0;
     size_t iKmlFeature;
 
+#warning we need a seperate loop to get the schemas ans styles
+    
     for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
         FeaturePtr poKmlFeat =
             m_poKmlDSContainer->get_feature_array_at ( iKmlFeature );
 
+#warning this does not work, style seems to be in a seperate array in a documentptr
         /***** style *****/
 
         if ( poKmlFeat->IsA ( kmldom::Type_Style ) ) {
@@ -1027,6 +1030,8 @@ OGRStyleTable *OGRLIBKMLDataSource::GetStyleTable (
 void OGRLIBKMLDataSource::SetStyleTable2Kml (
     OGRStyleTable * poStyleTable )
 {
+
+ #warning this does not work, style seems to be in a seperate array in a documentptr
 
     /***** go though the root features looking for styles *****/
 
