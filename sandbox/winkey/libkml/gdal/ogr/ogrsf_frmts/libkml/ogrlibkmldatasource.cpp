@@ -81,13 +81,18 @@ void OGRLIBKMLDataSource::WriteKml (
     std::string oKmlFilename = pszName;
     if ( m_poKmlDSKml ) {
         std::string oKmlOut = kmldom::SerializePretty ( m_poKmlDSKml );
-#warning check the return code
-        kmlbase::File::WriteStringToFile ( oKmlOut, oKmlFilename );
+
+        if (!kmlbase::File::WriteStringToFile ( oKmlOut, oKmlFilename )) 
+            CPLError ( CE_Failure, CPLE_FileIO,
+                   "ERROR writing %s", oKmlFilename.c_str() );
     }
     else if ( m_poKmlDSContainer ) {
         std::string oKmlOut = kmldom::SerializePretty ( m_poKmlDSContainer );
-#warning check the return code
-        kmlbase::File::WriteStringToFile ( oKmlOut, oKmlFilename );
+
+        if (!kmlbase::File::WriteStringToFile ( oKmlOut, oKmlFilename )) 
+            CPLError ( CE_Failure, CPLE_FileIO,
+                   "ERROR writing %s", oKmlFilename.c_str() );
+        
     }
 
     return;
@@ -120,8 +125,10 @@ void OGRLIBKMLDataSource::WriteKmz (
 
         poKmlKml->set_feature ( m_poKmlDocKml );
         std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
-#warning check the return code
-        poKmlKmzfile->AddFile ( oKmlOut, "doc.kml" );
+
+        if (!poKmlKmzfile->AddFile ( oKmlOut, "doc.kml" ))
+            CPLError ( CE_Failure, CPLE_FileIO,
+                   "ERROR adding %s to %s", "doc.kml", pszName);
 
     }
 
@@ -139,8 +146,11 @@ void OGRLIBKMLDataSource::WriteKmz (
         std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
         std::string oName = papoLayers[iLayer]->GetName (  );
         oName.append ( ".kml" );
-#warning check the return code
-        poKmlKmzfile->AddFile ( oKmlOut, oName.c_str (  ) );
+
+        if (!poKmlKmzfile->AddFile ( oKmlOut, oName.c_str (  ) ))
+            CPLError ( CE_Failure, CPLE_FileIO,
+                   "ERROR adding %s to %s", oName.c_str(), pszName);
+
     }
 
    /***** write the style table *****/
@@ -152,7 +162,9 @@ void OGRLIBKMLDataSource::WriteKmz (
         poKmlKml->set_feature ( m_poKmlStyleKml );
         std::string strKmlOut = kmldom::SerializePretty ( poKmlKml );
 
-        poKmlKmzfile->AddFile ( strKmlOut, "style/style.kml" );
+        if (!poKmlKmzfile->AddFile ( strKmlOut, "style/style.kml" ))
+            CPLError ( CE_Failure, CPLE_FileIO,
+                   "ERROR adding %s to %s", "style/style.kml", pszName);
     }
 
     delete poKmlKmzfile;
