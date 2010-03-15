@@ -141,7 +141,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     
     /***** style table pointer *****/
     
-    OGRStyleTable            *m_poStyleTable;
+    //OGRStyleTable            *m_poStyleTable;
 
   public:
     OGRLIBKMLDataSource       (  );

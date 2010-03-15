@@ -49,7 +49,12 @@ void datasetstyletable2kml (
     ContainerPtr poKmlContainer  )
 {
 
-  /***** parse the style table *****/
+    /***** just return if the styletable is null *****/
+    
+    if (!poOgrStyleTable)
+        return;
+    
+    /***** parse the style table *****/
 
     poOgrStyleTable->ResetStyleStringReading (  );
     const char *pszStyleString;

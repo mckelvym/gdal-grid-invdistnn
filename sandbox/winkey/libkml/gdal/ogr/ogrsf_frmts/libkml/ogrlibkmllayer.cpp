@@ -290,7 +290,7 @@ OGRErr OGRLIBKMLLayer::SyncToDisk (
 {
 
     KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
-    KmzFile *poKmlKmzfile = m_poOgrDS->GetKmz (  );
+    KmzFile *poKmlKmzfile ;//= m_poOgrDS->GetKmz (  );
 
     KmlPtr poKmlKml = poKmlFactory->CreateKml (  );
 
