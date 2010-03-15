@@ -572,10 +572,8 @@ int OGRLIBKMLDataSource::OpenKmz (
             size_t nKmlFeatures =
                 poKmlDocument->get_styleselector_array_size (  );
             size_t iKmlFeature;
-
-            printf ( "numstyles = %i\n", nKmlFeatures );
             for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
-                printf ( "style loop\n" );
+                
                 StyleSelectorPtr poKmlFeat =
                     poKmlDocument->get_styleselector_array_at ( iKmlFeature );
 
@@ -1074,7 +1072,6 @@ void OGRLIBKMLDataSource::SetStyleTable2Kmz (
 void OGRLIBKMLDataSource::SetStyleTableDirectly (
     OGRStyleTable * poStyleTable )
 {
-    printf ( "SetStyleTableDirectly\n" );
 
     if ( m_poStyleTable )
         delete m_poStyleTable;
@@ -1104,7 +1101,7 @@ void OGRLIBKMLDataSource::SetStyleTableDirectly (
 void OGRLIBKMLDataSource::SetStyleTable (
     OGRStyleTable * poStyleTable )
 {
-    printf ( "SetStyleTable\n" );
+
     if ( poStyleTable )
         SetStyleTableDirectly ( poStyleTable->Clone (  ) );
     else
