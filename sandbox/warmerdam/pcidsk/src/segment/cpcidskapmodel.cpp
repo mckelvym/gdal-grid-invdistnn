@@ -3,7 +3,7 @@
  * Purpose:  Implementation of the APMODEL segment and storage objects.
  * 
  ******************************************************************************
- * Copyright (c) 2009
+ * Copyright (c) 2010
  * PCI Geomatics, 50 West Wilmot Street, Richmond Hill, Ont, Canada
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
