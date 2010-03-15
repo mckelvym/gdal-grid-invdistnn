@@ -29,6 +29,7 @@
 #include "pcidsk_vectorsegment.h"
 #include "pcidsk_georef.h"
 #include "pcidsk_gcpsegment.h"
+#include "pcidsk_airphoto.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -169,6 +170,22 @@ void DumpSegHistory(PCIDSK::PCIDSKSegment* seg)
     }
 }
 
+/************************************************************************/
+/*                           DumpAPModelSeg()                           */
+/************************************************************************/
+void DumpAPModelSeg(PCIDSK::PCIDSKAPModelSegment* seg)
+{
+    PCIDSK::PCIDSKAPModelIOParams const& io = seg->GetInteriorOrientationParams();
+    PCIDSK::PCIDSKAPModelEOParams const& eo = seg->GetExteriorOrientationParams();
+    PCIDSK::PCIDSKAPModelMiscParams const& misc = seg->GetAdditionalParams();
+    
+    printf("\tImage: %d pixels x %d lines\n",
+        seg->GetWidth(), seg->GetHeight());
+    unsigned int downsample = seg->GetDownsampleFactor();
+    printf("\tDownsample Factor: %u\n", downsample);
+    printf("\tMap Units String: %s\n", seg->GetMapUnitsString().c_str());
+}
+
 } // end anonymous namespace for helper functions
 
 /************************************************************************/
@@ -181,7 +198,7 @@ static void ReportGeoSegment( PCIDSK::PCIDSKSegment *segobj )
     try 
     { 
         double a1, a2, xrot, b1, yrot, b3;
-        PCIDSK::PCIDSKGeoref *geoseg 
+        PCIDSK::PCIDSKGeoref *geoseg
             = dynamic_cast<PCIDSK::PCIDSKGeoref*>( segobj );
 
         std::string geosys = geoseg->GetGeosys();
@@ -527,6 +544,14 @@ int main( int argc, char **argv)
                         && (bitmap = dynamic_cast<PCIDSK::PCIDSKChannel*>(segobj)))
                     {
                         ReportBitmapSegment(bitmap);
+                    }
+                    
+                    PCIDSK::PCIDSKAPModelSegment* apseg = NULL;
+                    if (segobj != NULL &&
+                        segobj->GetSegmentType() == PCIDSK::SEG_BIN &&
+                        (apseg = dynamic_cast<PCIDSK::PCIDSKAPModelSegment*>(segobj)))
+                    {
+                        DumpAPModelSeg(apseg);
                     }
                 }
                 catch( PCIDSK::PCIDSKException ex )

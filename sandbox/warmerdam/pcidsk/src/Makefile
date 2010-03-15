@@ -30,7 +30,8 @@ OBJ = \
 	segment/cpcidskrpcmodel.o \
 	segment/cpcidskgcp2segment.o \
 	segment/cpcidskbitmap.o \
-	segment/cpcidsk_tex.o
+	segment/cpcidsk_tex.o \
+	segment/cpcidskapmodel.o
 
 
 CXXFLAGS = -g -O0 -Wall -fPIC -I. $(JPEG_FLAGS)
