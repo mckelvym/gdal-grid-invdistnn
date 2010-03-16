@@ -441,6 +441,8 @@ int OGRLIBKMLDataSource::OpenKmz (
                                   "           AUTHORITY[\"EPSG\",\"9122\"]],"
                                   "           AUTHORITY[\"EPSG\",\"4326\"]]" );
 
+    
+
     /***** fetch all the links *****/
 
 
@@ -704,11 +706,6 @@ int OGRLIBKMLDataSource::OpenDir (
     }
 
     delete poOgrSRS;
-
-    if ( !nLayers ) {
-        return FALSE;
-#warning we need to do cleanup here
-    }
 
     return TRUE;
 }
