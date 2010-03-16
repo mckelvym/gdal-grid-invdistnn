@@ -262,6 +262,7 @@ void CPL_STDCALL GDALAllRegister()
 #ifdef FRMT_jp2kak
 // JPEG2000 support using Kakadu toolkit
     GDALRegister_JP2KAK();
+    GDALRegister_JPIPKAK();
 #endif
 
 #ifdef FRMT_ecw
