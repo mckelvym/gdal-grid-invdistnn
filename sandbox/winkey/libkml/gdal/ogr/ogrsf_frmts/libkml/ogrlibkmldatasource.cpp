@@ -208,6 +208,34 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
 }
 
 /******************************************************************************
+ method to parse a style table out of a document
+******************************************************************************/
+
+void OGRLIBKMLDataSource::ParseStyles (
+    DocumentPtr poKmlDocument)
+{
+                     
+    /***** loop over the Styles *****/
+
+    size_t nKmlStyles = poKmlDocument->get_styleselector_array_size (  );
+    size_t iKmlStyle;
+    for ( iKmlStyle = 0; iKmlStyle < nKmlStyles; iKmlStyle++ ) {
+
+        StyleSelectorPtr poKmlStyle = poKmlDocument->get_styleselector_array_at ( iKmlStyle );
+
+        if ( !m_poStyleTable )
+            m_poStyleTable = new OGRStyleTable (  );
+        
+        ElementPtr poKmlElement = boost::static_pointer_cast < kmldom::Element > ( poKmlStyle );
+
+        kml2datasetstyletable ( m_poStyleTable,
+                                boost::static_pointer_cast <kmldom::Style > ( poKmlElement ) );
+    }
+
+    return;
+}
+
+/******************************************************************************
  method to open a kml file
 ******************************************************************************/
 
@@ -300,6 +328,10 @@ int OGRLIBKMLDataSource::OpenKml (
         return FALSE;
     }
 
+    /***** get the styles *****/
+    
+    ParseStyles (boost::static_pointer_cast < kmldom::Document > (m_poKmlDSContainer));
+
     /***** get how many features the container has *****/
 
     size_t nKmlFeatures = m_poKmlDSContainer->get_feature_array_size (  );
@@ -318,24 +350,13 @@ int OGRLIBKMLDataSource::OpenKml (
     int nPlacemarks = 0;
     size_t iKmlFeature;
 
-#warning we need a seperate loop to get the schemas ans styles
+#warning we need a seperate loop to get the schemas
+
     
     for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
         FeaturePtr poKmlFeat =
             m_poKmlDSContainer->get_feature_array_at ( iKmlFeature );
 
-#warning this does not work, style seems to be in a seperate array in a documentptr
-        /***** style *****/
-
-        if ( poKmlFeat->IsA ( kmldom::Type_Style ) ) {
-            if ( !m_poStyleTable )
-                m_poStyleTable = new OGRStyleTable (  );
-            ElementPtr poKmlElement =
-                boost::static_pointer_cast < kmldom::Element > ( poKmlFeat );
-            kml2datasetstyletable ( m_poStyleTable,
-                                    boost::static_pointer_cast <
-                                    kmldom::Style > ( poKmlElement ) );
-        }
 
         /***** schema *****/
 
@@ -582,32 +603,8 @@ int OGRLIBKMLDataSource::OpenKmz (
                     boost::static_pointer_cast < kmldom::Document >
                     ( poKmlRoot );
 
-
-
-            /***** loop over the features *****/
-
-            size_t nKmlFeatures =
-                poKmlDocument->get_styleselector_array_size (  );
-            size_t iKmlFeature;
-            for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
-                
-                StyleSelectorPtr poKmlFeat =
-                    poKmlDocument->get_styleselector_array_at ( iKmlFeature );
-
-                /***** make sure the feature is a style *****/
-
-                if ( poKmlFeat->IsA ( kmldom::Type_Style ) ) {
-
-                    if ( !m_poStyleTable )
-                        m_poStyleTable = new OGRStyleTable (  );
-                    ElementPtr poKmlElement =
-                        boost::static_pointer_cast < kmldom::Element >
-                        ( poKmlFeat );
-                    kml2datasetstyletable ( m_poStyleTable,
-                                            boost::static_pointer_cast <
-                                            kmldom::Style > ( poKmlElement ) );
-                }
-            }
+            ParseStyles (poKmlDocument);
+            
         }
 
     }

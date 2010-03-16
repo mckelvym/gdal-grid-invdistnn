@@ -215,7 +215,8 @@ class OGRLIBKMLDataSource:public OGRDataSource
     void                      SetStyleTable2Kml ( OGRStyleTable * poStyleTable );
     void                      SetStyleTable2Kmz ( OGRStyleTable * poStyleTable );
     
-     
+
+    void                      ParseStyles(DocumentPtr pokmlDocument);
 };
 
 
