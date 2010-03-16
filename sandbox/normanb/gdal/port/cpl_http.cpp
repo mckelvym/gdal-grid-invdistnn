@@ -41,8 +41,10 @@ CPL_CVSID("$Id$");
 
 // list of named persistent http sessions 
 
+#ifdef HAVE_CURL
 static std::map<CPLString,CURL*> oSessionMap;
 static void *hSessionMapMutex;
+#endif
 
 /************************************************************************/
 /*                            CPLWriteFct()                             */
@@ -254,6 +256,7 @@ int CPLHTTPEnabled()
 void CPLHTTPCleanup()
 
 {
+#ifdef HAVE_CURL
     if( !hSessionMapMutex )
         return;
 
@@ -270,6 +273,7 @@ void CPLHTTPCleanup()
     // not quite a safe sequence. 
     CPLDestroyMutex( hSessionMapMutex );
     hSessionMapMutex = NULL;
+#endif
 }
 
 /************************************************************************/
