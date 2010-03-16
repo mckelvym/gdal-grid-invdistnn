@@ -145,6 +145,7 @@ private:
 public:
     JPIPKAKDataset();
     virtual ~JPIPKAKDataset();
+
     // progressive methods
     virtual GDALAsyncReader* BeginAsyncReader(int xOff, int yOff,
                                               int xSize, int ySize, 
@@ -163,12 +164,22 @@ public:
 
     int ReadFromInput(GByte* pabyData, int nLen);
 
+    int TestUseBlockIO( int nXOff, int nYOff, int nXSize, int nYSize,
+                        int nBufXSize, int nBufYSize, GDALDataType eDataType, 
+                        int nBandCount, int *panBandList );
+
     //gdaldataset methods
     virtual CPLErr GetGeoTransform( double * );
     virtual const char *GetProjectionRef(void);
     virtual int    GetGCPCount();
     virtual const char *GetGCPProjection();
     virtual const GDAL_GCP *GetGCPs();
+    virtual CPLErr IRasterIO( GDALRWFlag eRWFlag,
+                              int nXOff, int nYOff, int nXSize, int nYSize,
+                              void * pData, int nBufXSize, int nBufYSize,
+                              GDALDataType eBufType, 
+                              int nBandCount, int *panBandMap,
+                              int nPixelSpace,int nLineSpace,int nBandSpace);
 
     static GDALDataset *Open(GDALOpenInfo *);
     static const GByte JPIP_EOR_IMAGE_DONE = 1;
@@ -215,6 +226,9 @@ public:
     ~JPIPKAKRasterBand();
     
     virtual CPLErr IReadBlock( int, int, void * );
+    virtual CPLErr IRasterIO( GDALRWFlag, int, int, int, int,
+                              void *, int, int, GDALDataType,
+                              int, int );
 
     virtual int    GetOverviewCount();
     virtual GDALRasterBand *GetOverview( int );
@@ -229,6 +243,9 @@ public:
 class JPIPKAKAsyncReader : public GDALAsyncReader
 {
 private:
+    void *pAppBuf;
+    int  nAppPixelSpace, nAppLineSpace, nAppBandSpace;
+
     int nDataRead;
     int nLevel;
     int nQualityLayers;

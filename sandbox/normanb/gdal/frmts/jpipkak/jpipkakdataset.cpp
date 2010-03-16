@@ -236,6 +236,9 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                            pImage, nBlockXSize, nBlockYSize, 
                            eDataType, 1, &nBand, 0, 0, 0, NULL);
 
+    if( ario == NULL )
+        return CE_Failure;
+
     int nXBufOff; // absolute x image offset
     int nYBufOff; // abolute y image offset
     int nXBufSize;
@@ -245,6 +248,60 @@ CPLErr JPIPKAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
     do 
     {
+        status = ario->GetNextUpdatedRegion(-1.0, 
+                                            &nXBufOff, &nYBufOff, 
+                                            &nXBufSize, &nYBufSize );
+    } while (status != GARIO_ERROR && status != GARIO_COMPLETE );
+
+    poBaseDS->EndAsyncReader(ario);
+
+    if (status == GARIO_ERROR)
+        return CE_Failure;
+    else
+        return CE_None;
+}
+
+/************************************************************************/
+/*                             IRasterIO()                              */
+/************************************************************************/
+
+CPLErr 
+JPIPKAKRasterBand::IRasterIO( GDALRWFlag eRWFlag,
+                              int nXOff, int nYOff, int nXSize, int nYSize,
+                              void * pData, int nBufXSize, int nBufYSize,
+                              GDALDataType eBufType, 
+                              int nPixelSpace,int nLineSpace )
+    
+{
+/* -------------------------------------------------------------------- */
+/*      We need various criteria to skip out to block based methods.    */
+/* -------------------------------------------------------------------- */
+    if( poBaseDS->TestUseBlockIO( nXOff, nYOff, nXSize, nYSize, 
+                                  nBufXSize, nBufYSize,
+                                  eBufType, 1, &nBand ) )
+        return GDALPamRasterBand::IRasterIO( 
+            eRWFlag, nXOff, nYOff, nXSize, nYSize,
+            pData, nBufXSize, nBufYSize, eBufType, 
+            nPixelSpace, nLineSpace );
+
+/* -------------------------------------------------------------------- */
+/*      Otherwise do this as a single uncached async rasterio.          */
+/* -------------------------------------------------------------------- */
+    GDALAsyncReader* ario = 
+        poBaseDS->BeginAsyncReader(nXOff, nYOff, nXSize, nYSize,
+                                   pData, nBufXSize, nBufYSize, eBufType, 
+                                   1, &nBand,
+                                   nPixelSpace, nLineSpace, 0, NULL);
+    
+    if( ario == NULL )
+        return CE_Failure;
+    
+    GDALAsyncStatusType status;
+
+    do 
+    {
+        int nXBufOff,nYBufOff,nXBufSize,nYBufSize;
+
         status = ario->GetNextUpdatedRegion(-1.0, 
                                             &nXBufOff, &nYBufOff, 
                                             &nXBufSize, &nYBufSize );
@@ -483,20 +540,22 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
     poCodestream->create(poCache);
     poCodestream->set_persistent();
 
-    kdu_channel_mapping* oChannels = new kdu_channel_mapping();
-    oChannels->configure(*poCodestream);
+    kdu_channel_mapping oChannels;
+    oChannels.configure(*poCodestream);
     kdu_coords* ref_expansion = new kdu_coords(1, 1);
 					
     // get available resolutions, image width / height etc.
     kdu_dims view_dims = poDecompressor->
-        get_rendered_image_dims(*poCodestream, oChannels, -1, 0,
+        get_rendered_image_dims(*poCodestream, &oChannels, -1, 0,
                                 *ref_expansion, *ref_expansion, 
                                 KDU_WANT_OUTPUT_COMPONENTS);
 
     nRasterXSize = view_dims.size.x;
     nRasterYSize = view_dims.size.y;
 
-    nBands = poCodestream->get_num_components();
+    // The oChannels.num_channels better represents what we get from process.
+    nBands = oChannels.num_channels;
+    //nBands = poCodestream->get_num_components();
 
     // Establish the datatype - we will use the same datatype for
     // all bands based on the first.
@@ -517,7 +576,6 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
     siz_params* siz_in = poCodestream->access_siz();
     kdu_params* cod_in = siz_in->access_cluster("COD");
 
-    delete oChannels;
     delete ref_expansion;
 
     cod_in->get("Clayers", 0, 0, nQualityLayers);
@@ -877,6 +935,102 @@ const GDAL_GCP *JPIPKAKDataset::GetGCPs()
     return pasGCPList;
 }
 
+/************************************************************************/
+/*                             IRasterIO()                              */
+/************************************************************************/
+
+CPLErr JPIPKAKDataset::IRasterIO( GDALRWFlag eRWFlag,
+                                  int nXOff, int nYOff, int nXSize, int nYSize,
+                                  void * pData, int nBufXSize, int nBufYSize,
+                                  GDALDataType eBufType, 
+                                  int nBandCount, int *panBandMap,
+                                  int nPixelSpace,int nLineSpace,int nBandSpace)
+
+{
+/* -------------------------------------------------------------------- */
+/*      We need various criteria to skip out to block based methods.    */
+/* -------------------------------------------------------------------- */
+    if( TestUseBlockIO( nXOff, nYOff, nXSize, nYSize, nBufXSize, nBufYSize,
+                        eBufType, nBandCount, panBandMap ) )
+        return GDALPamDataset::IRasterIO( 
+            eRWFlag, nXOff, nYOff, nXSize, nYSize,
+            pData, nBufXSize, nBufYSize, eBufType, 
+            nBandCount, panBandMap, nPixelSpace, nLineSpace, nBandSpace );
+
+/* -------------------------------------------------------------------- */
+/*      Otherwise do this as a single uncached async rasterio.          */
+/* -------------------------------------------------------------------- */
+    GDALAsyncReader* ario = 
+        BeginAsyncReader(nXOff, nYOff, nXSize, nYSize,
+                         pData, nBufXSize, nBufYSize, eBufType, 
+                         nBandCount, panBandMap, 
+                         nPixelSpace, nLineSpace, nBandSpace, NULL);
+
+    if( ario == NULL )
+        return CE_Failure;
+    
+    GDALAsyncStatusType status;
+
+    do 
+    {
+        int nXBufOff,nYBufOff,nXBufSize,nYBufSize;
+
+        status = ario->GetNextUpdatedRegion(-1.0, 
+                                            &nXBufOff, &nYBufOff, 
+                                            &nXBufSize, &nYBufSize );
+    } while (status != GARIO_ERROR && status != GARIO_COMPLETE );
+
+    EndAsyncReader(ario);
+
+    if (status == GARIO_ERROR)
+        return CE_Failure;
+    else
+        return CE_None;
+}
+
+/************************************************************************/
+/*                           TestUseBlockIO()                           */
+/************************************************************************/
+
+int 
+JPIPKAKDataset::TestUseBlockIO( int nXOff, int nYOff, int nXSize, int nYSize,
+                                int nBufXSize, int nBufYSize,
+                                GDALDataType eDataType, 
+                                int nBandCount, int *panBandList )
+
+{
+/* -------------------------------------------------------------------- */
+/*      Due to limitations in DirectRasterIO() we can only handle       */
+/*      it no duplicates in the band list.                              */
+/* -------------------------------------------------------------------- */
+    int i, j; 
+    
+    for( i = 0; i < nBandCount; i++ )
+    {
+        for( j = i+1; j < nBandCount; j++ )
+            if( panBandList[j] == panBandList[i] )
+                return TRUE;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      The rest of the rules are io strategy stuff, and use            */
+/*      configuration checks.                                           */
+/* -------------------------------------------------------------------- */
+    int bUseBlockedIO = bForceCachedIO;
+
+    if( nYSize == 1 || nXSize * ((double) nYSize) < 100.0 )
+        bUseBlockedIO = TRUE;
+
+    if( nBufYSize == 1 || nBufXSize * ((double) nBufYSize) < 100.0 )
+        bUseBlockedIO = TRUE;
+
+    if( bUseBlockedIO
+        && CSLTestBoolean( CPLGetConfigOption( "GDAL_ONE_BIG_READ", "NO") ) )
+        bUseBlockedIO = FALSE;
+
+    return bUseBlockedIO;
+}
+
 /*************************************************************************/
 /*                     BeginAsyncReader()                              */
 /*************************************************************************/
@@ -892,6 +1046,9 @@ JPIPKAKDataset::BeginAsyncReader(int xOff, int yOff,
                                    int nBandSpace,
                                    char **papszOptions)
 {
+    CPLDebug( "JPIP", "BeginAsyncReadeR(%d,%d,%d,%d -> %dx%d)",
+              xOff, yOff, xSize, ySize, bufXSize, bufYSize );
+
 /* -------------------------------------------------------------------- */
 /*      Provide default packing if needed.                              */
 /* -------------------------------------------------------------------- */
@@ -907,14 +1064,10 @@ JPIPKAKDataset::BeginAsyncReader(int xOff, int yOff,
 /* -------------------------------------------------------------------- */
     JPIPKAKAsyncReader* ario = new JPIPKAKAsyncReader();
     ario->poDS = this;
-    ario->pBuf = pBuf;
     ario->nBufXSize = bufXSize;
     ario->nBufYSize = bufYSize;
     ario->eBufType = bufType;
     ario->nBandCount = nBandCount;
-    ario->nPixelSpace = nPixelSpace;
-    ario->nLineSpace = nLineSpace;
-    ario->nBandSpace = nBandSpace;
 
     ario->panBandMap = new int[nBandCount];
     if (pBandMap)
@@ -928,16 +1081,46 @@ JPIPKAKDataset::BeginAsyncReader(int xOff, int yOff,
             ario->panBandMap[i] = i+1;
     }
 
+/* -------------------------------------------------------------------- */
+/*      If the buffer type is of other than images type, we need to     */
+/*      allocate a private buffer the same type as the image which      */
+/*      will be converted later.                                        */
+/* -------------------------------------------------------------------- */
     if( bufType != eDT )
     {
-        // TODO: 
-        CPLError( CE_Failure, CPLE_AppDefined,
-                  "Currently the JPIP Async IO may only be done with a\n"
-                  "target buffer of the same type as the underyling image.");
-        return NULL;
+        ario->nPixelSpace = GDALGetDataTypeSize(eDT) / 8;
+        ario->nLineSpace = ario->nPixelSpace * bufXSize;
+        ario->nBandSpace = ario->nLineSpace * bufYSize;
+
+        ario->nAppPixelSpace = nPixelSpace;
+        ario->nAppLineSpace = nLineSpace;
+        ario->nAppBandSpace = nBandSpace;
+
+        ario->pBuf = VSIMalloc3(bufXSize,bufYSize,ario->nPixelSpace*nBandCount);
+        if( ario->pBuf == NULL )
+        {
+            delete ario;
+            CPLError( CE_Failure, CPLE_OutOfMemory,
+                      "Failed to allocate %d byte work buffer.",
+                      bufXSize * bufYSize * ario->nPixelSpace );
+            return NULL;
+        }
+
+        ario->pAppBuf = pBuf;
+    }
+    else
+    {
+        ario->pBuf = pBuf;
+        ario->pAppBuf = pBuf;
+
+        ario->nAppPixelSpace = ario->nPixelSpace = nPixelSpace;
+        ario->nAppLineSpace = ario->nLineSpace = nLineSpace;
+        ario->nAppBandSpace = ario->nBandSpace = nBandSpace;
     }
 
-    // check we have sensible values
+/* -------------------------------------------------------------------- */
+/*      check we have sensible values for windowing.                    */
+/* -------------------------------------------------------------------- */
     if (xOff > GetRasterXSize())
         xOff = GetRasterXSize();
 
@@ -1094,7 +1277,7 @@ void GDALRegister_JPIPKAK()
 JPIPKAKAsyncReader::JPIPKAKAsyncReader()
 {
     panBandMap = NULL;
-    pBuf = NULL;
+    pAppBuf = pBuf = NULL;
     nDataRead = 0;
 }
 
@@ -1107,6 +1290,9 @@ JPIPKAKAsyncReader::~JPIPKAKAsyncReader()
 
     // don't own the buffer
     delete [] panBandMap;
+
+    if( pAppBuf != pBuf )
+        CPLFree( pBuf );
 }
 
 /************************************************************************/
@@ -1351,7 +1537,11 @@ JPIPKAKAsyncReader::GetNextUpdatedRegion(double dfTimeout,
 
     channels.configure(*(poJDS->poCodestream));
 
-    for( i=0; i < nBandCount; i++ )
+    if( channels.num_channels < nBandCount )
+        CPLDebug( "JPIP", "channels.num_channels = %d, but nBandCount=%d!",
+                  channels.num_channels, nBandCount );
+
+    for( i=0; i < MIN(nBandCount,channels.num_channels); i++ )
         channels.source_components[i] = panBandMap[i]-1;
 
     kdu_dims incomplete_region = region;
@@ -1373,7 +1563,7 @@ JPIPKAKAsyncReader::GetNextUpdatedRegion(double dfTimeout,
 
     int nPrecisionBits = 8;
 
-    switch(eBufType)
+    switch(poJDS->eDT)
     {
       case GDT_Byte:
         nPrecisionBits = 8;
@@ -1445,6 +1635,33 @@ JPIPKAKAsyncReader::GetNextUpdatedRegion(double dfTimeout,
         result = GARIO_UPDATE;
 
     nDataRead += nSize;
+
+/* -------------------------------------------------------------------- */
+/*      If the application buffer is of a different type than our       */
+/*      band we need to copy into the application buffer at this        */
+/*      point.                                                          */
+/*                                                                      */
+/*      We could optimize to only update affected area, but that is     */
+/*      always the whole area for the JPIP driver it seems.             */
+/* -------------------------------------------------------------------- */
+    if( pAppBuf != pBuf )
+    {
+        int iY, iBand;
+        GByte *pabySrc = (GByte *) pBuf;
+        GByte *pabyDst = (GByte *) pAppBuf;
+
+        for( iBand = 0; iBand < nBandCount; iBand++ )
+        {
+            for( iY = 0; iY < nBufYSize; iY++ )
+            {
+                GDALCopyWords( pabySrc + nLineSpace * iY + nBandSpace * iBand,
+                               poJDS->eDT, nPixelSpace,
+                               pabyDst + nAppLineSpace*iY + nAppBandSpace*iBand,
+                               eBufType, nAppPixelSpace, 
+                               nBufXSize );
+            }
+        }
+    }
 
     return result;	
 }
