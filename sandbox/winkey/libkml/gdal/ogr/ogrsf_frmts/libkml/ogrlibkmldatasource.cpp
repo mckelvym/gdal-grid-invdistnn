@@ -236,6 +236,74 @@ void OGRLIBKMLDataSource::ParseStyles (
 }
 
 /******************************************************************************
+ method to parse multiple layers out of a container
+
+ returns number of features in the container that are NOT another container
+******************************************************************************/
+
+int OGRLIBKMLDataSource::ParseLayers (
+    ContainerPtr poKmlContainer,
+    OGRSpatialReference *poOgrSRS)
+{
+    int nResult = 0;
+    
+    size_t nKmlFeatures = poKmlContainer->get_feature_array_size (  );
+
+    /***** alocate memory for the layer array *****/
+
+    papoLayers = 
+        ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) *
+                                          nKmlFeatures );
+
+    nAlloced = nKmlFeatures;
+
+    /***** loop over the container to seperate the style, layers, etc *****/
+
+    size_t iKmlFeature;
+
+    for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
+        FeaturePtr poKmlFeat =
+            poKmlContainer->get_feature_array_at ( iKmlFeature );
+
+        /***** container *****/
+
+        if ( poKmlFeat->IsA ( kmldom::Type_Container ) ) {
+
+            /***** see if the container has a name *****/
+
+            std::string oKmlFeatName;
+            if ( poKmlFeat->has_name (  ) ) {
+                oKmlFeatName = poKmlFeat->get_name (  );
+            }
+
+            /***** use the feature index number as the name *****/
+            /***** not sure i like this c++ ich *****/
+
+            else {
+                std::stringstream oOut;
+                oOut << iKmlFeature;
+                oKmlFeatName = oOut.str (  );
+            }
+
+            /***** create the layer *****/
+
+#warning we need a way to pass schema data for a layerdefn
+            OGRLIBKMLLayer *poOgrLayer =
+                new OGRLIBKMLLayer ( oKmlFeatName.c_str (  ),
+                                     poOgrSRS, wkbUnknown, this,
+                                     poKmlFeat );
+
+            papoLayers[nLayers++] = poOgrLayer;
+        }
+
+        else
+            nResult++;
+    }
+
+    return nResult;
+}
+
+/******************************************************************************
  method to open a kml file
 ******************************************************************************/
 
@@ -332,77 +400,15 @@ int OGRLIBKMLDataSource::OpenKml (
     
     ParseStyles (boost::static_pointer_cast < kmldom::Document > (m_poKmlDSContainer));
 
-    /***** get how many features the container has *****/
+#warning we need to parse for schemas
 
-    size_t nKmlFeatures = m_poKmlDSContainer->get_feature_array_size (  );
+    /***** parse for layers *****/
 
-
-    /***** alocate memory for the layer array *****/
-
-    papoLayers =
-        ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) *
-                                          nKmlFeatures );
-
-    nAlloced = nKmlFeatures;
-
-    /***** loop over the container to seperate the style, layers, etc *****/
-
-    int nPlacemarks = 0;
-    size_t iKmlFeature;
-
-#warning we need a seperate loop to get the schemas
-
+    int nPlacemarks = ParseLayers ( m_poKmlDSContainer, poOgrSRS);
     
-    for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
-        FeaturePtr poKmlFeat =
-            m_poKmlDSContainer->get_feature_array_at ( iKmlFeature );
-
-
-        /***** schema *****/
-
-        if ( poKmlFeat->IsA ( kmldom::Type_Schema ) ) {
-        }
-
-        /***** container *****/
-
-        if ( poKmlFeat->IsA ( kmldom::Type_Container ) ) {
-
-            /***** see if the container has a name *****/
-
-            std::string oKmlFeatName;
-            if ( poKmlFeat->has_name (  ) ) {
-                oKmlFeatName = poKmlFeat->get_name (  );
-            }
-
-            /***** use the feature index number as the name *****/
-            /***** not sure i like this c++ ich *****/
-
-            else {
-                std::stringstream oOut;
-                oOut << iKmlFeature;
-                oKmlFeatName = oOut.str (  );
-            }
-
-            /***** create the layer *****/
-
-#warning we need a way to pass schema data for a layerdefn
-            OGRLIBKMLLayer *poOgrLayer =
-                new OGRLIBKMLLayer ( oKmlFeatName.c_str (  ),
-                                     poOgrSRS, wkbUnknown, this,
-                                     poKmlFeat );
-
-            papoLayers[nLayers++] = poOgrLayer;
-        }
-
-        if ( poKmlFeat->IsA ( kmldom::Type_Placemark ) ) {
-            nPlacemarks++;
-        }
-    }
-
     /***** if there is placemarks in the root its a layer *****/
 
-
-    if ( nPlacemarks ) {
+    if ( nPlacemarks  && !NLayers) {
 
 #warning the layer name needs to be the basename of the file
 #warning we need a way to pass schema data for a layerdefn
