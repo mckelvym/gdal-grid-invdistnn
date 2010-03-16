@@ -761,7 +761,8 @@ int OGRLIBKMLDataSource::CreateKml (
     m_poKmlDSKml->set_feature ( poKmlDocument );
     m_poKmlDSContainer = poKmlDocument;
     m_isKml = TRUE;
-
+    bUpdated = TRUE;
+    
     return true;
 }
 
@@ -784,7 +785,8 @@ int OGRLIBKMLDataSource::CreateKmz (
     }
 
     m_isKmz = TRUE;
-
+    bUpdated = TRUE;
+    
     return TRUE;
 }
 
