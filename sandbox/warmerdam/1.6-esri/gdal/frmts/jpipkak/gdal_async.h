@@ -59,7 +59,7 @@ class CPL_DLL GDALAsyncReader
     virtual GDALAsyncStatusType 
         GetNextUpdatedRegion(double dfTimeout,
                              int* pnBufXOff, int* pnBufYOff,
-                             int* pnBufXSize, int* pnBufXSize) = 0;
+                             int* pnBufXSize, int* pnBufYSize) = 0;
     virtual int LockBuffer( double dfTimeout = -1.0 ) { return TRUE; }
     virtual void UnlockBuffer() {}
 };
