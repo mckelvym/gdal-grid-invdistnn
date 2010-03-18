@@ -36,6 +36,7 @@ using kmldom::KmlPtr;
 using kmldom::DocumentPtr;
 using kmldom::ContainerPtr;
 using kmldom::ElementPtr;
+using kmldom::SchemaPtr;
 using kmlengine::KmzFile;
 using kmlengine::KmzFilePtr;
 
