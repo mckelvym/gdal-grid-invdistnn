@@ -68,6 +68,8 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
     m_isKmz = FALSE;
     m_poKmlDocKml = NULL;
 
+    m_poKmlFactory = KmlFactory::GetFactory (  );
+    
     //m_poStyleTable = NULL;
 
 }
@@ -784,7 +786,7 @@ int OGRLIBKMLDataSource::CreateKml (
     const char *pszFilename,
     char **papszOptions )
 {
-    m_poKmlFactory = KmlFactory::GetFactory (  );
+    
     m_poKmlDSKml = m_poKmlFactory->CreateKml (  );
     DocumentPtr poKmlDocument = m_poKmlFactory->CreateDocument (  );
 
