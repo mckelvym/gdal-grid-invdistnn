@@ -41,6 +41,7 @@ using kmldom::FeaturePtr;
 using kmldom::NetworkLinkPtr;
 using kmldom::StyleSelectorPtr;
 using kmldom::LinkPtr;
+using kmldom::SchemaPtr;
 using kmlbase::File;
 using kmldom::KmlPtr;
 
@@ -240,6 +241,30 @@ void OGRLIBKMLDataSource::ParseStyles (
 }
 
 /******************************************************************************
+ method to parse a schemas out of a document
+******************************************************************************/
+
+void OGRLIBKMLDataSource::ParseSchemas (
+    DocumentPtr poKmlDocument )
+{
+
+
+    size_t nKmlSchemas = poKmlDocument->get_schema_array_size (  );
+    size_t iKmlSchema;
+    
+    papoKmlSchema = ( SchemaPtr * ) CPLMalloc ( sizeof ( SchemaPtr ) * nKmlSchemas);
+
+    /***** loop over the Schemas and store them in the array *****/
+        
+    for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
+
+        papoKmlSchema[iKmlSchema] = poKmlDocument->get_schema_array_at ( iKmlSchema );
+    }
+    
+    return;
+}
+
+/******************************************************************************
  method to parse multiple layers out of a container
 
  returns number of features in the container that are NOT another container
@@ -404,7 +429,9 @@ int OGRLIBKMLDataSource::OpenKml (
 
     ParseStyles ( AsDocument ( m_poKmlDSContainer ) );
 
-#warning we need to parse for schemas
+    /***** parse for schemas *****/
+
+    ParseSchemas( AsDocument ( m_poKmlDSContainer ) );
 
     /***** parse for layers *****/
 
@@ -476,7 +503,8 @@ int OGRLIBKMLDataSource::OpenKmz (
 
     /***** fetch all the links *****/
 
-
+#warning we need to manualy parse for network links
+    
     kmlengine::href_vector_t oKmlLinksVector;
     if ( !kmlengine::GetLinks ( oKmlKml, &oKmlLinksVector ) ) {
 
@@ -604,6 +632,8 @@ int OGRLIBKMLDataSource::OpenKmz (
         }
     }
 
+#warning can schemas be stored in a seperate file?
+    
     delete poOgrSRS;
 
     return TRUE;

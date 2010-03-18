@@ -123,6 +123,8 @@ class OGRLIBKMLDataSource:public OGRDataSource
 
     int                       bUpdate;
     int                       bUpdated;
+
+    SchemaPtr                *papoKmlSchema;
     
     /***** for kml files *****/
     int                       m_isKml;
@@ -219,6 +221,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     void                      ParseStyles ( DocumentPtr pokmlDocument );
     int                       ParseLayers ( ContainerPtr poKmlContainer,
                                             OGRSpatialReference *poOgrSRS );
+    void                      ParseSchemas ( DocumentPtr poKmlDocument );
 };
 
 
