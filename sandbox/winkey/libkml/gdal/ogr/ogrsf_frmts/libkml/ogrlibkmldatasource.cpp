@@ -159,7 +159,7 @@ void OGRLIBKMLDataSource::WriteKmz (
    /***** write the style table *****/
 
     if ( m_poKmlStyleKml ) {
-        printf ( "gotcha\n" );
+        
         KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
 
         poKmlKml->set_feature ( m_poKmlStyleKml );
@@ -502,119 +502,153 @@ int OGRLIBKMLDataSource::OpenKmz (
                                   "           AUTHORITY[\"EPSG\",\"4326\"]]" );
 
 
+    /***** parse the kml into the DOM *****/
 
-    /***** fetch all the links *****/
+    std::string oKmlErrors;
+    ElementPtr poKmlRoot = kmldom::Parse ( oKmlKml, &oKmlErrors );
 
-#warning we need to manualy parse for network links
-    
-    kmlengine::href_vector_t oKmlLinksVector;
-    if ( !kmlengine::GetLinks ( oKmlKml, &oKmlLinksVector ) ) {
+    if ( !poKmlRoot ) {
+        CPLError ( CE_Failure, CPLE_OpenFailed,
+                   "ERROR Parseing kml layer %s from %s :%s",
+                   oKmlKmlPath.c_str (  ),
+                   pszFilename, oKmlErrors.c_str (  ) );
+        delete poOgrSRS;
 
-#warning this does not work, i think mayby it finds style links
-        /***** there is no links *****/
-        /***** we will concider the Doc.kml a layer *****/
-
-        /***** alocate memory for the layer array *****/
-
-
-        papoLayers =
-            ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) );
-
-        /***** parse the kml into the DOM *****/
-
-        std::string oKmlErrors;
-        ElementPtr poKmlRoot = kmldom::Parse ( oKmlKml, &oKmlErrors );
-
-        if ( !poKmlRoot ) {
-            CPLError ( CE_Failure, CPLE_OpenFailed,
-                       "ERROR Parseing kml layer %s from %s :%s",
-                       oKmlKmlPath.c_str (  ),
-                       pszFilename, oKmlErrors.c_str (  ) );
-            delete poOgrSRS;
-
-            return FALSE;
-        }
-
-        /***** create the layer *****/
-
-        OGRLIBKMLLayer *poOgrLayer =
-            new OGRLIBKMLLayer ( oKmlKmlPath.c_str (  ),
-                                 poOgrSRS, wkbUnknown, this,
-                                 poKmlRoot );
-
-
-        papoLayers[nLayers++] = poOgrLayer;
+        return FALSE;
     }
 
-    /***** read all the layers the doc.kml points to *****/
+    /***** get the child contianer from root *****/
+    
+    ContainerPtr poKmlContainer = GetContainerFromRoot (poKmlRoot);
 
-    else {
-        int iKmlLink;
-        int nKmlLinks = oKmlLinksVector.size (  );
+    /***** loop over the container looking for network links *****/
 
-        /***** alocate memory for the layer array *****/
+    size_t nKmlFeatures = poKmlContainer->get_feature_array_size (  );
+    size_t iKmlFeature;
+    int nLinks = 0;
+    for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
+        FeaturePtr poKmlFeat =
+            poKmlContainer->get_feature_array_at ( iKmlFeature );
 
-        papoLayers =
-            ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) *
-                                              nKmlLinks );
+        /***** is it a network link? *****/
+        
+        if (!poKmlFeat->IsA (kmldom::Type_NetworkLink))
+            continue;
 
-        /***** loop over the links *****/
+        NetworkLinkPtr poKmlNetworkLink = AsNetworkLink ( poKmlFeat );
 
-        for ( iKmlLink = 0; iKmlLink < nKmlLinks; iKmlLink++ ) {
-            fprintf ( stderr, "%s\n", pszFilename );
+        /***** does it have a link? *****/
 
-            /***** if its a relative path lets add it as a layer *****/
+        if ( !poKmlNetworkLink->has_link() )
+            continue;
 
-            kmlengine::Href oKmlHref ( oKmlLinksVector[iKmlLink] );
-            if ( oKmlHref.IsRelativePath (  ) ) {
-                std::string oKml;
-                if ( poKmlKmzfile->
-                     ReadFile ( oKmlHref.get_path (  ).c_str (  ), &oKml ) ) {
+        LinkPtr poKmlLink = poKmlNetworkLink->get_link ();
 
-                    /***** parse the kml into the DOM *****/
+        /***** does the link have a href? *****/
 
-                    std::string oKmlErrors;
-                    ElementPtr poKmlRoot = kmldom::Parse ( oKml, &oKmlErrors );
+        if ( !poKmlLink->has_href ())
+            continue;
 
-                    if ( !poKmlRoot ) {
-                        CPLError ( CE_Failure, CPLE_OpenFailed,
-                                   "ERROR Parseing kml layer %s from %s :%s",
-                                   oKmlHref.get_path (  ).c_str (  ),
-                                   pszFilename, oKmlErrors.c_str (  ) );
-                        delete poOgrSRS;
+        kmlengine::Href *poKmlHref = new kmlengine::Href(poKmlLink->get_href());
 
-                        return FALSE;
-                    }
+        /***** is the link relative? *****/
 
-                    /***** get the container from root  *****/
+        if (poKmlHref->IsRelativePath (  ) ) {
 
-                    ContainerPtr poKmlContainer;
+            nLinks++;
 
-                    if ( !
-                         ( poKmlContainer =
-                           GetContainerFromRoot ( poKmlRoot ) ) ) {
-                        CPLError ( CE_Failure, CPLE_OpenFailed,
-                                   "ERROR Parseing kml %s :%s %s", pszFilename,
-                                   "This file does not fit the OGR model,",
-                                   "there is no container element at the root." );
+            /***** alocate memory for the layers if we have not allready *****/
+            
+            if (!papoLayers) {
+                papoLayers = ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) * nKmlFeatures );
+
+                nAlloced = nKmlFeatures;
+            }
+
+            std::string oKml;
+            if ( poKmlKmzfile-> ReadFile ( poKmlHref->get_path (  ).c_str (  ), &oKml ) ) {
+
+                /***** parse the kml into the DOM *****/
+
+                std::string oKmlErrors;
+                ElementPtr poKmlLyrRoot = kmldom::Parse ( oKml, &oKmlErrors );
+
+                if ( !poKmlLyrRoot ) {
+                    CPLError ( CE_Failure, CPLE_OpenFailed,
+                               "ERROR Parseing kml layer %s from %s :%s",
+                               poKmlHref->get_path (  ).c_str (  ),
+                               pszFilename, oKmlErrors.c_str (  ) );
+                        delete poKmlHref;
+                        
                         continue;
                     }
 
-                    /***** create the layer *****/
+                /***** get the container from root  *****/
 
-                    OGRLIBKMLLayer *poOgrLayer =
-                        new OGRLIBKMLLayer ( oKmlHref.get_path (  ).c_str (  ),
-                                             poOgrSRS, wkbUnknown, this,
-                                             poKmlContainer );
+                ContainerPtr poKmlLyrContainer = GetContainerFromRoot ( poKmlLyrRoot );
+  
+                /***** create the layer *****/
+
+                OGRLIBKMLLayer *poOgrLayer =
+                    new OGRLIBKMLLayer ( poKmlHref->get_path (  ).c_str (  ),
+                                         poOgrSRS, wkbUnknown, this,
+                                         poKmlLyrContainer );
 
 
-                    papoLayers[nLayers++] = poOgrLayer;
+                papoLayers[nLayers++] = poOgrLayer;
 
-                }
+                /***** cleanup *****/
+
+                delete poKmlHref;
+
             }
         }
     }
 
+    /***** if the doc.kml has no links treat it as a normal kml file *****/
+
+    if (!nLinks) {
+
+#warning there could still be a seperate styles file in the kmz
+#warning if there is this would be a layer style table IF its only a single layer
+        
+        /***** get the styles *****/
+
+        ParseStyles ( AsDocument ( poKmlContainer ) );
+
+        /***** parse for schemas *****/
+
+        ParseSchemas( AsDocument ( poKmlContainer ) );
+
+        /***** parse for layers *****/
+
+        int nPlacemarks = ParseLayers ( poKmlContainer, poOgrSRS );
+
+        /***** if there is placemarks in the root its a layer *****/
+
+        if ( nPlacemarks && !nLayers ) {
+
+#warning the layer name needs to be the basename of the file
+#warning we need a way to pass schema data for a layerdefn
+
+            /***** alocate memory for the layer array *****/
+
+
+            papoLayers =
+                ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) );
+            
+            OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( pszFilename,
+                                                              poOgrSRS, wkbUnknown,
+                                                              this,
+                                                              poKmlContainer );
+
+
+            papoLayers[nLayers++] = poOgrLayer;
+        }
+    }
+
+#warning i think we should do this sooner
+    
     /***** read the style table if it has one *****/
 
     std::string oKmlStyleKml;
@@ -641,12 +675,9 @@ int OGRLIBKMLDataSource::OpenKmz (
     return TRUE;
 }
 
-
-
 /******************************************************************************
  method to open a dir
 ******************************************************************************/
-
 
 int OGRLIBKMLDataSource::OpenDir (
     const char *pszFilename,
