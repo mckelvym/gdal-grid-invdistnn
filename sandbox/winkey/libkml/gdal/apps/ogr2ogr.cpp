@@ -867,7 +867,12 @@ int main( int nArgc, char ** papszArgv )
         CPLFree(panLayerCountFeatures);
         CPLFree(papoLayers);
     }
+/* -------------------------------------------------------------------- */
+/*      Process DS style table                                          */
+/* -------------------------------------------------------------------- */
 
+    poODS->SetStyleTable( poDS->GetStyleTable () );
+    
 /* -------------------------------------------------------------------- */
 /*      Close down.                                                     */
 /* -------------------------------------------------------------------- */
@@ -1152,6 +1157,11 @@ static int TranslateLayer( OGRDataSource *poSrcDS,
         }
     }
 
+/* -------------------------------------------------------------------- */
+/*      Process Layer style table                                       */
+/* -------------------------------------------------------------------- */
+
+    poDstLayer->SetStyleTable( poSrcLayer->GetStyleTable () );
 /* -------------------------------------------------------------------- */
 /*      Add fields.  Default to copy all field.                         */
 /*      If only a subset of all fields requested, then output only      */
