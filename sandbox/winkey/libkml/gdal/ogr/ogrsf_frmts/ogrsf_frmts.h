@@ -307,7 +307,7 @@ void CPL_DLL RegisterOGRMySQL();
 void CPL_DLL RegisterOGROCI();
 void CPL_DLL RegisterOGRDGN();
 void CPL_DLL RegisterOGRGML();
-void CPL_DLL RegisterOGRKML();
+//void CPL_DLL RegisterOGRKML();
 void CPL_DLL RegisterOGRLIBKML();
 void CPL_DLL RegisterOGRGeoJSON();
 void CPL_DLL RegisterOGRAVCBin();

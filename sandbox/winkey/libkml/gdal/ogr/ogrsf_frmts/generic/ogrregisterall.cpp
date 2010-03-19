@@ -85,7 +85,7 @@ void OGRRegisterAll()
     RegisterOGRGPX();
 #endif
 #ifdef KML_ENABLED
-    RegisterOGRKML();
+//    RegisterOGRKML();
 #endif
 #ifdef LIBKML_ENABLED
     RegisterOGRLIBKML();
