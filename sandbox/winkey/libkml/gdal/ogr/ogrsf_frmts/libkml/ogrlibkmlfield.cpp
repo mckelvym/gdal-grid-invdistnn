@@ -30,6 +30,7 @@
 #include <ogr_feature.h>
 
 #include <kml/dom.h>
+#include <iostream>
 
 using kmldom::KmlFactory;;
 using kmldom::PlacemarkPtr;
@@ -103,9 +104,9 @@ void field2kml (
         const char *name = poOgrFieldDef->GetNameRef (  );
 
         const char *namefield =
-            CPLGetConfigOption ( "LIBKML_NAME_FIELD", "name" );
+            CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
         const char *descfield =
-            CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "" );
+            CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
         const char *tsfield =
             CPLGetConfigOption ( "LIBKML_TIMESTAMP_FIELD", "timestamp" );
         const char *beginfield =
@@ -328,6 +329,32 @@ void kml2field (
     PlacemarkPtr poKmlPlacemark )
 {
 
+    const char *namefield =
+        CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
+    const char *descfield =
+        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
+    
+    /***** read the name tag *****/
+
+    if (poKmlPlacemark->has_name()) {
+        const std::string oKmlName = poKmlPlacemark->get_name();
+        int iField = poOgrFeat->GetFieldIndex ( namefield );
+        
+        if (iField > -1)
+            poOgrFeat->SetField ( iField, oKmlName.c_str (  ));
+    }
+
+    /***** read the desc tag *****/
+
+    if (poKmlPlacemark->has_description()) {
+        const std::string oKmlDesc = poKmlPlacemark->get_description();
+        int iField = poOgrFeat->GetFieldIndex ( descfield );
+        
+        if (iField > -1)
+            poOgrFeat->SetField ( iField, oKmlDesc.c_str (  ));
+    }
+
+                                 
     ExtendedDataPtr poKmlExtendedData = NULL;
 
     if ( poKmlPlacemark->has_extendeddata (  ) ) {

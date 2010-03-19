@@ -74,10 +74,15 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
     m_poOgrFeatureDefn->Reference();
     m_poOgrFeatureDefn->SetGeomType( eGType );
 
-    OGRFieldDefn oOgrFieldName( "Name", OFTString );
+    const char *namefield =
+        CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
+    const char *descfield =
+        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
+    
+    OGRFieldDefn oOgrFieldName( namefield, OFTString );
     m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
     
-    OGRFieldDefn oOgrFieldDesc( "Description", OFTString );
+    OGRFieldDefn oOgrFieldDesc( descfield, OFTString );
     m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldDesc );
 
     /***** store the root element pointer *****/
