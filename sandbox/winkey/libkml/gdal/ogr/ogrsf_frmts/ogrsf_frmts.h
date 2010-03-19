@@ -96,16 +96,10 @@ class CPL_DLL OGRLayer
 
     virtual OGRErr      SyncToDisk();
 
-    OGRStyleTable       *GetStyleTable(){ return m_poStyleTable; }
-    void                SetStyleTableDirectly( OGRStyleTable *poStyleTable )
-                            { if ( m_poStyleTable ) delete m_poStyleTable;
-                              m_poStyleTable = poStyleTable; }
-    void                SetStyleTable(OGRStyleTable *poStyleTable)
-                            {
-                                if ( m_poStyleTable ) delete m_poStyleTable;
-                                if ( poStyleTable )
-                                    m_poStyleTable = poStyleTable->Clone();
-                            }
+    virtual OGRStyleTable *GetStyleTable();
+    virtual void        SetStyleTableDirectly( OGRStyleTable *poStyleTable );
+                            
+    virtual void        SetStyleTable(OGRStyleTable *poStyleTable);
 
     virtual OGRErr      StartTransaction();
     virtual OGRErr      CommitTransaction();
@@ -178,16 +172,10 @@ class CPL_DLL OGRDataSource
                                    const char *pszNewName, 
                                    char **papszOptions = NULL );
 
-    OGRStyleTable       *GetStyleTable(){ return m_poStyleTable; }
-    void                SetStyleTableDirectly( OGRStyleTable *poStyleTable )
-                            { if ( m_poStyleTable ) delete m_poStyleTable;
-                              m_poStyleTable = poStyleTable; }
-    void                SetStyleTable(OGRStyleTable *poStyleTable)
-                            {
-                                if ( m_poStyleTable ) delete m_poStyleTable;
-                                if ( poStyleTable )
-                                    m_poStyleTable = poStyleTable->Clone();
-                            }
+    virtual OGRStyleTable *GetStyleTable();
+    virtual void        SetStyleTableDirectly( OGRStyleTable *poStyleTable );
+                            
+    virtual void        SetStyleTable(OGRStyleTable *poStyleTable);
 
     virtual OGRLayer *  ExecuteSQL( const char *pszStatement,
                                     OGRGeometry *poSpatialFilter,
