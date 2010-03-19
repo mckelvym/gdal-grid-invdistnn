@@ -88,6 +88,8 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
     
     nFeatures = m_poKmlLayer->get_feature_array_size() ;
     iFeature = 0;
+
+    m_poStyleTable = NULL;
     
 }
 

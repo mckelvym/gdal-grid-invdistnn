@@ -96,7 +96,7 @@ void addstylestring2kml (
         OGRStyleTool *poOgrST = poOgrSM->GetPart ( i, NULL );
 
         switch ( poOgrST->GetType (  ) ) {
-        case OGRSTCPen:
+            case OGRSTCPen:
             {
                 LineStylePtr poKmlLineStyle =
                     pen2kml ( poOgrST, poKmlFactory );
@@ -104,7 +104,7 @@ void addstylestring2kml (
 
                 break;
             }
-        case OGRSTCBrush:
+            case OGRSTCBrush:
             {
                 PolyStylePtr poKmlPolyStyle =
                     brush2kml ( poOgrST, poKmlFactory );
@@ -112,7 +112,7 @@ void addstylestring2kml (
 
                 break;
             }
-        case OGRSTCSymbol:
+            case OGRSTCSymbol:
             {
                 IconStylePtr poKmlIconStyle =
                     symbol2kml ( poOgrST, poKmlFactory );
@@ -120,12 +120,14 @@ void addstylestring2kml (
 
                 break;
             }
-        case OGRSTCLabel:
+            case OGRSTCLabel:
 #warning do the label case
-        case OGRSTCNone:
-        default:
-            break;
+            case OGRSTCNone:
+            default:
+                break;
         }
+
+        delete poOgrST;
     }
 
     delete poOgrSM;
@@ -176,6 +178,8 @@ void kml2stylestring (
         OGRStylePen *poOgrStylePen = kml2pen ( poKmlLineStyle );
 
         poOgrSM->AddPart ( poOgrStylePen );
+
+        delete poOgrStylePen;
     }
 
     /***** polystyle / brush *****/
@@ -186,6 +190,8 @@ void kml2stylestring (
         OGRStyleBrush *poOgrStyleBrush = kml2brush ( poKmlPolyStyle );
 
         poOgrSM->AddPart ( poOgrStyleBrush );
+
+        delete poOgrStyleBrush;
     }
 
     /***** iconstyle / symbol *****/
@@ -196,6 +202,8 @@ void kml2stylestring (
         OGRStyleSymbol *poOgrStyleSymbol = kml2symbol ( poKmlIconStyle );
 
         poOgrSM->AddPart ( poOgrStyleSymbol );
+
+        delete poOgrStyleSymbol;
     }
 
     /***** labelstyle / label *****/
@@ -206,6 +214,8 @@ void kml2stylestring (
         OGRStyleLabel *poOgrStyleLabel = kml2label ( poKmlLabelStyle );
 
         poOgrSM->AddPart ( poOgrStyleLabel );
+
+        delete poOgrStyleLabel;
     }
 
 }

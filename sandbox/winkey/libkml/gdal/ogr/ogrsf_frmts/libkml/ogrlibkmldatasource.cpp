@@ -207,6 +207,7 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
     CPLFree ( papoLayers );
 
     //delete m_poStyleTable;
+    
 
 }
 
@@ -669,9 +670,12 @@ int OGRLIBKMLDataSource::OpenKmz (
     }
 
 #warning can schemas be stored in a seperate file?
-    
-    delete poOgrSRS;
 
+    /***** cleanup *****/
+    delete poOgrSRS;
+    
+    delete poKmlKmzfile;
+    
     return TRUE;
 }
 

@@ -63,7 +63,7 @@ class OGRLIBKMLLayer:public OGRLayer
     KmlFile                  *m_poKmlKmlfile;
 
     DocumentPtr               m_poKmlDocument;
-    OGRStyleTable            *m_poStyleTable;
+    //OGRStyleTable            *m_poStyleTable;
     OGRLIBKMLDataSource      *m_poOgrDS;
     OGRFeatureDefn           *m_poOgrFeatureDefn;
     OGRSpatialReference      *m_poOgrSRS;
