@@ -206,6 +206,50 @@ void kml2featurestyle (
 
     }
 
+    /***** is the style a style url *****/
+
+    else if ( poKmlPlacemark->has_styleurl (  ) ) {
+
+        const string poKmlStyleUrl = poKmlPlacemark->get_styleurl (  );
+
+        /***** is the name in the layer style table *****/
+
+        char *pszTmp = CPLStrdup ( poKmlStyleUrl.c_str (  ) );
+
+        OGRStyleTable *poOgrSTBLLayer;
+        const char *pszTest = NULL;
+
+        if ( *pszTmp == '#'
+             && ( poOgrSTBLLayer = poOgrLayer->GetStyleTable (  ) ) )
+            pszTest = poOgrSTBLLayer->Find ( pszTmp + 1 );
+
+        if ( pszTest ) {
+
+            *pszTmp = '@';
+            poOgrFeat->SetStyleStringDirectly ( pszTmp );
+
+        }
+
+        /***** is it a dataset style? *****/
+
+#warning no guarentee the DS style table is here
+        else if ( !strncmp ( pszTmp, "style/style.kml#", 16 ) ) {
+
+            pszTmp[15] = '@';
+            poOgrFeat->SetStyleString ( pszTmp + 15 );
+
+            CPLFree ( pszTmp );
+
+        }
+
+        /**** its someplace else *****/
+
+        else {
+
+#warning we need to handle style urls in other places
+        }
+    }
+
     /***** does the placemark have a style selector *****/
 
     else if ( poKmlPlacemark->has_styleselector (  ) ) {
@@ -238,47 +282,6 @@ void kml2featurestyle (
 #warning need to figure out what to do with a style map
         }
 
-        /***** is the style a style url *****/
 
-        else if ( poKmlPlacemark->has_styleurl (  ) ) {
-
-            const string poKmlStyleUrl = poKmlPlacemark->get_styleurl (  );
-
-            /***** is the name in the layer style table *****/
-
-            char *pszTmp = CPLStrdup ( poKmlStyleUrl.c_str (  ) );
-
-            OGRStyleTable *poOgrSTBLLayer;
-            const char *pszTest = NULL;
-
-            if ( *pszTmp == '#'
-                 && ( poOgrSTBLLayer = poOgrLayer->GetStyleTable (  ) ) )
-                pszTest = poOgrSTBLLayer->Find ( pszTmp + 1 );
-
-            if ( pszTest ) {
-
-                *pszTmp = '@';
-                poOgrFeat->SetStyleStringDirectly ( pszTmp );
-
-            }
-
-            /***** is it a dataset style? *****/
-
-            else if ( !strncmp ( pszTest, "style/style.kml#", 16 ) ) {
-
-                pszTmp[15] = '@';
-                poOgrFeat->SetStyleString ( pszTmp + 15 );
-
-                CPLFree ( pszTmp );
-
-            }
-
-            /**** its someplace else *****/
-
-            else {
-
-#warning we need to handle style urls in other places
-            }
-        }
     }
 }
