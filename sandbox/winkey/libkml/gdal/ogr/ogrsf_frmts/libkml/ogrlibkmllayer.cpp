@@ -90,6 +90,11 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
     iFeature = 0;
 
     m_poStyleTable = NULL;
+
+    /***** get the styles *****/
+
+    ParseStyles ( AsDocument ( m_poKmlLayer ), &m_poStyleTable );
+    
     
 }
 
@@ -328,11 +333,45 @@ void OGRLIBKMLLayer::SetStyleTableDirectly (
     OGRStyleTable * poStyleTable )
 {
 
+    KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
+    
+    if ( m_poStyleTable )
+        delete m_poStyleTable;
+
     m_poStyleTable = poStyleTable;
 
-    styletable2kml ( m_poStyleTable, m_poOgrDS->GetKmlFactory (  ),
-                     m_poKmlDocument );
+#warning this does not work, style seems to be in a seperate array in a documentptr
 
+    /***** go though the root features looking for styles *****/
+
+    size_t nKmlFeatures = m_poKmlLayer->get_feature_array_size (  );
+    size_t iKmlFeature;
+
+    for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
+        FeaturePtr poKmlFeat =
+            m_poKmlLayer->get_feature_array_at ( iKmlFeature );
+
+            /***** is it a style *****/
+
+        if ( poKmlFeat->IsA ( kmldom::Type_Style ) ) {
+
+                /***** see if it has an id *****/
+
+            if ( poKmlFeat->has_id (  ) ) {
+                const std::string oKmlID = poKmlFeat->get_id (  );
+
+                    /***** delete the style *****/
+
+                m_poKmlLayer->DeleteFeatureById ( oKmlID );
+            }
+        }
+    }
+
+        /***** add the new style table to the container *****/
+
+    styletable2kml ( poStyleTable, poKmlFactory, m_poKmlLayer );
+
+    
     return;
 }
 
@@ -344,11 +383,10 @@ void OGRLIBKMLLayer::SetStyleTable (
     OGRStyleTable * poStyleTable )
 {
 
-    m_poStyleTable = poStyleTable->Clone (  );
-
-    styletable2kml ( m_poStyleTable, m_poOgrDS->GetKmlFactory (  ),
-                     m_poKmlDocument );
-
+    if ( poStyleTable )
+        SetStyleTableDirectly ( poStyleTable->Clone (  ) );
+    else
+        SetStyleTableDirectly ( NULL );
     return;
 }
 

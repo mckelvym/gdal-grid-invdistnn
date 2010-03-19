@@ -98,6 +98,12 @@ void addstylestring2kml (
 
     for ( i = 0; i < poOgrSM->GetPartCount ( NULL ); i++ ) {
         OGRStyleTool *poOgrST = poOgrSM->GetPart ( i, NULL );
+        if (!poOgrST) {
+#warning figure out why this is this way
+            fprintf (stderr, "For some od reason poOgrST is null, skipping\n");
+            continue;
+        }
+        
 
         switch ( poOgrST->GetType (  ) ) {
             case OGRSTCPen:
