@@ -6,8 +6,6 @@ CORE_OBJ = ogrlibkmlgeometry.o \
            ogrlibkmlfield.o \
            ogrlibkmlfeature.o \
            ogrlibkmlfeaturestyle.o \
-           ogrlibkmllayerstyle.o \
-           ogrlibkmldatasetstyle.o \
            ogrlibkmlstyle.o
 
 OGR_OBJ =	ogrlibkmldriver.o ogrlibkmldatasource.o ogrlibkmllayer.o
@@ -28,7 +26,5 @@ $(O_OBJ):	ogrlibkmlgeometry.h \
           ogrlibkmlfield.h \
           ogrlibkmlfeature.h \
           ogrlibkmlfeaturestyle.h \
-          ogrlibkmllayerstyle.h \
-          ogrlibkmldatasetstyle.h \
           ogrlibkmlstyle.h \
           

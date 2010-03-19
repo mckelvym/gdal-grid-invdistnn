@@ -29,6 +29,7 @@
 using kmldom::KmlFactory;
 using kmldom::StylePtr;
 using kmldom::DocumentPtr;
+using kmldom::ContainerPtr;
 
 void addstylestring2kml (
     const char *stylestring,
@@ -52,3 +53,12 @@ void kml2stylestring(
 void ParseStyles (
     DocumentPtr poKmlDocument,
     OGRStyleTable **poStyleTable);
+
+/******************************************************************************
+ function to add a style table to a kml container
+******************************************************************************/
+
+void styletable2kml (
+    OGRStyleTable * poOgrStyleTable,
+    KmlFactory * poKmlFactory,
+    ContainerPtr poKmlContainer  );

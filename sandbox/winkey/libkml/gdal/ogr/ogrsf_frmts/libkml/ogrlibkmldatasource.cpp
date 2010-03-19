@@ -46,7 +46,6 @@ using kmlbase::File;
 using kmldom::KmlPtr;
 
 #include "ogr_libkml.h"
-#include "ogrlibkmldatasetstyle.h"
 #include "ogrlibkmlstyle.h"
 
 /******************************************************************************
@@ -1097,7 +1096,7 @@ void OGRLIBKMLDataSource::SetStyleTable2Kml (
 
         /***** add the new style table to the container *****/
 
-    datasetstyletable2kml ( poStyleTable, m_poKmlFactory, m_poKmlDSContainer );
+    styletable2kml ( poStyleTable, m_poKmlFactory, m_poKmlDSContainer );
 
     return;
 }
@@ -1114,7 +1113,7 @@ void OGRLIBKMLDataSource::SetStyleTable2Kmz (
 
     m_poKmlStyleKml = m_poKmlFactory->CreateDocument (  );
 
-    datasetstyletable2kml ( poStyleTable, m_poKmlFactory, m_poKmlStyleKml );
+    styletable2kml ( poStyleTable, m_poKmlFactory, m_poKmlStyleKml );
 
     return;
 }

@@ -46,7 +46,7 @@ using kmlengine::KmlFile;
 using kmlengine::Bbox;
 
 #include "ogrlibkmlfeature.h"
-#include "ogrlibkmllayerstyle.h"
+#include "ogrlibkmlstyle.h"
 
 /******************************************************************************
 

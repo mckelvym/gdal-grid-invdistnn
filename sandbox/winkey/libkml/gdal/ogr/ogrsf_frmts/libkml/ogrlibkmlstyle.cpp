@@ -33,6 +33,8 @@
 
 using kmldom::KmlFactory;;
 using kmldom::ElementPtr;
+using kmldom::ObjectPtr;
+using kmldom::FeaturePtr;
 using kmldom::StylePtr;
 using kmldom::StyleSelectorPtr;
 using kmldom::LineStylePtr;
@@ -562,13 +564,58 @@ void ParseStyles (
 
         StyleSelectorPtr poKmlStyle =
             poKmlDocument->get_styleselector_array_at ( iKmlStyle );
-
+    
         if ( !*poStyleTable )
             *poStyleTable = new OGRStyleTable (  );
 
         ElementPtr poKmlElement = AsElement ( poKmlStyle );
 
         kml2styletable ( *poStyleTable, AsStyle ( poKmlElement ) );
+    }
+
+    return;
+}
+
+/******************************************************************************
+ function to add a style table to a kml container
+******************************************************************************/
+
+void styletable2kml (
+    OGRStyleTable * poOgrStyleTable,
+    KmlFactory * poKmlFactory,
+    ContainerPtr poKmlContainer  )
+{
+
+    /***** just return if the styletable is null *****/
+    
+    if (!poOgrStyleTable)
+        return;
+    
+    /***** parse the style table *****/
+
+    poOgrStyleTable->ResetStyleStringReading (  );
+    const char *pszStyleString;
+
+    while ( ( pszStyleString = poOgrStyleTable->GetNextStyle (  ) ) ) {
+        const char *pszStyleName = poOgrStyleTable->GetLastStyleName (  );
+
+        /***** add the style header to the kml *****/
+
+        StylePtr poKmlStyle = poKmlFactory->CreateStyle (  );
+
+        poKmlStyle->set_id ( pszStyleName + 1 );
+
+        /***** parse the style string *****/
+
+        addstylestring2kml ( pszStyleString, poKmlStyle, poKmlFactory );
+
+        /***** add the style to the container *****/
+
+        DocumentPtr poKmlDocument = AsDocument ( poKmlContainer );
+        //ObjectPtr pokmlObject = boost::static_pointer_cast <kmldom::Object> () ;
+        //poKmlContainer->add_feature ( AsFeature( poKmlStyle) );
+        poKmlDocument->add_styleselector( poKmlStyle );
+
     }
 
     return;
