@@ -32,7 +32,9 @@
 #include <kml/base/color32.h>
 
 using kmldom::KmlFactory;;
+using kmldom::ElementPtr;
 using kmldom::StylePtr;
+using kmldom::StyleSelectorPtr;
 using kmldom::LineStylePtr;
 using kmldom::PolyStylePtr;
 using kmldom::IconStylePtr;
@@ -496,4 +498,78 @@ OGRStyleLabel *kml2label (
 #warning do the labelstyle
 
     return poOgrStyleLabel;
+}
+
+/******************************************************************************
+ function to add a kml style to a style table
+******************************************************************************/
+
+void kml2styletable (
+    OGRStyleTable * poOgrStyleTable,
+    StylePtr poKmlStyle )
+{
+
+    
+    /***** no reason to add it if it don't have an id *****/
+    
+    if ( poKmlStyle->has_id (  ) ) {  
+
+        OGRStyleMgr *poOgrSM = new OGRStyleMgr ( poOgrStyleTable );
+
+        poOgrSM->InitStyleString ( NULL );
+
+        /***** read the style *****/
+
+        kml2stylestring ( poKmlStyle, poOgrSM );
+
+        /***** add the style to the style table *****/
+
+        const std::string oName = poKmlStyle->get_id (  );
+
+
+        poOgrSM->AddStyle ( CPLString (  ). Printf ( "@%s",
+                                                    oName.c_str (  ) ),
+                            NULL );
+        
+        /***** cleanup the style manager *****/
+
+        delete poOgrSM;
+    }
+
+    else {
+        CPLError ( CE_Failure, CPLE_AppDefined,
+                   "ERROR Parseing kml Style: No id");
+    }
+
+    return;
+}
+
+/******************************************************************************
+ function to parse a style table out of a document
+******************************************************************************/
+
+void ParseStyles (
+    DocumentPtr poKmlDocument,
+    OGRStyleTable **poStyleTable)
+{
+
+    /***** loop over the Styles *****/
+
+    size_t nKmlStyles = poKmlDocument->get_styleselector_array_size (  );
+    size_t iKmlStyle;
+
+    for ( iKmlStyle = 0; iKmlStyle < nKmlStyles; iKmlStyle++ ) {
+
+        StyleSelectorPtr poKmlStyle =
+            poKmlDocument->get_styleselector_array_at ( iKmlStyle );
+
+        if ( !*poStyleTable )
+            *poStyleTable = new OGRStyleTable (  );
+
+        ElementPtr poKmlElement = AsElement ( poKmlStyle );
+
+        kml2styletable ( *poStyleTable, AsStyle ( poKmlElement ) );
+    }
+
+    return;
 }

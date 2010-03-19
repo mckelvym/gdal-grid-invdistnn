@@ -47,6 +47,7 @@ using kmldom::KmlPtr;
 
 #include "ogr_libkml.h"
 #include "ogrlibkmldatasetstyle.h"
+#include "ogrlibkmlstyle.h"
 
 /******************************************************************************
  OGRLIBKMLDataSource()
@@ -211,37 +212,6 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
 
 }
 
-/******************************************************************************
- method to parse a style table out of a document
-******************************************************************************/
-
-void OGRLIBKMLDataSource::ParseStyles (
-    DocumentPtr poKmlDocument )
-{
-
-    /***** loop over the Styles *****/
-
-    size_t nKmlStyles = poKmlDocument->get_styleselector_array_size (  );
-    size_t iKmlStyle;
-
-    for ( iKmlStyle = 0; iKmlStyle < nKmlStyles; iKmlStyle++ ) {
-
-        StyleSelectorPtr poKmlStyle =
-            poKmlDocument->get_styleselector_array_at ( iKmlStyle );
-
-        if ( !m_poStyleTable )
-            m_poStyleTable = new OGRStyleTable (  );
-
-        ElementPtr poKmlElement =
-            boost::static_pointer_cast < kmldom::Element > ( poKmlStyle );
-
-        kml2datasetstyletable ( m_poStyleTable,
-                                boost::static_pointer_cast < kmldom::Style >
-                                ( poKmlElement ) );
-    }
-
-    return;
-}
 
 /******************************************************************************
  method to parse a schemas out of a document
@@ -430,7 +400,7 @@ int OGRLIBKMLDataSource::OpenKml (
 
     /***** get the styles *****/
 
-    ParseStyles ( AsDocument ( m_poKmlDSContainer ) );
+    ParseStyles ( AsDocument ( m_poKmlDSContainer ), &m_poStyleTable );
 
     /***** parse for schemas *****/
 
@@ -615,7 +585,7 @@ int OGRLIBKMLDataSource::OpenKmz (
         
         /***** get the styles *****/
 
-        ParseStyles ( AsDocument ( poKmlContainer ) );
+        ParseStyles ( AsDocument ( poKmlContainer ), &m_poStyleTable );
 
         /***** parse for schemas *****/
 
@@ -665,7 +635,7 @@ int OGRLIBKMLDataSource::OpenKmz (
             ContainerPtr poKmlContainer;
 
             if ( ( poKmlContainer = GetContainerFromRoot ( poKmlRoot ) ) )
-                ParseStyles ( AsDocument ( poKmlContainer ) );
+                ParseStyles ( AsDocument ( poKmlContainer ), &m_poStyleTable );
         }
     }
 

@@ -26,6 +26,10 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
+using kmldom::KmlFactory;
+using kmldom::StylePtr;
+using kmldom::DocumentPtr;
+
 void addstylestring2kml (
     const char *stylestring,
     StylePtr poKmlStyle,
@@ -40,3 +44,11 @@ void addstylestring2kml (
 void kml2stylestring(
     StylePtr poKmlStyle,
     OGRStyleMgr *poOgrSM);
+
+/******************************************************************************
+ function to parse a style table out of a document
+******************************************************************************/
+
+void ParseStyles (
+    DocumentPtr poKmlDocument,
+    OGRStyleTable **poStyleTable);

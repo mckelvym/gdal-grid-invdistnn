@@ -39,7 +39,4 @@ void datasetstyletable2kml (
     KmlFactory * poKmlFactory,
     ContainerPtr poKmlContainer );
 
-void kml2datasetstyletable (
-    OGRStyleTable * poOgrStyleTable,
-    StylePtr poKmlStyle );
 
