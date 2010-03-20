@@ -1,5 +1,5 @@
-#OPTFLAGS = /Zi 
-OPTFLAGS = /Ox
+OPTFLAGS = /Zi 
+#OPTFLAGS = /Ox
 CXXFLAGS = /nologo /MD /GR /EHsc $(OPTFLAGS) /W3 /I. \
 	/D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_DEPRECATE
 
@@ -31,7 +31,10 @@ OBJ = \
 	segment\metadatasegment_p.obj \
 	segment\sysblockmap.obj \
 	segment\cpcidskbitmap.obj \
-	segment\cpcidsk_tex.obj 
+	segment\cpcidsk_tex.obj \
+	segment\cpcidskpct.obj \
+	segment\cpcidskapmodel.obj \
+	segment\cpcidskgcp2segment.obj 
 
 default:	pcidsk.lib
 
