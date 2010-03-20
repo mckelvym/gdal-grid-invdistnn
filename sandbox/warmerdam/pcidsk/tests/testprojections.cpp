@@ -30,7 +30,10 @@
 #include "pcidsk_georef.h"
 #include "segment/cpcidskgeoref.h"
 #include <cppunit/extensions/HelperMacros.h>
+
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 using namespace PCIDSK;
 

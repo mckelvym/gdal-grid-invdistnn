@@ -33,7 +33,10 @@
 #include "pcidsk_tex.h"
 #include "pcidsk_gcpsegment.h"
 #include <cppunit/extensions/HelperMacros.h>
+
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 using namespace PCIDSK;
 
