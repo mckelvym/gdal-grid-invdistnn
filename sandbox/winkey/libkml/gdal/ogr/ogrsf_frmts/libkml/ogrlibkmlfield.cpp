@@ -86,7 +86,6 @@ void field2kml (
 {
     int i;
 
-    ExtendedDataPtr poKmlExtendedData = poKmlFactory->CreateExtendedData (  );
     SchemaDataPtr poKmlSchemaData = poKmlFactory->CreateSchemaData (  );
     TimeSpanPtr poKmlTimeSpan = NULL;
 
@@ -239,7 +238,6 @@ void field2kml (
                                                     &year, &month, &day,
                                                     &hour, &min, &sec, &tz );
 
-
                     char timebuf[30] = { };
 
                     if ( type == OFTDate )
@@ -314,8 +312,14 @@ void field2kml (
         }
         poKmlSchemaData->add_simpledata ( poKmlSimpleData );
     }
-    poKmlExtendedData->add_schemadata ( poKmlSchemaData );
-    poKmlPlacemark->set_extendeddata ( poKmlExtendedData );
+
+    /***** dont add it to the placemark unless there is data *****/
+    
+    if (poKmlSchemaData->get_simpledata_array_size () > 0 ) {
+        ExtendedDataPtr poKmlExtendedData = poKmlFactory->CreateExtendedData (  );
+        poKmlExtendedData->add_schemadata ( poKmlSchemaData );
+        poKmlPlacemark->set_extendeddata ( poKmlExtendedData );
+    }
 
     return;
 }
