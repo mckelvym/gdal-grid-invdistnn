@@ -147,24 +147,20 @@ OGRFeature *OGRLIBKMLLayer::GetNextFeature (
         if ( iFeature >= nFeatures )
             break;
 
-        poKmlFeature = m_poKmlLayer->get_feature_array_at ( iFeature );
-        iFeature++;
+        poKmlFeature = m_poKmlLayer->get_feature_array_at ( iFeature++ );
 
     } while ( poKmlFeature->Type (  ) != kmldom::Type_Placemark );
 
 
-    if ( iFeature < nFeatures
+    if ( iFeature <= nFeatures && poKmlFeature
          && poKmlFeature->Type (  ) == kmldom::Type_Placemark ) {
         poOgrFeature =
-             kml2feat ( boost::static_pointer_cast < Placemark >
-                       ( poKmlFeature ), this, m_poOgrFeatureDefn );
+             kml2feat ( AsPlacemark ( poKmlFeature ), this, m_poOgrFeatureDefn );
              poOgrFeature->SetFID(iFeature);
     }
 
     return poOgrFeature;
 }
-
-
 
 /******************************************************************************
 
