@@ -16,7 +16,7 @@ lib:
 	cd ..\tests
 
 test_main.exe:	$(OBJ) ../src/pcidsk.lib
-	cl $(OBJ) $(LIBS)
+	cl $(CXXFLAGS) $(OBJ) $(LIBS)
 
 pcidsk_read.exe:	pcidsk_read.obj ../src/pcidsk.lib
 	cl $(CXXFLAGS) pcidsk_read.obj $(LIBS)
@@ -31,7 +31,7 @@ mttest.exe:	mttest.obj ../src/pcidsk.lib
 	(cd ../src ; $(MAKE))
 
 check:  test_main.exe
-	./test_main.exe
+	.\test_main.exe
 
 clean:
 	-del *.obj
