@@ -28,7 +28,10 @@
 #include "pcidsk.h"
 #include <cppunit/extensions/HelperMacros.h>
 #include <cstring>
+
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 using namespace PCIDSK;
 
@@ -116,6 +119,9 @@ void OverviewTest::createOverviews()
     channel = file->GetChannel(2);
     
     CPPUNIT_ASSERT( channel->GetOverviewCount() == 2 );
+    CPPUNIT_ASSERT( !channel->IsOverviewValid(0) );
+    CPPUNIT_ASSERT( !channel->IsOverviewValid(1) );
+    CPPUNIT_ASSERT( channel->GetOverviewResampling(0) == "NEAREST" );
 
     PCIDSKChannel *overview = channel->GetOverview(0);
 
@@ -136,6 +142,8 @@ void OverviewTest::createOverviews()
     
     overview->WriteBlock( 0, data );
 
+    channel->SetOverviewValidity( 1, true );
+
     delete file;
 
     file = PCIDSK::Open( "overview_file.pix", "r", NULL );
@@ -145,6 +153,8 @@ void OverviewTest::createOverviews()
     CPPUNIT_ASSERT( channel->GetOverviewCount() == 2 );
 
     overview = channel->GetOverview(1);
+
+    CPPUNIT_ASSERT( channel->IsOverviewValid( 1 ) );
 
     CPPUNIT_ASSERT( overview->GetWidth() == 75 );
     CPPUNIT_ASSERT( overview->GetHeight() == 50 );

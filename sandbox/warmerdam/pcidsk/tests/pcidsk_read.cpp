@@ -468,10 +468,19 @@ int main( int argc, char **argv)
                         PCIDSK::PCIDSKChannel *overobj = 
                             chanobj->GetOverview(io);
 
+                        if( io != 0 )
+                            printf( "             " );
+
                         printf( "%dx%d ", 
                                 overobj->GetWidth(), overobj->GetHeight() );
+                        if( chanobj->IsOverviewValid(io) )
+                            printf( "V" );
+                        else
+                            printf( "I" );
+
+                        printf( " %s\n", 
+                                chanobj->GetOverviewResampling(io).c_str() );
                     }
-                    printf( "\n" );
                 }
             }
         }
