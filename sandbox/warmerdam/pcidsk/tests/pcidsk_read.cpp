@@ -178,6 +178,10 @@ void DumpAPModelSeg(PCIDSK::PCIDSKAPModelSegment* seg)
     PCIDSK::PCIDSKAPModelIOParams const& io = seg->GetInteriorOrientationParams();
     PCIDSK::PCIDSKAPModelEOParams const& eo = seg->GetExteriorOrientationParams();
     PCIDSK::PCIDSKAPModelMiscParams const& misc = seg->GetAdditionalParams();
+
+    (void) io;
+    (void) eo;
+    (void) misc;
     
     printf("\tImage: %d pixels x %d lines\n",
         seg->GetWidth(), seg->GetHeight());

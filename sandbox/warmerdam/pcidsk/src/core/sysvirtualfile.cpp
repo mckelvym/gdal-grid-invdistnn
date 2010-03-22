@@ -308,7 +308,7 @@ void SysVirtualFile::WriteBlocks(int first_block,
     FlushDirtyBlock();
     // Iterate through all the blocks to be written, first, then
     // grow the virtual file
-    for (unsigned int i = 0; i <= block_count; i++) {
+    for (unsigned int i = 0; i <= (unsigned int) block_count; i++) {
         GrowVirtualFile(first_block + i);
     }
     

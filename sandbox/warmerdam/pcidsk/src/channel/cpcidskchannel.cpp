@@ -258,7 +258,7 @@ std::string CPCIDSKChannel::GetOverviewResampling( int overview_index )
     char resampling[17];
 
     sscanf( overview_infos[overview_index].c_str(), "%d %d %16s", 
-            &sis_id, &validity, &resampling );
+            &sis_id, &validity, &(resampling[0]) );
     
     return resampling;
 }
@@ -281,7 +281,7 @@ void CPCIDSKChannel::SetOverviewValidity( int overview_index,
     char resampling[17];
     
     sscanf( overview_infos[overview_index].c_str(), "%d %d %16s", 
-            &sis_id, &validity, &resampling );
+            &sis_id, &validity, &(resampling[0]) );
     
     // are we already set to this value?
     if( new_validity == (validity != 0) )

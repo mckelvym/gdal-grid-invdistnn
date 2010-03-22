@@ -135,6 +135,8 @@ namespace PCIDSK {
     class PCIDSKAPModelSegment
     {
     public:
+        virtual ~PCIDSKAPModelSegment() {}
+
         virtual unsigned int GetWidth(void) const = 0;
         virtual unsigned int GetHeight(void) const = 0;
         virtual unsigned int GetDownsampleFactor(void) const = 0;
