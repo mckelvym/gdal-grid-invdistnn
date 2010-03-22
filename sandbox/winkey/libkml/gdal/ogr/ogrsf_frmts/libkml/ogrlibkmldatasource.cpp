@@ -949,6 +949,10 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
 
     papoLayers[nLayers++] = poOgrLayer;
 
+    /***** add the layer name as a <Name> *****/
+
+    poKmlFolder->set_name(pszLayerName); 
+
     return ( OGRLayer * ) poOgrLayer;
 }
 
@@ -1010,6 +1014,10 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKmz (
     /***** add the layer to the array of layers *****/
 
     papoLayers[nLayers++] = poOgrLayer;
+
+    /***** add the layer name as a <Name> *****/
+
+    poKmlDocument->set_name(pszLayerName); 
 
     return ( OGRLayer * ) poOgrLayer;
 }
