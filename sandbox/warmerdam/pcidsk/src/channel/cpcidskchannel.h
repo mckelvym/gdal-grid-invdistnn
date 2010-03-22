@@ -120,6 +120,8 @@ namespace PCIDSK
         std::vector<std::string>     overview_infos;
         std::vector<CTiledChannel *> overview_bands;
         std::vector<int>             overview_decimations;
+
+        void      InvalidateOverviews();
     };
 } // end namespace PCIDSK
 

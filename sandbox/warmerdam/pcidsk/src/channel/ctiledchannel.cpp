@@ -363,6 +363,11 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
     if( !vfile )
         EstablishAccess();
 
+    if( !file->GetUpdatable() )
+        throw PCIDSKException( "File not open for update in WriteBlock()" );
+
+    InvalidateOverviews();
+
     int pixel_size = DataTypeSize(GetType());
     int pixel_count = GetBlockWidth() * GetBlockHeight();
 
@@ -371,6 +376,7 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
         ThrowPCIDSKException( "Requested non-existant block (%d)", 
                               block_index );
     }
+
 
 /* -------------------------------------------------------------------- */
 /*      The simpliest case it an uncompressed direct and complete       */

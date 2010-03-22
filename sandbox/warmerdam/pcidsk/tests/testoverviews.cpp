@@ -146,6 +146,10 @@ void OverviewTest::createOverviews()
 
     delete file;
 
+/* -------------------------------------------------------------------- */
+/*      confirm that the imagery was written to the overview and        */
+/*      that setting it valid worked.                                   */
+/* -------------------------------------------------------------------- */
     file = PCIDSK::Open( "overview_file.pix", "r", NULL );
 
     channel = file->GetChannel(2);
@@ -164,6 +168,32 @@ void OverviewTest::createOverviews()
     CPPUNIT_ASSERT( data2[10] == 0.0 );
 
     CPPUNIT_ASSERT( data2[30] == 150.5 );
+
+    delete file;
+
+/* -------------------------------------------------------------------- */
+/*      Write some imagery to the base layer and ensure the             */
+/*      overviews are now marked invalid.                               */
+/* -------------------------------------------------------------------- */
+    float scanline_data[300];
+
+    file = PCIDSK::Open( "overview_file.pix", "r+", NULL );
+
+    channel = file->GetChannel(2);
+
+    CPPUNIT_ASSERT( channel->IsOverviewValid( 1 ) );
+
+    memset( scanline_data, 0, sizeof(float) * 300 );
+    channel->WriteBlock( 0, scanline_data );
+    
+    CPPUNIT_ASSERT( !channel->IsOverviewValid( 1 ) );
+
+    delete file;
+    
+    file = PCIDSK::Open( "overview_file.pix", "r", NULL );
+
+    channel = file->GetChannel(2);
+    CPPUNIT_ASSERT( !channel->IsOverviewValid( 1 ) );
 
     delete file;
 

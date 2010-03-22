@@ -302,6 +302,22 @@ void CPCIDSKChannel::SetOverviewValidity( int overview_index,
 }
 
 /************************************************************************/
+/*                        InvalidateOverviews()                         */
+/*                                                                      */
+/*      Whenever a write is done on this band, we will invalidate       */
+/*      any previously valid overviews.                                 */
+/************************************************************************/
+
+void CPCIDSKChannel::InvalidateOverviews()
+
+{
+    EstablishOverviewInfo();
+
+    for( int i = 0; i < GetOverviewCount(); i++ )
+        SetOverviewValidity( i, false );
+}
+
+/************************************************************************/
 /*                           GetDescription()                           */
 /************************************************************************/
 
