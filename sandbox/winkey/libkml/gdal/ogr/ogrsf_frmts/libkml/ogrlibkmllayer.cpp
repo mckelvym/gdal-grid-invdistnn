@@ -59,11 +59,15 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
                                  OGRSpatialReference * poSpatialRef,
                                  OGRwkbGeometryType eGType,
                                  OGRLIBKMLDataSource * poOgrDS,
-                                 ElementPtr poKmlRoot)
+                                 ElementPtr poKmlRoot,
+                                 const char *pszFileName)
 {
 //CPLGetBasename ( oKmlHref.get_path (  ).c_str (  ) )
     printf("createing a layer named %s\n", pszLayerName);
-    m_pszLayerName = CPLStrdup ( pszLayerName );
+    m_pszName = CPLStrdup ( pszLayerName );
+
+    m_pszFileName = CPLStrdup ( pszFileName );
+    
     m_poOgrDS = poOgrDS;
     iFeature = 0;
 
@@ -110,7 +114,8 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 OGRLIBKMLLayer::~OGRLIBKMLLayer (  )
 {
 
-    CPLFree ( ( void * )m_pszLayerName );
+    CPLFree ( ( void * )m_pszName );
+    CPLFree ( ( void * )m_pszFileName );
     delete m_poOgrSRS;
     m_poOgrFeatureDefn->Release();
 
@@ -309,7 +314,7 @@ OGRErr OGRLIBKMLLayer::SyncToDisk (
 
     if ( poKmlKmzfile->
          AddFile ( strKmlOut,
-                   CPLString (  ).Printf ( "%s.kml", m_pszLayerName ) ) )
+                   CPLString (  ).Printf ( "%s.kml", m_pszFileName ) ) )
         return OGRERR_NONE;
 
     return OGRERR_FAILURE;
@@ -399,7 +404,14 @@ const char *OGRLIBKMLLayer::GetName (
      )
 {
 
-    return m_pszLayerName;
+    return m_pszName;
+}
+
+const char *OGRLIBKMLLayer::GetFileName (
+     )
+{
+
+    return m_pszFileName;
 }
 
 /******************************************************************************

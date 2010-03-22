@@ -57,10 +57,12 @@ class OGRLIBKMLLayer:public OGRLayer
     int                       bUpdate;
     int                       nFeatures;
     int                       iFeature;
-    const char                *m_pszLayerName;
+    const char                *m_pszName;
+    const char                *m_pszFileName;
+
     ContainerPtr              m_poKmlLayer;
     ElementPtr                m_poKmlLayerRoot;
-    KmlFile                  *m_poKmlKmlfile;
+    //KmlFile                  *m_poKmlKmlfile;
 
     DocumentPtr               m_poKmlDocument;
     //OGRStyleTable            *m_poStyleTable;
@@ -72,7 +74,8 @@ class OGRLIBKMLLayer:public OGRLayer
                                 OGRSpatialReference * poSpatialRef,
                                 OGRwkbGeometryType eGType,
                                 OGRLIBKMLDataSource *poOgrDS,
-                                ElementPtr poKmlRoot);
+                                ElementPtr poKmlRoot,
+                                const char *pszFileName);
     ~OGRLIBKMLLayer           (  );
 
     void                      ResetReading  (  );
@@ -105,7 +108,8 @@ class OGRLIBKMLLayer:public OGRLayer
     const char               *GetName();
     int                       TestCapability ( const char * );
     ContainerPtr              GetKmlLayer () {return m_poKmlLayer;};
-};
+    const char               *GetFileName();
+    };
 
 /******************************************************************************
   datasource class
@@ -137,7 +141,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     int                       m_isKmz;
     ContainerPtr              m_poKmlDocKml;
     ContainerPtr              m_poKmlStyleKml;
-    
+
     /***** the kml factory *****/
     
     KmlFactory               *m_poKmlFactory;

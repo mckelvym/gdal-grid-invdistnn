@@ -129,7 +129,7 @@ void OGRLIBKMLDataSource::WriteKmz (
         poKmlKml->set_feature ( m_poKmlDocKml );
         std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
 
-        if ( !poKmlKmzfile->AddFile ( oKmlOut, "doc.kml" ) )
+        if ( !poKmlKmzfile->AddFile( oKmlOut, "doc.kml" ) )
             CPLError ( CE_Failure, CPLE_FileIO,
                        "ERROR adding %s to %s", "doc.kml", pszName );
 
@@ -147,12 +147,12 @@ void OGRLIBKMLDataSource::WriteKmz (
         poKmlKml->set_feature ( poKlmContainer );
 
         std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
-        std::string oName = papoLayers[iLayer]->GetName (  );
-        oName.append ( ".kml" );
 
-        if ( !poKmlKmzfile->AddFile ( oKmlOut, oName.c_str (  ) ) )
+        if ( !poKmlKmzfile->AddFile ( oKmlOut, papoLayers[iLayer]->GetFileName (  ) ) )
             CPLError ( CE_Failure, CPLE_FileIO,
-                       "ERROR adding %s to %s", oName.c_str (  ), pszName );
+                       "ERROR adding %s to %s",
+                       papoLayers[iLayer]->GetFileName (  ),
+                       pszName );
 
     }
 
@@ -292,7 +292,7 @@ int OGRLIBKMLDataSource::ParseLayers (
             OGRLIBKMLLayer *poOgrLayer =
                 new OGRLIBKMLLayer ( oKmlFeatName.c_str (  ),
                                      poOgrSRS, wkbUnknown, this,
-                                     poKmlFeat );
+                                     poKmlFeat, "");
 
             papoLayers[nLayers++] = poOgrLayer;
         }
@@ -413,12 +413,12 @@ int OGRLIBKMLDataSource::OpenKml (
 
     if ( nPlacemarks && !nLayers ) {
 
-#warning the layer name needs to be the basename of the file
 #warning we need a way to pass schema data for a layerdefn
-        OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( pszFilename,
+        OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( CPLGetBasename(pszFilename),
                                                           poOgrSRS, wkbUnknown,
                                                           this,
-                                                          m_poKmlDSContainer );
+                                                          m_poKmlDSContainer,
+                                                          pszFilename);
 
 
         papoLayers[nLayers++] = poOgrLayer;
@@ -560,9 +560,10 @@ int OGRLIBKMLDataSource::OpenKmz (
                 /***** create the layer *****/
 
                 OGRLIBKMLLayer *poOgrLayer =
-                    new OGRLIBKMLLayer ( poKmlHref->get_path (  ).c_str (  ),
+                    new OGRLIBKMLLayer ( CPLGetBasename( poKmlHref->get_path (  ).c_str (  )),
                                          poOgrSRS, wkbUnknown, this,
-                                         poKmlLyrContainer );
+                                         poKmlLyrContainer,
+                                         poKmlHref->get_path (  ).c_str (  ));
 
 
                 papoLayers[nLayers++] = poOgrLayer;
@@ -607,10 +608,11 @@ int OGRLIBKMLDataSource::OpenKmz (
             papoLayers =
                 ( OGRLIBKMLLayer ** ) CPLMalloc ( sizeof ( OGRLIBKMLLayer * ) );
             
-            OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( pszFilename,
+            OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( CPLGetBasename(pszFilename),
                                                               poOgrSRS, wkbUnknown,
                                                               this,
-                                                              poKmlContainer );
+                                                              poKmlContainer,
+                                                              pszFilename);
 
 
             papoLayers[nLayers++] = poOgrLayer;
@@ -733,10 +735,11 @@ int OGRLIBKMLDataSource::OpenDir (
 
         /***** create the layer *****/
 
-        OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( pszFilePath,
+        OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( CPLGetBasename( pszFilePath),
                                                           poOgrSRS, wkbUnknown,
                                                           this,
-                                                          poKmlContainer );
+                                                          poKmlContainer,
+                                                          pszFilePath);
 
 
         papoLayers[nLayers++] = poOgrLayer;
@@ -931,7 +934,7 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
     /***** create the layer *****/
 
     poOgrLayer = new OGRLIBKMLLayer ( pszLayerName, poOgrSRS, eGType, this,
-                                      poKmlFolder );
+                                      poKmlFolder, "" );
 
     /***** check to see if we have enough space to store the layer *****/
 
@@ -992,7 +995,8 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKmz (
     /***** create the layer *****/
 
     poOgrLayer = new OGRLIBKMLLayer ( pszLayerName, poOgrSRS, eGType, this,
-                                      poKmlDocument );
+                                      poKmlDocument, 
+                                      CPLFormFilename( NULL, pszLayerName, ".kml") );
 
     /***** check to see if we have enough space to store the layer *****/
 
