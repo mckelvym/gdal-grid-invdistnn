@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 #include <cassert>
+#include <cstring>
 
 using namespace PCIDSK;
 
