@@ -1,0 +1,52 @@
+<html>
+<head>
+    <title>Libkml Driver</title>
+</head>
+
+<body bgcolor="#ffffff">
+
+    <h1>Libkml Driver (.kml .kmz)</h1>
+
+
+    <h2>datasource</h2>
+
+    <dl>
+        <dt>LIBKML_USE_DOC.KML</dt>
+        <dd>yes</dd>
+    </dl>
+
+    <h3>Style</h3>
+    Style tables are wrote to the document in a .kml file, style/style.kml
+    in a kmz file.
+    <h3>Schema</h3>
+    
+    <h2>layer</h2>
+    
+    <h3>Style</h3>
+    Layer style tables cannot be read or written to a kml layer that is a folder,
+    otherwise they are in the document that is the layer.
+    
+    <h3>Schema</h3>
+    
+
+    <h2>fields</h2>
+    
+    <dl>
+        <dt>LIBKML_NAME_FIELD</dt>
+        <dd>Name of the OGR field to use for a placemarks name,
+          Defaults to "Name"</dd>
+        <dt>LIBKML_DESCRIPTION_FIELD</dt>
+        <dd>Name of the OGR field to use for a placemarks description,
+          Defaults to Description</dd>
+        <dt>LIBKML_TIMESTAMP_FIELD</dt>
+        <dd>Name of the OGR field to use for a placemarks timestamp,
+          Defaults to timestamp</dd>
+        <dt>LIBKML_BEGIN_FIELD</dt>
+        <dd>Name of the OGR field to use for a placemarks timespan begin,
+          Defaults to begin</dd>
+        <dt>LIBKML_END_FIELD</dt>
+        <dd>Name of the OGR field to use for a placemarks timespan end,
+          Defaults to end</dd>
+    </dl>
+</body>
+</html>
