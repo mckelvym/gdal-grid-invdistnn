@@ -68,6 +68,7 @@ class OGRLIBKMLLayer:public OGRLayer
     //OGRStyleTable            *m_poStyleTable;
     OGRLIBKMLDataSource      *m_poOgrDS;
     OGRFeatureDefn           *m_poOgrFeatureDefn;
+    SchemaPtr                 m_poKmlSchema;
     OGRSpatialReference      *m_poOgrSRS;
   public:
     OGRLIBKMLLayer            ( const char *pszLayerName,

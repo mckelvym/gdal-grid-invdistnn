@@ -26,6 +26,10 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
+using kmldom::SimpleFieldPtr;
+using kmldom::KmlFactory;
+using kmldom::PlacemarkPtr;
+
 /******************************************************************************
  function to output ogr fields in kml
 
@@ -59,3 +63,11 @@ void field2kml (
 void kml2field (
     OGRFeature * poOgrFeat,
     PlacemarkPtr poKmlPlacemark );
+
+/******************************************************************************
+ function create a simplefield from a FieldDefn
+******************************************************************************/
+
+SimpleFieldPtr FieldDef2kml (
+    OGRFieldDefn *poOgrFieldDef,
+    KmlFactory * poKmlFactory );

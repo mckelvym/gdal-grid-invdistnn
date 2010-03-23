@@ -46,6 +46,7 @@ using kmlengine::KmlFile;
 using kmlengine::Bbox;
 
 #include "ogrlibkmlfeature.h"
+#include "ogrlibkmlfield.h"
 #include "ogrlibkmlstyle.h"
 
 /******************************************************************************
@@ -92,9 +93,11 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
     /***** store the root element pointer *****/
 
     m_poKmlLayer = boost::static_pointer_cast <kmldom::Container>( poKmlRoot);
-    
-        
-    
+
+#warning this needs to be replaced with some logic to put the right schema here if this layer was made from a DS::Open()
+    KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
+    m_poKmlSchema = poKmlFactory->CreateSchema (  );
+
     nFeatures = m_poKmlLayer->get_feature_array_size() ;
     iFeature = 0;
 
@@ -289,7 +292,10 @@ OGRErr OGRLIBKMLLayer::CreateField (
     OGRFieldDefn * poField,
     int bApproxOK )
 {
-#warning need to add to schema too
+    SimpleFieldPtr poKmlSimpleField = NULL;
+    
+    if (poKmlSimpleField = FieldDef2kml ( poField, m_poOgrDS->GetKmlFactory (  ) ))
+        m_poKmlSchema->add_simplefield ( poKmlSimpleField );
     
     m_poOgrFeatureDefn->AddFieldDefn( poField );
 

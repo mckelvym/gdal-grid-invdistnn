@@ -32,15 +32,13 @@
 #include <kml/dom.h>
 #include <iostream>
 
-using kmldom::KmlFactory;;
-using kmldom::PlacemarkPtr;
 using kmldom::ExtendedDataPtr;
 using kmldom::SchemaPtr;
 using kmldom::SchemaDataPtr;
 using kmldom::TimeSpanPtr;
 using kmldom::SimpleDataPtr;
 using kmldom::TimeStampPtr;
-using kmldom::SimpleFieldPtr;
+
 
 
 #include "ogrlibkmlfield.h"
@@ -488,56 +486,64 @@ void KML_time (
     return;
 }
 
-SchemaPtr LayerDefn2kml (
-    OGRLayer * poOgrLayer,
+/******************************************************************************
+ function create a simplefield from a FieldDefn
+******************************************************************************/
+
+SimpleFieldPtr FieldDef2kml (
+    OGRFieldDefn *poOgrFieldDef,
     KmlFactory * poKmlFactory )
 {
 
-    SimpleFieldPtr poKmlSimpleField;
+    SimpleFieldPtr poKmlSimpleField = poKmlFactory->CreateSimpleField (  );
+    const char *pszFieldName = poOgrFieldDef->GetNameRef();
+    poKmlSimpleField->set_name ( pszFieldName );
 
-    SchemaPtr poKmlSchema = poKmlFactory->CreateSchema (  );
+    const char *namefield =
+        CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
+    const char *descfield =
+        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
+    const char *tsfield =
+        CPLGetConfigOption ( "LIBKML_TIMESTAMP_FIELD", "timestamp" );
+    const char *beginfield =
+        CPLGetConfigOption ( "LIBKML_BEGIN_FIELD", "begin" );
+    const char *endfield =
+        CPLGetConfigOption ( "LIBKML_END_FIELD", "end" );
+    
+    SimpleDataPtr poKmlSimpleData = NULL;
+    switch ( poOgrFieldDef->GetType (  ) ) {
 
-    OGRFeatureDefn *poOgrFeatureDef = poOgrLayer->GetLayerDefn (  );
-
-    poKmlSchema->set_name ( poOgrFeatureDef->GetName (  ) );
-
-    int i;
-
-    for ( i = 0; i < poOgrFeatureDef->GetFieldCount (  ); i++ ) {
-        OGRFieldDefn *poOgrFieldDef = poOgrFeatureDef->GetFieldDefn ( i );
-
-        poKmlSimpleField = poKmlFactory->CreateSimpleField (  );
-
-        poKmlSimpleField->set_name ( poOgrFieldDef->GetNameRef (  ) );
-
-        switch ( poOgrFieldDef->GetType (  ) ) {
-
-        case OFTInteger:
-        case OFTIntegerList:
-            poKmlSimpleField->set_type ( "int" );
+    case OFTInteger:
+    case OFTIntegerList:
+        poKmlSimpleField->set_type ( "int" );
+        return poKmlSimpleField;
+    case OFTReal:
+    case OFTRealList:
+        poKmlSimpleField->set_type ( "float" );
+        return poKmlSimpleField;
+    case OFTBinary:
+        poKmlSimpleField->set_type ( "bool" );
+        return poKmlSimpleField;
+    case OFTString:
+    case OFTStringList:
+        if ( EQUAL(pszFieldName, namefield) || EQUAL(pszFieldName, descfield))
             break;
-        case OFTReal:
-        case OFTRealList:
-            poKmlSimpleField->set_type ( "float" );
+        poKmlSimpleField->set_type ( "string" );
+        return poKmlSimpleField;
+        
+    /***** kml has these types but as timestamp/timespan *****/
+                
+    case OFTDate:
+    case OFTTime:
+    case OFTDateTime:
+        if ( EQUAL(pszFieldName, tsfield) || EQUAL(pszFieldName, beginfield) ||
+             EQUAL(pszFieldName, endfield) )
             break;
-        case OFTBinary:
-            poKmlSimpleField->set_type ( "bool" );
-            break;
-        case OFTString:
-        case OFTStringList:
-            poKmlSimpleField->set_type ( "string" );
-            break;
-            //TODO: KML doesn't handle these data types yet...
-        case OFTDate:
-        case OFTTime:
-        case OFTDateTime:
-        default:
-            poKmlSimpleField->set_type ( "string" );
-            break;
-        }
-        poKmlSchema->add_simplefield ( poKmlSimpleField );
-
+    default:
+        poKmlSimpleField->set_type ( "string" );
+        return poKmlSimpleField;
     }
 
-    return poKmlSchema;
+    return NULL;
 }
+
