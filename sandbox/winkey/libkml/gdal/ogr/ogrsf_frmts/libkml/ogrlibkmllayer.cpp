@@ -289,8 +289,11 @@ OGRErr OGRLIBKMLLayer::CreateField (
     OGRFieldDefn * poField,
     int bApproxOK )
 {
+#warning need to add to schema too
+    
+    m_poOgrFeatureDefn->AddFieldDefn( poField );
 
-
+    return OGRERR_NONE;
 }
 
 
@@ -436,7 +439,7 @@ int OGRLIBKMLLayer::TestCapability (
         result = TRUE;
 #warning todo CreateField
     if ( EQUAL ( pszCap, OLCCreateField ) )
-        result = FALSE;
+        result = TRUE;
 #warning todo DeleteFeature
     if ( EQUAL ( pszCap, OLCDeleteFeature ) )
         result = FALSE;
