@@ -354,6 +354,36 @@ int CTiledChannel::ReadBlock( int block_index, void *buffer,
 }
 
 /************************************************************************/
+/*                            IsTileEmpty()                             */
+/************************************************************************/
+bool CTiledChannel::IsTileEmpty(void *buffer) const
+{
+    assert(sizeof(int32) == 4); // just to be on the safe side...
+
+    unsigned int num_dword = 
+        (block_width * block_height * DataTypeSize(pixel_type)) / 4;
+    unsigned int rem = 
+        (block_width * block_height * DataTypeSize(pixel_type)) % 4;
+
+    int32* int_buf = reinterpret_cast<int32*>(buffer);
+
+    if (num_dword > 0) {
+        for (unsigned int n = 0; n < num_dword; n++) {
+            if (int_buf[n]) return false;
+        }
+    }
+
+    char* char_buf = reinterpret_cast<char*>(int_buf + num_dword);
+    if (rem > 0) {
+        for (unsigned int n = 0; n < rem; n++) {
+            if (char_buf[n]) return false;
+        }
+    }
+
+    return true;
+}
+
+/************************************************************************/
 /*                             WriteBlock()                             */
 /************************************************************************/
 
@@ -397,6 +427,15 @@ int CTiledChannel::WriteBlock( int block_index, void *buffer )
             SwapPixels( buffer, pixel_type, pixel_count );
 
         return 1;
+    }
+
+    if ((int)tile_offsets[block_index] == -1)
+    {
+        // Check if the tile is empty. If it is, we can skip writing it,
+        // unless the tile is already dirty.
+        bool is_empty = IsTileEmpty(buffer);
+
+        if (is_empty) return 1; // we don't need to do anything else
     }
 
 /* -------------------------------------------------------------------- */
