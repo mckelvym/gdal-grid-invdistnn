@@ -275,6 +275,10 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
         WriteKmz (  );
     }
 
+    else if ( bUpdate && bUpdated && IsDir (  ) ) {
+        WriteDir (  );
+    }
+
 
 
 
@@ -918,7 +922,7 @@ int OGRLIBKMLDataSource::CreateDir (
     char **papszOptions )
 {
 
-    if (! VSIMkdir ( pszFilename, 0755) ) {
+    if (VSIMkdir ( pszFilename, 0755) ) {
         CPLError ( CE_Failure, CPLE_AppDefined,
                    "ERROR Creating dir: %s for KML datasource",
                    pszFilename);
@@ -1063,7 +1067,7 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
 }
 
 /******************************************************************************
- method to create a layer in a .kmz
+ method to create a layer in a .kmz or dir
 ******************************************************************************/
 
 OGRLayer *OGRLIBKMLDataSource::CreateLayerKmz (
@@ -1149,7 +1153,7 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer (
 
     }
 
-    else if ( IsKmz (  ) ) {
+    else if ( IsKmz (  )  || IsDir (  )) {
         poOgrLayer = CreateLayerKmz ( pszLayerName, poOgrSRS,
                                       eGType, papszOptions );
 
@@ -1254,7 +1258,7 @@ void OGRLIBKMLDataSource::SetStyleTableDirectly (
     if ( IsKml (  ) )
         SetStyleTable2Kml ( m_poStyleTable );
 
-    else if ( IsKmz (  ) )
+    else if ( IsKmz (  ) || IsDir (  ) )
         SetStyleTable2Kmz ( m_poStyleTable );
 
 
