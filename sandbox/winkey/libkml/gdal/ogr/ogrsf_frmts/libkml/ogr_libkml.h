@@ -193,6 +193,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
 
     void                      WriteKml();
     void                      WriteKmz();
+    void                      WriteDir();
     
     /***** methods to open various datasource types *****/
         

@@ -176,6 +176,86 @@ void OGRLIBKMLDataSource::WriteKmz (
 }
 
 /******************************************************************************
+ method to write a dir ds at ds destroy
+******************************************************************************/
+
+void OGRLIBKMLDataSource::WriteDir (
+     )
+{
+
+    /***** write out the doc.kml ****/
+
+    const char *pszUseDocKml =
+        CPLGetConfigOption ( "LIBKML_USE_DOC.KML", "yes" );
+
+    if ( EQUAL ( pszUseDocKml, "yes" ) && m_poKmlDocKml ) {
+
+        KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
+
+        poKmlKml->set_feature ( m_poKmlDocKml );
+
+        std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
+
+        const char *pszOutfile = CPLFormFilename ( pszName, "doc.kml", NULL);
+
+        if ( !kmlbase::File::WriteStringToFile ( oKmlOut, pszOutfile)) {
+            CPLError ( CE_Failure, CPLE_FileIO,
+                       "ERROR Writing %s to %s", "doc.kml", pszName );
+        }
+    }
+
+    /***** loop though the layers and write them *****/
+
+    int iLayer;
+
+    for ( iLayer = 0; iLayer < nLayers; iLayer++ ) {
+        ContainerPtr poKmlContainer = papoLayers[iLayer]->GetKmlLayer (  );
+
+        KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
+
+        poKmlKml->set_feature ( poKmlContainer );
+
+        std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
+
+        const char *pszOutfile = CPLFormFilename ( pszName,
+                                                  papoLayers[iLayer]->GetFileName (  ),
+                                                  NULL);
+
+        if ( !kmlbase::File::WriteStringToFile ( oKmlOut, pszOutfile)) {
+            CPLError ( CE_Failure, CPLE_FileIO,
+                       "ERROR Writing %s to %s",
+                       papoLayers[iLayer]->GetFileName (  ),
+                       pszName );
+        }
+        
+    }
+
+   /***** write the style table *****/
+
+    if ( m_poKmlStyleKml ) {
+        
+        KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
+
+        poKmlKml->set_feature ( m_poKmlStyleKml );
+        std::string oKmlOut = kmldom::SerializePretty ( poKmlKml );
+
+        const char *pszOutfile = CPLFormFilename ( pszName,
+                                                  "style.kml",
+                                                  NULL);
+
+        if ( !kmlbase::File::WriteStringToFile ( oKmlOut, pszOutfile)) {
+            CPLError ( CE_Failure, CPLE_FileIO,
+                       "ERROR Writing %s to %s",
+                       "style.kml",
+                       pszName );
+        }
+    }
+
+    return;
+}
+
+
+/******************************************************************************
  ~OGRLIBKMLDataSource()
 ******************************************************************************/
 
