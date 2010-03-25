@@ -1037,10 +1037,12 @@ void CPCIDSKFile::MoveSegmentToEOF( int segment )
 /************************************************************************/
 /*
  const char *pszResampling;
- 	     Either "NEAREST" for Nearest Neighbour resampling (the fastest),
+ 	     Can be "NEAREST" for Nearest Neighbour resampling (the fastest),
              "AVERAGE" for block averaging or "MODE" for block mode.  This
              establishing the type of resampling to be applied when preparing
-             the decimated overviews.  
+             the decimated overviews. Other methods can be set as well, but
+             not all applications might support a given overview generation
+             method.
 */
 
 void CPCIDSKFile::CreateOverviews( int chan_count, int *chan_list, 
@@ -1048,19 +1050,6 @@ void CPCIDSKFile::CreateOverviews( int chan_count, int *chan_list,
 
 {
     std::vector<int> default_chan_list;
-
-/* -------------------------------------------------------------------- */
-/*      Validate resampling method.                                     */
-/* -------------------------------------------------------------------- */
-    UCaseStr( resampling );
-
-    if( resampling != "NEAREST" 
-        && resampling != "AVERAGE"
-        && resampling != "MODE" )
-    {
-        ThrowPCIDSKException( "Requested overview resampling '%s' not supported.\nUse one of NEAREST, AVERAGE or MODE.",
-                              resampling.c_str() );
-    }
 
 /* -------------------------------------------------------------------- */
 /*      Default to processing all bands.                                */
@@ -1117,10 +1106,10 @@ void CPCIDSKFile::CreateOverviews( int chan_count, int *chan_list,
         PCIDSKChannel *channel = GetChannel( channel_number );
         
 /* -------------------------------------------------------------------- */
-/*      Do we have a preexisting overview that corresponds to this      */
-/*      factor?  If so, throw an exception.  Would it be better to      */
-/*      just return quietly?                                            */
+/*      Figure out if the given overview level already exists           */
+/*      for a given channel; if it does, skip creating it.              */
 /* -------------------------------------------------------------------- */
+        bool overview_exists = false;
         for( int i = channel->GetOverviewCount()-1; i >= 0; i-- )
         {
             PCIDSKChannel *overview = channel->GetOverview( i );
@@ -1128,30 +1117,32 @@ void CPCIDSKFile::CreateOverviews( int chan_count, int *chan_list,
             if( overview->GetWidth() == channel->GetWidth() / factor
                 && overview->GetHeight() == channel->GetHeight() / factor )
             {
-                ThrowPCIDSKException( "Channel %d already has a factor %d overview.",
-                                      channel_number, factor );
+                overview_exists = true;
             }
         }
 
+        if (overview_exists == false)
+        {
 /* -------------------------------------------------------------------- */
 /*      Create the overview as a tiled image layer.                     */
 /* -------------------------------------------------------------------- */
-        int virtual_image = 
-            bm->CreateVirtualImageFile( channel->GetWidth() / factor, 
-                                        channel->GetHeight() / factor,
-                                        blocksize, blocksize, 
-                                        channel->GetType(), compression );
+            int virtual_image = 
+                bm->CreateVirtualImageFile( channel->GetWidth() / factor, 
+                                            channel->GetHeight() / factor,
+                                            blocksize, blocksize, 
+                                            channel->GetType(), compression );
 
 /* -------------------------------------------------------------------- */
 /*      Attach reference to this overview as metadata.                  */
 /* -------------------------------------------------------------------- */
-        char overview_md_value[128];
-        char overview_md_key[128];
+            char overview_md_value[128];
+            char overview_md_key[128];
 
-        sprintf( overview_md_key, "_Overview_%d", factor );
-        sprintf( overview_md_value, "%d 0 %s",virtual_image,resampling.c_str());
-                 
-        channel->SetMetadataValue( overview_md_key, overview_md_value );
+            sprintf( overview_md_key, "_Overview_%d", factor );
+            sprintf( overview_md_value, "%d 0 %s",virtual_image,resampling.c_str());
+                     
+            channel->SetMetadataValue( overview_md_key, overview_md_value );
+        }
 
 /* -------------------------------------------------------------------- */
 /*      Force channel to invalidate it's loaded overview list.          */
