@@ -4012,8 +4012,11 @@ HFADataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         GDALRasterBand *poSrcBand = poSrcDS->GetRasterBand( iBand+1 );
         GDALRasterBand *poDstBand = poDS->GetRasterBand(iBand+1);
 
-        poDstBand->SetMetadata( poSrcBand->GetMetadata() );
-        poDstBand->SetDescription( poSrcBand->GetDescription() );
+        if( poSrcBand->GetMetadata() != NULL )
+            poDstBand->SetMetadata( poSrcBand->GetMetadata() );
+
+        if( strlen(poSrcBand->GetDescription()) > 0 )
+            poDstBand->SetDescription( poSrcBand->GetDescription() );
 
         double dfNoDataValue = poSrcBand->GetNoDataValue( &bSuccess );
         if( bSuccess )
