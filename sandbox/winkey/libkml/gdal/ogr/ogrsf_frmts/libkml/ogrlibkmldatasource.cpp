@@ -830,6 +830,36 @@ int OGRLIBKMLDataSource::CreateKmz (
 }
 
 /******************************************************************************
+ Method to create a dir datasource
+******************************************************************************/
+
+int OGRLIBKMLDataSource::CreateDir (
+    const char *pszFilename,
+    char **papszOptions )
+{
+
+    if (! VSIMkdir ( pszFilename, 0755) ) {
+        CPLError ( CE_Failure, CPLE_AppDefined,
+                   "ERROR Creating dir: %s for KML datasource",
+                   pszFilename);
+        return FALSE;
+    }
+
+    m_isDir = TRUE;
+    bUpdated = TRUE;
+
+    
+   const char *namefield = CPLGetConfigOption ( "LIBKML_USE_DOC.KML", "yes" );
+
+    if ( !strcmp ( namefield, "yes" ) ) {
+        m_poKmlDocKml = m_poKmlFactory->CreateDocument (  );
+    }
+
+    return TRUE;
+}
+
+    
+/******************************************************************************
  Create()
 
 
@@ -850,22 +880,18 @@ int OGRLIBKMLDataSource::Create (
 
     /***** kml *****/
 
-    if ( EQUAL ( CPLGetExtension ( pszFilename ), "kml" ) ) {
+    if ( EQUAL ( CPLGetExtension ( pszFilename ), "kml" ) )
         bResult = CreateKml ( pszFilename, papszOptions );
-    }
 
     /***** kmz *****/
 
-    if ( EQUAL ( CPLGetExtension ( pszFilename ), "kmz" ) ) {
+    if ( EQUAL ( CPLGetExtension ( pszFilename ), "kmz" ) )
         bResult = CreateKmz ( pszFilename, papszOptions );
-    }
 
     /***** dir *****/
 
-    else {
-
-
-    }
+    else
+        bResult = CreateDir ( pszFilename, papszOptions );
 
     return bResult;
 }

@@ -143,6 +143,10 @@ class OGRLIBKMLDataSource:public OGRDataSource
     ContainerPtr              m_poKmlDocKml;
     ContainerPtr              m_poKmlStyleKml;
 
+    /***** for dir *****/
+
+    int                       m_isDir;
+    
     /***** the kml factory *****/
     
     KmlFactory               *m_poKmlFactory;
@@ -182,6 +186,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     //KmzFile                  *GetKmz() { return m_poKmlKmzfile; };
     int                       IsKml() {return m_isKml;};
     int                       IsKmz() {return m_isKmz;};
+    int                       IsDir() {return m_isDir;};
   private:
 
     /***** methods to write out various datasource types at destroy *****/
