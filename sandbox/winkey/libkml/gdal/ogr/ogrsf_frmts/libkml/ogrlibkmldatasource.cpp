@@ -969,7 +969,7 @@ int OGRLIBKMLDataSource::Create (
 
     /***** kmz *****/
 
-    if ( EQUAL ( CPLGetExtension ( pszFilename ), "kmz" ) )
+    else if ( EQUAL ( CPLGetExtension ( pszFilename ), "kmz" ) )
         bResult = CreateKmz ( pszFilename, papszOptions );
 
     /***** dir *****/
