@@ -67,7 +67,8 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
 
     m_isKmz = FALSE;
     m_poKmlDocKml = NULL;
-
+    pszStylePath = NULL;
+    
     m_poKmlFactory = KmlFactory::GetFactory (  );
     
     //m_poStyleTable = NULL;
@@ -719,8 +720,10 @@ int OGRLIBKMLDataSource::OpenKmz (
 
             ContainerPtr poKmlContainer;
 
-            if ( ( poKmlContainer = GetContainerFromRoot ( poKmlRoot ) ) )
+            if ( ( poKmlContainer = GetContainerFromRoot ( poKmlRoot ) ) ) {
                 ParseStyles ( AsDocument ( poKmlContainer ), &m_poStyleTable );
+                pszStylePath = "style/style.kml";
+            }
         }
     }
 
@@ -777,6 +780,8 @@ int OGRLIBKMLDataSource::OpenDir (
 
     for ( iFile = 0; iFile < nFiles; iFile++ ) {
 
+        /***** make sure its a .kml file *****/
+        
         if ( !EQUAL ( CPLGetExtension ( papszDirList[iFile] ), "kml" ) )
             continue;
 
@@ -790,6 +795,7 @@ int OGRLIBKMLDataSource::OpenDir (
                        "%s is not a valid kml file", pszFilename );
             continue;
         }
+
 
         /***** parse the kml into the DOM *****/
 
@@ -814,6 +820,14 @@ int OGRLIBKMLDataSource::OpenDir (
                        pszFilename,
                        "This file does not fit the OGR model,",
                        "there is no container element at the root." );
+            continue;
+        }
+
+        /***** is it a style table? *****/
+
+        if (EQUAL( papszDirList[iFile], "style.kml")) {
+            ParseStyles ( AsDocument ( poKmlContainer ), &m_poStyleTable );
+            pszStylePath = "style.kml";
             continue;
         }
 
@@ -907,6 +921,8 @@ int OGRLIBKMLDataSource::CreateKmz (
         m_poKmlDocKml = m_poKmlFactory->CreateDocument (  );
     }
 
+    pszStylePath = "style/style.kml";
+    
     m_isKmz = TRUE;
     bUpdated = TRUE;
     
@@ -938,6 +954,8 @@ int OGRLIBKMLDataSource::CreateDir (
     if ( !strcmp ( namefield, "yes" ) ) {
         m_poKmlDocKml = m_poKmlFactory->CreateDocument (  );
     }
+
+    pszStylePath = "style.kml";
 
     return TRUE;
 }

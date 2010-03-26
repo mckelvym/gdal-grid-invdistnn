@@ -142,6 +142,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     int                       m_isKmz;
     ContainerPtr              m_poKmlDocKml;
     ContainerPtr              m_poKmlStyleKml;
+    const char               *pszStylePath;
 
     /***** for dir *****/
 
@@ -183,6 +184,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
 
     int                       TestCapability (const char * );
     KmlFactory               *GetKmlFactory() { return m_poKmlFactory; };
+    const char               *GetStylePath() {return pszStylePath; };
     //KmzFile                  *GetKmz() { return m_poKmlKmzfile; };
     int                       IsKml() {return m_isKml;};
     int                       IsKmz() {return m_isKmz;};
