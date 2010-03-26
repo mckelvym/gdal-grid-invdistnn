@@ -41,5 +41,6 @@ void featurestyle2kml (
 
 void kml2featurestyle (
     PlacemarkPtr poKmlPlacemark,
+    OGRLIBKMLDataSource *poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeature *poOgrFeat);

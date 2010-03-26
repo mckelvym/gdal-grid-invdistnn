@@ -50,5 +50,6 @@ PlacemarkPtr feat2kml (
 
 OGRFeature *kml2feat(
     PlacemarkPtr poKmlPlacemark,
+    OGRLIBKMLDataSource *poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeatureDefn *poOgrFeatDefn);

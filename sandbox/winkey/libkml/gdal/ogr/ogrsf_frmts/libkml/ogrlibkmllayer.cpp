@@ -164,7 +164,7 @@ OGRFeature *OGRLIBKMLLayer::GetNextFeature (
     if ( iFeature <= nFeatures && poKmlFeature
          && poKmlFeature->Type (  ) == kmldom::Type_Placemark ) {
         poOgrFeature =
-             kml2feat ( AsPlacemark ( poKmlFeature ), this, m_poOgrFeatureDefn );
+             kml2feat ( AsPlacemark ( poKmlFeature ), m_poOgrDS, this, m_poOgrFeatureDefn );
              poOgrFeature->SetFID(iFeature);
     }
 

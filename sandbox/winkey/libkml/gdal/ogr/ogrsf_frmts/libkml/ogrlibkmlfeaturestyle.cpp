@@ -197,6 +197,7 @@ void featurestyle2kml (
 
 void kml2featurestyle (
     PlacemarkPtr poKmlPlacemark,
+    OGRLIBKMLDataSource *poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeature * poOgrFeat )
 {
@@ -238,11 +239,10 @@ void kml2featurestyle (
 
         /***** is it a dataset style? *****/
 
-#warning no guarentee the DS style table is here
-        else if ( !strncmp ( pszTmp, "style/style.kml#", 16 ) ) {
-
-            pszTmp[15] = '@';
-            poOgrFeat->SetStyleString ( pszTmp + 15 );
+        else if ( !strncmp ( pszTmp, poOgrDS->GetStylePath(), strlen(poOgrDS->GetStylePath()) ) ) {
+            int nPathLen = strlen(poOgrDS->GetStylePath());
+            pszTmp[nPathLen] = '@';
+            poOgrFeat->SetStyleString ( pszTmp + nPathLen);
 
             CPLFree ( pszTmp );
 
@@ -252,7 +252,8 @@ void kml2featurestyle (
 
         else {
 
-#warning we need to handle style urls in other places
+            //todo Handle out of DS style tables 
+
         }
     }
 

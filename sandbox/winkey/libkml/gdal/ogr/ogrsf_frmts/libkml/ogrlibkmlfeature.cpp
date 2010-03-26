@@ -74,6 +74,7 @@ PlacemarkPtr feat2kml (
 
 OGRFeature *kml2feat (
     PlacemarkPtr poKmlPlacemark,
+    OGRLIBKMLDataSource *poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeatureDefn * poOgrFeatDefn )
 {
@@ -82,7 +83,7 @@ OGRFeature *kml2feat (
 
     /***** style *****/
 
-    kml2featurestyle ( poKmlPlacemark, poOgrLayer, poOgrFeat );
+    kml2featurestyle ( poKmlPlacemark, poOgrDS, poOgrLayer, poOgrFeat );
 
     /***** geometry *****/
 
