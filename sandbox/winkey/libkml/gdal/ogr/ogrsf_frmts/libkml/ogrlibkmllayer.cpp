@@ -105,7 +105,8 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 
     /***** get the styles *****/
 
-    ParseStyles ( AsDocument ( m_poKmlLayer ), &m_poStyleTable );
+    if (m_poKmlLayer->IsA(kmldom::Type_Document))
+        ParseStyles ( AsDocument ( m_poKmlLayer ), &m_poStyleTable );
     
     
 }
@@ -355,38 +356,44 @@ void OGRLIBKMLLayer::SetStyleTableDirectly (
 
     m_poStyleTable = poStyleTable;
 
-#warning this does not work, style seems to be in a seperate array in a documentptr
+    if (m_poKmlLayer->IsA (kmldom::Type_Document)) {
+        
+        /***** create a new document *****/
+        
+        DocumentPtr poKmlDocument = poKmlFactory->CreateDocument (  );
+        
+        /***** copy all the features to the document *****/
 
-    /***** go though the root features looking for styles *****/
+        size_t nKmlFeatures = m_poKmlLayer->get_feature_array_size (  );
+        size_t iKmlFeature;
 
-    size_t nKmlFeatures = m_poKmlLayer->get_feature_array_size (  );
-    size_t iKmlFeature;
+        for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
+            FeaturePtr poKmlFeat =
+                m_poKmlLayer->get_feature_array_at ( iKmlFeature );
+            
+            poKmlDocument->add_feature(poKmlFeat);
 
-    for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
-        FeaturePtr poKmlFeat =
-            m_poKmlLayer->get_feature_array_at ( iKmlFeature );
-
-            /***** is it a style *****/
-
-        if ( poKmlFeat->IsA ( kmldom::Type_Style ) ) {
-
-                /***** see if it has an id *****/
-
-            if ( poKmlFeat->has_id (  ) ) {
-                const std::string oKmlID = poKmlFeat->get_id (  );
-
-                    /***** delete the style *****/
-
-                m_poKmlLayer->DeleteFeatureById ( oKmlID );
-            }
         }
+
+        /***** copy the schemas to the document *****/
+
+        DocumentPtr poKmlDocument2 = AsDocument( m_poKmlLayer );
+        size_t nKmlSchemas = poKmlDocument2->get_schema_array_size (  );
+        size_t iKmlSchema;
+
+        for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
+            SchemaPtr poKmlSchema =
+                poKmlDocument2->get_schema_array_at ( iKmlSchema );
+            
+            poKmlDocument->add_schema(poKmlSchema);
+        }
+
+        /***** add the new style table to the document *****/
+
+        styletable2kml ( poStyleTable, poKmlFactory, AsContainer (m_poKmlLayer) );
     }
-
-        /***** add the new style table to the container *****/
-
-    styletable2kml ( poStyleTable, poKmlFactory, m_poKmlLayer );
-
     
+   
     return;
 }
 
