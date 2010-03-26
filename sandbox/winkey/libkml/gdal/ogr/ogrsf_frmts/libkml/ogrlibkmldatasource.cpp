@@ -1202,7 +1202,7 @@ void OGRLIBKMLDataSource::SetStyleTable2Kml (
         FeaturePtr poKmlFeat =
             m_poKmlDSContainer->get_feature_array_at ( iKmlFeature );
         
-        poKmlDocument->add_feature(poKmlFeat);
+        poKmlDocument->add_feature( AsFeature( kmlengine::Clone(poKmlFeat)));
 
     }
 
@@ -1216,13 +1216,16 @@ void OGRLIBKMLDataSource::SetStyleTable2Kml (
         SchemaPtr poKmlSchema =
             poKmlDocument2->get_schema_array_at ( iKmlSchema );
         
-        poKmlDocument->add_schema(poKmlSchema);
+        poKmlDocument->add_schema( AsSchema( kmlengine::Clone(poKmlSchema)));
     }
 
     /***** add the new style table to the document *****/
 
     styletable2kml ( poStyleTable, m_poKmlFactory, AsContainer (poKmlDocument) );
 
+    m_poKmlDSContainer = poKmlDocument;
+    m_poKmlDSKml->set_feature ( m_poKmlDSContainer);
+    
     return;
 }
 
