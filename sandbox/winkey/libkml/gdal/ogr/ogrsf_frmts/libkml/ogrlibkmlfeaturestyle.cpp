@@ -45,6 +45,7 @@ using kmldom::StyleMapPtr;
 using kmldom::StyleSelectorPtr;
 
 
+#include "ogrlibkmlfeaturestyle.h"
 #include "ogrlibkmlstyle.h"
 
 /******************************************************************************
@@ -61,6 +62,7 @@ returns:
 ******************************************************************************/
 
 void featurestyle2kml (
+    OGRLIBKMLDataSource *poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeature * poOgrFeat,
     KmlFactory * poKmlFactory,
@@ -101,8 +103,10 @@ void featurestyle2kml (
             /***** assume its a dataset style, mayby the user will add it later *****/
 
             else {
-                string oTmp = "style/style.kml#";
-
+                string oTmp;
+                if (poOgrDS->GetStylePath())
+                    oTmp.append (poOgrDS->GetStylePath());
+                oTmp.append ("#");
                 oTmp.append ( pszStyleString + 1 );
 
                 poKmlPlacemark->set_styleurl ( oTmp );
@@ -161,8 +165,10 @@ void featurestyle2kml (
                 /***** mayby the user will add it later *****/
 
                 else {
-                    string oTmp = "style/style.kml#";
-
+                    string oTmp;
+                    if (poOgrDS->GetStylePath())
+                        oTmp.append (poOgrDS->GetStylePath());
+                    oTmp.append ("#");
                     oTmp.append ( pszStyleString + 1 );
 
                     poKmlPlacemark->set_styleurl ( oTmp );

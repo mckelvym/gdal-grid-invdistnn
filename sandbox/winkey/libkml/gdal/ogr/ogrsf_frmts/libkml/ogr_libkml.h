@@ -26,10 +26,14 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
+#ifndef HAVE_OGR_LIBKML_H
+#define HAVE_OGR_LIBKML_H
+
 #include "ogrsf_frmts.h"
 
 #include <kml/engine.h>
 #include <kml/dom.h>
+
 
 using kmldom::KmlFactory;
 using kmldom::KmlPtr;
@@ -258,3 +262,5 @@ class OGRLIBKMLDriver:public OGRSFDriver
 
     int                       TestCapability ( const char * );
 };
+
+#endif

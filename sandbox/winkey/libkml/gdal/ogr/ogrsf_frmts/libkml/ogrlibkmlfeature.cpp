@@ -43,6 +43,7 @@ using kmldom::Geometry;
 #include "ogrlibkmlfeaturestyle.h"
 
 PlacemarkPtr feat2kml (
+    OGRLIBKMLDataSource *poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeature * poOgrFeat,
     KmlFactory * poKmlFactory )
@@ -52,7 +53,7 @@ PlacemarkPtr feat2kml (
 
     /***** style *****/
 
-    featurestyle2kml ( poOgrLayer, poOgrFeat, poKmlFactory, poKmlPlacemark );
+    featurestyle2kml ( poOgrDS, poOgrLayer, poOgrFeat, poKmlFactory, poKmlPlacemark );
 
     /***** geometry *****/
 

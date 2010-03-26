@@ -219,7 +219,7 @@ OGRErr OGRLIBKMLLayer::CreateFeature (
 {
 
     PlacemarkPtr poKmlPlacemark =
-        feat2kml ( this, poOgrFeat, m_poOgrDS->GetKmlFactory (  ) );
+        feat2kml ( m_poOgrDS, this, poOgrFeat, m_poOgrDS->GetKmlFactory (  ) );
 
     m_poKmlLayer->add_feature ( poKmlPlacemark );
 

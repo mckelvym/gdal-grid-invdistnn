@@ -31,11 +31,15 @@
 using kmldom::KmlFactory;
 using kmldom::PlacemarkPtr;
 
+#include "ogr_libkml.h"
+
+
 /******************************************************************************
  function to output a ogr feature to a kml placemark
 ******************************************************************************/
 
 PlacemarkPtr feat2kml (
+    OGRLIBKMLDataSource *poOgrDS,
     OGRLayer * poKOgrLayer,
     OGRFeature * poOgrFeat,
     KmlFactory * poKmlFactory );

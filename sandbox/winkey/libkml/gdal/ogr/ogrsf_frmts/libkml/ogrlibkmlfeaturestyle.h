@@ -26,7 +26,10 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
+#include "ogr_libkml.h"
+
 void featurestyle2kml (
+    OGRLIBKMLDataSource *poOgrDS,
     OGRLayer * poKOgrLayer,
     OGRFeature * poOgrFeat,
     KmlFactory * poKmlFactory,
