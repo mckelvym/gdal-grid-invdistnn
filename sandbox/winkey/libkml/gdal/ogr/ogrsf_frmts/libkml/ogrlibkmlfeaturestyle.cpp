@@ -267,8 +267,7 @@ void kml2featurestyle (
         /***** is the style a style? *****/
 
         if ( poKmlStyleSelector->IsA ( kmldom::Type_Style ) ) {
-            StylePtr poKmlStyle =
-                boost::static_pointer_cast < Style > ( poKmlStyleSelector );
+            StylePtr poKmlStyle = AsStyle ( poKmlStyleSelector );
 
             OGRStyleMgr *poOgrSM = new OGRStyleMgr;
 

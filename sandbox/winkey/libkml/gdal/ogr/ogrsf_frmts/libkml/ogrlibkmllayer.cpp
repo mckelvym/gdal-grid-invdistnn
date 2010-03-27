@@ -37,8 +37,8 @@ using kmldom::KmlFactory;
 using kmldom::PlacemarkPtr;
 using kmldom::Placemark;
 using kmldom::DocumentPtr;
+using kmldom::ContainerPtr;
 using kmldom::FeaturePtr;
-using kmldom::Feature;
 using kmldom::KmlPtr;
 using kmldom::Kml;
 using kmlengine::KmzFile;
@@ -92,7 +92,7 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 
     /***** store the root element pointer *****/
 
-    m_poKmlLayer = boost::static_pointer_cast <kmldom::Container>( poKmlRoot);
+    m_poKmlLayer = AsContainer( poKmlRoot);
 
 #warning this needs to be replaced with some logic to put the right schema here if this layer was made from a DS::Open()
     KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
@@ -269,8 +269,7 @@ OGRErr OGRLIBKMLLayer::GetExtent (
     Bbox oKmlBbox;
 
     if ( kmlengine::
-         GetFeatureBounds ( boost::static_pointer_cast < Feature >
-                            ( m_poKmlLayer ), &oKmlBbox ) ) {
+         GetFeatureBounds ( AsFeature( m_poKmlLayer ), &oKmlBbox ) ) {
         psExtent->MinX = oKmlBbox.get_west (  );
         psExtent->MinY = oKmlBbox.get_south (  );
         psExtent->MaxX = oKmlBbox.get_east (  );

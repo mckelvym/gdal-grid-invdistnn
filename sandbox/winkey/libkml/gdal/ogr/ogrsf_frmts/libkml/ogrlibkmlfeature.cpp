@@ -60,8 +60,7 @@ PlacemarkPtr feat2kml (
     OGRGeometry *poOgrGeom = poOgrFeat->GetGeometryRef (  );
     ElementPtr poKmlElement = geom2kml ( poOgrGeom, -1, 0, poKmlFactory );
 
-    poKmlPlacemark->set_geometry ( boost::static_pointer_cast < Geometry >
-                                   ( poKmlElement ) );
+    poKmlPlacemark->set_geometry ( AsGeometry( poKmlElement ) );
 
     /***** fields *****/
 
