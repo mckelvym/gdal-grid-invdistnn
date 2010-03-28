@@ -356,42 +356,21 @@ void OGRLIBKMLLayer::SetStyleTableDirectly (
     m_poStyleTable = poStyleTable;
 
     if (m_poKmlLayer->IsA (kmldom::Type_Document)) {
-        
-        /***** create a new document *****/
-        
-        DocumentPtr poKmlDocument = poKmlFactory->CreateDocument (  );
-        
-        /***** copy all the features to the document *****/
 
-        size_t nKmlFeatures = m_poKmlLayer->get_feature_array_size (  );
-        size_t iKmlFeature;
+        /***** delete all the styles *****/
+    
+        DocumentPtr poKmlDocument = AsDocument( m_poKmlLayer );
+        size_t nKmlStyles = poKmlDocument->get_schema_array_size (  );
+        int iKmlStyle;
 
-        for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
-            FeaturePtr poKmlFeat =
-                m_poKmlLayer->get_feature_array_at ( iKmlFeature );
-            
-            poKmlDocument->add_feature(AsFeature( kmlengine::Clone(poKmlFeat)));
-
-        }
-
-        /***** copy the schemas to the document *****/
-
-        DocumentPtr poKmlDocument2 = AsDocument( m_poKmlLayer );
-        size_t nKmlSchemas = poKmlDocument2->get_schema_array_size (  );
-        size_t iKmlSchema;
-
-        for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
-            SchemaPtr poKmlSchema =
-                poKmlDocument2->get_schema_array_at ( iKmlSchema );
-            
-            poKmlDocument->add_schema(AsSchema( kmlengine::Clone(poKmlSchema)));
+        for ( iKmlStyle = nKmlStyles - 1; iKmlStyle >= 0; iKmlStyle-- ) {
+            poKmlDocument->DeleteStyleSelectorAt(iKmlStyle);
         }
 
         /***** add the new style table to the document *****/
 
         styletable2kml ( poStyleTable, poKmlFactory, AsContainer (poKmlDocument) );
 
-        m_poKmlLayer = poKmlDocument;
     }
     
    
