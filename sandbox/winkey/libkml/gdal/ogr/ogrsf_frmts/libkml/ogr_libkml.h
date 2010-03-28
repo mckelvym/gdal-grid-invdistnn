@@ -230,6 +230,11 @@ class OGRLIBKMLDataSource:public OGRDataSource
                                                OGRwkbGeometryType eGType,
                                                char **papszOptions );
         
+    /***** methods to delete layers on various datasource types *****/
+    
+    OGRErr                    DeleteLayerKml ( int );
+    OGRErr                    DeleteLayerKmz ( int );
+    
     /***** methods to write a styletable to various datasource types *****/
 
     void                      SetStyleTable2Kml ( OGRStyleTable * poStyleTable );

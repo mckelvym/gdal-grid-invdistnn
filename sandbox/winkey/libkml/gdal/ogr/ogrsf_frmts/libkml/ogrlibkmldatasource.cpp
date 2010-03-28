@@ -1031,15 +1031,135 @@ OGRLayer *OGRLIBKMLDataSource::GetLayerByName (
 
 
 /******************************************************************************
+ DeleteLayers  on .kml datasource
+******************************************************************************/
+
+OGRErr OGRLIBKMLDataSource::DeleteLayerKml (
+    int iLayer )
+{
+    OGRLIBKMLLayer *poOgrLayer = (OGRLIBKMLLayer *)papoLayers[iLayer];
+
+    /***** loop over the features *****/
+
+    size_t nKmlFeatures = m_poKmlDSContainer->get_feature_array_size (  );
+    size_t iKmlFeature;
+
+    for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
+        FeaturePtr poKmlFeat =
+            m_poKmlDSContainer->get_feature_array_at ( iKmlFeature );
+
+        if (poKmlFeat == poOgrLayer->GetKmlLayer()) {
+            m_poKmlDSContainer->DeleteFeatureAt(iKmlFeature);
+            break;
+        }
+        
+    }
+
+
+    return OGRERR_NONE;
+}
+
+/******************************************************************************
+ DeleteLayers  on .kmz datasource
+******************************************************************************/
+
+OGRErr OGRLIBKMLDataSource::DeleteLayerKmz (
+    int iLayer )
+{
+    OGRLIBKMLLayer *poOgrLayer = (OGRLIBKMLLayer *)papoLayers[iLayer];
+
+    const char *pszUseDocKml =
+        CPLGetConfigOption ( "LIBKML_USE_DOC.KML", "yes" );
+
+    if ( EQUAL ( pszUseDocKml, "yes" ) && m_poKmlDocKml ) {
+        
+        /***** loop over the features *****/
+
+        size_t nKmlFeatures = m_poKmlDocKml->get_feature_array_size (  );
+        size_t iKmlFeature;
+
+        for ( iKmlFeature = 0; iKmlFeature < nKmlFeatures; iKmlFeature++ ) {
+            FeaturePtr poKmlFeat =
+                m_poKmlDocKml->get_feature_array_at ( iKmlFeature );
+
+            if (poKmlFeat->IsA(kmldom::Type_NetworkLink)) {
+                NetworkLinkPtr poKmlNetworkLink = AsNetworkLink ( poKmlFeat );
+
+                /***** does it have a link? *****/
+
+                if ( poKmlNetworkLink->has_link() ) {
+                    LinkPtr poKmlLink = poKmlNetworkLink->get_link ();
+
+                    /***** does the link have a href? *****/
+
+                    if ( poKmlLink->has_href ()) {
+                        kmlengine::Href *poKmlHref = new kmlengine::Href(poKmlLink->get_href());
+
+                        /***** is the link relative? *****/
+
+                        if (poKmlHref->IsRelativePath (  ) ) {
+
+                            const char *pszLink = poKmlHref->get_path (  ).c_str();
+
+                            if (EQUAL(pszLink, poOgrLayer->GetFileName())) {
+                                m_poKmlDocKml->DeleteFeatureAt(iKmlFeature);
+                                break;
+                            }
+        
+                                
+                        }
+                    }
+                }
+            }
+        }
+    
+    }
+    
+    return OGRERR_NONE;
+}
+
+/******************************************************************************
  DeleteLayer()
 ******************************************************************************/
+
 OGRErr OGRLIBKMLDataSource::DeleteLayer (
-    int )
+    int iLayer )
 {
 
-#warning we need to figure this out
+    if ( iLayer >= nLayers )
+        return OGRERR_FAILURE;
+    
+    if ( IsKml (  ) )
+        DeleteLayerKml(iLayer);
 
-    return OGRERR_UNSUPPORTED_OPERATION;
+    else if ( IsKmz (  ) )
+        DeleteLayerKmz(iLayer);
+
+    else if ( IsDir (  ) ) {
+        DeleteLayerKmz(iLayer);
+
+        /***** delete the file the layer corisponds to *****/
+
+        const char *pszFilePath = 
+            CPLFormFilename ( pszName , papoLayers[iLayer]->GetFileName(),
+                              NULL );
+        VSIStatBufL oStatBufL= {};
+        if (!VSIStatL (pszFilePath, &oStatBufL)) {
+            if (VSIUnlink ( pszFilePath )) {
+                CPLError ( CE_Failure, CPLE_AppDefined,
+                   "ERROR Deleteing Layer %s from filesystem as %s",
+                   papoLayers[iLayer]->GetName(), pszFilePath);
+            }
+        }
+    }
+	
+
+    delete papoLayers[iLayer];
+    memmove( papoLayers + iLayer, papoLayers + iLayer + 1, 
+             sizeof(void *) * (nLayers - iLayer - 1) );
+    nLayers--;
+
+    return OGRERR_NONE;
 }
 
 /******************************************************************************
