@@ -1102,8 +1102,7 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKmz (
 
     if ( EQUAL ( pszUseDocKml, "yes" ) && m_poKmlDocKml ) {
 
-        DocumentPtr poKmlDocument =
-            boost::static_pointer_cast < kmldom::Document > ( m_poKmlDocKml );
+        DocumentPtr poKmlDocument = AsDocument( m_poKmlDocKml );
 
         NetworkLinkPtr poKmlNetLink = m_poKmlFactory->CreateNetworkLink (  );
         LinkPtr poKmlLink = m_poKmlFactory->CreateLink (  );
