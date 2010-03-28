@@ -684,7 +684,7 @@ int OGRLIBKMLDataSource::OpenKmz (
 
         if ( nPlacemarks && !nLayers ) {
 
-#warning the layer name needs to be the basename of the file
+
 #warning we need a way to pass schema data for a layerdefn
 
             /***** alocate memory for the layer array *****/
@@ -704,8 +704,6 @@ int OGRLIBKMLDataSource::OpenKmz (
         }
     }
 
-#warning i think we should do this sooner
-    
     /***** read the style table if it has one *****/
 
     std::string oKmlStyleKml;
