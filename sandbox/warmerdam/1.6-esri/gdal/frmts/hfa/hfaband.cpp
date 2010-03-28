@@ -225,7 +225,7 @@ HFABand::HFABand( HFAInfo_t * psInfoIn, HFAEntry * poNodeIn )
 /*      overviews within the same layer, as occurs in floodplain.img    */
 /*      for instance.                                                   */
 /* -------------------------------------------------------------------- */
-    if( nOverviews == 0 )
+    if( nOverviews == 0 && poBandProxyNode != NULL )
     {
         HFAEntry	*poChild;
 
