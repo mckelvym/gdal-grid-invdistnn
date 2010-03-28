@@ -558,15 +558,16 @@ int JPIPKAKDataset::Initialise(char* pszUrl)
     //nBands = poCodestream->get_num_components();
 
     // Establish the datatype - we will use the same datatype for
-    // all bands based on the first.
-    if( poCodestream->get_bit_depth(0) == 16
+    // all bands based on the first.  This really doesn't do something
+    // great for >16 bit images.
+    if( poCodestream->get_bit_depth(0) > 8 
+        && poCodestream->get_bit_depth(0) <= 16
         && poCodestream->get_signed(0) )
         eDT = GDT_Int16;
-    else if( poCodestream->get_bit_depth(0) == 16
-        && !poCodestream->get_signed(0) )
+    else if( poCodestream->get_bit_depth(0) > 8
+             && poCodestream->get_bit_depth(0) <= 16
+             && !poCodestream->get_signed(0) )
         eDT = GDT_UInt16;
-//    else if( poCodestream->get_bit_depth(0) == 32 )
-//        eDT = GDT_Float32;
     else
         this->eDT = GDT_Byte;
 
@@ -1060,6 +1061,20 @@ JPIPKAKDataset::BeginAsyncReader(int xOff, int yOff,
         nBandSpace = nLineSpace * bufYSize;
     
 /* -------------------------------------------------------------------- */
+/*      check we have sensible values for windowing.                    */
+/* -------------------------------------------------------------------- */
+    if (xOff > GetRasterXSize()
+        || yOff > GetRasterYSize()
+        || (xOff + xSize) > GetRasterXSize()
+        || (yOff + ySize) > GetRasterYSize() )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "Requested window (%d,%d %dx%d) off dataset.",
+                  xOff, yOff, xSize, ySize );
+        return NULL;
+    }
+
+/* -------------------------------------------------------------------- */
 /*      Record request information.                                     */
 /* -------------------------------------------------------------------- */
     JPIPKAKAsyncReader* ario = new JPIPKAKAsyncReader();
@@ -1068,6 +1083,10 @@ JPIPKAKDataset::BeginAsyncReader(int xOff, int yOff,
     ario->nBufYSize = bufYSize;
     ario->eBufType = bufType;
     ario->nBandCount = nBandCount;
+    ario->nXOff = xOff;
+    ario->nYOff = yOff;
+    ario->nXSize = xSize;
+    ario->nYSize = ySize;
 
     ario->panBandMap = new int[nBandCount];
     if (pBandMap)
@@ -1117,26 +1136,6 @@ JPIPKAKDataset::BeginAsyncReader(int xOff, int yOff,
         ario->nAppLineSpace = ario->nLineSpace = nLineSpace;
         ario->nAppBandSpace = ario->nBandSpace = nBandSpace;
     }
-
-/* -------------------------------------------------------------------- */
-/*      check we have sensible values for windowing.                    */
-/* -------------------------------------------------------------------- */
-    if (xOff > GetRasterXSize())
-        xOff = GetRasterXSize();
-
-    if (yOff > GetRasterYSize())
-        yOff = GetRasterYSize();
-
-    if ((xOff + xSize) > GetRasterXSize())
-        xSize = GetRasterXSize() - xOff;
-
-    if ((yOff + ySize) > GetRasterYSize())
-        ySize = GetRasterYSize() - yOff;
-
-    ario->nXOff = xOff;
-    ario->nYOff = yOff;
-    ario->nXSize = xSize;
-    ario->nYSize = ySize;
 
     // parse options
     const char* pszLevel = CSLFetchNameValue(papszOptions, "LEVEL");
@@ -1460,7 +1459,6 @@ JPIPKAKAsyncReader::GetNextUpdatedRegion(double dfTimeout,
         clock_t end_wait = 0;
 
         end_wait = clock() + (int) (dfTimeout * CLOCKS_PER_SEC); 
-		
         while ((nSize == 0) && ((bHighPriority && poJDS->bHighThreadRunning) ||
                                 (!bHighPriority && poJDS->bLowThreadRunning)))
         {
