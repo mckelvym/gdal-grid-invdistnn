@@ -143,6 +143,14 @@ void OGRLIBKMLDataSource::WriteKmz (
     for ( iLayer = 0; iLayer < nLayers; iLayer++ ) {
         ContainerPtr poKlmContainer = papoLayers[iLayer]->GetKmlLayer (  );
 
+        if ( poKlmContainer->IsA( kmldom::Type_Document ) ) {
+
+            DocumentPtr poKmlDocument = AsDocument(poKlmContainer);
+            SchemaPtr poKmlSchema = papoLayers[iLayer]->GetKmlSchema();
+            if (poKmlSchema && poKmlSchema->get_simplefield_array_size())
+                poKmlDocument->add_schema(poKmlSchema);
+        }
+        
         KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
 
         poKmlKml->set_feature ( poKlmContainer );
@@ -212,6 +220,14 @@ void OGRLIBKMLDataSource::WriteDir (
     for ( iLayer = 0; iLayer < nLayers; iLayer++ ) {
         ContainerPtr poKmlContainer = papoLayers[iLayer]->GetKmlLayer (  );
 
+        if ( poKmlContainer->IsA( kmldom::Type_Document ) ) {
+
+            DocumentPtr poKmlDocument = AsDocument(poKmlContainer);
+            SchemaPtr poKmlSchema = papoLayers[iLayer]->GetKmlSchema();
+            if (poKmlSchema && poKmlSchema->get_simplefield_array_size())
+                poKmlDocument->add_schema(poKmlSchema);
+        }
+        
         KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
 
         poKmlKml->set_feature ( poKmlContainer );
@@ -725,9 +741,8 @@ int OGRLIBKMLDataSource::OpenKmz (
         }
     }
 
-#warning can schemas be stored in a seperate file?
-
     /***** cleanup *****/
+    
     delete poOgrSRS;
     
     delete poKmlKmzfile;

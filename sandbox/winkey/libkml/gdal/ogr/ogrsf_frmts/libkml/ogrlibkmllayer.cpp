@@ -138,6 +138,8 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
         KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
         m_poKmlSchema = poKmlFactory->CreateSchema (  );
 
+
+
     }
     
 
@@ -287,7 +289,7 @@ int OGRLIBKMLLayer::GetFeatureCount (
     int bForce )
 {
 
-#warning this return value can be wrong, kml features could be the schema, style, or a folder
+#warning this return value can be wrong, kml features could be a folder
 
     return nFeatures;
 }

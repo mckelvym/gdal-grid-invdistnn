@@ -114,6 +114,7 @@ class OGRLIBKMLLayer:public OGRLayer
     const char               *GetName();
     int                       TestCapability ( const char * );
     ContainerPtr              GetKmlLayer () {return m_poKmlLayer;};
+    SchemaPtr                 GetKmlSchema () {return m_poKmlSchema;};
     const char               *GetFileName();
     };
 
