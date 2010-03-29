@@ -80,7 +80,8 @@ class OGRLIBKMLLayer:public OGRLayer
                                 OGRwkbGeometryType eGType,
                                 OGRLIBKMLDataSource *poOgrDS,
                                 ElementPtr poKmlRoot,
-                                const char *pszFileName);
+                                const char *pszFileName,
+                                int bNew);
     ~OGRLIBKMLLayer           (  );
 
     void                      ResetReading  (  );

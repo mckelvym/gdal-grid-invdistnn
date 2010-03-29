@@ -61,16 +61,17 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
                                  OGRwkbGeometryType eGType,
                                  OGRLIBKMLDataSource * poOgrDS,
                                  ElementPtr poKmlRoot,
-                                 const char *pszFileName)
+                                 const char *pszFileName,
+                                 int bNew)
 {
-//CPLGetBasename ( oKmlHref.get_path (  ).c_str (  ) )
-    printf("createing a layer named %s\n", pszLayerName);
-    m_pszName = CPLStrdup ( pszLayerName );
-
-    m_pszFileName = CPLStrdup ( pszFileName );
     
-    m_poOgrDS = poOgrDS;
+    m_poStyleTable = NULL;
     iFeature = 0;
+    nFeatures = 0;
+    
+    m_pszName = CPLStrdup ( pszLayerName );
+    m_pszFileName = CPLStrdup ( pszFileName );
+    m_poOgrDS = poOgrDS;
 
     m_poOgrSRS = new OGRSpatialReference ( NULL );
     m_poOgrSRS->SetWellKnownGeogCS ( "WGS84" );
@@ -79,34 +80,67 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
     m_poOgrFeatureDefn->Reference();
     m_poOgrFeatureDefn->SetGeomType( eGType );
 
-    const char *namefield =
-        CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
-    const char *descfield =
-        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
-    
-    OGRFieldDefn oOgrFieldName( namefield, OFTString );
-    m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
-    
-    OGRFieldDefn oOgrFieldDesc( descfield, OFTString );
-    m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldDesc );
-
     /***** store the root element pointer *****/
 
     m_poKmlLayer = AsContainer( poKmlRoot);
 
-#warning this needs to be replaced with some logic to put the right schema here if this layer was made from a DS::Open()
-    KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
-    m_poKmlSchema = poKmlFactory->CreateSchema (  );
+    /***** was the layer created from a DS::Open *****/
+    
+    if (!bNew) {
 
-    nFeatures = m_poKmlLayer->get_feature_array_size() ;
-    iFeature = 0;
+        /***** add the name and desc fields *****/
+        
+        const char *namefield =
+            CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
+        const char *descfield =
+            CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
+    
+        OGRFieldDefn oOgrFieldName( namefield, OFTString );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
+    
+        OGRFieldDefn oOgrFieldDesc( descfield, OFTString );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldDesc );
+    
+        /***** get the number of features on the layer *****/
 
-    m_poStyleTable = NULL;
+        nFeatures = m_poKmlLayer->get_feature_array_size() ;
 
-    /***** get the styles *****/
+        /***** get the styles *****/
 
-    if (m_poKmlLayer->IsA(kmldom::Type_Document))
-        ParseStyles ( AsDocument ( m_poKmlLayer ), &m_poStyleTable );
+        if (m_poKmlLayer->IsA(kmldom::Type_Document))
+            ParseStyles ( AsDocument ( m_poKmlLayer ), &m_poStyleTable );
+
+        /***** get the schema if the layer is a Document *****/
+    
+        if ( m_poKmlLayer->IsA( kmldom::Type_Document ) ) {
+            DocumentPtr poKmlDocument = AsDocument(m_poKmlLayer);
+            if ( poKmlDocument->get_schema_array_size() ) {
+                m_poKmlSchema = poKmlDocument->get_schema_array_at(1);
+
+                kml2FeatureDef ( m_poKmlSchema, m_poOgrFeatureDefn);
+            }
+        }
+
+        /***** the schema is somewhere else *****/
+ 
+        else {
+#warning get the schema from somewhere
+        }
+        
+    }
+
+    /***** it was from a DS::CreateLayer *****/
+    
+    else {
+
+        /***** create a new schema *****/
+            
+        KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
+        m_poKmlSchema = poKmlFactory->CreateSchema (  );
+
+    }
+    
+
     
     
 }

@@ -547,3 +547,59 @@ SimpleFieldPtr FieldDef2kml (
     return NULL;
 }
 
+/******************************************************************************
+ function to add the simpleFields in a schema to a featuredefn
+******************************************************************************/
+
+void kml2FeatureDef (
+    SchemaPtr poKmlSchema,
+    OGRFeatureDefn *poOgrFeatureDefn)
+{
+
+    size_t nSimpleFields = poKmlSchema->get_simplefield_array_size ();
+    size_t iSimpleField;
+
+    for (iSimpleField = 0; iSimpleField < nSimpleFields; iSimpleField++) {
+        SimpleFieldPtr poKmlSimpleField = poKmlSchema->get_simplefield_array_at (iSimpleField);
+         
+        const char *pszType = "string";
+        const char *pszName = "Unknown";
+        
+        if (poKmlSimpleField->has_type()) {
+            const string oType = poKmlSimpleField->get_type();
+            pszType = oType.c_str();
+        }
+
+        if (poKmlSimpleField->has_displayname()) {
+            const string oName = poKmlSimpleField->get_displayname();
+            pszName = oName.c_str();
+        }
+        
+        else if (poKmlSimpleField->has_name()) {
+            const string oName = poKmlSimpleField->get_name();
+            pszName = oName.c_str();
+        }
+        
+        if (EQUAL(pszType, "string")) {
+            OGRFieldDefn oOgrFieldName( pszName, OFTString );
+            poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
+        }
+        if (EQUAL(pszType, "int")) {
+            OGRFieldDefn oOgrFieldName( pszName, OFTInteger );
+            poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
+        }
+        if (EQUAL(pszType, "float")) {
+            OGRFieldDefn oOgrFieldName( pszName, OFTReal );
+            poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
+        }
+        if (EQUAL(pszType, "bool")) {
+            OGRFieldDefn oOgrFieldName( pszName, OFTBinary );
+            poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
+        }
+        
+
+    }
+
+
+    return;
+}

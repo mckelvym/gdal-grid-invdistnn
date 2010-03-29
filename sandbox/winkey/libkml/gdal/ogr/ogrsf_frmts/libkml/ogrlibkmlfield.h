@@ -27,6 +27,7 @@
  *****************************************************************************/
 
 using kmldom::SimpleFieldPtr;
+using kmldom::SchemaPtr;
 using kmldom::KmlFactory;
 using kmldom::PlacemarkPtr;
 
@@ -71,3 +72,12 @@ void kml2field (
 SimpleFieldPtr FieldDef2kml (
     OGRFieldDefn *poOgrFieldDef,
     KmlFactory * poKmlFactory );
+
+/******************************************************************************
+ function to add the simpleFields in a schema to a featuredefn
+******************************************************************************/
+
+void kml2FeatureDef (
+    SchemaPtr poKmlSchema,
+    OGRFeatureDefn *poOgrFeatureDefn);
+
