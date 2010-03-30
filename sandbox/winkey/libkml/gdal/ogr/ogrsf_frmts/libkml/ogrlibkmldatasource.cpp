@@ -147,8 +147,11 @@ void OGRLIBKMLDataSource::WriteKmz (
 
             DocumentPtr poKmlDocument = AsDocument(poKlmContainer);
             SchemaPtr poKmlSchema = papoLayers[iLayer]->GetKmlSchema();
-            if (poKmlSchema && poKmlSchema->get_simplefield_array_size())
+            if ( !poKmlDocument->get_schema_array_size() &&
+                 poKmlSchema &&
+                 poKmlSchema->get_simplefield_array_size()) {
                 poKmlDocument->add_schema(poKmlSchema);
+            }
         }
         
         KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
@@ -224,8 +227,11 @@ void OGRLIBKMLDataSource::WriteDir (
 
             DocumentPtr poKmlDocument = AsDocument(poKmlContainer);
             SchemaPtr poKmlSchema = papoLayers[iLayer]->GetKmlSchema();
-            if (poKmlSchema && poKmlSchema->get_simplefield_array_size())
+            if ( !poKmlDocument->get_schema_array_size() &&
+                 poKmlSchema &&
+                 poKmlSchema->get_simplefield_array_size()) {
                 poKmlDocument->add_schema(poKmlSchema);
+            };
         }
         
         KmlPtr poKmlKml = m_poKmlFactory->CreateKml (  );
