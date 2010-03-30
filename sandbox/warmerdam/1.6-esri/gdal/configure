@@ -23369,7 +23369,7 @@ build directory.  Note that Kakadu is *not* free software." >&2;}
    { (exit 1); exit 1; }; }
 else
   KAKDIR=$with_kakadu
-  OPT_GDAL_FORMATS="jp2kak $OPT_GDAL_FORMATS"
+  OPT_GDAL_FORMATS="jp2kak jpipkak $OPT_GDAL_FORMATS"
   LIBS="$LIBS -L$with_kakadu/lib -lkdu"
   { echo "$as_me:$LINENO: result: requested." >&5
 echo "${ECHO_T}requested." >&6; }
