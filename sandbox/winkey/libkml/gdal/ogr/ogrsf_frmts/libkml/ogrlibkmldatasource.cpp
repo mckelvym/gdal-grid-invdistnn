@@ -310,20 +310,17 @@ void OGRLIBKMLDataSource::WriteDir (
     return;
 }
 
-
 /******************************************************************************
- OGRLIBKMLDataSource Destructor
- 
- Args:          none
- 
- Returns:       nothing
-                
+ method to write the datasource to disk
+
+ Args:      none
+
+ Returns    nothing
+
 ******************************************************************************/
 
-OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
+OGRErr OGRLIBKMLDataSource::SyncToDisk (  )
 {
-
-    /***** some types of output require the write to happen at the very end *****/
 
     /***** kml *****/
 
@@ -340,9 +337,26 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
         WriteDir (  );
     }
 
+    return OGRERR_NONE;
+}
+
+/******************************************************************************
+ OGRLIBKMLDataSource Destructor
+ 
+ Args:          none
+ 
+ Returns:       nothing
+                
+******************************************************************************/
+
+OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
+{
 
 
+    /***** sync the DS to disk *****/
 
+    SyncToDisk();
+    
     CPLFree ( pszName );
 
 

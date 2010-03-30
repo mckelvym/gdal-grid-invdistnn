@@ -188,6 +188,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     int                       Create ( const char *pszFilename,
                                        char **papszOptions );
 
+    OGRErr                    SyncToDisk (  );
     int                       TestCapability (const char * );
     KmlFactory               *GetKmlFactory() { return m_poKmlFactory; };
     const char               *GetStylePath() {return pszStylePath; };
