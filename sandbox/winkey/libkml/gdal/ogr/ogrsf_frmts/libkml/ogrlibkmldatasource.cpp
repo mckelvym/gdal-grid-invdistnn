@@ -48,8 +48,26 @@ using kmldom::KmlPtr;
 #include "ogr_libkml.h"
 #include "ogrlibkmlstyle.h"
 
+/***** this was shamelessly swiped from the kml driver *****/
+
+#define OGRLIBKMLSRSWKT "GEOGCS[\"WGS 84\", "\
+                        "   DATUM[\"WGS_1984\","\
+                        "     SPHEROID[\"WGS 84\",6378137,298.257223563,"\
+                        "           AUTHORITY[\"EPSG\",\"7030\"]],"\
+                        "           AUTHORITY[\"EPSG\",\"6326\"]],"\
+                        "       PRIMEM[\"Greenwich\",0,"\
+                        "           AUTHORITY[\"EPSG\",\"8901\"]],"\
+                        "       UNIT[\"degree\",0.01745329251994328,"\
+                        "           AUTHORITY[\"EPSG\",\"9122\"]],"\
+                        "           AUTHORITY[\"EPSG\",\"4326\"]]"
+                        
 /******************************************************************************
- OGRLIBKMLDataSource()
+ OGRLIBKMLDataSource Constructor
+
+ Args:          none
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
@@ -77,6 +95,11 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
 
 /******************************************************************************
  method to write a single file ds .kml at ds destroy
+
+ Args:          none
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 void OGRLIBKMLDataSource::WriteKml (
@@ -104,6 +127,11 @@ void OGRLIBKMLDataSource::WriteKml (
 
 /******************************************************************************
  method to write a ds .kmz at ds destroy
+
+ Args:          none
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 void OGRLIBKMLDataSource::WriteKmz (
@@ -189,6 +217,11 @@ void OGRLIBKMLDataSource::WriteKmz (
 
 /******************************************************************************
  method to write a dir ds at ds destroy
+
+ Args:          none
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 void OGRLIBKMLDataSource::WriteDir (
@@ -279,7 +312,12 @@ void OGRLIBKMLDataSource::WriteDir (
 
 
 /******************************************************************************
- ~OGRLIBKMLDataSource()
+ OGRLIBKMLDataSource Destructor
+ 
+ Args:          none
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
@@ -321,6 +359,11 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
 
 /******************************************************************************
  method to parse a schemas out of a document
+
+ Args:          poKmlDocument   pointer to the document to parse
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 void OGRLIBKMLDataSource::ParseSchemas (
@@ -346,7 +389,12 @@ void OGRLIBKMLDataSource::ParseSchemas (
 /******************************************************************************
  method to parse multiple layers out of a container
 
- returns number of features in the container that are NOT another container
+ Args:          poKmlContainer  pointer to the container to parse
+                poOgrSRS        SRS to use when creating the layer
+ 
+ Returns:       number of features in the container that are not another
+                container
+                
 ******************************************************************************/
 
 int OGRLIBKMLDataSource::ParseLayers (
@@ -412,6 +460,12 @@ int OGRLIBKMLDataSource::ParseLayers (
 
 /******************************************************************************
  function to get the container from the kmlroot
+ 
+ Args:          poKmlRoot   the root element
+ 
+ Returns:       root if its a container, if its a kml the container it
+                contains, or NULL
+
 ******************************************************************************/
 
 ContainerPtr GetContainerFromRoot (
@@ -445,6 +499,12 @@ ContainerPtr GetContainerFromRoot (
 
 /******************************************************************************
  method to open a kml file
+ 
+ Args:          pszFilename file to open
+                bUpdate     update mode
+ 
+ Returns:       True on success, false on failure
+
 ******************************************************************************/
 
 int OGRLIBKMLDataSource::OpenKml (
@@ -459,22 +519,9 @@ int OGRLIBKMLDataSource::OpenKml (
         return FALSE;
     }
 
-    /***** create a SRS                                    *****/
-    /***** this was shamelessly swiped from the kml driver *****/
-
-    OGRSpatialReference *poOgrSRS =
-        new OGRSpatialReference ( "GEOGCS[\"WGS 84\", "
-                                  "   DATUM[\"WGS_1984\","
-                                  "       SPHEROID[\"WGS 84\",6378137,298.257223563,"
-                                  "           AUTHORITY[\"EPSG\",\"7030\"]],"
-                                  "           AUTHORITY[\"EPSG\",\"6326\"]],"
-                                  "       PRIMEM[\"Greenwich\",0,"
-                                  "           AUTHORITY[\"EPSG\",\"8901\"]],"
-                                  "       UNIT[\"degree\",0.01745329251994328,"
-                                  "           AUTHORITY[\"EPSG\",\"9122\"]],"
-                                  "           AUTHORITY[\"EPSG\",\"4326\"]]" );
-
-
+    /***** create a SRS *****/
+    
+    OGRSpatialReference *poOgrSRS = new OGRSpatialReference ( OGRLIBKMLSRSWKT );
 
     /***** parse the kml into the DOM *****/
 
@@ -537,6 +584,12 @@ int OGRLIBKMLDataSource::OpenKml (
 
 /******************************************************************************
  method to open a kmz file
+ 
+ Args:          pszFilename file to open
+                bUpdate     update mode
+ 
+ Returns:       True on success, false on failure
+
 ******************************************************************************/
 
 
@@ -562,21 +615,9 @@ int OGRLIBKMLDataSource::OpenKmz (
         return FALSE;
     }
 
-    /***** create a SRS                                    *****/
-    /***** this was shamelessly swiped from the kml driver *****/
-
-    OGRSpatialReference *poOgrSRS =
-        new OGRSpatialReference ( "GEOGCS[\"WGS 84\", "
-                                  "   DATUM[\"WGS_1984\","
-                                  "       SPHEROID[\"WGS 84\",6378137,298.257223563,"
-                                  "           AUTHORITY[\"EPSG\",\"7030\"]],"
-                                  "           AUTHORITY[\"EPSG\",\"6326\"]],"
-                                  "       PRIMEM[\"Greenwich\",0,"
-                                  "           AUTHORITY[\"EPSG\",\"8901\"]],"
-                                  "       UNIT[\"degree\",0.01745329251994328,"
-                                  "           AUTHORITY[\"EPSG\",\"9122\"]],"
-                                  "           AUTHORITY[\"EPSG\",\"4326\"]]" );
-
+    /***** create a SRS *****/
+    
+    OGRSpatialReference *poOgrSRS = new OGRSpatialReference ( OGRLIBKMLSRSWKT );
 
     /***** parse the kml into the DOM *****/
 
@@ -758,6 +799,12 @@ int OGRLIBKMLDataSource::OpenKmz (
 
 /******************************************************************************
  method to open a dir
+ 
+ Args:          pszFilename Dir to open
+                bUpdate     update mode
+ 
+ Returns:       True on success, false on failure
+
 ******************************************************************************/
 
 int OGRLIBKMLDataSource::OpenDir (
@@ -770,22 +817,9 @@ int OGRLIBKMLDataSource::OpenDir (
     if ( !( papszDirList = VSIReadDir ( pszFilename ) ) )
         return FALSE;
 
-   /***** create a SRS                                    *****/
-   /***** this was shamelessly swiped from the kml driver *****/
-
-    OGRSpatialReference *poOgrSRS =
-        new OGRSpatialReference ( "GEOGCS[\"WGS 84\", "
-                                  "   DATUM[\"WGS_1984\","
-                                  "       SPHEROID[\"WGS 84\",6378137,298.257223563,"
-                                  "           AUTHORITY[\"EPSG\",\"7030\"]],"
-                                  "           AUTHORITY[\"EPSG\",\"6326\"]],"
-                                  "       PRIMEM[\"Greenwich\",0,"
-                                  "           AUTHORITY[\"EPSG\",\"8901\"]],"
-                                  "       UNIT[\"degree\",0.01745329251994328,"
-                                  "           AUTHORITY[\"EPSG\",\"9122\"]],"
-                                  "           AUTHORITY[\"EPSG\",\"4326\"]]" );
-
-
+    /***** create a SRS *****/
+    
+    OGRSpatialReference *poOgrSRS = new OGRSpatialReference ( OGRLIBKMLSRSWKT );
 
     int nFiles = CSLCount ( papszDirList );
 
@@ -868,7 +902,13 @@ int OGRLIBKMLDataSource::OpenDir (
 }
 
 /******************************************************************************
- Open()
+ Method to open a datasource
+ 
+ Args:          pszFilename Darasource to open
+                bUpdate     update mode
+ 
+ Returns:       True on success, false on failure
+
 ******************************************************************************/
 
 int OGRLIBKMLDataSource::Open (
@@ -904,6 +944,12 @@ int OGRLIBKMLDataSource::Open (
 
 /******************************************************************************
  method to create a single file .kml ds
+ 
+ Args:          pszFilename     the datasource to create
+                papszOptions    datasource creation options
+ 
+ Returns:       True on success, false on failure
+
 ******************************************************************************/
 
 int OGRLIBKMLDataSource::CreateKml (
@@ -924,6 +970,12 @@ int OGRLIBKMLDataSource::CreateKml (
 
 /******************************************************************************
  method to create a .kmz ds
+ 
+ Args:          pszFilename     the datasource to create
+                papszOptions    datasource creation options
+ 
+ Returns:       True on success, false on failure
+
 ******************************************************************************/
 
 int OGRLIBKMLDataSource::CreateKmz (
@@ -950,6 +1002,12 @@ int OGRLIBKMLDataSource::CreateKmz (
 
 /******************************************************************************
  Method to create a dir datasource
+ 
+ Args:          pszFilename     the datasource to create
+                papszOptions    datasource creation options
+ 
+ Returns:       True on success, false on failure
+
 ******************************************************************************/
 
 int OGRLIBKMLDataSource::CreateDir (
@@ -981,9 +1039,13 @@ int OGRLIBKMLDataSource::CreateDir (
 
     
 /******************************************************************************
- Create()
-
-
+ method to create a datasource
+ 
+ Args:          pszFilename     the datasource to create
+                papszOptions    datasource creation options
+ 
+ Returns:       True on success, false on failure
+ 
  env vars:
   LIBKML_USE_DOC.KML         default: yes
  
@@ -1018,7 +1080,12 @@ int OGRLIBKMLDataSource::Create (
 }
 
 /******************************************************************************
- GetLayer()
+ method to get a layer by index
+ 
+ Args:          iLayer      the index of the layer to get
+ 
+ Returns:       pointer to the layer, or NULL if the layer does not exist
+
 ******************************************************************************/
 
 OGRLayer *OGRLIBKMLDataSource::GetLayer (
@@ -1032,7 +1099,12 @@ OGRLayer *OGRLIBKMLDataSource::GetLayer (
 }
 
 /******************************************************************************
- GetLayerByName()
+ method to get a layer by name
+ 
+ Args:          pszname     name of the layer to get
+ 
+ Returns:       pointer to the layer, or NULL if the layer does not exist
+
 ******************************************************************************/
 
 OGRLayer *OGRLIBKMLDataSource::GetLayerByName (
@@ -1050,7 +1122,12 @@ OGRLayer *OGRLIBKMLDataSource::GetLayerByName (
 
 
 /******************************************************************************
- DeleteLayers  on .kml datasource
+ method to DeleteLayers in a .kml datasource
+ 
+ Args:          iLayer  index of the layer to delete
+ 
+ Returns:       OGRERR_NONE on success, OGRERR_FAILURE on failure
+
 ******************************************************************************/
 
 OGRErr OGRLIBKMLDataSource::DeleteLayerKml (
@@ -1079,7 +1156,12 @@ OGRErr OGRLIBKMLDataSource::DeleteLayerKml (
 }
 
 /******************************************************************************
- DeleteLayers  on .kmz datasource
+ method to DeleteLayers in a .kmz datasource
+ 
+ Args:          iLayer  index of the layer to delete
+ 
+ Returns:       OGRERR_NONE on success, OGRERR_FAILURE on failure
+
 ******************************************************************************/
 
 OGRErr OGRLIBKMLDataSource::DeleteLayerKmz (
@@ -1138,7 +1220,12 @@ OGRErr OGRLIBKMLDataSource::DeleteLayerKmz (
 }
 
 /******************************************************************************
- DeleteLayer()
+ method to delete a layer in a datasource
+ 
+ Args:          iLayer  index of the layer to delete
+ 
+ Returns:       OGRERR_NONE on success, OGRERR_FAILURE on failure
+
 ******************************************************************************/
 
 OGRErr OGRLIBKMLDataSource::DeleteLayer (
@@ -1183,6 +1270,14 @@ OGRErr OGRLIBKMLDataSource::DeleteLayer (
 
 /******************************************************************************
  method to create a layer in a single file .kml
+ 
+ Args:          pszLayerName    name of the layer to create
+                poOgrSRS        the SRS of the layer
+                eGType          the layers geometry type
+                papszOptions    layer creation options
+ 
+ Returns:       return a pointer to the new layer or NULL on failure
+
 ******************************************************************************/
 
 OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
@@ -1225,6 +1320,14 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
 
 /******************************************************************************
  method to create a layer in a .kmz or dir
+ 
+ Args:          pszLayerName    name of the layer to create
+                poOgrSRS        the SRS of the layer
+                eGType          the layers geometry type
+                papszOptions    layer creation options
+ 
+ Returns:       return a pointer to the new layer or NULL on failure
+
 ******************************************************************************/
 
 OGRLayer *OGRLIBKMLDataSource::CreateLayerKmz (
@@ -1290,6 +1393,14 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKmz (
 
 /******************************************************************************
  CreateLayer()
+ 
+ Args:          pszLayerName    name of the layer to create
+                poOgrSRS        the SRS of the layer
+                eGType          the layers geometry type
+                papszOptions    layer creation options
+ 
+ Returns:       return a pointer to the new layer or NULL on failure
+
 ******************************************************************************/
 
 OGRLayer *OGRLIBKMLDataSource::CreateLayer (
@@ -1327,6 +1438,12 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer (
 }
 
 /******************************************************************************
+ method to get a datasources style table
+ 
+ Args:          none
+ 
+ Returns:       pointer to the datasources style table, or NULL if it does
+                not have one
 
 ******************************************************************************/
 
@@ -1338,7 +1455,12 @@ OGRStyleTable *OGRLIBKMLDataSource::GetStyleTable (
 }
 
 /******************************************************************************
-    method to write a style table to a single file .kml ds
+  method to write a style table to a single file .kml ds
+ 
+ Args:          poStyleTable    pointer to the style table to add
+ 
+ Returns:       nothing
+
 ******************************************************************************/
 
 void OGRLIBKMLDataSource::SetStyleTable2Kml (
@@ -1363,7 +1485,12 @@ void OGRLIBKMLDataSource::SetStyleTable2Kml (
 }
 
 /******************************************************************************
-    method to write a style table to a kmz ds
+ method to write a style table to a kmz ds
+ 
+ Args:          poStyleTable    pointer to the style table to add
+ 
+ Returns:       nothing
+
 ******************************************************************************/
 
 void OGRLIBKMLDataSource::SetStyleTable2Kmz (
@@ -1380,7 +1507,14 @@ void OGRLIBKMLDataSource::SetStyleTable2Kmz (
 }
 
 /******************************************************************************
+ method to write a style table to a datasource
+ 
+ Args:          poStyleTable    pointer to the style table to add
+ 
+ Returns:       nothing
 
+ note: this method assumes ownership of the style table
+ 
 ******************************************************************************/
 
 void OGRLIBKMLDataSource::SetStyleTableDirectly (
@@ -1409,6 +1543,14 @@ void OGRLIBKMLDataSource::SetStyleTableDirectly (
 }
 
 /******************************************************************************
+ method to write a style table to a datasource
+ 
+ Args:          poStyleTable    pointer to the style table to add
+ 
+ Returns:       nothing
+
+ note:  this method copys the style table, and the user will still be
+        responsible for its destruction
 
 ******************************************************************************/
 
@@ -1425,7 +1567,15 @@ void OGRLIBKMLDataSource::SetStyleTable (
 
 
 /******************************************************************************
- TestCapability()
+ Test if capability is available.
+
+ Args:          pszCap  datasource capability name to test
+ 
+ Returns:       nothing
+
+ ODsCCreateLayer: True if this datasource can create new layers.
+ ODsCDeleteLayer: True if this datasource can delete existing layers.
+ 
 ******************************************************************************/
 
 int OGRLIBKMLDataSource::TestCapability (
