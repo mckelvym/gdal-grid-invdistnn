@@ -59,6 +59,7 @@ class OGRLIBKMLLayer:public OGRLayer
 
     FILE                      fp;
     int                       bUpdate;
+    int                       bUpdated;
     int                       nFeatures;
     int                       iFeature;
     const char                *m_pszName;
@@ -81,7 +82,8 @@ class OGRLIBKMLLayer:public OGRLayer
                                 OGRLIBKMLDataSource *poOgrDS,
                                 ElementPtr poKmlRoot,
                                 const char *pszFileName,
-                                int bNew);
+                                int bNew,
+                                int bUpdate);
     ~OGRLIBKMLLayer           (  );
 
     void                      ResetReading  (  );
@@ -190,12 +192,16 @@ class OGRLIBKMLDataSource:public OGRDataSource
 
     OGRErr                    SyncToDisk (  );
     int                       TestCapability (const char * );
+    
     KmlFactory               *GetKmlFactory() { return m_poKmlFactory; };
     const char               *GetStylePath() {return pszStylePath; };
     //KmzFile                  *GetKmz() { return m_poKmlKmzfile; };
+        
     int                       IsKml() {return m_isKml;};
     int                       IsKmz() {return m_isKmz;};
     int                       IsDir() {return m_isDir;};
+    
+    void                      Updated() {bUpdated = TRUE;};
   private:
 
     /***** methods to write out various datasource types at destroy *****/

@@ -62,13 +62,15 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
                                  OGRLIBKMLDataSource * poOgrDS,
                                  ElementPtr poKmlRoot,
                                  const char *pszFileName,
-                                 int bNew)
+                                 int bNew,
+                                 int bUpdate)
 {
     
     m_poStyleTable = NULL;
     iFeature = 0;
     nFeatures = 0;
-    
+
+    this->bUpdate = bUpdate;
     m_pszName = CPLStrdup ( pszLayerName );
     m_pszFileName = CPLStrdup ( pszFileName );
     m_poOgrDS = poOgrDS;
@@ -133,6 +135,10 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
     
     else {
 
+        /***** mark the layer as updated *****/
+
+        bUpdated = TRUE;
+        
         /***** create a new schema *****/
             
         KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
@@ -241,8 +247,17 @@ OGRFeature *OGRLIBKMLLayer::GetFeature (
 OGRErr OGRLIBKMLLayer::SetFeature (
     OGRFeature * poFeature )
 {
+    if (!bUpdate)
+        return OGRERR_UNSUPPORTED_OPERATION;
+
+    
 #warning we need to figure this out
 
+    /***** mark the layer as updated *****/
+
+    bUpdated = TRUE;
+    m_poOgrDS->Updated();
+    
     return OGRERR_UNSUPPORTED_OPERATION;
 }
 
@@ -254,11 +269,19 @@ OGRErr OGRLIBKMLLayer::CreateFeature (
     OGRFeature * poOgrFeat )
 {
 
+    if (!bUpdate)
+        return OGRERR_UNSUPPORTED_OPERATION;
+
     PlacemarkPtr poKmlPlacemark =
         feat2kml ( m_poOgrDS, this, poOgrFeat, m_poOgrDS->GetKmlFactory (  ) );
 
     m_poKmlLayer->add_feature ( poKmlPlacemark );
 
+    /***** mark the layer as updated *****/
+
+    bUpdated = TRUE;
+    m_poOgrDS->Updated();
+    
     return OGRERR_NONE;
 }
 
@@ -269,9 +292,16 @@ OGRErr OGRLIBKMLLayer::CreateFeature (
 OGRErr OGRLIBKMLLayer::DeleteFeature (
     long nFID )
 {
-
+    if (!bUpdate)
+        return OGRERR_UNSUPPORTED_OPERATION;
+    
 #warning we need to figure this out
 
+    /***** mark the layer as updated *****/
+
+    bUpdated = TRUE;
+    m_poOgrDS->Updated();
+    
     return OGRERR_UNSUPPORTED_OPERATION;
 }
 
@@ -328,6 +358,10 @@ OGRErr OGRLIBKMLLayer::CreateField (
     OGRFieldDefn * poField,
     int bApproxOK )
 {
+
+    if (!bUpdate)
+        return OGRERR_UNSUPPORTED_OPERATION;
+    
     SimpleFieldPtr poKmlSimpleField = NULL;
     
     if (poKmlSimpleField = FieldDef2kml ( poField, m_poOgrDS->GetKmlFactory (  ) ))
@@ -335,6 +369,11 @@ OGRErr OGRLIBKMLLayer::CreateField (
     
     m_poOgrFeatureDefn->AddFieldDefn( poField );
 
+    /***** mark the layer as updated *****/
+
+    bUpdated = TRUE;
+    m_poOgrDS->Updated();
+    
     return OGRERR_NONE;
 }
 
@@ -384,6 +423,9 @@ void OGRLIBKMLLayer::SetStyleTableDirectly (
     OGRStyleTable * poStyleTable )
 {
 
+    if (!bUpdate)
+        return;
+
     KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
     
     if ( m_poStyleTable )
@@ -409,7 +451,11 @@ void OGRLIBKMLLayer::SetStyleTableDirectly (
 
     }
     
-   
+    /***** mark the layer as updated *****/
+
+    bUpdated = TRUE;
+    m_poOgrDS->Updated();
+    
     return;
 }
 
@@ -421,6 +467,9 @@ void OGRLIBKMLLayer::SetStyleTable (
     OGRStyleTable * poStyleTable )
 {
 
+    if (!bUpdate)
+        return;
+    
     if ( poStyleTable )
         SetStyleTableDirectly ( poStyleTable->Clone (  ) );
     else
@@ -461,17 +510,16 @@ int OGRLIBKMLLayer::TestCapability (
         result = bUpdate;
 #warning todo random write
     if ( EQUAL ( pszCap, OLCRandomWrite ) )
-        result = FALSE;
+        result = FALSE;//bUpdate
     if ( EQUAL ( pszCap, OLCFastFeatureCount ) && !GetSpatialFilter (  ) )
         result = TRUE;
     if ( EQUAL ( pszCap, OLCFastSetNextByIndex ) )
         result = TRUE;
-#warning todo CreateField
     if ( EQUAL ( pszCap, OLCCreateField ) )
-        result = TRUE;
+        result = bUpdate;
 #warning todo DeleteFeature
     if ( EQUAL ( pszCap, OLCDeleteFeature ) )
-        result = FALSE;
+        result = FALSE;//bUpdate
 
     return result;
 }

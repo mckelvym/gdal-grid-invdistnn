@@ -322,19 +322,24 @@ void OGRLIBKMLDataSource::WriteDir (
 OGRErr OGRLIBKMLDataSource::SyncToDisk (  )
 {
 
-    /***** kml *****/
+    if (bUpdated) {
+        
+        /***** kml *****/
 
-    if ( bUpdate && bUpdated && IsKml (  ) )
-        WriteKml (  );
+        if ( bUpdate && IsKml (  ) )
+            WriteKml (  );
 
-    /***** kmz *****/
+        /***** kmz *****/
 
-    else if ( bUpdate && bUpdated && IsKmz (  ) ) {
-        WriteKmz (  );
-    }
+        else if ( bUpdate && IsKmz (  ) ) {
+            WriteKmz (  );
+        }
 
-    else if ( bUpdate && bUpdated && IsDir (  ) ) {
-        WriteDir (  );
+        else if ( bUpdate && IsDir (  ) ) {
+            WriteDir (  );
+        }
+
+        bUpdated = FALSE;
     }
 
     return OGRERR_NONE;
@@ -460,7 +465,7 @@ int OGRLIBKMLDataSource::ParseLayers (
             OGRLIBKMLLayer *poOgrLayer =
                 new OGRLIBKMLLayer ( oKmlFeatName.c_str (  ),
                                      poOgrSRS, wkbUnknown, this,
-                                     poKmlFeat, "", FALSE);
+                                     poKmlFeat, "", FALSE, bUpdate);
 
             papoLayers[nLayers++] = poOgrLayer;
         }
@@ -585,7 +590,8 @@ int OGRLIBKMLDataSource::OpenKml (
                                                           poOgrSRS, wkbUnknown,
                                                           this,
                                                           m_poKmlDSContainer,
-                                                          pszFilename, FALSE);
+                                                          pszFilename, FALSE,
+                                                          bUpdate);
 
 
         papoLayers[nLayers++] = poOgrLayer;
@@ -725,7 +731,7 @@ int OGRLIBKMLDataSource::OpenKmz (
                                          poOgrSRS, wkbUnknown, this,
                                          poKmlLyrContainer,
                                          poKmlHref->get_path (  ).c_str (  ),
-                                         FALSE);
+                                         FALSE, bUpdate);
 
 
                 papoLayers[nLayers++] = poOgrLayer;
@@ -774,7 +780,8 @@ int OGRLIBKMLDataSource::OpenKmz (
                                                               poOgrSRS, wkbUnknown,
                                                               this,
                                                               poKmlContainer,
-                                                              pszFilename, FALSE);
+                                                              pszFilename, FALSE,
+                                                              bUpdate);
 
 
             papoLayers[nLayers++] = poOgrLayer;
@@ -904,7 +911,8 @@ int OGRLIBKMLDataSource::OpenDir (
                                                           poOgrSRS, wkbUnknown,
                                                           this,
                                                           poKmlContainer,
-                                                          pszFilePath, FALSE);
+                                                          pszFilePath, FALSE,
+                                                          bUpdate);
 
 
         papoLayers[nLayers++] = poOgrLayer;
@@ -1246,6 +1254,9 @@ OGRErr OGRLIBKMLDataSource::DeleteLayer (
     int iLayer )
 {
 
+    if (!bUpdate)
+        return OGRERR_UNSUPPORTED_OPERATION;
+    
     if ( iLayer >= nLayers )
         return OGRERR_FAILURE;
     
@@ -1278,7 +1289,8 @@ OGRErr OGRLIBKMLDataSource::DeleteLayer (
     memmove( papoLayers + iLayer, papoLayers + iLayer + 1, 
              sizeof(void *) * (nLayers - iLayer - 1) );
     nLayers--;
-
+    bUpdated = TRUE;
+    
     return OGRERR_NONE;
 }
 
@@ -1310,7 +1322,7 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
     /***** create the layer *****/
 
     poOgrLayer = new OGRLIBKMLLayer ( pszLayerName, poOgrSRS, eGType, this,
-                                      poKmlFolder, "", TRUE );
+                                      poKmlFolder, "", TRUE, bUpdate );
 
     /***** check to see if we have enough space to store the layer *****/
 
@@ -1383,7 +1395,7 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKmz (
 
     poOgrLayer = new OGRLIBKMLLayer ( pszLayerName, poOgrSRS, eGType, this,
                                       poKmlDocument, 
-                                      CPLFormFilename( NULL, pszLayerName, ".kml"), TRUE );
+                                      CPLFormFilename( NULL, pszLayerName, ".kml"), TRUE, bUpdate );
 
     /***** check to see if we have enough space to store the layer *****/
 
@@ -1424,6 +1436,9 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayer (
     char **papszOptions )
 {
 
+    if (!bUpdate)
+        return NULL;
+    
     OGRLayer *poOgrLayer = NULL;
 
     /***** kml DS *****/
@@ -1535,6 +1550,9 @@ void OGRLIBKMLDataSource::SetStyleTableDirectly (
     OGRStyleTable * poStyleTable )
 {
 
+    if (!bUpdate)
+        return;
+    
     if ( m_poStyleTable )
         delete m_poStyleTable;
 
@@ -1548,8 +1566,8 @@ void OGRLIBKMLDataSource::SetStyleTableDirectly (
     else if ( IsKmz (  ) || IsDir (  ) )
         SetStyleTable2Kmz ( m_poStyleTable );
 
-
-
+    bUpdated = TRUE;
+    
 
 
 
@@ -1572,6 +1590,9 @@ void OGRLIBKMLDataSource::SetStyleTable (
     OGRStyleTable * poStyleTable )
 {
 
+    if (!bUpdate)
+        return;
+    
     if ( poStyleTable )
         SetStyleTableDirectly ( poStyleTable->Clone (  ) );
     else
