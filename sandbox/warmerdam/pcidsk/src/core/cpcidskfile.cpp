@@ -446,8 +446,8 @@ void CPCIDSKFile::InitializeFromHeader()
                                                    image_offset, pixel_type );
 
             
-            image_offset += DataTypeSize(channel->GetType())
-                * width * height;
+            image_offset += (int64)DataTypeSize(channel->GetType())
+                * (int64)width * (int64)height;
         }
 
         else if( interleaving == "PIXEL" )
