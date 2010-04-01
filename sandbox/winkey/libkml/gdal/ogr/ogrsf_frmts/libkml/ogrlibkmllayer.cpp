@@ -50,10 +50,19 @@ using kmlengine::Bbox;
 #include "ogrlibkmlstyle.h"
 
 /******************************************************************************
+ OGRLIBKMLLayer constructor
 
-
-
-
+ Args:          pszLayerName    the name of the layer
+                poSpatialRef    the spacial Refrance for the layer
+                eGType          the layers geometry type
+                poOgrDS         pointer to the datasource the layer is in
+                poKmlRoot       pointer to the root kml element of the layer
+                pszFileName     the filename of the layer
+                bNew            true if its a new layer
+                bUpdate         true if the layer is writeable
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
@@ -154,7 +163,12 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 }
 
 /******************************************************************************
+ OGRLIBKMLLayer Destructor
 
+ Args:          none
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 OGRLIBKMLLayer::~OGRLIBKMLLayer (  )
@@ -169,7 +183,12 @@ OGRLIBKMLLayer::~OGRLIBKMLLayer (  )
 }
 
 /******************************************************************************
+ Method to get the next feature on the layer
 
+ Args:          none
+ 
+ Returns:       The next feature, or NULL if there is no more
+                
 ******************************************************************************/
 
 OGRFeature *OGRLIBKMLLayer::GetNextFeature (
@@ -200,7 +219,12 @@ OGRFeature *OGRLIBKMLLayer::GetNextFeature (
 }
 
 /******************************************************************************
+ SetNextByIndex
 
+ Args:          nIndex      the inex to set the next feature to
+ 
+ Returns:       OGRERR_NONE
+                
 ******************************************************************************/
 
 OGRErr OGRLIBKMLLayer::SetNextByIndex (
@@ -212,7 +236,12 @@ OGRErr OGRLIBKMLLayer::SetNextByIndex (
 }
 
 /******************************************************************************
+ method to get a feature on a layer by its FID
 
+ Args:          nFID    the FID of the feature to get
+ 
+ Returns:       pointer to the feature, or NULL if it does not exist
+                
 ******************************************************************************/
 
 OGRFeature *OGRLIBKMLLayer::GetFeature (
@@ -227,7 +256,12 @@ OGRFeature *OGRLIBKMLLayer::GetFeature (
 }
 
 /******************************************************************************
+ method to rewrite a feature on a layer
 
+ Args:          poFeature   the feature to rewrite
+ 
+ Returns:       OGRERR_UNSUPPORTED_OPERATION
+                
 ******************************************************************************/
 
 OGRErr OGRLIBKMLLayer::SetFeature (
@@ -248,7 +282,13 @@ OGRErr OGRLIBKMLLayer::SetFeature (
 }
 
 /******************************************************************************
+ method to add a feature to a layer
 
+ Args:          poOgrFeat   pointer to the feature to add
+ 
+ Returns:       OGRERR_NONE, or OGRERR_UNSUPPORTED_OPERATION of the layer is
+                not writeable
+                
 ******************************************************************************/
 
 OGRErr OGRLIBKMLLayer::CreateFeature (
@@ -272,7 +312,12 @@ OGRErr OGRLIBKMLLayer::CreateFeature (
 }
 
 /******************************************************************************
+ method to delete a feature
 
+ Args:          nFID
+ 
+ Returns:       OGRERR_UNSUPPORTED_OPERATION;
+                
 ******************************************************************************/
 
 OGRErr OGRLIBKMLLayer::DeleteFeature (
@@ -291,14 +336,17 @@ OGRErr OGRLIBKMLLayer::DeleteFeature (
     return OGRERR_UNSUPPORTED_OPERATION;
 }
 
-/******************************************************************************
-
-******************************************************************************/
-
-
 
 /******************************************************************************
+ method to get the number of features on the layer
 
+ Args:          bForce      no effect as of now
+ 
+ Returns:       the number of feateres on the layer
+
+ Note:          the result can include links, folders and other items that are
+                not supported by OGR
+                
 ******************************************************************************/
 
 int OGRLIBKMLLayer::GetFeatureCount (
@@ -312,6 +360,12 @@ int OGRLIBKMLLayer::GetFeatureCount (
 
 /******************************************************************************
  GetExtent()
+
+ Args:          psExtent    pointer to the Envelope to store the result in
+                bForce      no effect as of now 
+ 
+ Returns:       nothing
+                
 ******************************************************************************/
 
 OGRErr OGRLIBKMLLayer::GetExtent (
@@ -337,7 +391,14 @@ OGRErr OGRLIBKMLLayer::GetExtent (
 
 
 /******************************************************************************
+ Method to create a field on a layer
 
+ Args:          poField     pointer to the Field Definition to add
+                bApproxOK   no effect as of now 
+
+ Returns:       OGRERR_NONE on success or OGRERR_UNSUPPORTED_OPERATION if the
+                layer is not writeable
+                
 ******************************************************************************/
 
 OGRErr OGRLIBKMLLayer::CreateField (
@@ -365,7 +426,12 @@ OGRErr OGRLIBKMLLayer::CreateField (
 
 
 /******************************************************************************
+ method to write the datasource to disk
 
+ Args:      none
+
+ Returns    nothing
+                
 ******************************************************************************/
 
 OGRErr OGRLIBKMLLayer::SyncToDisk (
@@ -391,7 +457,13 @@ OGRErr OGRLIBKMLLayer::SyncToDisk (
 }
 
 /******************************************************************************
-
+ method to get a layers style table
+ 
+ Args:          none
+ 
+ Returns:       pointer to the layers style table, or NULL if it does
+                not have one
+                
 ******************************************************************************/
 
 OGRStyleTable *OGRLIBKMLLayer::GetStyleTable (
@@ -402,7 +474,13 @@ OGRStyleTable *OGRLIBKMLLayer::GetStyleTable (
 }
 
 /******************************************************************************
+ method to write a style table to a layer
+ 
+ Args:          poStyleTable    pointer to the style table to add
+ 
+ Returns:       nothing
 
+ note: this method assumes ownership of the style table
 ******************************************************************************/
 
 void OGRLIBKMLLayer::SetStyleTableDirectly (
@@ -446,7 +524,14 @@ void OGRLIBKMLLayer::SetStyleTableDirectly (
 }
 
 /******************************************************************************
+ method to write a style table to a layer
+ 
+ Args:          poStyleTable    pointer to the style table to add
+ 
+ Returns:       nothing
 
+ note:  this method copys the style table, and the user will still be
+        responsible for its destruction
 ******************************************************************************/
 
 void OGRLIBKMLLayer::SetStyleTable (
@@ -464,6 +549,11 @@ void OGRLIBKMLLayer::SetStyleTable (
 }
 
 /******************************************************************************
+ Test if capability is available.
+
+ Args:          pszCap  layer capability name to test
+ 
+ Returns:       True if the layer supports the capability, otherwise false
 
 ******************************************************************************/
 
