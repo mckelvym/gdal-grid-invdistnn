@@ -87,9 +87,11 @@ OGRFeature *kml2feat (
 
     /***** geometry *****/
 
-    OGRGeometry *poOgrGeom = kml2geom ( poKmlPlacemark->get_geometry (  ) );
-
-    poOgrFeat->SetGeometryDirectly ( poOgrGeom );
+    if (poKmlPlacemark->has_geometry (  )) {
+        OGRGeometry *poOgrGeom = kml2geom ( poKmlPlacemark->get_geometry (  ) );
+        poOgrFeat->SetGeometryDirectly ( poOgrGeom );
+        
+    }
 
     /***** fields *****/
 
