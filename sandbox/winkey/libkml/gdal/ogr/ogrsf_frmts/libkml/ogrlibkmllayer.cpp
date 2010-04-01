@@ -153,8 +153,11 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
         KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
         m_poKmlSchema = poKmlFactory->CreateSchema (  );
 
-
-
+        /***** set the id on the new schema *****/
+        
+        std::string oKmlSchemaID = m_pszName;
+        oKmlSchemaID.append(".schema");
+        m_poKmlSchema->set_id ( oKmlSchemaID );
     }
     
 
