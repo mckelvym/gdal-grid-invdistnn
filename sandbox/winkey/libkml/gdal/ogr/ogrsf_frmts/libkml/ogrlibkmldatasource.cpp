@@ -733,15 +733,14 @@ int OGRLIBKMLDataSource::OpenKmz (
                                          poKmlHref->get_path (  ).c_str (  ),
                                          FALSE, bUpdate);
 
-
                 papoLayers[nLayers++] = poOgrLayer;
-
-                /***** cleanup *****/
-
-                delete poKmlHref;
 
             }
         }
+
+        /***** cleanup *****/
+
+        delete poKmlHref;
     }
 
     /***** if the doc.kml has no links treat it as a normal kml file *****/
