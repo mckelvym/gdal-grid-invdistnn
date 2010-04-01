@@ -172,20 +172,6 @@ OGRLIBKMLLayer::~OGRLIBKMLLayer (  )
 
 ******************************************************************************/
 
-void OGRLIBKMLLayer::ResetReading (
-     )
-{
-
-    iFeature = 0;
-
-
-    return;
-}
-
-/******************************************************************************
-
-******************************************************************************/
-
 OGRFeature *OGRLIBKMLLayer::GetNextFeature (
      )
 {
@@ -475,24 +461,6 @@ void OGRLIBKMLLayer::SetStyleTable (
     else
         SetStyleTableDirectly ( NULL );
     return;
-}
-
-/******************************************************************************
-
-******************************************************************************/
-
-const char *OGRLIBKMLLayer::GetName (
-     )
-{
-
-    return m_pszName;
-}
-
-const char *OGRLIBKMLLayer::GetFileName (
-     )
-{
-
-    return m_pszFileName;
 }
 
 /******************************************************************************

@@ -86,7 +86,7 @@ class OGRLIBKMLLayer:public OGRLayer
                                 int bUpdate);
     ~OGRLIBKMLLayer           (  );
 
-    void                      ResetReading  (  );
+    void                      ResetReading  (  ) { iFeature = 0; };
     OGRFeature               *GetNextFeature (  );
     OGRFeatureDefn           *GetLayerDefn (  ) { return m_poOgrFeatureDefn; };
     //OGRErr                    SetAttributeFilter (const char * );
@@ -113,11 +113,11 @@ class OGRLIBKMLLayer:public OGRLayer
     OGRStyleTable            *GetStyleTable (  );
     void                      SetStyleTableDirectly ( OGRStyleTable * poStyleTable );
     void                      SetStyleTable ( OGRStyleTable * poStyleTable );
-    const char               *GetName();
+    const char               *GetName(  ) { return m_pszName; };
     int                       TestCapability ( const char * );
-    ContainerPtr              GetKmlLayer () {return m_poKmlLayer;};
-    SchemaPtr                 GetKmlSchema () {return m_poKmlSchema;};
-    const char               *GetFileName();
+    ContainerPtr              GetKmlLayer () { return m_poKmlLayer; };
+    SchemaPtr                 GetKmlSchema () { return m_poKmlSchema; };
+    const char               *GetFileName (  ) { return m_pszFileName; };
     };
 
 /******************************************************************************
