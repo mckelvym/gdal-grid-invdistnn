@@ -119,7 +119,7 @@ void field2kml (
         const char *namefield =
             CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
         const char *descfield =
-            CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
+            CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "description" );
         const char *tsfield =
             CPLGetConfigOption ( "LIBKML_TIMESTAMP_FIELD", "timestamp" );
         const char *beginfield =
@@ -350,7 +350,7 @@ void kml2field (
     const char *namefield =
         CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
     const char *descfield =
-        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
+        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "description" );
     
     /***** read the name tag *****/
 
@@ -518,7 +518,7 @@ SimpleFieldPtr FieldDef2kml (
     const char *namefield =
         CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
     const char *descfield =
-        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
+        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "description" );
     const char *tsfield =
         CPLGetConfigOption ( "LIBKML_TIMESTAMP_FIELD", "timestamp" );
     const char *beginfield =

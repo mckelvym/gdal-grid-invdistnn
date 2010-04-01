@@ -104,7 +104,7 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
         const char *namefield =
             CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
         const char *descfield =
-            CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "Description" );
+            CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "description" );
     
         OGRFieldDefn oOgrFieldName( namefield, OFTString );
         m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
