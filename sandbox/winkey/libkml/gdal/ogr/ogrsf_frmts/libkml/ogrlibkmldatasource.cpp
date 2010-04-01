@@ -85,7 +85,7 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
 
     m_isKmz = FALSE;
     m_poKmlDocKml = NULL;
-    pszStylePath = NULL;
+    pszStylePath = "";
     
     m_poKmlFactory = KmlFactory::GetFactory (  );
     
