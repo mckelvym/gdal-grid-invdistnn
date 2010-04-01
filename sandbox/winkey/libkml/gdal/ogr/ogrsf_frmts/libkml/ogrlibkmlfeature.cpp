@@ -37,6 +37,7 @@ using kmldom::ElementPtr;
 using kmldom::GeometryPtr;
 using kmldom::Geometry;
 
+#include "ogr_libkml.h"
 
 #include "ogrlibkmlgeometry.h"
 #include "ogrlibkmlfield.h"
@@ -64,7 +65,7 @@ PlacemarkPtr feat2kml (
 
     /***** fields *****/
 
-    field2kml ( poOgrFeat, poKmlFactory, poKmlPlacemark );
+    field2kml ( poOgrFeat, (OGRLIBKMLLayer *) poOgrLayer, poKmlFactory, poKmlPlacemark );
 
 
 

@@ -40,6 +40,7 @@ using kmldom::SimpleDataPtr;
 using kmldom::TimeStampPtr;
 
 
+#include "ogr_libkml.h"
 
 #include "ogrlibkmlfield.h"
 
@@ -59,6 +60,7 @@ void KML_time (
 
  args:
         poOgrFeat       pointer to the feature the field is in
+        poOgrLayer      pointer to the layer the feature is in
         poKmlFactory    pointer to the libkml dom factory
         poKmlPlacemark  pointer to the placemark to add to
  
@@ -79,12 +81,26 @@ void KML_time (
 
 void field2kml (
     OGRFeature * poOgrFeat,
+    OGRLIBKMLLayer * poOgrLayer,
     KmlFactory * poKmlFactory,
     PlacemarkPtr poKmlPlacemark )
 {
     int i;
 
     SchemaDataPtr poKmlSchemaData = poKmlFactory->CreateSchemaData (  );
+    SchemaPtr poKmlSchema = poOgrLayer->GetKmlSchema();
+
+    /***** set the url to the schema *****/
+    
+    if (poKmlSchema->has_id (  )) {
+        std::string oKmlSchemaID = poKmlSchema->get_id();
+
+        std::string oKmlSchemaURL = "#";
+        oKmlSchemaURL.append (oKmlSchemaID);
+
+        poKmlSchemaData->set_schemaurl (oKmlSchemaURL);
+    }
+            
     TimeSpanPtr poKmlTimeSpan = NULL;
 
     int nFields = poOgrFeat->GetFieldCount (  );

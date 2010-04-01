@@ -36,6 +36,7 @@ using kmldom::PlacemarkPtr;
 
  args:
         poOgrFeat       pointer to the feature the field is in
+        poOgrLayer      pointer to the layer the feature is in
         poKmlFactory    pointer to the libkml dom factory
         poKmlPlacemark  pointer to the placemark to add to
  
@@ -54,6 +55,7 @@ using kmldom::PlacemarkPtr;
 
 void field2kml (
     OGRFeature * poOgrFeat,
+    OGRLIBKMLLayer * poOgrLayer,
     KmlFactory * poKmlFactory,
     PlacemarkPtr poKmlPlacemark );
 
