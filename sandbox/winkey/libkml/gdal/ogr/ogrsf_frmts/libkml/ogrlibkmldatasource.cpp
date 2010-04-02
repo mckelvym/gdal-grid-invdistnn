@@ -446,6 +446,8 @@ OGRLIBKMLLayer *OGRLIBKMLDataSource::AddLayer (
     }
 
     /***** create the layer *****/
+
+    int iLayer = nLayers++;
     
     OGRLIBKMLLayer *poOgrLayer = new OGRLIBKMLLayer ( pszLayerName,
                                                       poSpatialRef,
@@ -458,7 +460,7 @@ OGRLIBKMLLayer *OGRLIBKMLDataSource::AddLayer (
 
     /***** add the layer to the array *****/
     
-    papoLayers[nLayers++] = poOgrLayer;
+    papoLayers[iLayer] = poOgrLayer;
 
     return poOgrLayer;
 }
