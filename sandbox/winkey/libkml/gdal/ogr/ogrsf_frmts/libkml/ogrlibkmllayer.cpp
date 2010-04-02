@@ -112,10 +112,7 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
         OGRFieldDefn oOgrFieldDesc( descfield, OFTString );
         m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldDesc );
     
-        /***** get the number of features on the layer *****/
-
-        nFeatures = m_poKmlLayer->get_feature_array_size() ;
-
+        
         /***** get the styles *****/
 
         if (m_poKmlLayer->IsA(kmldom::Type_Document))
@@ -137,6 +134,14 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
         else {
 #warning get the schema from somewhere
         }
+
+        /***** get the number of features on the layer *****/
+
+        nFeatures = m_poKmlLayer->get_feature_array_size();
+
+        /***** check if any features are another layer *****/
+
+        m_poOgrDS->ParseLayers ( m_poKmlLayer, poSpatialRef);
         
     }
 

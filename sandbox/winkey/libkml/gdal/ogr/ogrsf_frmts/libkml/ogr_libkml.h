@@ -202,6 +202,9 @@ class OGRLIBKMLDataSource:public OGRDataSource
     int                       IsDir() {return m_isDir;};
     
     void                      Updated() {bUpdated = TRUE;};
+
+    int                       ParseLayers ( ContainerPtr poKmlContainer,
+                                            OGRSpatialReference *poOgrSRS );
   private:
 
     /***** methods to write out various datasource types at destroy *****/
@@ -250,9 +253,17 @@ class OGRLIBKMLDataSource:public OGRDataSource
     void                      SetStyleTable2Kmz ( OGRStyleTable * poStyleTable );
     
 
-    int                       ParseLayers ( ContainerPtr poKmlContainer,
-                                            OGRSpatialReference *poOgrSRS );
+    
     void                      ParseSchemas ( DocumentPtr poKmlDocument );
+    OGRLIBKMLLayer           *AddLayer ( const char *pszLayerName,
+                                         OGRSpatialReference * poSpatialRef,
+                                         OGRwkbGeometryType eGType,
+                                         OGRLIBKMLDataSource * poOgrDS,
+                                         ElementPtr poKmlRoot,
+                                         const char *pszFileName,
+                                         int bNew,
+                                         int bUpdate,
+                                         int nGuess);
 };
 
 

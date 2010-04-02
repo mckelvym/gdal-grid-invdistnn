@@ -570,6 +570,8 @@ void ParseStyles (
 
         StyleSelectorPtr poKmlStyle =
             poKmlDocument->get_styleselector_array_at ( iKmlStyle );
+        if (!poKmlStyle->IsA(kmldom::Type_Style))
+            continue;
     
         if ( !*poStyleTable )
             *poStyleTable = new OGRStyleTable (  );
