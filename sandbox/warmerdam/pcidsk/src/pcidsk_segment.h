@@ -60,9 +60,9 @@ namespace PCIDSK
 
         virtual void        SetDescription( const std::string &description) = 0;
 
-        virtual std::string GetMetadataValue( const std::string &key ) = 0;
+        virtual std::string GetMetadataValue( const std::string &key ) const = 0;
         virtual void SetMetadataValue( const std::string &key, const std::string &value ) = 0;
-        virtual std::vector<std::string> GetMetadataKeys() = 0;
+        virtual std::vector<std::string> GetMetadataKeys() const = 0;
         
         virtual std::vector<std::string> GetHistoryEntries() const = 0;
         virtual void SetHistoryEntries( const std::vector<std::string> &entries ) = 0;

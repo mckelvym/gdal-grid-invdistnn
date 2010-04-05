@@ -84,6 +84,11 @@ void OverviewTest::readOverviews()
     CPPUNIT_ASSERT( overview->GetWidth() == 512 );
     CPPUNIT_ASSERT( overview->GetBlockWidth() == 127 );
     CPPUNIT_ASSERT( overview->GetType() == CHN_8U );
+    
+    std::vector<int> lev_map = channel->GetOverviewLevelMapping();
+    
+    CPPUNIT_ASSERT_EQUAL(lev_map.size(), (std::size_t)1);
+    CPPUNIT_ASSERT_EQUAL(lev_map[0], 2);
 
     // test windowed access.    
     uint8 data[127*127];

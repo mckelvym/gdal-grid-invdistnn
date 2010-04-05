@@ -135,8 +135,7 @@ void CPCIDSKChannel::InvalidateOverviewInfo()
 /************************************************************************/
 /*                       EstablishOverviewInfo()                        */
 /************************************************************************/
-
-void CPCIDSKChannel::EstablishOverviewInfo()
+void CPCIDSKChannel::EstablishOverviewInfo() const
 
 {
     if( overviews_initialized )
@@ -315,6 +314,17 @@ void CPCIDSKChannel::InvalidateOverviews()
 
     for( int i = 0; i < GetOverviewCount(); i++ )
         SetOverviewValidity( i, false );
+}
+
+/************************************************************************/
+/*                  GetOverviewLevelMapping()                           */
+/************************************************************************/
+
+std::vector<int> CPCIDSKChannel::GetOverviewLevelMapping() const
+{
+    EstablishOverviewInfo();
+    
+    return overview_decimations;
 }
 
 /************************************************************************/

@@ -58,10 +58,11 @@ namespace PCIDSK
         virtual bool IsOverviewValid( int i ) = 0;
         virtual std::string GetOverviewResampling( int i ) = 0;
         virtual void SetOverviewValidity( int i, bool validity ) = 0;
+        virtual std::vector<int> GetOverviewLevelMapping() const = 0;
 
-        virtual std::string GetMetadataValue( const std::string &key ) = 0;
+        virtual std::string GetMetadataValue( const std::string &key ) const = 0;
         virtual void SetMetadataValue( const std::string &key, const std::string &value ) = 0;
-        virtual std::vector<std::string> GetMetadataKeys() = 0;
+        virtual std::vector<std::string> GetMetadataKeys() const = 0;
 
         virtual void Synchronize() = 0;
 
