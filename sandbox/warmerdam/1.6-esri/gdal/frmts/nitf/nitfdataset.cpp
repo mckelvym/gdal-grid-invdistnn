@@ -792,7 +792,8 @@ NITFDataset::~NITFDataset()
 
     GDALDeinitGCPs( nGCPCount, pasGCPList );
     CPLFree( pasGCPList );
-
+    CPLFree( pszGCPProjection );
+	
 /* -------------------------------------------------------------------- */
 /*      If we have a jpeg2000 output file, make sure it gets closed     */
 /*      and flushed out.                                                */
