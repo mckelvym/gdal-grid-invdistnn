@@ -1,9 +1,10 @@
 /******************************************************************************
  *
- * Purpose:  Declaration of hookable interfaces for the library
+ * Purpose:  PCIDSK External Database Interface declaration.  This provides
+ *           mechanisms for access to external linked image file formats.
  * 
  ******************************************************************************
- * Copyright (c) 2009
+ * Copyright (c) 2010
  * PCI Geomatics, 50 West Wilmot Street, Richmond Hill, Ont, Canada
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,41 +25,42 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
+#ifndef __INCLUDE_PCIDSK_EDB_H
+#define __INCLUDE_PCIDSK_EDB_H
 
-#ifndef __INCLUDE_PCIDSK_INTERFACES_H
-#define __INCLUDE_PCIDSK_INTERFACES_H
+#include "pcidsk_config.h"
 
-#include "pcidsk_io.h"
-#include "pcidsk_mutex.h"
-#include "pcidsk_edb.h"
+#include <string>
 
 namespace PCIDSK
 {
-    /************************************************************************/
-    /*                           PCIDSKInterfaces                           */
-    /************************************************************************/
+/************************************************************************/
+/*                               EDBFile                                */
+/************************************************************************/
 
-    //! Collection of PCIDSK hookable interfaces.
+//! External Database Interface class.
 
-    class PCIDSK_DLL PCIDSKInterfaces 
+    class EDBFile
     {
-      public:
-        PCIDSKInterfaces();
+    public:
+        virtual ~EDBFile() {}
+        virtual int Close() const = 0;
 
-        const IOInterfaces *io;
-
-        EDBFile           *(*OpenEDB)(std::string filename, std::string access);
-
-        Mutex             *(*CreateMutex)(void);
-
-        void              (*JPEGDecompressBlock)
-            ( uint8 *src_data, int src_bytes, uint8 *dst_data, int dst_bytes,
-              int xsize, int ysize, eChanType pixel_type );
-        void              (*JPEGCompressBlock)
-            ( uint8 *src_data, int src_bytes, uint8 *dst_data, int &dst_bytes,
-              int xsize, int ysize, eChanType pixel_type, int quality );
-
+        virtual int GetWidth() const = 0;
+        virtual int GetHeight() const = 0;
+        virtual int GetChannels() const = 0;
+        virtual int GetBlockWidth(int channel ) const = 0;
+        virtual int GetBlockHeight(int channel ) const = 0;
+        virtual eChanType GetType(int channel ) const = 0;
+        virtual int ReadBlock(int channel,
+            int block_index, void *buffer,
+            int win_xoff=-1, int win_yoff=-1,
+            int win_xsize=-1, int win_ysize=-1 ) = 0;
+        virtual int WriteBlock( int channel, int block_index, void *buffer) = 0;
     };
+
+    EDBFile PCIDSK_DLL *DefaultOpenEDB(std::string filename, 
+                                       std::string access);    
 } // end namespace PCIDSK
 
-#endif // __INCLUDE_PCIDSK_INTERFACES_H
+#endif // __INCLUDE_PCIDSK_EDB_H

@@ -39,6 +39,7 @@ class PCIDSKFileTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testReadImage );
     CPPUNIT_TEST( testReadPixelInterleavedImage );
     CPPUNIT_TEST( testReadTiledImage );
+    CPPUNIT_TEST( testReadLinked );
     CPPUNIT_TEST( testMetadata );
     CPPUNIT_TEST( testOverviews );
     CPPUNIT_TEST( testTiled16Bit );
@@ -55,6 +56,7 @@ public:
     void testReadImage();
     void testReadPixelInterleavedImage();
     void testReadTiledImage();
+    void testReadLinked();
     void testMetadata();
     void testOverviews();
     void testTiled16Bit();
@@ -192,6 +194,39 @@ void PCIDSKFileTest::testReadTiledImage()
     CPPUNIT_ASSERT( data_line[4] == 255 );
 
     delete irvine;
+}
+
+void PCIDSKFileTest::testReadLinked()
+{
+    PCIDSKFile *file;
+    PCIDSKChannel *channel;
+    uint8 data[127*127];
+
+    file = PCIDSK::Open( "worldrgblink.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+    CPPUNIT_ASSERT( file->GetInterleaving() == "FILE" );
+
+    channel = file->GetChannel(3);
+
+    CPPUNIT_ASSERT( channel->GetBlockWidth() == 127 );
+    CPPUNIT_ASSERT( channel->GetBlockHeight() == 127 );
+
+    memset( data, 0, sizeof(data) );
+    channel->ReadBlock( 89, data );
+
+    CPPUNIT_ASSERT( data[1] == 51 );
+    CPPUNIT_ASSERT( data[128] == 50 );
+
+    channel = file->GetChannel(1);
+
+    channel->ReadBlock( 1, data );
+
+    CPPUNIT_ASSERT( data[1] == 42 );
+    CPPUNIT_ASSERT( data[30] == 164 );
+    CPPUNIT_ASSERT( data[16000] == 11 );
+
+    delete file;
 }
 
 void PCIDSKFileTest::testMetadata()

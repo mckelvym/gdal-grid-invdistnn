@@ -36,6 +36,7 @@
 #include "channel/cbandinterleavedchannel.h"
 #include "channel/cpixelinterleavedchannel.h"
 #include "channel/ctiledchannel.h"
+#include "channel/cexternalchannel.h"
 
 // Segment types
 #include "segment/cpcidskgeoref.h"
@@ -135,6 +136,15 @@ CPCIDSKFile::~CPCIDSKFile()
 
         interfaces.io->Close( file_list[i_file].io_handle );
         file_list[i_file].io_handle = NULL;
+    }
+
+    for( i_file=0; i_file < edb_file_list.size(); i_file++ )
+    {
+        delete edb_file_list[i_file].io_mutex;
+        edb_file_list[i_file].io_mutex = NULL;
+
+        delete edb_file_list[i_file].file;
+        edb_file_list[i_file].file = NULL;
     }
 
     delete io_mutex;
@@ -439,7 +449,7 @@ void CPCIDSKFile::InitializeFromHeader()
                 pixel_type = CHN_32R;
         }
             
-        if( interleaving == "BAND" )
+        if( interleaving == "BAND"  )
         {
             channel = new CBandInterleavedChannel( ih, ih_offset, fh, 
                                                    channelnum, this,
@@ -464,6 +474,13 @@ void CPCIDSKFile::InitializeFromHeader()
         {
             channel = new CTiledChannel( ih, ih_offset, fh, 
                                          channelnum, this, pixel_type );
+        }
+
+        else if( interleaving == "FILE" 
+                 && strncmp(((const char*)ih.buffer)+250, "        ", 8 ) != 0 )
+        {
+            channel = new CExternalChannel( ih, ih_offset, fh, 
+                                            channelnum, this, pixel_type );
         }
 
         else if( interleaving == "FILE" )
@@ -618,6 +635,72 @@ void CPCIDSKFile::FlushBlock()
         }
         last_block_mutex->Release();
     }
+}
+
+/************************************************************************/
+/*                         GetEDBFileDetails()                          */
+/************************************************************************/
+
+bool CPCIDSKFile::GetEDBFileDetails( EDBFile** file_p, 
+                                     Mutex **io_mutex_p, 
+                                     std::string filename )
+
+{
+    *file_p = NULL;
+    *io_mutex_p = NULL;
+    
+/* -------------------------------------------------------------------- */
+/*      Does the file exist already in our file list?                   */
+/* -------------------------------------------------------------------- */
+    unsigned int i;
+
+    for( i = 0; i < edb_file_list.size(); i++ )
+    {
+        if( edb_file_list[i].filename == filename )
+        {
+            *file_p = edb_file_list[i].file;
+            *io_mutex_p = edb_file_list[i].io_mutex;
+            return edb_file_list[i].writable;
+        }
+    }
+
+/* -------------------------------------------------------------------- */
+/*      If not, we need to try and open the file.  Eventually we        */
+/*      will need better rules about read or update access.             */
+/* -------------------------------------------------------------------- */
+    ProtectedEDBFile new_file;
+
+    new_file.file = NULL;
+    new_file.writable = false;
+
+    if( GetUpdatable() )
+    {
+        try {
+            new_file.file = interfaces.OpenEDB( filename, "r+" );
+            new_file.writable = true;
+        } catch( PCIDSK::PCIDSKException ex ) {}
+    }
+
+    if( new_file.file == NULL )
+        new_file.file = interfaces.OpenEDB( filename, "r" );
+
+    if( new_file.file == NULL )
+        ThrowPCIDSKException( "Unable to open file '%s'.", 
+                              filename.c_str() );
+
+/* -------------------------------------------------------------------- */
+/*      Push the new file into the list of files managed for this       */
+/*      PCIDSK file.                                                    */
+/* -------------------------------------------------------------------- */
+    new_file.io_mutex = interfaces.CreateMutex();
+    new_file.filename = filename;
+
+    edb_file_list.push_back( new_file );
+
+    *file_p = edb_file_list[edb_file_list.size()-1].file;
+    *io_mutex_p  = edb_file_list[edb_file_list.size()-1].io_mutex;
+
+    return new_file.writable;
 }
 
 /************************************************************************/
@@ -1150,3 +1233,4 @@ void CPCIDSKFile::CreateOverviews( int chan_count, int *chan_list,
         dynamic_cast<CPCIDSKChannel *>(channel)->InvalidateOverviewInfo();
     }
 }
+

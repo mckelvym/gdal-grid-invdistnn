@@ -11,8 +11,10 @@ OBJ = \
 	channel\cpcidskchannel.obj \
 	channel\cpixelinterleavedchannel.obj \
 	channel\ctiledchannel.obj \
+	channel\cexternalchannel.obj \
 	core\cpcidskfile.obj \
 	core\libjpeg_io.obj \
+	core\core/edb_pcidsk.obj \
 	core\metadataset_p.obj \
 	core\pcidskbuffer.obj \
 	core\pcidskcreate.obj \

@@ -8,6 +8,7 @@ OBJ = \
 	channel/cpcidskchannel.o \
 	channel/cpixelinterleavedchannel.o \
 	channel/ctiledchannel.o \
+	channel/cexternalchannel.o \
 	core/cpcidskfile.o \
 	core/libjpeg_io.o \
 	core/metadataset_p.o \
@@ -18,6 +19,7 @@ OBJ = \
 	core/pcidskopen.o \
 	core/pcidsk_pubutils.o \
 	core/pcidsk_utils.o \
+	core/edb_pcidsk.o \
 	core/sysvirtualfile.o \
 	port/io_stdio.o \
 	port/pthread_mutex.o \

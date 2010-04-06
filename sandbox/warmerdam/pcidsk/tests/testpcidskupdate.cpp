@@ -38,6 +38,7 @@ class PCIDSKUpdateTest : public CppUnit::TestFixture
  
     CPPUNIT_TEST( updateBandInterleaved );
     CPPUNIT_TEST( updatePixelInterleaved );
+    CPPUNIT_TEST( updateExternal );
     CPPUNIT_TEST( testReadonly );
     CPPUNIT_TEST( testSync );
 
@@ -48,12 +49,29 @@ public:
     void tearDown();
     void updateBandInterleaved();
     void updatePixelInterleaved();
+    void updateExternal();
     void testReadonly();
     void testSync();
 };
 
 // Registers the fixture into the 'registry'
 CPPUNIT_TEST_SUITE_REGISTRATION( PCIDSKUpdateTest );
+
+static void copy_file( const char *srcfile, const char *dstfile)
+{
+    FILE *fpsrc = fopen(srcfile,"rb");
+    FILE *fpdst = fopen(dstfile,"wb");
+    char buffer[1024];
+    size_t  bytes_read, bytes_written;
+
+    do {
+        bytes_read = fread( buffer, 1, sizeof(buffer), fpsrc );
+        bytes_written = fwrite( buffer, 1, bytes_read, fpdst );
+    } while( bytes_read == sizeof(buffer)
+             && bytes_written == bytes_read );
+    fclose( fpsrc );
+    fclose( fpdst );
+}
 
 void PCIDSKUpdateTest::setUp()
 {
@@ -133,6 +151,75 @@ void PCIDSKUpdateTest::updateBandInterleaved()
     delete band_file;
 
     unlink( "band_update.pix" );
+}
+
+/************************************************************************/
+/*                           updateExternal()                           */
+/************************************************************************/
+
+void PCIDSKUpdateTest::updateExternal()
+{
+    copy_file( "worldrgb_safe.pix", "worldrgb.pix" );
+
+/* -------------------------------------------------------------------- */
+/*      Create a simple pcidsk file.                                    */
+/* -------------------------------------------------------------------- */
+    PCIDSKFile *file;
+
+    file = PCIDSK::Open( "worldrgblink.pix", "r+", NULL );
+    CPPUNIT_ASSERT( file != NULL );
+    
+/* -------------------------------------------------------------------- */
+/*      Update channel 2.                                               */
+/* -------------------------------------------------------------------- */
+    PCIDSKChannel *chan;
+
+    uint8 data[127*127];
+    unsigned int i;
+
+    for( i = 0; i < sizeof(data); i++ )
+        data[i] = i % 256;
+
+    chan = file->GetChannel(2);
+    chan->WriteBlock( 3, data );
+
+/* -------------------------------------------------------------------- */
+/*      Update channel 3.                                               */
+/* -------------------------------------------------------------------- */
+
+    for( i = 0; i < sizeof(data); i++ )
+        data[i] = i % 33;
+
+    chan = file->GetChannel(3);
+    chan->WriteBlock( 3, data );
+
+/* -------------------------------------------------------------------- */
+/*      Close and reopen file.                                          */
+/* -------------------------------------------------------------------- */
+    delete file;
+    file = PCIDSK::Open( "worldrgblink.pix", "r", NULL );
+    
+/* -------------------------------------------------------------------- */
+/*      Read and check channel 2.                                       */
+/* -------------------------------------------------------------------- */
+    chan = file->GetChannel(2);
+    chan->ReadBlock( 3, data );
+
+    for( i = 0; i < sizeof(data); i++ )
+        CPPUNIT_ASSERT( data[i] == i % 256 );
+    
+/* -------------------------------------------------------------------- */
+/*      Read and check channel 3.                                       */
+/* -------------------------------------------------------------------- */
+    chan = file->GetChannel(3);
+    chan->ReadBlock( 3, data );
+
+    for( i = 0; i < sizeof(data); i++ )
+        CPPUNIT_ASSERT( data[i] == i % 33 );
+    
+    delete file;
+
+    //copy_file( "worldrgb_safe.pix", "worldrgb.pix" );
 }
 
 /************************************************************************/
