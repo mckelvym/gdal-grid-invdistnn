@@ -28,25 +28,40 @@
     
     <h3>Schema</h3>
     
+    <h3>Other</h3>
+    description, timestamp, timespan, open, and Visibility are not supported on
+    layers as there is no place in ogr to store this data.
 
     <h2>fields</h2>
     
     <dl>
         <dt>LIBKML_NAME_FIELD</dt>
-        <dd>Name of the OGR field to use for a placemarks name,
-          Defaults to "Name"</dd>
+        <dd>Name of the OGR field to use for a placemark's name,
+          Defaults to Name</dd>
         <dt>LIBKML_DESCRIPTION_FIELD</dt>
-        <dd>Name of the OGR field to use for a placemarks description,
-          Defaults to Description</dd>
+        <dd>Name of the OGR field to use for a placemark's description,
+          Defaults to description</dd>
         <dt>LIBKML_TIMESTAMP_FIELD</dt>
-        <dd>Name of the OGR field to use for a placemarks timestamp,
+        <dd>Name of the OGR field to use for a placemark's timestamp,
           Defaults to timestamp</dd>
         <dt>LIBKML_BEGIN_FIELD</dt>
-        <dd>Name of the OGR field to use for a placemarks timespan begin,
+        <dd>Name of the OGR field to use for a placemark's timespan begin,
           Defaults to begin</dd>
         <dt>LIBKML_END_FIELD</dt>
-        <dd>Name of the OGR field to use for a placemarks timespan end,
+        <dd>Name of the OGR field to use for a placemark's timespan end,
           Defaults to end</dd>
+        <dt>LIBKML_ALTITUDEMODE_FIELD</dt>
+        <dd>Name of the OGR field to use for a geometry's altitudeMode,
+          Defaults to altitudeMode</dd>
+        <dt>LIBKML_TESSELLATE_FIELD</dt>
+        <dd>Name of the OGR field to use for a polygon's tessellate,
+          Defaults to tessellate</dd>
+        <dt>LIBKML_EXTRUDE_FIELD</dt>
+        <dd>Name of the OGR field to use for a geometry's extrude,
+          Defaults to extrude</dd>
+        <dt>LIBKML_VISIBILITY_FIELD</dt>
+        <dd>Name of the OGR field to use for a placemark's visibility,
+          Defaults to visibility</dd>
     </dl>
 </body>
 </html>

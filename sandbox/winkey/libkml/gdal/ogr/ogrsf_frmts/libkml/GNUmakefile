@@ -23,8 +23,8 @@ clean:
 	rm -f *.o $(O_OBJ)
 
 $(O_OBJ):	ogrlibkmlgeometry.h \
-          ogrlibkmlfield.h \
-          ogrlibkmlfeature.h \
-          ogrlibkmlfeaturestyle.h \
-          ogrlibkmlstyle.h \
+            ogrlibkmlfield.h \
+            ogrlibkmlfeature.h \
+            ogrlibkmlfeaturestyle.h \
+            ogrlibkmlstyle.h
           

@@ -167,9 +167,7 @@ ElementPtr geom2kml (
             poKmlGeometry = poKmlLineString =
                 poKmlFactory->CreateLineString (  );
             poKmlLineString->set_coordinates ( coordinates );
-            poKmlLineString->
-                set_altitudemode ( kmldom::ALTITUDEMODE_CLAMPTOGROUND );
-
+            
             break;
         }
 
@@ -216,9 +214,7 @@ ElementPtr geom2kml (
             poKmlGeometry = poKmlLineString =
                 poKmlFactory->CreateLineString (  );
             poKmlLineString->set_coordinates ( coordinates );
-            poKmlLineString->
-                set_altitudemode ( kmldom::ALTITUDEMODE_ABSOLUTE );
-
+            
             break;
         }
             /***** fallthough *****/
@@ -246,7 +242,6 @@ ElementPtr geom2kml (
         poOgrPolygon = ( OGRPolygon * ) poOgrGeom;
 
         poKmlGeometry = poKmlPolygon = poKmlFactory->CreatePolygon (  );
-        poKmlPolygon->set_altitudemode ( kmldom::ALTITUDEMODE_CLAMPTOGROUND );
 
         poKmlTmpGeometry = geom2kml ( poOgrPolygon->getExteriorRing (  ),
                                       0, wkb25D, poKmlFactory );
@@ -266,7 +261,6 @@ ElementPtr geom2kml (
         poOgrPolygon = ( OGRPolygon * ) poOgrGeom;
 
         poKmlGeometry = poKmlPolygon = poKmlFactory->CreatePolygon (  );
-        poKmlPolygon->set_altitudemode ( kmldom::ALTITUDEMODE_ABSOLUTE );
 
         poKmlTmpGeometry = geom2kml ( poOgrPolygon->getExteriorRing (  ),
                                       0, wkb25D, poKmlFactory );

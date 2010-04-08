@@ -393,14 +393,14 @@ void OGRLIBKMLDataSource::ParseSchemas (
     size_t nKmlSchemas = poKmlDocument->get_schema_array_size (  );
     size_t iKmlSchema;
     
-    papoKmlSchema = ( SchemaPtr * ) CPLMalloc ( sizeof ( SchemaPtr ) * nKmlSchemas);
+    //papoKmlSchema = ( SchemaPtr * ) CPLMalloc ( sizeof ( SchemaPtr ) * nKmlSchemas);
 
     /***** loop over the Schemas and store them in the array *****/
         
-    for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
+    //for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
 
-        papoKmlSchema[iKmlSchema] = poKmlDocument->get_schema_array_at ( iKmlSchema );
-    }
+    //    papoKmlSchema[iKmlSchema] = poKmlDocument->get_schema_array_at ( iKmlSchema );
+    //}
     
     return;
 }

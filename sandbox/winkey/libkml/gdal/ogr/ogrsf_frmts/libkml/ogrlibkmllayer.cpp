@@ -105,14 +105,48 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
             CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
         const char *descfield =
             CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "description" );
-    
+        const char *tsfield =
+            CPLGetConfigOption ( "LIBKML_TIMESTAMP_FIELD", "timestamp" );
+        const char *beginfield =
+            CPLGetConfigOption ( "LIBKML_BEGIN_FIELD", "begin" );
+        const char *endfield =
+            CPLGetConfigOption ( "LIBKML_END_FIELD", "end" );
+        const char *altitudeModefield =
+            CPLGetConfigOption ( "LIBKML_ALTITUDEMODE_FIELD", "altitudeMode" );
+        const char *tessellatefield =
+            CPLGetConfigOption ( "LIBKML_TESSELLATE_FIELD", "tessellate" );
+        const char *extrudefield =
+            CPLGetConfigOption ( "LIBKML_EXTRUDE_FIELD", "extrude" );
+        const char *visibilityfield =
+            CPLGetConfigOption ( "LIBKML_VISIBILITY_FIELD", "visibility" );
+        
         OGRFieldDefn oOgrFieldName( namefield, OFTString );
         m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
     
         OGRFieldDefn oOgrFieldDesc( descfield, OFTString );
         m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldDesc );
-    
-        
+
+        OGRFieldDefn oOgrFieldTs( tsfield, OFTDateTime );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldTs );
+
+        OGRFieldDefn oOgrFieldBegin( beginfield, OFTDateTime );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldBegin );
+
+        OGRFieldDefn oOgrFieldEnd( endfield, OFTDateTime );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldEnd );
+
+        OGRFieldDefn oOgrFieldAltitudeMode( altitudeModefield, OFTString );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldAltitudeMode );
+
+        OGRFieldDefn oOgrFieldTessellate( tessellatefield, OFTInteger );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldTessellate );
+
+        OGRFieldDefn oOgrFieldExtrude( extrudefield, OFTInteger );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldExtrude );
+
+        OGRFieldDefn oOgrFieldVisibility( visibilityfield, OFTInteger );
+        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldVisibility );
+
         /***** get the styles *****/
 
         if (m_poKmlLayer->IsA(kmldom::Type_Document))
