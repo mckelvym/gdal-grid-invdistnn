@@ -2203,6 +2203,7 @@ void NITFDataset::CheckGeoSDEInfo()
     oSRS.exportToWkt( &pszProjection );
 
     memcpy( adfGeoTransform, adfGT, sizeof(double)*6 );
+	bGotGeoTransform = TRUE;
 }
 
 /************************************************************************/
