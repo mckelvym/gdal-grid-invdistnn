@@ -47,10 +47,11 @@ static void NITFLoadLocationTable( NITFImage *psImage );
 static void NITFLoadColormapSubSection( NITFImage *psImage );
 static void NITFLoadSubframeMaskTable( NITFImage *psImage );
 static int NITFLoadVQTables( NITFImage *psImage );
+static int NITFReadGEOLOB( NITFImage *psImage );
 static void NITFLoadAttributeSection( NITFImage *psImage );
 
-void NITFGetGCP ( const char* pachCoord, GDAL_GCP *psIGEOLOGCPs, int iCoord );
-int NITFReadBLOCKA_GCPs ( NITFImage *psImage, GDAL_GCP *psIGEOLOGCPs );
+void NITFGetGCP ( const char* pachCoord, double *pdfXYs, int iCoord );
+int NITFReadBLOCKA_GCPs ( NITFImage *psImage );
 
 
 /************************************************************************/
@@ -65,9 +66,6 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     NITFSegmentInfo *psSegInfo;
     char       szTemp[128];
     int        nOffset, iBand, i;
-    int        nIGEOLOGCPCount = 4;
-    double     adfGeoTransform[6] = { 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };	
-    GDAL_GCP   *psIGEOLOGCPs = NULL;
     int        nNICOM;
     const char* pszIID1;
     
@@ -253,9 +251,6 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /* -------------------------------------------------------------------- */
 /*      Read the image bounds.                                          */
 /* -------------------------------------------------------------------- */
-    psIGEOLOGCPs = (GDAL_GCP *) CPLMalloc(sizeof(GDAL_GCP) * nIGEOLOGCPCount);
-    GDALInitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
-
     if( psImage->chICORDS != ' ' )
     {
         int iCoord;
@@ -264,43 +259,41 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
         if (psSegInfo->nSegmentHeaderSize < nOffset + 4 * 15)
             goto header_too_small;
 
-        GetMD( psImage, pachHeader, nOffset, 60, IGEOLO );
-
+        psImage->bIsBoxCenterOfPixel = TRUE;
         for( iCoord = 0; iCoord < 4; iCoord++ )
         {
             const char *pszCoordPair = pachHeader + nOffset + iCoord*15;
+            double *pdfXY = &(psImage->dfULX) + iCoord*2; 
 
             if( psImage->chICORDS == 'N' || psImage->chICORDS == 'S' )
             {
                 psImage->nZone = 
                     atoi(NITFGetField( szTemp, pszCoordPair, 0, 2 ));
 
-                psIGEOLOGCPs[iCoord].dfGCPX = atof(NITFGetField( szTemp, pszCoordPair, 2, 6 ));
-                psIGEOLOGCPs[iCoord].dfGCPY = atof(NITFGetField( szTemp, pszCoordPair, 8, 7 ));
+                pdfXY[0] = atof(NITFGetField( szTemp, pszCoordPair, 2, 6 ));
+                pdfXY[1] = atof(NITFGetField( szTemp, pszCoordPair, 8, 7 ));
             }
             else if( psImage->chICORDS == 'G' || psImage->chICORDS == 'C' )
             {
-                psIGEOLOGCPs[iCoord].dfGCPY = 
+                pdfXY[1] = 
                     atof(NITFGetField( szTemp, pszCoordPair, 0, 2 )) 
                   + atof(NITFGetField( szTemp, pszCoordPair, 2, 2 )) / 60.0
                   + atof(NITFGetField( szTemp, pszCoordPair, 4, 2 )) / 3600.0;
                 if( pszCoordPair[6] == 's' || pszCoordPair[6] == 'S' )
-                    psIGEOLOGCPs[iCoord].dfGCPY *= -1;
+                    pdfXY[1] *= -1;
 
-                psIGEOLOGCPs[iCoord].dfGCPX = 
+                pdfXY[0] = 
                     atof(NITFGetField( szTemp, pszCoordPair, 7, 3 )) 
                   + atof(NITFGetField( szTemp, pszCoordPair,10, 2 )) / 60.0
                   + atof(NITFGetField( szTemp, pszCoordPair,12, 2 )) / 3600.0;
 
                 if( pszCoordPair[14] == 'w' || pszCoordPair[14] == 'W' )
-                    psIGEOLOGCPs[iCoord].dfGCPX *= -1;
+                    pdfXY[0] *= -1;
             }
             else if( psImage->chICORDS == 'D' )
             {  /* 'D' is Decimal Degrees */
-                psIGEOLOGCPs[iCoord].dfGCPY =
-                    atof(NITFGetField( szTemp, pszCoordPair, 0, 7 ));
-                psIGEOLOGCPs[iCoord].dfGCPX =
-                    atof(NITFGetField( szTemp, pszCoordPair, 7, 8 ));
+                pdfXY[1] = atof(NITFGetField( szTemp, pszCoordPair, 0, 7 ));
+                pdfXY[0] = atof(NITFGetField( szTemp, pszCoordPair, 7, 8 ));
             }      
             else if( psImage->chICORDS == 'U' )
             {
@@ -311,8 +304,7 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
                 
                 CPLDebug( "NITF", "IGEOLO = %15.15s", pszCoordPair );
                 err = Convert_MGRS_To_UTM( szTemp, &nZone, &chHemisphere,
-                                           &(psIGEOLOGCPs[iCoord].dfGCPX), 
-										   &(psIGEOLOGCPs[iCoord].dfGCPY) );
+                                           pdfXY+0, pdfXY+1 );
 
                 if( chHemisphere == 'S' )
                     nZone = -1 * nZone;
@@ -395,8 +387,6 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Invalid band number");
         NITFImageDeaccess(psImage);
-        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
-        CPLFree( psIGEOLOGCPs );
         return NULL;
     }
 
@@ -409,8 +399,6 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     {
         CPLError(CE_Failure, CPLE_OutOfMemory, "Cannot allocate memory for band info");
         NITFImageDeaccess(psImage);
-        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
-        CPLFree( psIGEOLOGCPs );
         return NULL;
     }
 
@@ -562,8 +550,6 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Invalid values for block dimension/number");
         NITFImageDeaccess(psImage);
-        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
-        CPLFree( psIGEOLOGCPs );
         return NULL;
     }
 
@@ -700,8 +686,6 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     {
         CPLError(CE_Failure, CPLE_OutOfMemory, "Cannot allocate block map");
         NITFImageDeaccess(psImage);
-        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
-        CPLFree( psIGEOLOGCPs );
         return NULL;
     }
 
@@ -960,48 +944,13 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
 /*  image subheader, but provide higher precision.                      */
 /* -------------------------------------------------------------------- */
 
-    NITFReadBLOCKA_GCPs( psImage, psIGEOLOGCPs );
+    NITFReadBLOCKA_GCPs( psImage );
 
 /* -------------------------------------------------------------------- */
-/*      We can't set dfGCPPixel and dfGCPPixel until we know            */
-/*      psImage->nRows and psImage->nCols.                              */
+/*      We override the coordinates found in IGEOLO in case a GEOLOB is */
+/*      present.  It provides higher precision lat/long values.         */
 /* -------------------------------------------------------------------- */
-
-    if( psImage->chICORDS != ' ' )
-    {
-        psIGEOLOGCPs[0].dfGCPPixel = 0.5;
-        psIGEOLOGCPs[0].dfGCPLine = 0.5;
-        psIGEOLOGCPs[1].dfGCPPixel = psImage->nCols - 0.5;
-        psIGEOLOGCPs[1].dfGCPLine = 0.5;
-        psIGEOLOGCPs[2].dfGCPPixel = psImage->nCols - 0.5;
-        psIGEOLOGCPs[2].dfGCPLine = psImage->nRows - 0.5;
-        psIGEOLOGCPs[3].dfGCPPixel = 0.5;
-        psIGEOLOGCPs[3].dfGCPLine = psImage->nRows - 0.5;
-
-/* -------------------------------------------------------------------- */
-/*      Convert the GCPs into a geotransform definition, if possible.	*/
-/* -------------------------------------------------------------------- */
-        if( !GDALGCPsToGeoTransform( nIGEOLOGCPCount, psIGEOLOGCPs, 
-                                     adfGeoTransform, TRUE ) )
-        {
-            CPLDebug( "GDAL", "NITFImageAccess() wasn't able to derive a\n"
-                      "first order geotransform.");
-        }
-        
-        psImage->dfULX = adfGeoTransform[0];
-        psImage->dfULY = adfGeoTransform[3];
-        psImage->dfURX = psImage->dfULX + adfGeoTransform[1] * psImage->nCols;
-        psImage->dfURY = psImage->dfULY + adfGeoTransform[4] * psImage->nCols;
-        psImage->dfLRX = psImage->dfULX + adfGeoTransform[1] * psImage->nCols
-            + adfGeoTransform[2] * psImage->nRows;
-        psImage->dfLRY = psImage->dfULY + adfGeoTransform[4] * psImage->nCols
-            + adfGeoTransform[5] * psImage->nRows;
-        psImage->dfLLX = psImage->dfULX + adfGeoTransform[2] * psImage->nRows;
-        psImage->dfLLY = psImage->dfULY + adfGeoTransform[5] * psImage->nRows;
-    }
-
-    GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
-    CPLFree( psIGEOLOGCPs );
+    NITFReadGEOLOB( psImage );
         
 /* -------------------------------------------------------------------- */
 /*      If we have an RPF CoverageSectionSubheader, read the more       */
@@ -1027,6 +976,8 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
             psImage->dfURY = adfTarget[4];
             psImage->dfLRX = adfTarget[7];
             psImage->dfLRY = adfTarget[6];
+
+            psImage->bIsBoxCenterOfPixel = FALSE; // edge of pixel
 
             CPLDebug( "NITF", "Got spatial info from CoverageSection" );
             break;
@@ -1067,11 +1018,6 @@ header_too_small:
 
     CPLError(CE_Failure, CPLE_AppDefined, "Image header too small");
     NITFImageDeaccess(psImage);
-    if (psIGEOLOGCPs)
-    {
-        GDALDeinitGCPs( nIGEOLOGCPCount, psIGEOLOGCPs );
-        CPLFree( psIGEOLOGCPs );
-    }
     return NULL;
 }
 
@@ -1402,7 +1348,7 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
         {
             CPLError( CE_Failure, CPLE_FileIO, 
                       "Unable to read %d byte block from " CPL_FRMT_GUIB ".", 
-                      nRawBytes, psImage->panBlockStart[iFullBlock] );
+                      (int) nRawBytes, psImage->panBlockStart[iFullBlock] );
             CPLFree( pabyRawData );
             return BLKREAD_FAIL;
         }
@@ -1461,7 +1407,7 @@ int NITFReadImageBlock( NITFImage *psImage, int nBlockX, int nBlockY,
         {
             CPLError( CE_Failure, CPLE_FileIO, 
                       "Unable to read %d byte block from " CPL_FRMT_GUIB ".", 
-                      nRawBytes, psImage->panBlockStart[iFullBlock] );
+                      (int) nRawBytes, psImage->panBlockStart[iFullBlock] );
             return BLKREAD_FAIL;
         }
         
@@ -2439,9 +2385,12 @@ char **NITFReadBLOCKA( NITFImage *psImage )
 /* buffer.                                                              */
 /************************************************************************/
 
-void NITFGetGCP ( const char* pachCoord, GDAL_GCP *psIGEOLOGCPs, int iCoord )
+void NITFGetGCP ( const char* pachCoord, double *pdfXYs, int iCoord )
 {
     char szTemp[128];
+
+    // offset to selected coordinate.
+    pdfXYs += 2 * iCoord;
 
     if( pachCoord[0] == 'N' || pachCoord[0] == 'n' || 
         pachCoord[0] == 'S' || pachCoord[0] == 's' )
@@ -2457,21 +2406,21 @@ void NITFGetGCP ( const char* pachCoord, GDAL_GCP *psIGEOLOGCPs, int iCoord )
         /* (00 to 99) of longitude, with Y = E for east or W for west.  */
         /* ------------------------------------------------------------ */
 
-        psIGEOLOGCPs[iCoord].dfGCPY = 
+        pdfXYs[1] = 
             atof(NITFGetField( szTemp, pachCoord, 1, 2 )) 
           + atof(NITFGetField( szTemp, pachCoord, 3, 2 )) / 60.0
           + atof(NITFGetField( szTemp, pachCoord, 5, 5 )) / 3600.0;
 
         if( pachCoord[0] == 's' || pachCoord[0] == 'S' )
-            psIGEOLOGCPs[iCoord].dfGCPY *= -1;
+            pdfXYs[1] *= -1;
 
-        psIGEOLOGCPs[iCoord].dfGCPX = 
+        pdfXYs[0] = 
             atof(NITFGetField( szTemp, pachCoord,11, 3 )) 
           + atof(NITFGetField( szTemp, pachCoord,14, 2 )) / 60.0
           + atof(NITFGetField( szTemp, pachCoord,16, 5 )) / 3600.0;
 
         if( pachCoord[10] == 'w' || pachCoord[10] == 'W' )
-            psIGEOLOGCPs[iCoord].dfGCPX *= -1;
+            pdfXYs[0] *= -1;
     }
     else
     {
@@ -2483,10 +2432,8 @@ void NITFGetGCP ( const char* pachCoord, GDAL_GCP *psIGEOLOGCPs, int iCoord )
         /* longitude (east is positive).                                */
         /* ------------------------------------------------------------ */
 
-        psIGEOLOGCPs[iCoord].dfGCPY = 
-            atof(NITFGetField( szTemp, pachCoord, 0, 10 ));
-        psIGEOLOGCPs[iCoord].dfGCPX = 
-            atof(NITFGetField( szTemp, pachCoord,10, 11 ));
+        pdfXYs[1] = atof(NITFGetField( szTemp, pachCoord, 0, 10 ));
+        pdfXYs[0] = atof(NITFGetField( szTemp, pachCoord,10, 11 ));
     }
 }
 
@@ -2497,7 +2444,7 @@ void NITFGetGCP ( const char* pachCoord, GDAL_GCP *psIGEOLOGCPs, int iCoord )
 /* by IGEOLO in the NITF image subheader, but provide higher precision. */
 /************************************************************************/
 
-int NITFReadBLOCKA_GCPs( NITFImage *psImage, GDAL_GCP *psIGEOLOGCPs )
+int NITFReadBLOCKA_GCPs( NITFImage *psImage )
 {
     const char *pachTRE;
     int        nTRESize;
@@ -2554,18 +2501,23 @@ int NITFReadBLOCKA_GCPs( NITFImage *psImage, GDAL_GCP *psIGEOLOGCPs )
 
     /* ---------------------------------------------------------------- */
     /* Note that the order of these coordinates is different from       */
-    /* IGEOLO.                                                          */
+    /* IGEOLO/NITFImage.                                                */
     /*                   IGEOLO            BLOCKA                       */
-    /* psIGEOLOGCPs[0]   0, 0              0, MaxCol                    */
-    /* psIGEOLOGCPs[1]   0, MaxCol         MaxRow, MaxCol               */
-    /* psIGEOLOGCPs[2]   MaxRow, MaxCol    MaxRow, 0                    */
-    /* psIGEOLOGCPs[3]   MaxRow, 0         0, 0                         */
+    /*                   0, 0              0, MaxCol                    */
+    /*                   0, MaxCol         MaxRow, MaxCol               */
+    /*                   MaxRow, MaxCol    MaxRow, 0                    */
+    /*                   MaxRow, 0         0, 0                         */
     /* ---------------------------------------------------------------- */
+    {
+        double *pdfXYs = &(psImage->dfULX);
 
-    NITFGetGCP ( pachTRE + 34, psIGEOLOGCPs, 1 );
-    NITFGetGCP ( pachTRE + 55, psIGEOLOGCPs, 2 );
-    NITFGetGCP ( pachTRE + 76, psIGEOLOGCPs, 3 );
-    NITFGetGCP ( pachTRE + 97, psIGEOLOGCPs, 0 );
+        NITFGetGCP ( pachTRE + 34, pdfXYs, 1 );
+        NITFGetGCP ( pachTRE + 55, pdfXYs, 2 );
+        NITFGetGCP ( pachTRE + 76, pdfXYs, 3 );
+        NITFGetGCP ( pachTRE + 97, pdfXYs, 0 );
+        
+        psImage->bIsBoxCenterOfPixel = TRUE;
+    }
 
     /* ---------------------------------------------------------------- */
     /* Regardless of the former value of ICORDS, the values are now in  */
@@ -2576,6 +2528,83 @@ int NITFReadBLOCKA_GCPs( NITFImage *psImage, GDAL_GCP *psIGEOLOGCPs )
 
     return TRUE;
 }
+
+/************************************************************************/
+/*                        NITFReadGEOLOB()                              */
+/*                                                                      */
+/*      The GEOLOB contains high precision lat/long geotransform        */
+/*      values.                                                         */
+/************************************************************************/
+
+static int NITFReadGEOLOB( NITFImage *psImage )
+{
+    const char *pachTRE;
+    int        nTRESize;
+    char       szTemp[128];
+    int        nRemainingBytes;
+
+/* -------------------------------------------------------------------- */
+/*      Do we have the TRE?                                             */
+/* -------------------------------------------------------------------- */
+    pachTRE = NITFFindTRE( psImage->pachTRE, psImage->nTREBytes, 
+                           "GEOLOB", &nTRESize );
+
+    if( pachTRE == NULL )
+        return FALSE;
+
+    if( !CSLTestBoolean(CPLGetConfigOption( "NITF_USEGEOLOB", "YES" )) )
+    {
+        CPLDebug( "NITF", "GEOLOB available, but ignored by request." );
+        return FALSE;
+    }
+
+    if( nTRESize != 48 )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                "Cannot read GEOLOB TRE. Wrong size.");
+        return FALSE;
+    }
+
+    nRemainingBytes = psImage->nTREBytes - (pachTRE - psImage->pachTRE);
+    if (nRemainingBytes < 48)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                "Cannot read GEOLOB TRE. Not enough bytes");
+        return FALSE;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Parse out field values.                                         */
+/* -------------------------------------------------------------------- */
+    {
+        double dfARV = atoi(NITFGetField( szTemp, pachTRE, 0, 9 ));
+        double dfBRV = atoi(NITFGetField( szTemp, pachTRE, 9, 9 ));
+        
+        double dfLSO = atof(NITFGetField( szTemp, pachTRE, 18, 15 ));
+        double dfPSO = atof(NITFGetField( szTemp, pachTRE, 33, 15 ));
+        
+        double dfPixelWidth  = 360.0 / dfARV;
+        double dfPixelHeight = 360.0 / dfBRV;
+        
+        psImage->dfULX = dfLSO;
+        psImage->dfURX = psImage->dfULX + psImage->nCols * dfPixelWidth;
+        psImage->dfLLX = psImage->dfULX;
+        psImage->dfLRX = psImage->dfURX;
+        
+        psImage->dfULY = dfPSO;
+        psImage->dfURY = psImage->dfULY;
+        psImage->dfLLY = psImage->dfULY - psImage->nRows * dfPixelHeight;
+        psImage->dfLRY = psImage->dfLLY;
+
+        psImage->bIsBoxCenterOfPixel = FALSE; // GEOLOB is edge of pixel.
+        psImage->chICORDS = 'D';
+        
+        CPLDebug( "NITF", "IGEOLO bounds overridden by GEOLOB TRE." );
+    }
+
+    return TRUE;
+}
+
 
 /************************************************************************/
 /*                         NITFFetchAttribute()                         */
