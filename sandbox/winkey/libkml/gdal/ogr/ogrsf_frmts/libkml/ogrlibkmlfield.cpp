@@ -253,13 +253,39 @@ void field2kml (
         poKmlSchemaData->set_schemaurl (oKmlSchemaURL);
     }
             
+    const char *namefield =
+        CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
+    const char *descfield =
+        CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "description" );
+    const char *tsfield =
+        CPLGetConfigOption ( "LIBKML_TIMESTAMP_FIELD", "timestamp" );
+    const char *beginfield =
+        CPLGetConfigOption ( "LIBKML_BEGIN_FIELD", "begin" );
+    const char *endfield =
+        CPLGetConfigOption ( "LIBKML_END_FIELD", "end" );
+    const char *altitudeModefield =
+        CPLGetConfigOption ( "LIBKML_ALTITUDEMODE_FIELD", "altitudeMode" );
+    const char *tessellatefield =
+        CPLGetConfigOption ( "LIBKML_TESSELLATE_FIELD", "tessellate" );
+    const char *extrudefield =
+        CPLGetConfigOption ( "LIBKML_EXTRUDE_FIELD", "extrude" );
+    const char *visibilityfield =
+        CPLGetConfigOption ( "LIBKML_VISIBILITY_FIELD", "visibility" );
+        
     TimeSpanPtr poKmlTimeSpan = NULL;
 
     int nFields = poOgrFeat->GetFieldCount (  );
-
+    int iSkip1 = -1;
+    int iSkip2 = -1;
+    
     for ( i = 0; i < nFields; i++ ) {
 
-      /***** if the field isn't set just bail now *****/
+        /***** if the field is set to skip, do so *****/
+        
+        if (i == iSkip1 || i == iSkip2 )
+            continue;
+
+        /***** if the field isn't set just bail now *****/
 
         if ( !poOgrFeat->IsFieldSet ( i ) )
             continue;
@@ -268,27 +294,9 @@ void field2kml (
         OGRFieldType type = poOgrFieldDef->GetType (  );
         const char *name = poOgrFieldDef->GetNameRef (  );
 
-        const char *namefield =
-            CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
-        const char *descfield =
-            CPLGetConfigOption ( "LIBKML_DESCRIPTION_FIELD", "description" );
-        const char *tsfield =
-            CPLGetConfigOption ( "LIBKML_TIMESTAMP_FIELD", "timestamp" );
-        const char *beginfield =
-            CPLGetConfigOption ( "LIBKML_BEGIN_FIELD", "begin" );
-        const char *endfield =
-            CPLGetConfigOption ( "LIBKML_END_FIELD", "end" );
-        const char *altitudeModefield =
-            CPLGetConfigOption ( "LIBKML_ALTITUDEMODE_FIELD", "altitudeMode" );
-        const char *tessellatefield =
-            CPLGetConfigOption ( "LIBKML_TESSELLATE_FIELD", "tessellate" );
-        const char *extrudefield =
-            CPLGetConfigOption ( "LIBKML_EXTRUDE_FIELD", "extrude" );
-        const char *visibilityfield =
-            CPLGetConfigOption ( "LIBKML_VISIBILITY_FIELD", "visibility" );
-        
         SimpleDataPtr poKmlSimpleData = NULL;
-
+        int year, month, day, hour, min, sec, tz;
+        
         switch ( type ) {
 
         case OFTString:        //     String of ASCII chars
@@ -296,7 +304,7 @@ void field2kml (
 
                 /***** name *****/
 
-                if ( !strcasecmp ( name, namefield ) ) {
+                if ( EQUAL ( name, namefield ) ) {
                     poKmlPlacemark->set_name ( poOgrFeat->
                                                GetFieldAsString ( i ) );
                     continue;
@@ -312,7 +320,7 @@ void field2kml (
                 
                 /***** altitudemode *****/
 
-                else if ( !strcasecmp ( name, altitudeModefield ) ) {
+                else if ( EQUAL ( name, altitudeModefield ) ) {
                     const char *pszAltitudeMode = poOgrFeat->GetFieldAsString ( i );
                     
                     int isGX = FALSE;
@@ -357,29 +365,97 @@ void field2kml (
 
                 break;
             }
-#warning we need some kind of look ahead to get a time field if its a date field
-
 
         case OFTDate:          //   Date
+            {
+                poOgrFeat->GetFieldAsDateTime ( i, &year, &month, &day,
+                                                &hour, &min, &sec, &tz );
+
+                int iTimeField;
+                for (iTimeField = i + 1; iTimeField < nFields; iTimeField++) {
+                    if ( iTimeField == iSkip1 || iTimeField == iSkip2 )
+                        continue;
+
+                    OGRFieldDefn *poOgrFieldDef2 = poOgrFeat->GetFieldDefnRef ( i );
+                    OGRFieldType type2 = poOgrFieldDef2->GetType (  );
+                    const char *name2 = poOgrFieldDef2->GetNameRef (  );
+                    
+                    if ( EQUAL ( name2, name ) && type2 == OFTTime &&
+                         ( EQUAL (name, tsfield) ||
+                           EQUAL (name, beginfield ) ||
+                           EQUAL (name, endfield ))) {
+                        
+                        int year2, month2, day2, hour2, min2, sec2, tz2;
+                        poOgrFeat->GetFieldAsDateTime ( iTimeField, &year2,
+                                                        &month2, &day2, &hour2,
+                                                        &min2, &sec2, &tz2 );
+
+                        hour = hour2;
+                        min = min2;
+                        sec = sec2;
+                        tz = tz2;
+
+                        if (0 > iSkip1)
+                           iSkip1 =  iTimeField;
+                        else
+                            iSkip2 =  iTimeField;
+                    }
+                }
+
+                goto Do_DateTime;
+                        
+            }
+
+            
+        case OFTTime:          //   Time
+            {
+                poOgrFeat->GetFieldAsDateTime ( i, &year, &month, &day,
+                                                &hour, &min, &sec, &tz );
+
+                int iTimeField;
+                for (iTimeField = i + 1; iTimeField < nFields; iTimeField++) {
+                    if ( iTimeField == iSkip1 || iTimeField == iSkip2 )
+                        continue;
+
+                    OGRFieldDefn *poOgrFieldDef2 = poOgrFeat->GetFieldDefnRef ( i );
+                    OGRFieldType type2 = poOgrFieldDef2->GetType (  );
+                    const char *name2 = poOgrFieldDef2->GetNameRef (  );
+                    
+                    if ( EQUAL ( name2, name ) && type2 == OFTTime &&
+                         ( EQUAL (name, tsfield) ||
+                           EQUAL (name, beginfield ) ||
+                           EQUAL (name, endfield ))) {
+                        
+                        int year2, month2, day2, hour2, min2, sec2, tz2;
+                        poOgrFeat->GetFieldAsDateTime ( iTimeField, &year2,
+                                                        &month2, &day2, &hour2,
+                                                        &min2, &sec2, &tz2 );
+
+                        year = year2;
+                        month = month2;
+                        day = day2;
+                        
+                        if (0 > iSkip1)
+                           iSkip1 =  iTimeField;
+                        else
+                            iSkip2 =  iTimeField; 
+                    }
+                }
+
+                goto Do_DateTime;
+                        
+            }
+            
         case OFTDateTime:      //  Date and Time
             {
+                poOgrFeat->GetFieldAsDateTime ( i, &year, &month, &day,
+                                                &hour, &min, &sec, &tz );
+
+Do_DateTime:                
                 /***** timestamp *****/
 
-                if ( !strcasecmp ( name, tsfield ) ) {
-
-                    int year,
-                        month,
-                        day,
-                        hour,
-                        min,
-                        sec,
-                        tz;
-
-                    poOgrFeat->GetFieldAsDateTime ( i,
-                                                    &year, &month, &day,
-                                                    &hour, &min, &sec, &tz );
-
-
+                if ( EQUAL ( name, tsfield ) ) {
+                    
                     char *timebuf = OGRGetXMLDateTime(year, month, day, hour,
                                                       min, sec, tz);
                     
@@ -393,20 +469,7 @@ void field2kml (
 
                 /***** begin *****/
 
-                if ( !strcasecmp ( name, beginfield ) ) {
-
-                    int year,
-                        month,
-                        day,
-                        hour,
-                        min,
-                        sec,
-                        tz;
-
-                    poOgrFeat->GetFieldAsDateTime ( i,
-                                                    &year, &month, &day,
-                                                    &hour, &min, &sec, &tz );
-
+                if ( EQUAL ( name, beginfield ) ) {
 
                     char *timebuf = OGRGetXMLDateTime(year, month, day, hour,
                                                       min, sec, tz);
@@ -424,20 +487,8 @@ void field2kml (
 
                 /***** end *****/
 
-                else if ( !strcasecmp ( name, endfield ) ) {
+                else if ( EQUAL ( name, endfield ) ) {
 
-                    int year,
-                        month,
-                        day,
-                        hour,
-                        min,
-                        sec,
-                        tz;
-
-                    poOgrFeat->GetFieldAsDateTime ( i,
-                                                    &year, &month, &day,
-                                                    &hour, &min, &sec, &tz );
-                    
                     char *timebuf = OGRGetXMLDateTime(year, month, day, hour,
                                                       min, sec, tz);
                     
@@ -462,7 +513,6 @@ void field2kml (
                 break;
             }
 
-        case OFTTime:          //   Time
         case OFTStringList:    //     Array of strings
         case OFTBinary:        //     Raw Binary data
                 
@@ -475,10 +525,9 @@ void field2kml (
             break;
         case OFTInteger:       //    Simple 32bit integer
 
-            
             /***** extrude *****/
             
-            if ( !strcasecmp ( name, extrudefield ) ) {
+            if ( EQUAL ( name, extrudefield ) ) {
 
                 if (poKmlPlacemark->has_geometry() && -1 < poOgrFeat->GetFieldAsInteger ( i ) ) {
                     GeometryPtr poKmlGeometry = poKmlPlacemark->get_geometry();
@@ -490,7 +539,7 @@ void field2kml (
             /***** tessellate *****/
             
 
-            if ( !strcasecmp ( name, tessellatefield ) ) {
+            if ( EQUAL ( name, tessellatefield ) ) {
 
                 if (poKmlPlacemark->has_geometry() && -1 < poOgrFeat->GetFieldAsInteger ( i ) ) {
                     GeometryPtr poKmlGeometry = poKmlPlacemark->get_geometry();
@@ -503,7 +552,7 @@ void field2kml (
             
             /***** visibility *****/
             
-            if ( !strcasecmp ( name, visibilityfield ) ) {
+            if ( EQUAL ( name, visibilityfield ) ) {
                 if ( -1 < poOgrFeat->GetFieldAsInteger ( i ) )
                     poKmlPlacemark->set_visibility ( poOgrFeat->GetFieldAsInteger ( i ) );
                 
@@ -906,24 +955,19 @@ void kml2field (
             if (kml2altitudemode_rec ( poKmlGeometry,
                                        &nAltitudeMode,
                                        &bIsGX) ) {
-                 printf("gotcha1 %i %i\n", bIsGX, FALSE);
-                
+                 
                  if (!bIsGX) {
-                     printf("gotcha2\n");
-                
+                     
                      switch (nAltitudeMode) {
                          case kmldom::ALTITUDEMODE_CLAMPTOGROUND:
-                             printf("gotcha3\n");
                              poOgrFeat->SetField ( iField, "clampToGround");
                              break;
 
                          case kmldom::ALTITUDEMODE_RELATIVETOGROUND:
-                             printf("gotcha4\n");
                              poOgrFeat->SetField ( iField, "relativeToGround");
                              break;
 
                          case kmldom::ALTITUDEMODE_ABSOLUTE:
-                             printf("gotcha5\n");
                              poOgrFeat->SetField ( iField, "absolute");
                              break;
                          
