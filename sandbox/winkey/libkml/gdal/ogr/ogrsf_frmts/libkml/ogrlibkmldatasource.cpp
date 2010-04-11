@@ -388,8 +388,11 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
 void OGRLIBKMLDataSource::ParseSchemas (
     DocumentPtr poKmlDocument )
 {
+    /***** if document is null just bail now *****/
 
-
+    if (!poKmlDocument)
+        return;
+    
     size_t nKmlSchemas = poKmlDocument->get_schema_array_size (  );
     size_t iKmlSchema;
     
@@ -482,6 +485,11 @@ int OGRLIBKMLDataSource::ParseLayers (
 {
     int nResult = 0;
 
+    /***** if container is null just bail now *****/
+
+    if (!poKmlContainer)
+        return nResult;
+    
     size_t nKmlFeatures = poKmlContainer->get_feature_array_size (  );
 
     /***** loop over the container to seperate the style, layers, etc *****/

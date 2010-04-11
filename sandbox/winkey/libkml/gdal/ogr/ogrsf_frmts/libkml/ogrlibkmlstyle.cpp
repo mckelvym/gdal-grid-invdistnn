@@ -625,6 +625,11 @@ void ParseStyles (
     OGRStyleTable **poStyleTable)
 {
 
+    /***** if document is null just bail now *****/
+
+    if (!poKmlDocument)
+        return;
+    
     /***** loop over the Styles *****/
 
     size_t nKmlStyles = poKmlDocument->get_styleselector_array_size (  );
@@ -634,6 +639,7 @@ void ParseStyles (
 
         StyleSelectorPtr poKmlStyle =
             poKmlDocument->get_styleselector_array_at ( iKmlStyle );
+        
         if (!poKmlStyle->IsA(kmldom::Type_Style))
             continue;
     
