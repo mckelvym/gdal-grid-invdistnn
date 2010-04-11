@@ -40,6 +40,7 @@ using kmldom::StyleSelectorPtr;
 using kmldom::LineStylePtr;
 using kmldom::PolyStylePtr;
 using kmldom::IconStylePtr;
+using kmldom::IconStyleIconPtr;
 using kmldom::LabelStylePtr;
 using kmldom::HotSpotPtr;
 using kmlbase::Color32;
@@ -86,6 +87,12 @@ void addstylestring2kml (
     KmlFactory * poKmlFactory )
 {
 
+    /***** just bail now if stylestring is empty *****/
+
+    if (!pszStyleString || !*pszStyleString) {
+        return;
+    }
+
     /***** create and init a style mamager with the style string *****/
 
     OGRStyleMgr *poOgrSM = new OGRStyleMgr;
@@ -98,13 +105,11 @@ void addstylestring2kml (
 
     for ( i = 0; i < poOgrSM->GetPartCount ( NULL ); i++ ) {
         OGRStyleTool *poOgrST = poOgrSM->GetPart ( i, NULL );
+
         if (!poOgrST) {
-#warning figure out why this is this way
-            fprintf (stderr, "For some od reason poOgrST is null, skipping\n");
             continue;
         }
-        
-
+         
         switch ( poOgrST->GetType (  ) ) {
             case OGRSTCPen:
             {
@@ -131,8 +136,13 @@ void addstylestring2kml (
                 break;
             }
             case OGRSTCLabel:
-#warning do the label case
-            case OGRSTCNone:
+            {
+                LabelStylePtr poKmlLabelStyle =
+                    label2kml ( poOgrST, poKmlFactory );
+                poKmlStyle->set_labelstyle ( poKmlLabelStyle );
+
+                break;
+            }            case OGRSTCNone:
             default:
                 break;
         }
@@ -321,11 +331,33 @@ IconStylePtr symbol2kml (
     const char *pszId = poStyleSymbol->Id ( nullcheck );
 
     if ( !nullcheck ) {
+
+        /***** split it at the ,'s *****/
+
+        char **papszTokens = CSLTokenizeString2 (pszId, ",", CSLT_HONOURSTRINGS
+                                                 | CSLT_STRIPLEADSPACES
+                                                 | CSLT_STRIPENDSPACES );
+
+        if ( papszTokens ) {
+
+            /***** for lack of a better solution just take the first one *****/
+            //todo come up with a better idea
+            
+            if (papszTokens[0]) {
+                IconStyleIconPtr poKmlIcon =  poKmlFactory->CreateIconStyleIcon();
+                poKmlIcon->set_href (papszTokens[0]);
+                poKmlIconStyle->set_icon(poKmlIcon);
+            }
+
+            CSLDestroy( papszTokens );
+            
+        }
+
+        
     }
-#warning set the icon		id = NULL;
 
     /***** heading *****/
-
+    
     double heading = poStyleSymbol->Angle ( nullcheck );
 
     if ( !nullcheck )
@@ -361,7 +393,7 @@ IconStylePtr symbol2kml (
 
         poKmlHotSpot->set_x ( dfDx );
         poKmlHotSpot->set_y ( dfDy );
-#warning set units
+
         poKmlIconStyle->set_hotspot ( poKmlHotSpot );
     }
 
@@ -376,12 +408,27 @@ LabelStylePtr label2kml (
     OGRStyleTool * poOgrST,
     KmlFactory * poKmlFactory )
 {
+    GBool nullcheck;
 
     LabelStylePtr poKmlLabelStyle = poKmlFactory->CreateLabelStyle (  );
+    
+    OGRStyleLabel *poStyleLabel = ( OGRStyleLabel * ) poOgrST;
 
+    /***** color *****/
 
-#warning do the labelstyle *****/
+    int nR,
+        nG,
+        nB,
+        nA;
 
+    const char *pszcolor = poStyleLabel->ForeColor ( nullcheck );
+
+    if ( !nullcheck
+         && poStyleLabel->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
+        poKmlLabelStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+    }
+
+    
     return poKmlLabelStyle;
 }
 
@@ -452,8 +499,17 @@ OGRStyleSymbol *kml2symbol (
 
     /***** id (kml icon) *****/
 
-#warning set the icon		id = NULL;
+    if ( poKmlIconStyle->has_icon()) {
+        IconStyleIconPtr poKmlIcon = poKmlIconStyle->get_icon();
+        if (poKmlIcon->has_href()) {
+            std::string oIcon = "\"";
+            oIcon.append(poKmlIcon->get_href().c_str());
+            oIcon.append("\"");
+            poOgrStyleSymbol->SetId ( oIcon.c_str() );
 
+        }
+    }
+    
     /***** heading *****/
 
     if ( poKmlIconStyle->has_heading (  ) )
@@ -486,8 +542,6 @@ OGRStyleSymbol *kml2symbol (
         if ( poKmlHotSpot->has_y (  ) )
             poOgrStyleSymbol->SetSpacingY ( poKmlHotSpot->get_y (  ) );
 
-#warning set units
-
     }
 
     return poOgrStyleSymbol;
@@ -503,7 +557,17 @@ OGRStyleLabel *kml2label (
 
     OGRStyleLabel *poOgrStyleLabel = new OGRStyleLabel (  );
 
-#warning do the labelstyle
+    /***** color *****/
+
+    if ( poKmlLabelStyle->has_color (  ) ) {
+        Color32 poKmlColor = poKmlLabelStyle->get_color (  );
+        char szColor[9] = { };
+        snprintf ( szColor, sizeof ( szColor ), "#%X%X%X%X",
+                   poKmlColor.get_red (  ),
+                   poKmlColor.get_green (  ),
+                   poKmlColor.get_blue (  ), poKmlColor.get_alpha (  ) );
+        poOgrStyleLabel->SetForColor ( szColor );
+    }
 
     return poOgrStyleLabel;
 }
