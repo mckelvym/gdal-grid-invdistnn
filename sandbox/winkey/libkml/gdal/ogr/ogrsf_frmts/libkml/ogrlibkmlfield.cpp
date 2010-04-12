@@ -173,6 +173,7 @@ void ogr2tessellate_rec (
     GeometryPtr poKmlGeometry)
 {
 
+    LineStringPtr poKmlLineString;
     PolygonPtr poKmlPolygon;
     MultiGeometryPtr poKmlMultiGeometry;
 
@@ -180,6 +181,17 @@ void ogr2tessellate_rec (
     size_t i;
         
     switch ( poKmlGeometry->Type (  ) ) {
+
+        case kmldom::Type_Point:
+            break;
+                    
+        case kmldom::Type_LineString:
+            poKmlLineString = AsLineString(poKmlGeometry);
+            poKmlLineString->set_tessellate ( nTessellate );
+            break;
+
+        case kmldom::Type_LinearRing:
+            break;
 
         case kmldom::Type_Polygon:
             poKmlPolygon = AsPolygon(poKmlGeometry);
@@ -197,9 +209,6 @@ void ogr2tessellate_rec (
 
             break;
                 
-        case kmldom::Type_Point:
-        case kmldom::Type_LineString:
-        case kmldom::Type_LinearRing:
         default:
             break;
 
@@ -774,6 +783,7 @@ int kml2tessellate_rec (
     int *pnTessellate)
 {
 
+    LineStringPtr poKmlLineString;
     PolygonPtr poKmlPolygon;
     MultiGeometryPtr poKmlMultiGeometry;
 
@@ -782,6 +792,21 @@ int kml2tessellate_rec (
         
     switch ( poKmlGeometry->Type (  ) ) {
 
+        case kmldom::Type_Point:
+            break;
+                        
+        case kmldom::Type_LineString:
+            poKmlLineString = AsLineString(poKmlGeometry);
+                        
+            if (poKmlLineString->has_tessellate ()) {
+                *pnTessellate = poKmlLineString->get_tessellate ( );
+                return TRUE;
+            }
+
+            break;
+
+        case kmldom::Type_LinearRing:
+            break;
             
         case kmldom::Type_Polygon:
             poKmlPolygon = AsPolygon(poKmlGeometry);
@@ -806,9 +831,6 @@ int kml2tessellate_rec (
 
             break;
                 
-        case kmldom::Type_Point:
-        case kmldom::Type_LineString:
-        case kmldom::Type_LinearRing:
         default:
             break;
 
