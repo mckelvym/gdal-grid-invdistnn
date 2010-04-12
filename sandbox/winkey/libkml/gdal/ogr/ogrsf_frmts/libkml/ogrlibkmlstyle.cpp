@@ -266,7 +266,6 @@ LineStylePtr pen2kml (
     if ( !nullcheck
          && poStylePen->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
         poKmlLineStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
-    printf("%x %x %x %x\n",nR, nG, nB, nA);
     }
     double dfWidth = poStylePen->Width ( nullcheck );
 
@@ -304,7 +303,6 @@ PolyStylePtr brush2kml (
     if ( !nullcheck
          && poStyleBrush->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
         poKmlPolyStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
-    printf("%s %x %x %x %x\n", pszcolor ,nR, nG, nB, nA);
     }
 
 
@@ -452,8 +450,8 @@ OGRStylePen *kml2pen (
 
     if ( poKmlLineStyle->has_color (  ) ) {
         Color32 poKmlColor = poKmlLineStyle->get_color (  );
-        char szColor[9] = { };
-        snprintf ( szColor, sizeof ( szColor ), "#%X%X%X%X",
+        char szColor[10] = { };
+        snprintf ( szColor, sizeof ( szColor ), "#%02X%02X%02X%02X",
                    poKmlColor.get_red (  ),
                    poKmlColor.get_green (  ),
                    poKmlColor.get_blue (  ), poKmlColor.get_alpha (  ) );
@@ -477,8 +475,8 @@ OGRStyleBrush *kml2brush (
 
     if ( poKmlPolyStyle->has_color (  ) ) {
         Color32 poKmlColor = poKmlPolyStyle->get_color (  );
-        char szColor[9] = { };
-        snprintf ( szColor, sizeof ( szColor ), "#%X%X%X%X",
+        char szColor[10] = { };
+        snprintf ( szColor, sizeof ( szColor ), "#%02X%02X%02X%02X",
                    poKmlColor.get_red (  ),
                    poKmlColor.get_green (  ),
                    poKmlColor.get_blue (  ), poKmlColor.get_alpha (  ) );
@@ -525,8 +523,8 @@ OGRStyleSymbol *kml2symbol (
 
     if ( poKmlIconStyle->has_color (  ) ) {
         Color32 poKmlColor = poKmlIconStyle->get_color (  );
-        char szColor[9] = { };
-        snprintf ( szColor, sizeof ( szColor ), "#%X%X%X%X",
+        char szColor[10] = { };
+        snprintf ( szColor, sizeof ( szColor ), "#%02X%02X%02X%02X",
                    poKmlColor.get_red (  ),
                    poKmlColor.get_green (  ),
                    poKmlColor.get_blue (  ), poKmlColor.get_alpha (  ) );
@@ -562,8 +560,8 @@ OGRStyleLabel *kml2label (
 
     if ( poKmlLabelStyle->has_color (  ) ) {
         Color32 poKmlColor = poKmlLabelStyle->get_color (  );
-        char szColor[9] = { };
-        snprintf ( szColor, sizeof ( szColor ), "#%X%X%X%X",
+        char szColor[10] = { };
+        snprintf ( szColor, sizeof ( szColor ), "#%02X%02X%02X%02X",
                    poKmlColor.get_red (  ),
                    poKmlColor.get_green (  ),
                    poKmlColor.get_blue (  ), poKmlColor.get_alpha (  ) );
