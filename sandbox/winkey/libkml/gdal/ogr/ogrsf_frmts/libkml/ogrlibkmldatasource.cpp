@@ -1341,18 +1341,18 @@ OGRLayer *OGRLIBKMLDataSource::CreateLayerKml (
 
     OGRLIBKMLLayer *poOgrLayer = NULL;
 
-    FolderPtr poKmlFolder = m_poKmlFactory->CreateFolder (  );
-
-    m_poKmlDSContainer->add_feature ( poKmlFolder );
+    DocumentPtr poKmlDocument = m_poKmlFactory->CreateDocument (  );
+    
+    m_poKmlDSContainer->add_feature ( poKmlDocument );
 
     /***** create the layer *****/
 
     poOgrLayer = AddLayer ( pszLayerName, poOgrSRS, eGType, this,
-                            poKmlFolder, "", TRUE, bUpdate, 1 );
+                            poKmlDocument, "", TRUE, bUpdate, 1 );
 
     /***** add the layer name as a <Name> *****/
 
-    poKmlFolder->set_name(pszLayerName); 
+    poKmlDocument->set_name(pszLayerName); 
 
     return ( OGRLayer * ) poOgrLayer;
 }
