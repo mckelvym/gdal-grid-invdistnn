@@ -266,8 +266,8 @@ LineStylePtr pen2kml (
     if ( !nullcheck
          && poStylePen->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
         poKmlLineStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+    printf("%x %x %x %x\n",nR, nG, nB, nA);
     }
-
     double dfWidth = poStylePen->Width ( nullcheck );
 
     if ( nullcheck )
@@ -304,6 +304,7 @@ PolyStylePtr brush2kml (
     if ( !nullcheck
          && poStyleBrush->GetRGBFromString ( pszcolor, nR, nG, nB, nA ) ) {
         poKmlPolyStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
+    printf("%s %x %x %x %x\n", pszcolor ,nR, nG, nB, nA);
     }
 
 
