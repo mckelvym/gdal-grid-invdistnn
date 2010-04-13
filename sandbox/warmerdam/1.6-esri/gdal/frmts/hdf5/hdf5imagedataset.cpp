@@ -431,16 +431,7 @@ GDALDataset *HDF5ImageDataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->nRasterXSize = poDS->dims[poDS->ndims-1];   // X alway last
 
     if( poDS->ndims == 3 )
-    {
-        if( poDS->dims[0] < poDS->dims[poDS->ndims-2] && poDS->dims[0] < poDS->dims[poDS->ndims-1] )
-            poDS->nBands = poDS->dims[0];
-        else
-        {
-            poDS->nBands = poDS->dims[2];
-            poDS->nRasterYSize = poDS->dims[0];   // Y
-            poDS->nRasterXSize = poDS->dims[1];   // X alway last
-        }
-    }
+        poDS->nBands = poDS->dims[0];
 
     for(  i = 1; i <= poDS->nBands; i++ ) {
 	HDF5ImageRasterBand *poBand = 
@@ -518,6 +509,9 @@ CPLErr HDF5ImageDataset::CreateProjections()
 
     nDeltaLat = nRasterYSize / NBGCPLAT;
     nDeltaLon = nRasterXSize / NBGCPLON;
+
+    if( nDeltaLat == 0 || nDeltaLon == 0 )
+      return CE_None;
 
 /* -------------------------------------------------------------------- */
 /*      Create HDF5 Data Hierarchy in a link list                       */
