@@ -336,9 +336,8 @@ GDALDataset *HDF5ImageDataset::Open( GDALOpenInfo * poOpenInfo )
     /* -------------------------------------------------------------------- */
     /*      Create a corresponding GDALDataset.                             */
     /* -------------------------------------------------------------------- */
-    /* printf("poOpenInfo->pszFilename %s\n",poOpenInfo->pszFilename); */
     char **papszName = CSLTokenizeString2(  poOpenInfo->pszFilename,
-                                            ":", CSLT_HONOURSTRINGS );
+                                            ":", CSLT_HONOURSTRINGS | CSLT_PRESERVEESCAPES );
 
     if( !((CSLCount(papszName) == 3) || (CSLCount(papszName) == 4)) )
     {
@@ -425,16 +424,23 @@ GDALDataset *HDF5ImageDataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->datatype = H5Dget_type( poDS->dataset_id );
     poDS->clas     = H5Tget_class( poDS->datatype );
     poDS->size     = H5Tget_size( poDS->datatype );
-    poDS->address = H5Dget_offset( poDS->dataset_id );
-    poDS->native  = H5Tget_native_type( poDS->datatype, H5T_DIR_ASCEND );
+    poDS->address  = H5Dget_offset( poDS->dataset_id );
+    poDS->native   = H5Tget_native_type( poDS->datatype, H5T_DIR_ASCEND );
+    poDS->nBands   = 1;
+    poDS->nRasterYSize = poDS->dims[poDS->ndims-2];   // Y
+    poDS->nRasterXSize = poDS->dims[poDS->ndims-1];   // X alway last
 
-    poDS->nRasterYSize=poDS->dims[poDS->ndims-2];   // Y
-    poDS->nRasterXSize=poDS->dims[poDS->ndims-1];   // X alway last
-
-    poDS->nBands=1;
-
-    if( poDS->ndims == 3 ) poDS->nBands=poDS->dims[0];
-
+    if( poDS->ndims == 3 )
+    {
+        if( poDS->dims[0] < poDS->dims[poDS->ndims-2] && poDS->dims[0] < poDS->dims[poDS->ndims-1] )
+            poDS->nBands = poDS->dims[0];
+        else
+        {
+            poDS->nBands = poDS->dims[2];
+            poDS->nRasterYSize = poDS->dims[0];   // Y
+            poDS->nRasterXSize = poDS->dims[1];   // X alway last
+        }
+    }
 
     for(  i = 1; i <= poDS->nBands; i++ ) {
 	HDF5ImageRasterBand *poBand = 
@@ -447,8 +453,6 @@ GDALDataset *HDF5ImageDataset::Open( GDALOpenInfo * poOpenInfo )
     }
 
     
-    poDS->oSRS.SetWellKnownGeogCS( "WGS84" );
-    poDS->oSRS.exportToWkt( &poDS->pszProjection );
     poDS->CreateProjections( );
 
     poDS->SetMetadata( poDS->papszMetadata );
@@ -565,6 +569,7 @@ CPLErr HDF5ImageDataset::CreateProjections()
 	
 	oSRS.SetWellKnownGeogCS( "WGS84" );
   CPLFree(pszProjection);
+  CPLFree(pszGCPProjection);
 	oSRS.exportToWkt( &pszProjection );
 	oSRS.exportToWkt( &pszGCPProjection );
 	
