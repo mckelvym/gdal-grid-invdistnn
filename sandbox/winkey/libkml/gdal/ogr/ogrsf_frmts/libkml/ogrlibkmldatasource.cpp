@@ -945,7 +945,8 @@ int OGRLIBKMLDataSource::OpenDir (
     }
 
     delete poOgrSRS;
-
+    CSLDestroy(papszDirList);
+    
     return TRUE;
 }
 
