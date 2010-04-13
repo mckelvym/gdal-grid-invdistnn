@@ -706,6 +706,9 @@ herr_t HDF5AttrIterate( hid_t hH5ObjID,
 /************************************************************************/
 CPLErr HDF5Dataset::CreateMetadata( HDF5GroupObjects *poH5Object, int nType)
 {
+    if( !poH5Object->pszPath )
+	      return CE_None;
+
     hid_t	hGroupID;		/* identifier of group */
     hid_t       hDatasetID;
     int         nbAttrs;
