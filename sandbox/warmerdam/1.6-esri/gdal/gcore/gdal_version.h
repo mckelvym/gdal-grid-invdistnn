@@ -4,10 +4,10 @@
 /* -------------------------------------------------------------------- */
 
 #ifndef GDAL_VERSION_MAJOR
-#  define GDAL_VERSION_MAJOR    1
-#  define GDAL_VERSION_MINOR    6
-#  define GDAL_VERSION_REV      1
-#  define GDAL_VERSION_BUILD    1
+#  define GDAL_VERSION_MAJOR    10
+#  define GDAL_VERSION_MINOR    0
+#  define GDAL_VERSION_REV      0
+#  define GDAL_VERSION_BUILD    2370
 #endif
 
 #ifndef GDAL_VERSION_NUM
