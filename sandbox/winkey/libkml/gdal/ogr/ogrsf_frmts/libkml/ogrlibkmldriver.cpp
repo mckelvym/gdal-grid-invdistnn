@@ -30,13 +30,27 @@
 #include "cpl_conv.h"
 #include "cpl_error.h"
 
+#include <kml/dom.h>
 
+using kmldom::KmlFactory;
+
+/******************************************************************************
+ OGRLIBKMLDriver()
+******************************************************************************/
+
+OGRLIBKMLDriver::OGRLIBKMLDriver (  )
+{
+    m_poKmlFactory = KmlFactory::GetFactory (  );
+    
+}
 /******************************************************************************
  ~OGRLIBKMLDriver()
 ******************************************************************************/
 
 OGRLIBKMLDriver::~OGRLIBKMLDriver (  )
 {
+    delete m_poKmlFactory;
+
 }
 
 /******************************************************************************
@@ -58,7 +72,7 @@ OGRDataSource *OGRLIBKMLDriver::Open (
     const char *pszFilename,
     int bUpdate )
 {
-    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource (  );
+    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource ( m_poKmlFactory );
 
     if ( !poDS->Open ( pszFilename, bUpdate ) ) {
         delete poDS;
@@ -80,7 +94,7 @@ OGRDataSource *OGRLIBKMLDriver::CreateDataSource (
     CPLAssert ( NULL != pszName );
     CPLDebug ( "LIBKML", "Attempt to create: %s", pszName );
 
-    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource (  );
+    OGRLIBKMLDataSource *poDS = new OGRLIBKMLDataSource ( m_poKmlFactory );
 
     if ( !poDS->Create ( pszName, papszOptions ) ) {
         delete poDS;

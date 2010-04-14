@@ -70,7 +70,7 @@ using kmldom::KmlPtr;
                 
 ******************************************************************************/
 
-OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
+OGRLIBKMLDataSource::OGRLIBKMLDataSource ( KmlFactory *poKmlFactory )
 {
     pszName = NULL;
     papoLayers = NULL;
@@ -87,7 +87,7 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource (  )
     m_poKmlDocKml = NULL;
     pszStylePath = "";
     
-    m_poKmlFactory = KmlFactory::GetFactory (  );
+    m_poKmlFactory = poKmlFactory;
     
     //m_poStyleTable = NULL;
 
@@ -372,7 +372,6 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
 
     //delete m_poStyleTable;
     
-
 }
 
 

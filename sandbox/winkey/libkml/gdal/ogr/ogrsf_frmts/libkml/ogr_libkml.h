@@ -165,7 +165,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     //OGRStyleTable            *m_poStyleTable;
 
   public:
-    OGRLIBKMLDataSource       (  );
+    OGRLIBKMLDataSource       ( KmlFactory *poKmlFactory );
     ~OGRLIBKMLDataSource      (  );
 
     const char               *GetName (  ) { return pszName; };
@@ -274,7 +274,10 @@ class OGRLIBKMLDataSource:public OGRDataSource
 class OGRLIBKMLDriver:public OGRSFDriver
 {
     int bUpdate;
+    KmlFactory               *m_poKmlFactory;
+    
   public:
+    OGRLIBKMLDriver           (  );
     ~OGRLIBKMLDriver          (  );
 
     const char               *GetName (  );
