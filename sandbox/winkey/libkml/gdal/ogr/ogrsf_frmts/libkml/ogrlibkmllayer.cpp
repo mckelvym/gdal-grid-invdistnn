@@ -72,9 +72,9 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
                                  ElementPtr poKmlRoot,
                                  const char *pszFileName,
                                  int bNew,
-                                 int bUpdate)
+                                 int bUpdate )
 {
-    
+
     m_poStyleTable = NULL;
     iFeature = 0;
     nFeatures = 0;
@@ -87,20 +87,20 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
     m_poOgrSRS = new OGRSpatialReference ( NULL );
     m_poOgrSRS->SetWellKnownGeogCS ( "WGS84" );
 
-    m_poOgrFeatureDefn = new OGRFeatureDefn( pszLayerName );
-    m_poOgrFeatureDefn->Reference();
-    m_poOgrFeatureDefn->SetGeomType( eGType );
+    m_poOgrFeatureDefn = new OGRFeatureDefn ( pszLayerName );
+    m_poOgrFeatureDefn->Reference (  );
+    m_poOgrFeatureDefn->SetGeomType ( eGType );
 
     /***** store the root element pointer *****/
 
-    m_poKmlLayer = AsContainer( poKmlRoot);
+    m_poKmlLayer = AsContainer ( poKmlRoot );
 
     /***** was the layer created from a DS::Open *****/
-    
-    if (!bNew) {
+
+    if ( !bNew ) {
 
         /***** add the name and desc fields *****/
-        
+
         const char *namefield =
             CPLGetConfigOption ( "LIBKML_NAME_FIELD", "Name" );
         const char *descfield =
@@ -119,89 +119,118 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
             CPLGetConfigOption ( "LIBKML_EXTRUDE_FIELD", "extrude" );
         const char *visibilityfield =
             CPLGetConfigOption ( "LIBKML_VISIBILITY_FIELD", "visibility" );
-        
-        OGRFieldDefn oOgrFieldName( namefield, OFTString );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldName );
-    
-        OGRFieldDefn oOgrFieldDesc( descfield, OFTString );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldDesc );
 
-        OGRFieldDefn oOgrFieldTs( tsfield, OFTDateTime );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldTs );
+        OGRFieldDefn oOgrFieldName (
+    namefield,
+    OFTString );
 
-        OGRFieldDefn oOgrFieldBegin( beginfield, OFTDateTime );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldBegin );
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldName );
 
-        OGRFieldDefn oOgrFieldEnd( endfield, OFTDateTime );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldEnd );
+        OGRFieldDefn oOgrFieldDesc (
+    descfield,
+    OFTString );
 
-        OGRFieldDefn oOgrFieldAltitudeMode( altitudeModefield, OFTString );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldAltitudeMode );
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldDesc );
 
-        OGRFieldDefn oOgrFieldTessellate( tessellatefield, OFTInteger );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldTessellate );
+        OGRFieldDefn oOgrFieldTs (
+    tsfield,
+    OFTDateTime );
 
-        OGRFieldDefn oOgrFieldExtrude( extrudefield, OFTInteger );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldExtrude );
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldTs );
 
-        OGRFieldDefn oOgrFieldVisibility( visibilityfield, OFTInteger );
-        m_poOgrFeatureDefn->AddFieldDefn( &oOgrFieldVisibility );
+        OGRFieldDefn oOgrFieldBegin (
+    beginfield,
+    OFTDateTime );
+
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldBegin );
+
+        OGRFieldDefn oOgrFieldEnd (
+    endfield,
+    OFTDateTime );
+
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldEnd );
+
+        OGRFieldDefn oOgrFieldAltitudeMode (
+    altitudeModefield,
+    OFTString );
+
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldAltitudeMode );
+
+        OGRFieldDefn oOgrFieldTessellate (
+    tessellatefield,
+    OFTInteger );
+
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldTessellate );
+
+        OGRFieldDefn oOgrFieldExtrude (
+    extrudefield,
+    OFTInteger );
+
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldExtrude );
+
+        OGRFieldDefn oOgrFieldVisibility (
+    visibilityfield,
+    OFTInteger );
+
+        m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldVisibility );
 
         /***** get the styles *****/
 
-        if (m_poKmlLayer->IsA(kmldom::Type_Document))
+        if ( m_poKmlLayer->IsA ( kmldom::Type_Document ) )
             ParseStyles ( AsDocument ( m_poKmlLayer ), &m_poStyleTable );
 
         /***** get the schema if the layer is a Document *****/
-    
-        if ( m_poKmlLayer->IsA( kmldom::Type_Document ) ) {
-            DocumentPtr poKmlDocument = AsDocument(m_poKmlLayer);
-            if ( poKmlDocument->get_schema_array_size() ) {
-                m_poKmlSchema = poKmlDocument->get_schema_array_at(1);
 
-                kml2FeatureDef ( m_poKmlSchema, m_poOgrFeatureDefn);
+        if ( m_poKmlLayer->IsA ( kmldom::Type_Document ) ) {
+            DocumentPtr poKmlDocument = AsDocument ( m_poKmlLayer );
+
+            if ( poKmlDocument->get_schema_array_size (  ) ) {
+                m_poKmlSchema = poKmlDocument->get_schema_array_at ( 1 );
+
+                kml2FeatureDef ( m_poKmlSchema, m_poOgrFeatureDefn );
             }
         }
 
         /***** the schema is somewhere else *****/
- 
+
         else {
 #warning get the schema from somewhere
         }
 
         /***** get the number of features on the layer *****/
 
-        nFeatures = m_poKmlLayer->get_feature_array_size();
+        nFeatures = m_poKmlLayer->get_feature_array_size (  );
 
         /***** check if any features are another layer *****/
 
-        m_poOgrDS->ParseLayers ( m_poKmlLayer, poSpatialRef);
-        
+        m_poOgrDS->ParseLayers ( m_poKmlLayer, poSpatialRef );
+
     }
 
     /***** it was from a DS::CreateLayer *****/
-    
+
     else {
 
         /***** mark the layer as updated *****/
 
         bUpdated = TRUE;
-        
+
         /***** create a new schema *****/
-            
+
         KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
+
         m_poKmlSchema = poKmlFactory->CreateSchema (  );
 
         /***** set the id on the new schema *****/
-        
+
         std::string oKmlSchemaID = m_pszName;
-        oKmlSchemaID.append(".schema");
+        oKmlSchemaID.append ( ".schema" );
         m_poKmlSchema->set_id ( oKmlSchemaID );
     }
-    
 
-    
-    
+
+
+
 }
 
 /******************************************************************************
@@ -219,9 +248,10 @@ OGRLIBKMLLayer::~OGRLIBKMLLayer (  )
     CPLFree ( ( void * )m_pszName );
     CPLFree ( ( void * )m_pszFileName );
     delete m_poOgrSRS;
-    m_poOgrFeatureDefn->Release();
 
-    
+    m_poOgrFeatureDefn->Release (  );
+
+
 }
 
 /******************************************************************************
@@ -253,8 +283,9 @@ OGRFeature *OGRLIBKMLLayer::GetNextFeature (
     if ( iFeature <= nFeatures && poKmlFeature
          && poKmlFeature->Type (  ) == kmldom::Type_Placemark ) {
         poOgrFeature =
-             kml2feat ( AsPlacemark ( poKmlFeature ), m_poOgrDS, this, m_poOgrFeatureDefn );
-             poOgrFeature->SetFID(iFeature);
+            kml2feat ( AsPlacemark ( poKmlFeature ), m_poOgrDS, this,
+                       m_poOgrFeatureDefn );
+        poOgrFeature->SetFID ( iFeature );
     }
 
     return poOgrFeature;
@@ -309,17 +340,17 @@ OGRFeature *OGRLIBKMLLayer::GetFeature (
 OGRErr OGRLIBKMLLayer::SetFeature (
     OGRFeature * poFeature )
 {
-    if (!bUpdate)
+    if ( !bUpdate )
         return OGRERR_UNSUPPORTED_OPERATION;
 
-    
+
 #warning we need to figure this out
 
     /***** mark the layer as updated *****/
 
     bUpdated = TRUE;
-    m_poOgrDS->Updated();
-    
+    m_poOgrDS->Updated (  );
+
     return OGRERR_UNSUPPORTED_OPERATION;
 }
 
@@ -337,7 +368,7 @@ OGRErr OGRLIBKMLLayer::CreateFeature (
     OGRFeature * poOgrFeat )
 {
 
-    if (!bUpdate)
+    if ( !bUpdate )
         return OGRERR_UNSUPPORTED_OPERATION;
 
     PlacemarkPtr poKmlPlacemark =
@@ -348,8 +379,8 @@ OGRErr OGRLIBKMLLayer::CreateFeature (
     /***** mark the layer as updated *****/
 
     bUpdated = TRUE;
-    m_poOgrDS->Updated();
-    
+    m_poOgrDS->Updated (  );
+
     return OGRERR_NONE;
 }
 
@@ -365,16 +396,16 @@ OGRErr OGRLIBKMLLayer::CreateFeature (
 OGRErr OGRLIBKMLLayer::DeleteFeature (
     long nFID )
 {
-    if (!bUpdate)
+    if ( !bUpdate )
         return OGRERR_UNSUPPORTED_OPERATION;
-    
+
 #warning we need to figure this out
 
     /***** mark the layer as updated *****/
 
     bUpdated = TRUE;
-    m_poOgrDS->Updated();
-    
+    m_poOgrDS->Updated (  );
+
     return OGRERR_UNSUPPORTED_OPERATION;
 }
 
@@ -417,7 +448,7 @@ OGRErr OGRLIBKMLLayer::GetExtent (
     Bbox oKmlBbox;
 
     if ( kmlengine::
-         GetFeatureBounds ( AsFeature( m_poKmlLayer ), &oKmlBbox ) ) {
+         GetFeatureBounds ( AsFeature ( m_poKmlLayer ), &oKmlBbox ) ) {
         psExtent->MinX = oKmlBbox.get_west (  );
         psExtent->MinY = oKmlBbox.get_south (  );
         psExtent->MaxX = oKmlBbox.get_east (  );
@@ -448,21 +479,22 @@ OGRErr OGRLIBKMLLayer::CreateField (
     int bApproxOK )
 {
 
-    if (!bUpdate)
+    if ( !bUpdate )
         return OGRERR_UNSUPPORTED_OPERATION;
-    
+
     SimpleFieldPtr poKmlSimpleField = NULL;
-    
-    if (poKmlSimpleField = FieldDef2kml ( poField, m_poOgrDS->GetKmlFactory (  ) ))
+
+    if ( poKmlSimpleField =
+         FieldDef2kml ( poField, m_poOgrDS->GetKmlFactory (  ) ) )
         m_poKmlSchema->add_simplefield ( poKmlSimpleField );
-    
-    m_poOgrFeatureDefn->AddFieldDefn( poField );
+
+    m_poOgrFeatureDefn->AddFieldDefn ( poField );
 
     /***** mark the layer as updated *****/
 
     bUpdated = TRUE;
-    m_poOgrDS->Updated();
-    
+    m_poOgrDS->Updated (  );
+
     return OGRERR_NONE;
 }
 
@@ -481,7 +513,7 @@ OGRErr OGRLIBKMLLayer::SyncToDisk (
 {
 
     KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
-    KmzFile *poKmlKmzfile ;//= m_poOgrDS->GetKmz (  );
+    KmzFile *poKmlKmzfile;      //= m_poOgrDS->GetKmz (  );
 
     KmlPtr poKmlKml = poKmlFactory->CreateKml (  );
 
@@ -529,39 +561,40 @@ void OGRLIBKMLLayer::SetStyleTableDirectly (
     OGRStyleTable * poStyleTable )
 {
 
-    if (!bUpdate)
+    if ( !bUpdate )
         return;
 
     KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
-    
+
     if ( m_poStyleTable )
         delete m_poStyleTable;
 
     m_poStyleTable = poStyleTable;
 
-    if (m_poKmlLayer->IsA (kmldom::Type_Document)) {
+    if ( m_poKmlLayer->IsA ( kmldom::Type_Document ) ) {
 
         /***** delete all the styles *****/
-    
-        DocumentPtr poKmlDocument = AsDocument( m_poKmlLayer );
+
+        DocumentPtr poKmlDocument = AsDocument ( m_poKmlLayer );
         size_t nKmlStyles = poKmlDocument->get_schema_array_size (  );
         int iKmlStyle;
 
         for ( iKmlStyle = nKmlStyles - 1; iKmlStyle >= 0; iKmlStyle-- ) {
-            poKmlDocument->DeleteStyleSelectorAt(iKmlStyle);
+            poKmlDocument->DeleteStyleSelectorAt ( iKmlStyle );
         }
 
         /***** add the new style table to the document *****/
 
-        styletable2kml ( poStyleTable, poKmlFactory, AsContainer (poKmlDocument) );
+        styletable2kml ( poStyleTable, poKmlFactory,
+                         AsContainer ( poKmlDocument ) );
 
     }
-    
+
     /***** mark the layer as updated *****/
 
     bUpdated = TRUE;
-    m_poOgrDS->Updated();
-    
+    m_poOgrDS->Updated (  );
+
     return;
 }
 
@@ -580,9 +613,9 @@ void OGRLIBKMLLayer::SetStyleTable (
     OGRStyleTable * poStyleTable )
 {
 
-    if (!bUpdate)
+    if ( !bUpdate )
         return;
-    
+
     if ( poStyleTable )
         SetStyleTableDirectly ( poStyleTable->Clone (  ) );
     else
@@ -610,7 +643,7 @@ int OGRLIBKMLLayer::TestCapability (
         result = bUpdate;
 #warning todo random write
     if ( EQUAL ( pszCap, OLCRandomWrite ) )
-        result = FALSE;//bUpdate
+        result = FALSE;         //bUpdate
     if ( EQUAL ( pszCap, OLCFastFeatureCount ) && !GetSpatialFilter (  ) )
         result = TRUE;
     if ( EQUAL ( pszCap, OLCFastSetNextByIndex ) )
@@ -619,7 +652,7 @@ int OGRLIBKMLLayer::TestCapability (
         result = bUpdate;
 #warning todo DeleteFeature
     if ( EQUAL ( pszCap, OLCDeleteFeature ) )
-        result = FALSE;//bUpdate
+        result = FALSE;         //bUpdate
 
     return result;
 }

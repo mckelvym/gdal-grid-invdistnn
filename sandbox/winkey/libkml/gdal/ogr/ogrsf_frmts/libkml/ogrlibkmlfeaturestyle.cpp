@@ -62,7 +62,7 @@ returns:
 ******************************************************************************/
 
 void featurestyle2kml (
-    OGRLIBKMLDataSource *poOgrDS,
+    OGRLIBKMLDataSource * poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeature * poOgrFeat,
     KmlFactory * poKmlFactory,
@@ -104,9 +104,10 @@ void featurestyle2kml (
 
             else {
                 string oTmp;
-                if (poOgrDS->GetStylePath())
-                    oTmp.append (poOgrDS->GetStylePath());
-                oTmp.append ("#");
+
+                if ( poOgrDS->GetStylePath (  ) )
+                    oTmp.append ( poOgrDS->GetStylePath (  ) );
+                oTmp.append ( "#" );
                 oTmp.append ( pszStyleString + 1 );
 
                 poKmlPlacemark->set_styleurl ( oTmp );
@@ -166,9 +167,10 @@ void featurestyle2kml (
 
                 else {
                     string oTmp;
-                    if (poOgrDS->GetStylePath())
-                        oTmp.append (poOgrDS->GetStylePath());
-                    oTmp.append ("#");
+
+                    if ( poOgrDS->GetStylePath (  ) )
+                        oTmp.append ( poOgrDS->GetStylePath (  ) );
+                    oTmp.append ( "#" );
                     oTmp.append ( pszStyleString + 1 );
 
                     poKmlPlacemark->set_styleurl ( oTmp );
@@ -197,7 +199,7 @@ void featurestyle2kml (
 
 void kml2featurestyle (
     PlacemarkPtr poKmlPlacemark,
-    OGRLIBKMLDataSource *poOgrDS,
+    OGRLIBKMLDataSource * poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeature * poOgrFeat )
 {
@@ -239,10 +241,13 @@ void kml2featurestyle (
 
         /***** is it a dataset style? *****/
 
-        else if ( !strncmp ( pszTmp, poOgrDS->GetStylePath(), strlen(poOgrDS->GetStylePath()) ) ) {
-            int nPathLen = strlen(poOgrDS->GetStylePath());
+        else if ( !strncmp
+                  ( pszTmp, poOgrDS->GetStylePath (  ),
+                    strlen ( poOgrDS->GetStylePath (  ) ) ) ) {
+            int nPathLen = strlen ( poOgrDS->GetStylePath (  ) );
+
             pszTmp[nPathLen] = '@';
-            poOgrFeat->SetStyleString ( pszTmp + nPathLen);
+            poOgrFeat->SetStyleString ( pszTmp + nPathLen );
 
             CPLFree ( pszTmp );
 

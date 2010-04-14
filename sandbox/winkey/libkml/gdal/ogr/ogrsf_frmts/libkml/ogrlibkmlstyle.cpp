@@ -89,7 +89,7 @@ void addstylestring2kml (
 
     /***** just bail now if stylestring is empty *****/
 
-    if (!pszStyleString || !*pszStyleString) {
+    if ( !pszStyleString || !*pszStyleString ) {
         return;
     }
 
@@ -106,12 +106,12 @@ void addstylestring2kml (
     for ( i = 0; i < poOgrSM->GetPartCount ( NULL ); i++ ) {
         OGRStyleTool *poOgrST = poOgrSM->GetPart ( i, NULL );
 
-        if (!poOgrST) {
+        if ( !poOgrST ) {
             continue;
         }
-         
+
         switch ( poOgrST->GetType (  ) ) {
-            case OGRSTCPen:
+        case OGRSTCPen:
             {
                 LineStylePtr poKmlLineStyle =
                     pen2kml ( poOgrST, poKmlFactory );
@@ -119,7 +119,7 @@ void addstylestring2kml (
 
                 break;
             }
-            case OGRSTCBrush:
+        case OGRSTCBrush:
             {
                 PolyStylePtr poKmlPolyStyle =
                     brush2kml ( poOgrST, poKmlFactory );
@@ -127,7 +127,7 @@ void addstylestring2kml (
 
                 break;
             }
-            case OGRSTCSymbol:
+        case OGRSTCSymbol:
             {
                 IconStylePtr poKmlIconStyle =
                     symbol2kml ( poOgrST, poKmlFactory );
@@ -135,16 +135,17 @@ void addstylestring2kml (
 
                 break;
             }
-            case OGRSTCLabel:
+        case OGRSTCLabel:
             {
                 LabelStylePtr poKmlLabelStyle =
                     label2kml ( poOgrST, poKmlFactory );
                 poKmlStyle->set_labelstyle ( poKmlLabelStyle );
 
                 break;
-            }            case OGRSTCNone:
-            default:
-                break;
+            }
+        case OGRSTCNone:
+        default:
+            break;
         }
 
         delete poOgrST;
@@ -333,30 +334,32 @@ IconStylePtr symbol2kml (
 
         /***** split it at the ,'s *****/
 
-        char **papszTokens = CSLTokenizeString2 (pszId, ",", CSLT_HONOURSTRINGS
-                                                 | CSLT_STRIPLEADSPACES
-                                                 | CSLT_STRIPENDSPACES );
+        char **papszTokens =
+            CSLTokenizeString2 ( pszId, ",",
+                                 CSLT_HONOURSTRINGS | CSLT_STRIPLEADSPACES |
+                                 CSLT_STRIPENDSPACES );
 
         if ( papszTokens ) {
 
             /***** for lack of a better solution just take the first one *****/
             //todo come up with a better idea
-            
-            if (papszTokens[0]) {
-                IconStyleIconPtr poKmlIcon =  poKmlFactory->CreateIconStyleIcon();
-                poKmlIcon->set_href (papszTokens[0]);
-                poKmlIconStyle->set_icon(poKmlIcon);
+
+            if ( papszTokens[0] ) {
+                IconStyleIconPtr poKmlIcon =
+                    poKmlFactory->CreateIconStyleIcon (  );
+                poKmlIcon->set_href ( papszTokens[0] );
+                poKmlIconStyle->set_icon ( poKmlIcon );
             }
 
-            CSLDestroy( papszTokens );
-            
+            CSLDestroy ( papszTokens );
+
         }
 
-        
+
     }
 
     /***** heading *****/
-    
+
     double heading = poStyleSymbol->Angle ( nullcheck );
 
     if ( !nullcheck )
@@ -410,7 +413,7 @@ LabelStylePtr label2kml (
     GBool nullcheck;
 
     LabelStylePtr poKmlLabelStyle = poKmlFactory->CreateLabelStyle (  );
-    
+
     OGRStyleLabel *poStyleLabel = ( OGRStyleLabel * ) poOgrST;
 
     /***** color *****/
@@ -427,7 +430,7 @@ LabelStylePtr label2kml (
         poKmlLabelStyle->set_color ( Color32 ( nA, nB, nG, nR ) );
     }
 
-    
+
     return poKmlLabelStyle;
 }
 
@@ -498,17 +501,18 @@ OGRStyleSymbol *kml2symbol (
 
     /***** id (kml icon) *****/
 
-    if ( poKmlIconStyle->has_icon()) {
-        IconStyleIconPtr poKmlIcon = poKmlIconStyle->get_icon();
-        if (poKmlIcon->has_href()) {
+    if ( poKmlIconStyle->has_icon (  ) ) {
+        IconStyleIconPtr poKmlIcon = poKmlIconStyle->get_icon (  );
+
+        if ( poKmlIcon->has_href (  ) ) {
             std::string oIcon = "\"";
-            oIcon.append(poKmlIcon->get_href().c_str());
-            oIcon.append("\"");
-            poOgrStyleSymbol->SetId ( oIcon.c_str() );
+            oIcon.append ( poKmlIcon->get_href (  ).c_str (  ) );
+            oIcon.append ( "\"" );
+            poOgrStyleSymbol->SetId ( oIcon.c_str (  ) );
 
         }
     }
-    
+
     /***** heading *****/
 
     if ( poKmlIconStyle->has_heading (  ) )
@@ -580,10 +584,10 @@ void kml2styletable (
     StylePtr poKmlStyle )
 {
 
-    
+
     /***** no reason to add it if it don't have an id *****/
-    
-    if ( poKmlStyle->has_id (  ) ) {  
+
+    if ( poKmlStyle->has_id (  ) ) {
 
         OGRStyleMgr *poOgrSM = new OGRStyleMgr ( poOgrStyleTable );
 
@@ -598,10 +602,9 @@ void kml2styletable (
         const std::string oName = poKmlStyle->get_id (  );
 
 
-        poOgrSM->AddStyle ( CPLString (  ). Printf ( "@%s",
-                                                    oName.c_str (  ) ),
-                            NULL );
-        
+        poOgrSM->AddStyle ( CPLString (  ).Printf ( "@%s",
+                                                    oName.c_str (  ) ), NULL );
+
         /***** cleanup the style manager *****/
 
         delete poOgrSM;
@@ -609,7 +612,7 @@ void kml2styletable (
 
     else {
         CPLError ( CE_Failure, CPLE_AppDefined,
-                   "ERROR Parseing kml Style: No id");
+                   "ERROR Parseing kml Style: No id" );
     }
 
     return;
@@ -621,14 +624,14 @@ void kml2styletable (
 
 void ParseStyles (
     DocumentPtr poKmlDocument,
-    OGRStyleTable **poStyleTable)
+    OGRStyleTable ** poStyleTable )
 {
 
     /***** if document is null just bail now *****/
 
-    if (!poKmlDocument)
+    if ( !poKmlDocument )
         return;
-    
+
     /***** loop over the Styles *****/
 
     size_t nKmlStyles = poKmlDocument->get_styleselector_array_size (  );
@@ -638,10 +641,10 @@ void ParseStyles (
 
         StyleSelectorPtr poKmlStyle =
             poKmlDocument->get_styleselector_array_at ( iKmlStyle );
-        
-        if (!poKmlStyle->IsA(kmldom::Type_Style))
+
+        if ( !poKmlStyle->IsA ( kmldom::Type_Style ) )
             continue;
-    
+
         if ( !*poStyleTable )
             *poStyleTable = new OGRStyleTable (  );
 
@@ -660,14 +663,14 @@ void ParseStyles (
 void styletable2kml (
     OGRStyleTable * poOgrStyleTable,
     KmlFactory * poKmlFactory,
-    ContainerPtr poKmlContainer  )
+    ContainerPtr poKmlContainer )
 {
 
     /***** just return if the styletable is null *****/
-    
-    if (!poOgrStyleTable)
+
+    if ( !poOgrStyleTable )
         return;
-    
+
     /***** parse the style table *****/
 
     poOgrStyleTable->ResetStyleStringReading (  );
@@ -689,9 +692,10 @@ void styletable2kml (
         /***** add the style to the container *****/
 
         DocumentPtr poKmlDocument = AsDocument ( poKmlContainer );
+
         //ObjectPtr pokmlObject = boost::static_pointer_cast <kmldom::Object> () ;
         //poKmlContainer->add_feature ( AsFeature( poKmlStyle) );
-        poKmlDocument->add_styleselector( poKmlStyle );
+        poKmlDocument->add_styleselector ( poKmlStyle );
 
     }
 

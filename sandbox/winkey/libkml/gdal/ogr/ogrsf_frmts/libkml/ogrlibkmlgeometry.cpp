@@ -148,7 +148,7 @@ ElementPtr geom2kml (
         coordinates = poKmlFactory->CreateCoordinates (  );
 
         numpoints = poOgrLineString->getNumPoints (  );
-        poOgrPoint = new OGRPoint();
+        poOgrPoint = new OGRPoint (  );
 
         for ( i = 0; i < numpoints; i++ ) {
             poOgrLineString->getPoint ( i, poOgrPoint );
@@ -167,7 +167,7 @@ ElementPtr geom2kml (
             poKmlGeometry = poKmlLineString =
                 poKmlFactory->CreateLineString (  );
             poKmlLineString->set_coordinates ( coordinates );
-            
+
             break;
         }
 
@@ -194,7 +194,7 @@ ElementPtr geom2kml (
         poOgrLineString = ( OGRLineString * ) poOgrGeom;
 
         coordinates = poKmlFactory->CreateCoordinates (  );
-        poOgrPoint = new OGRPoint();
+        poOgrPoint = new OGRPoint (  );
         numpoints = poOgrLineString->getNumPoints (  );
         for ( i = 0; i < numpoints; i++ ) {
             poOgrLineString->getPoint ( i, poOgrPoint );
@@ -214,7 +214,7 @@ ElementPtr geom2kml (
             poKmlGeometry = poKmlLineString =
                 poKmlFactory->CreateLineString (  );
             poKmlLineString->set_coordinates ( coordinates );
-            
+
             break;
         }
             /***** fallthough *****/
@@ -245,13 +245,15 @@ ElementPtr geom2kml (
 
         poKmlTmpGeometry = geom2kml ( poOgrPolygon->getExteriorRing (  ),
                                       0, wkb25D, poKmlFactory );
-        poKmlPolygon->set_outerboundaryis (AsOuterBoundaryIs( poKmlTmpGeometry ) );
+        poKmlPolygon->
+            set_outerboundaryis ( AsOuterBoundaryIs ( poKmlTmpGeometry ) );
 
         nGeom = poOgrPolygon->getNumInteriorRings (  );
         for ( i = 0; i < nGeom; i++ ) {
             poKmlTmpGeometry = geom2kml ( poOgrPolygon->getInteriorRing ( i ),
                                           i + 1, wkb25D, poKmlFactory );
-            poKmlPolygon->add_innerboundaryis ( AsInnerBoundaryIs(poKmlTmpGeometry ) );
+            poKmlPolygon->
+                add_innerboundaryis ( AsInnerBoundaryIs ( poKmlTmpGeometry ) );
         }
 
         break;
@@ -264,13 +266,15 @@ ElementPtr geom2kml (
 
         poKmlTmpGeometry = geom2kml ( poOgrPolygon->getExteriorRing (  ),
                                       0, wkb25D, poKmlFactory );
-        poKmlPolygon->set_outerboundaryis ( AsOuterBoundaryIs( poKmlTmpGeometry ) );
+        poKmlPolygon->
+            set_outerboundaryis ( AsOuterBoundaryIs ( poKmlTmpGeometry ) );
 
         nGeom = poOgrPolygon->getNumInteriorRings (  );
         for ( i = 0; i < nGeom; i++ ) {
             poKmlTmpGeometry = geom2kml ( poOgrPolygon->getInteriorRing ( i ),
                                           i + 1, wkb25D, poKmlFactory );
-            poKmlPolygon->add_innerboundaryis ( AsInnerBoundaryIs( poKmlTmpGeometry ) );
+            poKmlPolygon->
+                add_innerboundaryis ( AsInnerBoundaryIs ( poKmlTmpGeometry ) );
         }
 
         break;
@@ -293,7 +297,8 @@ ElementPtr geom2kml (
         for ( i = 0; i < nGeom; i++ ) {
             poKmlTmpGeometry = geom2kml ( poOgrMultiGeom->getGeometryRef ( i ),
                                           -1, wkb25D, poKmlFactory );
-            poKmlMultiGeometry->add_geometry ( AsGeometry( poKmlTmpGeometry ) );
+            poKmlMultiGeometry->
+                add_geometry ( AsGeometry ( poKmlTmpGeometry ) );
         }
 
         break;
@@ -355,7 +360,7 @@ OGRGeometry *kml2geom (
 
     switch ( poKmlGeometry->Type (  ) ) {
     case kmldom::Type_Point:
-        poKmlPoint = AsPoint( poKmlGeometry );
+        poKmlPoint = AsPoint ( poKmlGeometry );
         if ( poKmlPoint->has_coordinates (  ) ) {
             poKmlCoordinates = poKmlPoint->get_coordinates (  );
             oKmlVec = poKmlCoordinates->get_coordinates_array_at ( 0 );
@@ -374,7 +379,7 @@ OGRGeometry *kml2geom (
         break;
 
     case kmldom::Type_LineString:
-        poKmlLineString = AsLineString( poKmlGeometry );
+        poKmlLineString = AsLineString ( poKmlGeometry );
         if ( poKmlLineString->has_coordinates (  ) ) {
             poKmlCoordinates = poKmlLineString->get_coordinates (  );
 
@@ -399,7 +404,7 @@ OGRGeometry *kml2geom (
 
         break;
     case kmldom::Type_LinearRing:
-        poKmlLinearRing = AsLinearRing( poKmlGeometry );
+        poKmlLinearRing = AsLinearRing ( poKmlGeometry );
         if ( poKmlLinearRing->has_coordinates (  ) ) {
             poKmlCoordinates = poKmlLinearRing->get_coordinates (  );
 
@@ -424,7 +429,7 @@ OGRGeometry *kml2geom (
 
         break;
     case kmldom::Type_Polygon:
-        poKmlPolygon = AsPolygon( poKmlGeometry );
+        poKmlPolygon = AsPolygon ( poKmlGeometry );
 
         poOgrPolygon = new OGRPolygon (  );
         if ( poKmlPolygon->has_outerboundaryis (  ) ) {
@@ -450,7 +455,7 @@ OGRGeometry *kml2geom (
 
         break;
     case kmldom::Type_MultiGeometry:
-        poKmlMultiGeometry = AsMultiGeometry( poKmlGeometry );
+        poKmlMultiGeometry = AsMultiGeometry ( poKmlGeometry );
 
         poOgrMultiGeometry = new OGRGeometryCollection (  );
         nGeom = poKmlMultiGeometry->get_geometry_array_size (  );

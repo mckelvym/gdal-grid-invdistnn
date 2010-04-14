@@ -44,7 +44,7 @@ using kmldom::Geometry;
 #include "ogrlibkmlfeaturestyle.h"
 
 PlacemarkPtr feat2kml (
-    OGRLIBKMLDataSource *poOgrDS,
+    OGRLIBKMLDataSource * poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeature * poOgrFeat,
     KmlFactory * poKmlFactory )
@@ -54,18 +54,20 @@ PlacemarkPtr feat2kml (
 
     /***** style *****/
 
-    featurestyle2kml ( poOgrDS, poOgrLayer, poOgrFeat, poKmlFactory, poKmlPlacemark );
+    featurestyle2kml ( poOgrDS, poOgrLayer, poOgrFeat, poKmlFactory,
+                       poKmlPlacemark );
 
     /***** geometry *****/
 
     OGRGeometry *poOgrGeom = poOgrFeat->GetGeometryRef (  );
     ElementPtr poKmlElement = geom2kml ( poOgrGeom, -1, 0, poKmlFactory );
 
-    poKmlPlacemark->set_geometry ( AsGeometry( poKmlElement ) );
+    poKmlPlacemark->set_geometry ( AsGeometry ( poKmlElement ) );
 
     /***** fields *****/
 
-    field2kml ( poOgrFeat, (OGRLIBKMLLayer *) poOgrLayer, poKmlFactory, poKmlPlacemark );
+    field2kml ( poOgrFeat, ( OGRLIBKMLLayer * ) poOgrLayer, poKmlFactory,
+                poKmlPlacemark );
 
 
 
@@ -74,7 +76,7 @@ PlacemarkPtr feat2kml (
 
 OGRFeature *kml2feat (
     PlacemarkPtr poKmlPlacemark,
-    OGRLIBKMLDataSource *poOgrDS,
+    OGRLIBKMLDataSource * poOgrDS,
     OGRLayer * poOgrLayer,
     OGRFeatureDefn * poOgrFeatDefn )
 {
@@ -87,10 +89,11 @@ OGRFeature *kml2feat (
 
     /***** geometry *****/
 
-    if (poKmlPlacemark->has_geometry (  )) {
-        OGRGeometry *poOgrGeom = kml2geom ( poKmlPlacemark->get_geometry (  ) );
+    if ( poKmlPlacemark->has_geometry (  ) ) {
+        OGRGeometry *poOgrGeom =
+            kml2geom ( poKmlPlacemark->get_geometry (  ) );
         poOgrFeat->SetGeometryDirectly ( poOgrGeom );
-        
+
     }
 
     /***** fields *****/

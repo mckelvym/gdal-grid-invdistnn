@@ -41,8 +41,9 @@ using kmldom::KmlFactory;
 OGRLIBKMLDriver::OGRLIBKMLDriver (  )
 {
     m_poKmlFactory = KmlFactory::GetFactory (  );
-    
+
 }
+
 /******************************************************************************
  ~OGRLIBKMLDriver()
 ******************************************************************************/
@@ -76,7 +77,7 @@ OGRDataSource *OGRLIBKMLDriver::Open (
 
     if ( !poDS->Open ( pszFilename, bUpdate ) ) {
         delete poDS;
-        
+
         poDS = NULL;
     }
 
@@ -119,48 +120,51 @@ OGRErr OGRLIBKMLDriver::DeleteDataSource (
 
     /***** dir *****/
 
-    VSIStatBufL sStatBuf = {};
-    if ( !VSIStatL (pszName, &sStatBuf) && VSI_ISDIR(sStatBuf.st_mode) ) {
-        
-        char ** papszDirList = NULL;
-        if (!( papszDirList = VSIReadDir(pszName))) {
-            if ( VSIRmdir (pszName) < 0)
-                 return OGRERR_FAILURE;
+    VSIStatBufL sStatBuf = { };
+    if ( !VSIStatL ( pszName, &sStatBuf ) && VSI_ISDIR ( sStatBuf.st_mode ) ) {
+
+        char **papszDirList = NULL;
+
+        if ( !( papszDirList = VSIReadDir ( pszName ) ) ) {
+            if ( VSIRmdir ( pszName ) < 0 )
+                return OGRERR_FAILURE;
         }
 
-        int nFiles = CSLCount (papszDirList);
+        int nFiles = CSLCount ( papszDirList );
         int iFile;
-        for (iFile = 0; iFile < nFiles; iFile++) {
-            if (OGRERR_FAILURE == this->DeleteDataSource(papszDirList[iFile])) {
-                CSLDestroy(papszDirList);
+
+        for ( iFile = 0; iFile < nFiles; iFile++ ) {
+            if ( OGRERR_FAILURE ==
+                 this->DeleteDataSource ( papszDirList[iFile] ) ) {
+                CSLDestroy ( papszDirList );
                 return OGRERR_FAILURE;
             }
         }
 
-        if (VSIRmdir (pszName) < 0) {
-            CSLDestroy(papszDirList);
+        if ( VSIRmdir ( pszName ) < 0 ) {
+            CSLDestroy ( papszDirList );
             return OGRERR_FAILURE;
         }
 
-        CSLDestroy(papszDirList);
+        CSLDestroy ( papszDirList );
     }
 
    /***** kml *****/
 
     else if ( EQUAL ( CPLGetExtension ( pszName ), "kml" ) ) {
-        if (VSIUnlink (pszName) < 0)
+        if ( VSIUnlink ( pszName ) < 0 )
             return OGRERR_FAILURE;
     }
-    
+
     /***** kmz *****/
 
     else if ( EQUAL ( CPLGetExtension ( pszName ), "kmz" ) ) {
-        if (VSIUnlink (pszName) < 0)
+        if ( VSIUnlink ( pszName ) < 0 )
             return OGRERR_FAILURE;
     }
 
     /***** do not delete other types of files *****/
-    
+
     else
         return OGRERR_FAILURE;
 
