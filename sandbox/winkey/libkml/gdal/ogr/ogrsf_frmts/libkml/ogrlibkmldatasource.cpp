@@ -700,13 +700,9 @@ int OGRLIBKMLDataSource::OpenKml (
     /***** if there is placemarks in the root its a layer *****/
 
     if ( nPlacemarks && !nLayers ) {
-
-
-#warning we need a way to pass schema data for a layerdefn
         AddLayer ( CPLGetBasename ( pszFilename ),
                    poOgrSRS, wkbUnknown,
                    this, m_poKmlDSContainer, pszFilename, FALSE, bUpdate, 1 );
-
     }
 
     delete poOgrSRS;
@@ -867,13 +863,9 @@ int OGRLIBKMLDataSource::OpenKmz (
         /***** if there is placemarks in the root its a layer *****/
 
         if ( nPlacemarks && !nLayers ) {
-
-#warning we need a way to pass schema data for a layerdefn
-
             AddLayer ( CPLGetBasename ( pszFilename ),
                        poOgrSRS, wkbUnknown,
                        this, poKmlContainer, pszFilename, FALSE, bUpdate, 1 );
-
         }
     }
 
