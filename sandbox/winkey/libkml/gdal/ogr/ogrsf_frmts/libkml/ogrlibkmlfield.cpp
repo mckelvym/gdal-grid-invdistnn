@@ -377,7 +377,48 @@ void field2kml (
 
                     continue;
                 }
+                
+                /***** timestamp *****/
 
+                else if ( EQUAL ( name, tsfield ) ) {
+
+                    TimeStampPtr poKmlTimeStamp =
+                        poKmlFactory->CreateTimeStamp (  );
+                    poKmlTimeStamp->set_when ( poOgrFeat->GetFieldAsString ( i )  );
+                    poKmlPlacemark->set_timeprimitive ( poKmlTimeStamp );
+
+                    continue;
+                }
+
+                /***** begin *****/
+
+                if ( EQUAL ( name, beginfield ) ) {
+
+                    if ( !poKmlTimeSpan ) {
+                        poKmlTimeSpan = poKmlFactory->CreateTimeSpan (  );
+                        poKmlPlacemark->set_timeprimitive ( poKmlTimeSpan );
+                    }
+
+                    poKmlTimeSpan->set_begin ( poOgrFeat->GetFieldAsString ( i ) );
+
+                    continue;
+
+                }
+
+                /***** end *****/
+
+                else if ( EQUAL ( name, endfield ) ) {
+
+                    if ( !poKmlTimeSpan ) {
+                        poKmlTimeSpan = poKmlFactory->CreateTimeSpan (  );
+                        poKmlPlacemark->set_timeprimitive ( poKmlTimeSpan );
+                    }
+
+                    poKmlTimeSpan->set_end ( poOgrFeat->GetFieldAsString ( i ) );
+
+                    continue;
+                }
+                
                 /***** other *****/
 
                 poKmlSimpleData = poKmlFactory->CreateSimpleData (  );
