@@ -106,6 +106,31 @@ void OGRLIBKMLDataSource::WriteKml (
      )
 {
     std::string oKmlFilename = pszName;
+
+    if ( m_poKmlDSContainer && m_poKmlDSContainer->IsA( kmldom::Type_Document ) ) {
+        DocumentPtr poKmlDocument = AsDocument( m_poKmlDSContainer );
+        int iLayer;
+        for ( iLayer = 0; iLayer < nLayers; iLayer++ ) {
+            SchemaPtr poKmlSchema;
+            SchemaPtr poKmlSchema2;
+            if ( (poKmlSchema = papoLayers[iLayer]->GetKmlSchema (  ))) {
+                size_t nKmlSchemas = poKmlDocument->get_schema_array_size (  );
+                size_t iKmlSchema;
+
+                for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
+                    poKmlSchema2 = poKmlDocument->get_schema_array_at ( iKmlSchema );
+                    if (poKmlSchema2 == poKmlSchema)
+                        break;
+                }
+
+                if (poKmlSchema2 != poKmlSchema)
+                    poKmlDocument->add_schema (poKmlSchema);
+            }
+        }
+    }
+                    
+            
+            
     if ( m_poKmlDSKml ) {
         std::string oKmlOut = kmldom::SerializePretty ( m_poKmlDSKml );
 
@@ -384,27 +409,64 @@ OGRLIBKMLDataSource::~OGRLIBKMLDataSource (  )
                 
 ******************************************************************************/
 
-void OGRLIBKMLDataSource::ParseSchemas (
-    DocumentPtr poKmlDocument )
+SchemaPtr OGRLIBKMLDataSource::FindSchema (
+    const char *pszSchemaUrl)
 {
-    /***** if document is null just bail now *****/
+    char *pszID = NULL;
+    char *pszFile = NULL;
+    char *pszPound;
+    DocumentPtr poKmlDocument = NULL;
+    SchemaPtr poKmlSchemaResult = NULL;
+    
+    if ( !pszSchemaUrl || !*pszSchemaUrl )
+        return NULL;
+    
+    if (*pszSchemaUrl == '#') {
+        pszID = CPLStrdup(pszSchemaUrl + 1);
 
-    if ( !poKmlDocument )
-        return;
+        /***** kml *****/
 
-    size_t nKmlSchemas = poKmlDocument->get_schema_array_size (  );
-    size_t iKmlSchema;
+        if (IsKml() && m_poKmlDSContainer->IsA(kmldom::Type_Document) )
+            poKmlDocument = AsDocument( m_poKmlDSContainer );
 
-    //papoKmlSchema = ( SchemaPtr * ) CPLMalloc ( sizeof ( SchemaPtr ) * nKmlSchemas);
+        /***** kmz *****/
 
-    /***** loop over the Schemas and store them in the array *****/
+        else if( ( IsKmz() || IsDir() ) && m_poKmlDocKml->IsA(kmldom::Type_Document) )
+            poKmlDocument = AsDocument( m_poKmlDocKml );
 
-    //for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
+    }
 
-    //    papoKmlSchema[iKmlSchema] = poKmlDocument->get_schema_array_at ( iKmlSchema );
-    //}
+    
+    else if ( ( pszPound = strchr( pszSchemaUrl, '#' ) ) ) {
+        pszFile = CPLStrdup( pszSchemaUrl );
+        pszID = CPLStrdup(pszPound + 1);
+        pszPound = strchr( pszFile, '#' );
+        *pszPound = '\0';
+    }
 
-    return;
+    if (poKmlDocument) {
+
+        size_t nKmlSchemas = poKmlDocument->get_schema_array_size (  );
+        size_t iKmlSchema;
+        
+        for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
+            SchemaPtr poKmlSchema = poKmlDocument->get_schema_array_at ( iKmlSchema );
+            if ( poKmlSchema->has_id(  ) ) {
+                if ( EQUAL( pszID, poKmlSchema->get_id(  ).c_str(  ) ) ) {
+                    poKmlSchemaResult = poKmlSchema;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (pszFile)
+        CPLFree(pszFile);
+    if (pszID)
+        CPLFree(pszID);
+    
+    return poKmlSchemaResult;
+
 }
 
 /******************************************************************************
@@ -631,10 +693,6 @@ int OGRLIBKMLDataSource::OpenKml (
 
     ParseStyles ( AsDocument ( m_poKmlDSContainer ), &m_poStyleTable );
 
-    /***** parse for schemas *****/
-
-    ParseSchemas ( AsDocument ( m_poKmlDSContainer ) );
-
     /***** parse for layers *****/
 
     int nPlacemarks = ParseLayers ( m_poKmlDSContainer, poOgrSRS );
@@ -801,10 +859,6 @@ int OGRLIBKMLDataSource::OpenKmz (
         /***** get the styles *****/
 
         ParseStyles ( AsDocument ( poKmlContainer ), &m_poStyleTable );
-
-        /***** parse for schemas *****/
-
-        ParseSchemas ( AsDocument ( poKmlContainer ) );
 
         /***** parse for layers *****/
 

@@ -44,6 +44,8 @@ using kmldom::Kml;
 using kmlengine::KmzFile;
 using kmlengine::KmlFile;
 using kmlengine::Bbox;
+using kmldom::ExtendedDataPtr;
+using kmldom::SchemaDataPtr;
 
 #include "ogrlibkmlfeature.h"
 #include "ogrlibkmlfield.h"
@@ -99,6 +101,10 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 
     if ( !bNew ) {
 
+        /***** get the number of features on the layer *****/
+
+        nFeatures = m_poKmlLayer->get_feature_array_size (  );
+
         /***** add the name and desc fields *****/
 
         const char *namefield =
@@ -120,58 +126,31 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
         const char *visibilityfield =
             CPLGetConfigOption ( "LIBKML_VISIBILITY_FIELD", "visibility" );
 
-        OGRFieldDefn oOgrFieldName (
-    namefield,
-    OFTString );
-
+        OGRFieldDefn oOgrFieldName ( namefield, OFTString );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldName );
 
-        OGRFieldDefn oOgrFieldDesc (
-    descfield,
-    OFTString );
-
+        OGRFieldDefn oOgrFieldDesc ( descfield, OFTString );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldDesc );
 
-        OGRFieldDefn oOgrFieldTs (
-    tsfield,
-    OFTDateTime );
-
+        OGRFieldDefn oOgrFieldTs ( tsfield, OFTDateTime );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldTs );
 
-        OGRFieldDefn oOgrFieldBegin (
-    beginfield,
-    OFTDateTime );
-
+        OGRFieldDefn oOgrFieldBegin ( beginfield, OFTDateTime );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldBegin );
 
-        OGRFieldDefn oOgrFieldEnd (
-    endfield,
-    OFTDateTime );
-
+        OGRFieldDefn oOgrFieldEnd ( endfield, OFTDateTime );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldEnd );
 
-        OGRFieldDefn oOgrFieldAltitudeMode (
-    altitudeModefield,
-    OFTString );
-
+        OGRFieldDefn oOgrFieldAltitudeMode ( altitudeModefield, OFTString );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldAltitudeMode );
 
-        OGRFieldDefn oOgrFieldTessellate (
-    tessellatefield,
-    OFTInteger );
-
+        OGRFieldDefn oOgrFieldTessellate ( tessellatefield, OFTInteger );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldTessellate );
 
-        OGRFieldDefn oOgrFieldExtrude (
-    extrudefield,
-    OFTInteger );
-
+        OGRFieldDefn oOgrFieldExtrude ( extrudefield, OFTInteger );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldExtrude );
 
-        OGRFieldDefn oOgrFieldVisibility (
-    visibilityfield,
-    OFTInteger );
-
+        OGRFieldDefn oOgrFieldVisibility ( visibilityfield, OFTInteger );
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldVisibility );
 
         /***** get the styles *****/
@@ -194,12 +173,48 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
         /***** the schema is somewhere else *****/
 
         else {
-#warning get the schema from somewhere
+
+            /***** try to find the correct schema *****/
+
+            FeaturePtr poKmlFeature;
+            
+            do {
+                if ( iFeature >= nFeatures )
+                break;
+
+                poKmlFeature = m_poKmlLayer->get_feature_array_at ( iFeature++ );
+
+            } while ( poKmlFeature->Type (  ) != kmldom::Type_Placemark );
+
+            if ( iFeature <= nFeatures && poKmlFeature &&
+                 poKmlFeature->Type (  ) == kmldom::Type_Placemark &&
+                 poKmlFeature->has_extendeddata (  ) ) {
+
+                ExtendedDataPtr poKmlExtendedData = poKmlFeature->
+                    get_extendeddata (  );
+                
+                if ( poKmlExtendedData->get_schemadata_array_size(  ) > 0 ) {
+                    SchemaDataPtr poKmlSchemaData = poKmlExtendedData->
+                        get_schemadata_array_at ( 1 );
+
+                    if ( poKmlSchemaData->has_schemaurl (  ) ) {
+
+                        std::string oKmlSchemaUrl = poKmlSchemaData->
+                            get_schemaurl (  );
+                        if ( (m_poKmlSchema = m_poOgrDS->FindSchema(oKmlSchemaUrl.c_str(  ) ) ) ) {
+                            kml2FeatureDef ( m_poKmlSchema, m_poOgrFeatureDefn );
+                        }
+                        
+                        
+                        
+                        
+                    }
+                }
+            }
+            
         }
 
-        /***** get the number of features on the layer *****/
-
-        nFeatures = m_poKmlLayer->get_feature_array_size (  );
+        
 
         /***** check if any features are another layer *****/
 

@@ -138,8 +138,6 @@ class OGRLIBKMLDataSource:public OGRDataSource
     int                       bUpdate;
     int                       bUpdated;
 
-    SchemaPtr                *papoKmlSchema;
-    
     /***** for kml files *****/
     int                       m_isKml;
     KmlPtr                    m_poKmlDSKml;
@@ -205,6 +203,8 @@ class OGRLIBKMLDataSource:public OGRDataSource
 
     int                       ParseLayers ( ContainerPtr poKmlContainer,
                                             OGRSpatialReference *poOgrSRS );
+    SchemaPtr                 FindSchema ( const char *pszSchemaUrl);
+        
   private:
 
     /***** methods to write out various datasource types at destroy *****/
@@ -254,7 +254,7 @@ class OGRLIBKMLDataSource:public OGRDataSource
     
 
     
-    void                      ParseSchemas ( DocumentPtr poKmlDocument );
+
     OGRLIBKMLLayer           *AddLayer ( const char *pszLayerName,
                                          OGRSpatialReference * poSpatialRef,
                                          OGRwkbGeometryType eGType,
