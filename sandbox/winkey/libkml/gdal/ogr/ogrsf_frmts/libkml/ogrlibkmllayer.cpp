@@ -126,31 +126,58 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
         const char *visibilityfield =
             CPLGetConfigOption ( "LIBKML_VISIBILITY_FIELD", "visibility" );
 
-        OGRFieldDefn oOgrFieldName ( namefield, OFTString );
+        OGRFieldDefn oOgrFieldName (
+    namefield,
+    OFTString );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldName );
 
-        OGRFieldDefn oOgrFieldDesc ( descfield, OFTString );
+        OGRFieldDefn oOgrFieldDesc (
+    descfield,
+    OFTString );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldDesc );
 
-        OGRFieldDefn oOgrFieldTs ( tsfield, OFTDateTime );
+        OGRFieldDefn oOgrFieldTs (
+    tsfield,
+    OFTDateTime );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldTs );
 
-        OGRFieldDefn oOgrFieldBegin ( beginfield, OFTDateTime );
+        OGRFieldDefn oOgrFieldBegin (
+    beginfield,
+    OFTDateTime );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldBegin );
 
-        OGRFieldDefn oOgrFieldEnd ( endfield, OFTDateTime );
+        OGRFieldDefn oOgrFieldEnd (
+    endfield,
+    OFTDateTime );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldEnd );
 
-        OGRFieldDefn oOgrFieldAltitudeMode ( altitudeModefield, OFTString );
+        OGRFieldDefn oOgrFieldAltitudeMode (
+    altitudeModefield,
+    OFTString );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldAltitudeMode );
 
-        OGRFieldDefn oOgrFieldTessellate ( tessellatefield, OFTInteger );
+        OGRFieldDefn oOgrFieldTessellate (
+    tessellatefield,
+    OFTInteger );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldTessellate );
 
-        OGRFieldDefn oOgrFieldExtrude ( extrudefield, OFTInteger );
+        OGRFieldDefn oOgrFieldExtrude (
+    extrudefield,
+    OFTInteger );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldExtrude );
 
-        OGRFieldDefn oOgrFieldVisibility ( visibilityfield, OFTInteger );
+        OGRFieldDefn oOgrFieldVisibility (
+    visibilityfield,
+    OFTInteger );
+
         m_poOgrFeatureDefn->AddFieldDefn ( &oOgrFieldVisibility );
 
         /***** get the styles *****/
@@ -177,12 +204,13 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
             /***** try to find the correct schema *****/
 
             FeaturePtr poKmlFeature;
-            
+
             do {
                 if ( iFeature >= nFeatures )
-                break;
+                    break;
 
-                poKmlFeature = m_poKmlLayer->get_feature_array_at ( iFeature++ );
+                poKmlFeature =
+                    m_poKmlLayer->get_feature_array_at ( iFeature++ );
 
             } while ( poKmlFeature->Type (  ) != kmldom::Type_Placemark );
 
@@ -192,8 +220,8 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 
                 ExtendedDataPtr poKmlExtendedData = poKmlFeature->
                     get_extendeddata (  );
-                
-                if ( poKmlExtendedData->get_schemadata_array_size(  ) > 0 ) {
+
+                if ( poKmlExtendedData->get_schemadata_array_size (  ) > 0 ) {
                     SchemaDataPtr poKmlSchemaData = poKmlExtendedData->
                         get_schemadata_array_at ( 1 );
 
@@ -201,20 +229,23 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 
                         std::string oKmlSchemaUrl = poKmlSchemaData->
                             get_schemaurl (  );
-                        if ( (m_poKmlSchema = m_poOgrDS->FindSchema(oKmlSchemaUrl.c_str(  ) ) ) ) {
-                            kml2FeatureDef ( m_poKmlSchema, m_poOgrFeatureDefn );
+                        if ( ( m_poKmlSchema =
+                               m_poOgrDS->FindSchema ( oKmlSchemaUrl.
+                                                       c_str (  ) ) ) ) {
+                            kml2FeatureDef ( m_poKmlSchema,
+                                             m_poOgrFeatureDefn );
                         }
-                        
-                        
-                        
-                        
+
+
+
+
                     }
                 }
             }
-            
+
         }
 
-        
+
 
         /***** check if any features are another layer *****/
 
@@ -351,13 +382,14 @@ int OGRLIBKMLLayer::GetFeatureCount (
 
     int i = 0;
     size_t iKmlFeature;
-    
-    for ( iKmlFeature = 0; iKmlFeature < (size_t) nFeatures; iKmlFeature++ ) {
-        if (m_poKmlLayer->get_feature_array_at ( iFeature++ )->IsA( kmldom::Type_Placemark ) ) {
+
+    for ( iKmlFeature = 0; iKmlFeature < ( size_t ) nFeatures; iKmlFeature++ ) {
+        if ( m_poKmlLayer->get_feature_array_at ( iFeature++ )->
+             IsA ( kmldom::Type_Placemark ) ) {
             i++;
         }
     }
-    
+
     return i;
 }
 
