@@ -110,6 +110,7 @@ private:
     int nComps;
     int nBitDepth;
     GDALDataType eDT;
+    int bYCC;
 
     int nCodestream;
     long nDatabins;
