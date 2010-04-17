@@ -442,7 +442,7 @@ SchemaPtr OGRLIBKMLDataSource::FindSchema (
     }
 
 
-    else if ( ( pszPound = strchr ( pszSchemaUrl, '#' ) ) ) {
+    else if ( ( pszPound = strchr ( (char *)pszSchemaUrl, '#' ) ) ) {
         pszFile = CPLStrdup ( pszSchemaUrl );
         pszID = CPLStrdup ( pszPound + 1 );
         pszPound = strchr ( pszFile, '#' );
