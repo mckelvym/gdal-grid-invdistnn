@@ -284,8 +284,6 @@ OGRFeature *OGRLIBKMLLayer::GetNextFeature (
     FeaturePtr poKmlFeature;
     OGRFeature *poOgrFeature = NULL;
 
-#warning perhaps we need an array of idexes that contain actual placemarks
-
     do {
         if ( iFeature >= nFeatures )
             break;
@@ -300,73 +298,9 @@ OGRFeature *OGRLIBKMLLayer::GetNextFeature (
         poOgrFeature =
             kml2feat ( AsPlacemark ( poKmlFeature ), m_poOgrDS, this,
                        m_poOgrFeatureDefn );
-        poOgrFeature->SetFID ( iFeature );
     }
 
     return poOgrFeature;
-}
-
-/******************************************************************************
- SetNextByIndex
-
- Args:          nIndex      the inex to set the next feature to
- 
- Returns:       OGRERR_NONE
-                
-******************************************************************************/
-
-OGRErr OGRLIBKMLLayer::SetNextByIndex (
-    long nIndex )
-{
-    iFeature = nIndex;
-
-    return OGRERR_NONE;
-}
-
-/******************************************************************************
- method to get a feature on a layer by its FID
-
- Args:          nFID    the FID of the feature to get
- 
- Returns:       pointer to the feature, or NULL if it does not exist
-                
-******************************************************************************/
-
-OGRFeature *OGRLIBKMLLayer::GetFeature (
-    long nFID )
-{
-
-    SetNextByIndex ( nFID );
-
-    OGRFeature *poOgrFeature = GetNextFeature (  );
-
-    return poOgrFeature;
-}
-
-/******************************************************************************
- method to rewrite a feature on a layer
-
- Args:          poFeature   the feature to rewrite
- 
- Returns:       OGRERR_UNSUPPORTED_OPERATION
-                
-******************************************************************************/
-
-OGRErr OGRLIBKMLLayer::SetFeature (
-    OGRFeature * poFeature )
-{
-    if ( !bUpdate )
-        return OGRERR_UNSUPPORTED_OPERATION;
-
-
-#warning we need to figure this out
-
-    /***** mark the layer as updated *****/
-
-    bUpdated = TRUE;
-    m_poOgrDS->Updated (  );
-
-    return OGRERR_UNSUPPORTED_OPERATION;
 }
 
 /******************************************************************************
@@ -400,32 +334,6 @@ OGRErr OGRLIBKMLLayer::CreateFeature (
 }
 
 /******************************************************************************
- method to delete a feature
-
- Args:          nFID
- 
- Returns:       OGRERR_UNSUPPORTED_OPERATION;
-                
-******************************************************************************/
-
-OGRErr OGRLIBKMLLayer::DeleteFeature (
-    long nFID )
-{
-    if ( !bUpdate )
-        return OGRERR_UNSUPPORTED_OPERATION;
-
-#warning we need to figure this out
-
-    /***** mark the layer as updated *****/
-
-    bUpdated = TRUE;
-    m_poOgrDS->Updated (  );
-
-    return OGRERR_UNSUPPORTED_OPERATION;
-}
-
-
-/******************************************************************************
  method to get the number of features on the layer
 
  Args:          bForce      no effect as of now
@@ -441,9 +349,16 @@ int OGRLIBKMLLayer::GetFeatureCount (
     int bForce )
 {
 
-#warning this return value can be wrong, kml features could be a folder
-
-    return nFeatures;
+    int i = 0;
+    size_t iKmlFeature;
+    
+    for ( iKmlFeature = 0; iKmlFeature < (size_t) nFeatures; iKmlFeature++ ) {
+        if (m_poKmlLayer->get_feature_array_at ( iFeature++ )->IsA( kmldom::Type_Placemark ) ) {
+            i++;
+        }
+    }
+    
+    return i;
 }
 
 /******************************************************************************
@@ -527,22 +442,7 @@ OGRErr OGRLIBKMLLayer::SyncToDisk (
      )
 {
 
-    KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory (  );
-    KmzFile *poKmlKmzfile;      //= m_poOgrDS->GetKmz (  );
-
-    KmlPtr poKmlKml = poKmlFactory->CreateKml (  );
-
-    poKmlKml->set_feature ( m_poKmlDocument );
-
-    std::string strKmlOut = kmldom::SerializePretty ( poKmlKml );
-#warning this file name still might not be correct
-
-    if ( poKmlKmzfile->
-         AddFile ( strKmlOut,
-                   CPLString (  ).Printf ( "%s.kml", m_pszFileName ) ) )
-        return OGRERR_NONE;
-
-    return OGRERR_FAILURE;
+    return OGRERR_NONE;
 }
 
 /******************************************************************************
@@ -653,21 +553,19 @@ int OGRLIBKMLLayer::TestCapability (
     int result = FALSE;
 
     if ( EQUAL ( pszCap, OLCRandomRead ) )
-        result = TRUE;
+        result = FALSE;
     if ( EQUAL ( pszCap, OLCSequentialWrite ) )
         result = bUpdate;
-#warning todo random write
     if ( EQUAL ( pszCap, OLCRandomWrite ) )
-        result = FALSE;         //bUpdate
-    if ( EQUAL ( pszCap, OLCFastFeatureCount ) && !GetSpatialFilter (  ) )
-        result = TRUE;
+        result = FALSE;
+    if ( EQUAL ( pszCap, OLCFastFeatureCount ) )
+        result = FALSE;
     if ( EQUAL ( pszCap, OLCFastSetNextByIndex ) )
-        result = TRUE;
+        result = FALSE;
     if ( EQUAL ( pszCap, OLCCreateField ) )
         result = bUpdate;
-#warning todo DeleteFeature
     if ( EQUAL ( pszCap, OLCDeleteFeature ) )
-        result = FALSE;         //bUpdate
+        result = FALSE;
 
     return result;
 }

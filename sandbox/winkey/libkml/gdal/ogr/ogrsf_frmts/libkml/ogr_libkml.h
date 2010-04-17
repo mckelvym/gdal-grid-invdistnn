@@ -90,11 +90,7 @@ class OGRLIBKMLLayer:public OGRLayer
     OGRFeature               *GetNextFeature (  );
     OGRFeatureDefn           *GetLayerDefn (  ) { return m_poOgrFeatureDefn; };
     //OGRErr                    SetAttributeFilter (const char * );
-    OGRErr                    SetNextByIndex ( long nIndex );
-    OGRFeature               *GetFeature ( long nFID );
-    OGRErr                    SetFeature ( OGRFeature * poFeature );
     OGRErr                    CreateFeature ( OGRFeature * poOgrFeat );
-    OGRErr                    DeleteFeature ( long nFID );
 
     OGRSpatialReference      *GetSpatialRef (  ) { return m_poOgrSRS; };
 
