@@ -209,9 +209,7 @@ void kml2featurestyle (
     if ( poKmlPlacemark->has_styleselector (  )
          && poKmlPlacemark->has_styleurl (  ) ) {
 
-#warning do the style and styleurl part
-
-
+        /* todo do the style and styleurl part */
 
     }
 
@@ -290,7 +288,7 @@ void kml2featurestyle (
         /***** is the style a stylemap? *****/
 
         else if ( poKmlStyleSelector->IsA ( kmldom::Type_StyleMap ) ) {
-#warning need to figure out what to do with a style map
+            /* todo need to figure out what to do with a style map */
         }
 
 

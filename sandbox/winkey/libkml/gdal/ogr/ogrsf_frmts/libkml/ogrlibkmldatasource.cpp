@@ -855,8 +855,10 @@ int OGRLIBKMLDataSource::OpenKmz (
 
     if ( !nLinks ) {
 
-#warning there could still be a seperate styles file in the kmz
-#warning if there is this would be a layer style table IF its only a single layer
+        /* todo there could still be a seperate styles file in the kmz
+           if there is this would be a layer style table IF its only a single
+           layer
+         */
 
         /***** get the styles *****/
 
