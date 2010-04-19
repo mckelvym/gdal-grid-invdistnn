@@ -429,6 +429,12 @@ typedef enum ogr_style_tool_param_label_id
               
 } OGRSTLabelParam;
 
+/************************************************************************/
+/*     Some SRS related stuff, search in SRS data files.                */
+/************************************************************************/
+
+OGRErr CPL_DLL OSRGetEllipsoidInfo( int, char **, double *, double *);
+
 /* ------------------------------------------------------------------- */
 /*                        Version checking                             */
 /* -------------------------------------------------------------------- */
