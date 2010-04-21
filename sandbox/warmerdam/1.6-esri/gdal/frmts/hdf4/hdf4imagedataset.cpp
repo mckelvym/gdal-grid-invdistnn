@@ -1102,11 +1102,19 @@ void HDF4ImageDataset::CaptureL1GMTLInfo()
     VSIFCloseL( fp );
 
 /* -------------------------------------------------------------------- */
+/*  Note: Different variation of MTL files use different group names.   */
+/*	      Check for LPGS_METADATA_FILE and L1_METADATA_FILE.            */
+/*                                                                      */
+/* Ignore projected coordiantes and just return lat/lon, return no      */
+/* georeferencing if these do not exist.                                */
+/* -------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------- */
 /*      Get image corner coordinates in projected coordinates.          */
 /* -------------------------------------------------------------------- */
     double dfULX, dfULY, dfLRX, dfLRY;
 
-    dfULX = atof(oMTL.GetKeyword("L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_MAPX", "0" ));
+/*  dfULX = atof(oMTL.GetKeyword("L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_MAPX", "0" ));
     dfULY = atof(oMTL.GetKeyword("L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_MAPY", "0" ));
     dfLRX = atof(oMTL.GetKeyword("L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_MAPX", "0" ));
     dfLRY = atof(oMTL.GetKeyword("L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_MAPY", "0" ));
@@ -1116,60 +1124,103 @@ void HDF4ImageDataset::CaptureL1GMTLInfo()
         && dfULX != 0
         && dfULY != 0 )
     {
-        /* TODO - no sample data available */;
+        // TODO - no sample data available ;
     }
-    
+*/    
 /* -------------------------------------------------------------------- */
 /*  Fill the GCPs list.                                                 */
 /* -------------------------------------------------------------------- */
-    else
+  //  else
     {
-        double dfLLX, dfLLY, dfURX, dfURY;
+      double dfLLX, dfLLY, dfURX, dfURY;
 
-        dfULX = atof(oMTL.GetKeyword(
-                         "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LON", "0" ));
-        dfULY = atof(oMTL.GetKeyword(
-                         "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LAT", "0" ));
-        dfLRX = atof(oMTL.GetKeyword(
-                         "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LON", "0" ));
-        dfLRY = atof(oMTL.GetKeyword(
-                         "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LAT", "0" ));
-        dfLLX = atof(oMTL.GetKeyword(
-                         "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LON", "0" ));
-        dfLLY = atof(oMTL.GetKeyword(
-                         "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LAT", "0" ));
-        dfURX = atof(oMTL.GetKeyword(
-                         "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LON", "0" ));
-        dfURY = atof(oMTL.GetKeyword(
-                         "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LAT", "0" ));
+      // LPGS_METADATA_FILE
+		  if( oMTL.GetKeyword( "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LON", NULL ) 
+          && oMTL.GetKeyword( "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LAT", NULL )
+          && oMTL.GetKeyword( "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LON", NULL )
+			    && oMTL.GetKeyword( "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LAT", NULL )
+          && oMTL.GetKeyword( "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LON", NULL )
+			    && oMTL.GetKeyword( "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LAT", NULL )
+          && oMTL.GetKeyword( "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LON", NULL )
+          && oMTL.GetKeyword( "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LAT", NULL ) )
+      {
+			  dfULX = atof(oMTL.GetKeyword(
+							   "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LON", "0" ));
+			  dfULY = atof(oMTL.GetKeyword(
+							   "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LAT", "0" ));
+			  dfLRX = atof(oMTL.GetKeyword(
+							   "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LON", "0" ));
+			  dfLRY = atof(oMTL.GetKeyword(
+							   "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LAT", "0" ));
+			  dfLLX = atof(oMTL.GetKeyword(
+							   "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LON", "0" ));
+			  dfLLY = atof(oMTL.GetKeyword(
+							   "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LAT", "0" ));
+			  dfURX = atof(oMTL.GetKeyword(
+							   "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LON", "0" ));
+			  dfURY = atof(oMTL.GetKeyword(
+							   "LPGS_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LAT", "0" ));
+      }
+      // L1_METADATA_FILE
+		  else if( oMTL.GetKeyword( "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LON", NULL ) 
+               && oMTL.GetKeyword( "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LAT", NULL )
+               && oMTL.GetKeyword( "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LON", NULL )
+ 			         && oMTL.GetKeyword( "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LAT", NULL )
+               && oMTL.GetKeyword( "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LON", NULL )
+               && oMTL.GetKeyword( "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LAT", NULL )
+               && oMTL.GetKeyword( "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LON", NULL )
+               && oMTL.GetKeyword( "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LAT", NULL ) )
+		  {
+			  dfULX = atof(oMTL.GetKeyword(
+							   "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LON", "0" ));
+			  dfULY = atof(oMTL.GetKeyword(
+							   "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UL_CORNER_LAT", "0" ));
+			  dfLRX = atof(oMTL.GetKeyword(
+							   "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LON", "0" ));
+			  dfLRY = atof(oMTL.GetKeyword(
+							   "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LR_CORNER_LAT", "0" ));
+			  dfLLX = atof(oMTL.GetKeyword(
+							   "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LON", "0" ));
+			  dfLLY = atof(oMTL.GetKeyword(
+							   "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_LL_CORNER_LAT", "0" ));
+			  dfURX = atof(oMTL.GetKeyword(
+							   "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LON", "0" ));
+			  dfURY = atof(oMTL.GetKeyword(
+							   "L1_METADATA_FILE.PRODUCT_METADATA.PRODUCT_UR_CORNER_LAT", "0" ));
+      }
+      // No L1_METADATA_FILE or LPGS_METADATA_FILE entries, don't return 0.00.
+      else
+      {
+        return;
+      }
 
-        CPLFree( pszGCPProjection );
-        pszGCPProjection = CPLStrdup( "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AXIS[\"Lat\",NORTH],AXIS[\"Long\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]" );
+      CPLFree( pszGCPProjection );
+      pszGCPProjection = CPLStrdup( "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9108\"]],AXIS[\"Lat\",NORTH],AXIS[\"Long\",EAST],AUTHORITY[\"EPSG\",\"4326\"]]" );
 
-        nGCPCount = 4;
-        pasGCPList = (GDAL_GCP *) CPLCalloc( nGCPCount, sizeof( GDAL_GCP ) );
-        GDALInitGCPs( nGCPCount, pasGCPList );
+      nGCPCount = 4;
+      pasGCPList = (GDAL_GCP *) CPLCalloc( nGCPCount, sizeof( GDAL_GCP ) );
+      GDALInitGCPs( nGCPCount, pasGCPList );
 
-        pasGCPList[0].dfGCPX = dfULX;
-        pasGCPList[0].dfGCPY = dfULY;
-        pasGCPList[0].dfGCPPixel = 0.0;
-        pasGCPList[0].dfGCPLine = 0.0;
+      pasGCPList[0].dfGCPX = dfULX;
+      pasGCPList[0].dfGCPY = dfULY;
+      pasGCPList[0].dfGCPPixel = 0.0;
+      pasGCPList[0].dfGCPLine = 0.0;
 
-        pasGCPList[1].dfGCPX = dfURX;
-        pasGCPList[1].dfGCPY = dfURY;
-        pasGCPList[1].dfGCPPixel = GetRasterXSize();
-        pasGCPList[1].dfGCPLine = 0.0;
+      pasGCPList[1].dfGCPX = dfURX;
+      pasGCPList[1].dfGCPY = dfURY;
+      pasGCPList[1].dfGCPPixel = GetRasterXSize();
+      pasGCPList[1].dfGCPLine = 0.0;
 
-        pasGCPList[2].dfGCPX = dfLLX;
-        pasGCPList[2].dfGCPY = dfLLY;
-        pasGCPList[2].dfGCPPixel = 0.0;
-        pasGCPList[2].dfGCPLine = GetRasterYSize();
+      pasGCPList[2].dfGCPX = dfLLX;
+      pasGCPList[2].dfGCPY = dfLLY;
+      pasGCPList[2].dfGCPPixel = 0.0;
+      pasGCPList[2].dfGCPLine = GetRasterYSize();
 
-        pasGCPList[3].dfGCPX = dfLRX;
-        pasGCPList[3].dfGCPY = dfLRY;
-        pasGCPList[3].dfGCPPixel = GetRasterXSize();
-        pasGCPList[3].dfGCPLine = GetRasterYSize();
-    }
+      pasGCPList[3].dfGCPX = dfLRX;
+      pasGCPList[3].dfGCPY = dfLRY;
+      pasGCPList[3].dfGCPPixel = GetRasterXSize();
+      pasGCPList[3].dfGCPLine = GetRasterYSize();
+  }
 }
 
 /************************************************************************/
