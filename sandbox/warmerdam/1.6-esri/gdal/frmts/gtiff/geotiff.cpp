@@ -2904,7 +2904,21 @@ void GTiffDataset::FlushDirectory()
     // without having made this our directory (SetDirectory()) in which
     // case we should not risk a flush. 
     if( TIFFCurrentDirOffset(hTIFF) == nDirOffset )
+    {
+        TIFFSizeProc pfnSizeProc = TIFFGetSizeProc( hTIFF );
+
+        toff_t nNewDirOffset = pfnSizeProc( TIFFClientdata( hTIFF ) );
+        if( (nNewDirOffset % 2) == 1 )
+            nNewDirOffset++;
+
         TIFFFlush( hTIFF );
+        if( nDirOffset != TIFFCurrentDirOffset( hTIFF ) )
+        {
+            nDirOffset = nNewDirOffset;
+            CPLDebug( "GTiff", 
+                      "directory moved during flush in FlushDirectory()" );
+        }
+    }
 }
 
 /************************************************************************/
@@ -6723,7 +6737,20 @@ GTiffDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         }
         
         /* Necessary to be able to read the file without re-opening */
+        TIFFSizeProc pfnSizeProc = TIFFGetSizeProc( hTIFF );
+
+        TIFFFlushData( hTIFF );
+
+        toff_t nNewDirOffset = pfnSizeProc( TIFFClientdata( hTIFF ) );
+        if( (nNewDirOffset % 2) == 1 )
+            nNewDirOffset++;
+
         TIFFFlush( hTIFF );
+        if( poDS->nDirOffset != TIFFCurrentDirOffset( hTIFF ) )
+        {
+            poDS->nDirOffset = nNewDirOffset;
+            CPLDebug( "GTiff", "directory moved during flush." );
+        }
     }
     else
     {
