@@ -84,11 +84,11 @@ void OGRRegisterAll()
 #ifdef GPX_ENABLED
     RegisterOGRGPX();
 #endif
-#ifdef KML_ENABLED
-//    RegisterOGRKML();
-#endif
 #ifdef LIBKML_ENABLED
     RegisterOGRLIBKML();
+#endif
+#ifdef KML_ENABLED
+    RegisterOGRKML();
 #endif
 #ifdef GEOJSON_ENABLED
     RegisterOGRGeoJSON();
