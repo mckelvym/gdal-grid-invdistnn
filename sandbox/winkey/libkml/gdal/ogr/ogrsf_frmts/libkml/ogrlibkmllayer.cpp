@@ -191,8 +191,7 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
             DocumentPtr poKmlDocument = AsDocument ( m_poKmlLayer );
 
             if ( poKmlDocument->get_schema_array_size (  ) ) {
-                m_poKmlSchema = poKmlDocument->get_schema_array_at ( 1 );
-
+                m_poKmlSchema = poKmlDocument->get_schema_array_at ( 0 );
                 kml2FeatureDef ( m_poKmlSchema, m_poOgrFeatureDefn );
             }
         }
@@ -204,6 +203,8 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
             /***** try to find the correct schema *****/
 
             FeaturePtr poKmlFeature;
+
+            /***** find the first placemark *****/
 
             do {
                 if ( iFeature >= nFeatures )
