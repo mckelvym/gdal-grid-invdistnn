@@ -87,6 +87,8 @@ OGRLIBKMLDataSource::OGRLIBKMLDataSource ( KmlFactory * poKmlFactory )
     m_poKmlDocKml = NULL;
     pszStylePath = "";
 
+    m_isDir = FALSE;
+    
     m_poKmlFactory = poKmlFactory;
 
     //m_poStyleTable = NULL;
@@ -452,6 +454,18 @@ SchemaPtr OGRLIBKMLDataSource::FindSchema (
 
     else {
         pszName = CPLStrdup ( pszSchemaUrl );
+
+        /***** kml *****/
+
+        if ( IsKml (  ) && m_poKmlDSContainer->IsA ( kmldom::Type_Document ) )
+            poKmlDocument = AsDocument ( m_poKmlDSContainer );
+
+        /***** kmz *****/
+
+        else if ( ( IsKmz (  ) || IsDir (  ) ) && m_poKmlDocKml
+                  && m_poKmlDocKml->IsA ( kmldom::Type_Document ) )
+            poKmlDocument = AsDocument ( m_poKmlDocKml );
+
     }
     
 
@@ -470,7 +484,7 @@ SchemaPtr OGRLIBKMLDataSource::FindSchema (
                 }
             }
 
-            else if ( poKmlSchema->has_name (  )  && pszName) {
+            else if ( poKmlSchema->has_name (  ) && pszName) {
                 if ( EQUAL ( pszName, poKmlSchema->get_name (  ).c_str (  ) ) ) {
                     poKmlSchemaResult = poKmlSchema;
                     break;
@@ -709,6 +723,9 @@ int OGRLIBKMLDataSource::OpenKml (
         return FALSE;
     }
 
+    m_isKml = TRUE;
+    printf("m_isKml = TRUE; %i %i\n", m_isKml, IsKml());
+
     /***** get the styles *****/
 
     ParseStyles ( AsDocument ( m_poKmlDSContainer ), &m_poStyleTable );
@@ -917,7 +934,8 @@ int OGRLIBKMLDataSource::OpenKmz (
     delete poOgrSRS;
 
     delete poKmlKmzfile;
-
+    m_isKmz = TRUE;
+    
     return TRUE;
 }
 
@@ -1014,6 +1032,8 @@ int OGRLIBKMLDataSource::OpenDir (
 
     CSLDestroy ( papszDirList );
 
+    m_isDir = TRUE;
+    
     return TRUE;
 }
 
