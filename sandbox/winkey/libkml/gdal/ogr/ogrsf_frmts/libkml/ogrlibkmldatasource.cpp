@@ -418,6 +418,7 @@ SchemaPtr OGRLIBKMLDataSource::FindSchema (
 {
     char *pszID = NULL;
     char *pszFile = NULL;
+    char *pszName = NULL;
     char *pszPound;
     DocumentPtr poKmlDocument = NULL;
     SchemaPtr poKmlSchemaResult = NULL;
@@ -435,7 +436,7 @@ SchemaPtr OGRLIBKMLDataSource::FindSchema (
 
         /***** kmz *****/
 
-        else if ( ( IsKmz (  ) || IsDir (  ) )
+        else if ( ( IsKmz (  ) || IsDir (  ) ) && m_poKmlDocKml
                   && m_poKmlDocKml->IsA ( kmldom::Type_Document ) )
             poKmlDocument = AsDocument ( m_poKmlDocKml );
 
@@ -449,7 +450,12 @@ SchemaPtr OGRLIBKMLDataSource::FindSchema (
         *pszPound = '\0';
     }
 
-    if ( poKmlDocument ) {
+    else {
+        pszName = CPLStrdup ( pszSchemaUrl );
+    }
+    
+
+    if ( poKmlDocument) {
 
         size_t nKmlSchemas = poKmlDocument->get_schema_array_size (  );
         size_t iKmlSchema;
@@ -457,12 +463,20 @@ SchemaPtr OGRLIBKMLDataSource::FindSchema (
         for ( iKmlSchema = 0; iKmlSchema < nKmlSchemas; iKmlSchema++ ) {
             SchemaPtr poKmlSchema =
                 poKmlDocument->get_schema_array_at ( iKmlSchema );
-            if ( poKmlSchema->has_id (  ) ) {
+            if ( poKmlSchema->has_id (  ) && pszID) {
                 if ( EQUAL ( pszID, poKmlSchema->get_id (  ).c_str (  ) ) ) {
                     poKmlSchemaResult = poKmlSchema;
                     break;
                 }
             }
+
+            else if ( poKmlSchema->has_name (  )  && pszName) {
+                if ( EQUAL ( pszName, poKmlSchema->get_name (  ).c_str (  ) ) ) {
+                    poKmlSchemaResult = poKmlSchema;
+                    break;
+                }
+            }
+
         }
     }
 

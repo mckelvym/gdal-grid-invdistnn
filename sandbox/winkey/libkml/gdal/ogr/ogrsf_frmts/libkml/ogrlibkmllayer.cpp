@@ -223,7 +223,7 @@ OGRLIBKMLLayer::OGRLIBKMLLayer ( const char *pszLayerName,
 
                 if ( poKmlExtendedData->get_schemadata_array_size (  ) > 0 ) {
                     SchemaDataPtr poKmlSchemaData = poKmlExtendedData->
-                        get_schemadata_array_at ( 1 );
+                        get_schemadata_array_at ( 0 );
 
                     if ( poKmlSchemaData->has_schemaurl (  ) ) {
 
