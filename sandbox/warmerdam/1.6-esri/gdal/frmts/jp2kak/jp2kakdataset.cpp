@@ -409,11 +409,12 @@ JP2KAKRasterBand::JP2KAKRasterBand( int nBand, int nDiscardLevels,
 
     this->nRasterXSize = band_dims.size.x;
     this->nRasterYSize = band_dims.size.y;
-    if( oCodeStream.get_bit_depth(nBand-1) % 8 != 0 )
+
+    int nBits = oCodeStream.get_bit_depth(nBand-1);
+    if( nBits > 8 && nBits % 8 != 0 )
     {
-        
         SetMetadataItem( "NBITS", 
-                         CPLString().Printf("%d",oCodeStream.get_bit_depth(nBand-1)), 
+                         CPLString().Printf("%d",nBits), 
                          "IMAGE_STRUCTURE" );
     }
     SetMetadataItem( "COMPRESSION", "JP2000", "IMAGE_STRUCTURE" );
