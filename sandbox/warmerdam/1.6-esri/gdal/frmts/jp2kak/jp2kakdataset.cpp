@@ -409,12 +409,11 @@ JP2KAKRasterBand::JP2KAKRasterBand( int nBand, int nDiscardLevels,
 
     this->nRasterXSize = band_dims.size.x;
     this->nRasterYSize = band_dims.size.y;
-
-    int nBits = oCodeStream.get_bit_depth(nBand-1);
-    if( nBits > 8 && nBits % 8 != 0 )
+    if( oCodeStream.get_bit_depth(nBand-1) % 8 != 0 )
     {
+        
         SetMetadataItem( "NBITS", 
-                         CPLString().Printf("%d",nBits), 
+                         CPLString().Printf("%d",oCodeStream.get_bit_depth(nBand-1)), 
                          "IMAGE_STRUCTURE" );
     }
     SetMetadataItem( "COMPRESSION", "JP2000", "IMAGE_STRUCTURE" );
@@ -1747,9 +1746,9 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
             for( i = 0; i < nBandCount; i++ )
             {
                 stripe_heights[i] = dims.size.y;
+                precisions[i] = poCodeStream->get_bit_depth(i);
                 if( eBufType == GDT_Byte )
                 {
-                    precisions[i] = 8;
                     is_signed[i] = false;
                     sample_offsets[i] = i * nBandSpace;
                     sample_gaps[i] = nPixelSpace;
@@ -1757,7 +1756,6 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
                 }
                 else if( eBufType == GDT_Int16 )
                 {
-                    precisions[i] = poCodeStream->get_bit_depth(i);
                     is_signed[i] = true;
                     sample_offsets[i] = i * nBandSpace / 2;
                     sample_gaps[i] = nPixelSpace / 2;
@@ -1765,7 +1763,6 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
                 }
                 else if( eBufType == GDT_UInt16 )
                 {
-                    precisions[i] = poCodeStream->get_bit_depth(i);
                     is_signed[i] = false;
                     sample_offsets[i] = i * nBandSpace / 2;
                     sample_gaps[i] = nPixelSpace / 2;
@@ -1774,9 +1771,10 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
                 
             }
 
-            if( precisions[0] == 8 )
+            if( eBufType == GDT_Byte )
                 decompressor.pull_stripe( (kdu_byte *) pData, stripe_heights,
-                                          sample_offsets, sample_gaps, row_gaps );
+                                          sample_offsets, sample_gaps, row_gaps,
+                                          precisions );
             else
                 decompressor.pull_stripe( (kdu_int16 *) pData, stripe_heights,
                                           sample_offsets, sample_gaps,row_gaps,
@@ -1813,11 +1811,10 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
             for( i = 0; i < nBandCount; i++ )
             {
                 stripe_heights[i] = dims.size.y;
+                precisions[i] = poCodeStream->get_bit_depth(i);
 
                 if( eBufType == GDT_Int16 || eBufType == GDT_UInt16 )
                 {
-                    precisions[i] = poCodeStream->get_bit_depth(i);
-                    
                     if( eBufType == GDT_Int16 )
                         is_signed[i] = true;
                     else
@@ -1827,7 +1824,8 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
             
             if( eBufType == GDT_Byte )
                 decompressor.pull_stripe( (kdu_byte *) pabyIntermediate, 
-                                          stripe_heights );
+                                          stripe_heights, NULL, NULL, NULL,
+                                          precisions );
             else
                 decompressor.pull_stripe( (kdu_int16 *) pabyIntermediate, 
                                           stripe_heights,
