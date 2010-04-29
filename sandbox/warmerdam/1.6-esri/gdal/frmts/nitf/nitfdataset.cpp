@@ -1878,7 +1878,7 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo )
 
     if( pszOverviewFile == NULL )
     {
-        if( poDS->CheckForRSets(poOpenInfo->pszFilename) )
+        if( poDS->CheckForRSets(pszFilename) )
             pszOverviewFile = poDS->osRSetVRT;
     }        
 
