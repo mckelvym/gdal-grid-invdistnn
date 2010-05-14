@@ -28,6 +28,7 @@
 #include "pcidsk.h"
 #include "pcidsk_georef.h"
 #include "pcidsk_pct.h"
+#include <string.h>
 #include <cppunit/extensions/HelperMacros.h>
 
 using namespace PCIDSK;

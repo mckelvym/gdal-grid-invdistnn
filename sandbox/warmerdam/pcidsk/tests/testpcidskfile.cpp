@@ -27,6 +27,7 @@
  ****************************************************************************/
 
 #include "pcidsk.h"
+#include <string.h>
 #include <cppunit/extensions/HelperMacros.h>
 
 using namespace PCIDSK;
