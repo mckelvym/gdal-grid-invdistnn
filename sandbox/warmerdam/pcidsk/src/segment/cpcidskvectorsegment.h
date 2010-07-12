@@ -32,6 +32,8 @@
 #include "pcidsk_vectorsegment.h"
 #include "pcidsk_buffer.h"
 #include "segment/cpcidsksegment.h"
+#include "segment/vecsegheader.h"
+#include "segment/vecsegdataindex.h"
 
 #include <string>
 #include <map>
@@ -40,6 +42,10 @@ namespace PCIDSK
 {
     class PCIDSKFile;
     
+    const int     sec_vert = 0;
+    const int     sec_record = 1;
+    const int     sec_raw = 2;
+
     /************************************************************************/
     /*                        CPCIDSKVectorSegment                          */
     /************************************************************************/
@@ -47,13 +53,21 @@ namespace PCIDSK
     class CPCIDSKVectorSegment : public CPCIDSKSegment, 
                                  public PCIDSKVectorSegment
     {
+        friend class VecSegHeader;
+        friend class VecSegDataIndex;
+
     public:
         CPCIDSKVectorSegment( PCIDSKFile *file, int segment,
                               const char *segment_pointer );
 
         virtual        ~CPCIDSKVectorSegment();
 
+        void            Initialize();
+
         std::string     GetRst() { return ""; }
+        std::vector<double> GetProjection( std::string &geosys );
+        void            SetProjection(std::string geosys, 
+                                      std::vector<double> parms);
 
         int             GetFieldCount();
         std::string     GetFieldName(int);
@@ -71,31 +85,46 @@ namespace PCIDSK
         void            GetVertices( ShapeId, std::vector<ShapeVertex>& );
         void            GetFields( ShapeId, std::vector<ShapeField>& );
 
+        void            AddField( std::string name, ShapeFieldType type,
+                                  std::string description,
+                                  std::string format,
+                                  ShapeField *default_value );
+        
+        ShapeId         CreateShape( ShapeId id );
+        void            SetVertices( ShapeId id, 
+                                     const std::vector<ShapeVertex>& list );
+        void            SetFields( ShapeId id, 
+                                   const std::vector<ShapeField>& list );
+
+        // Essentially internal stuff.
+        char                *GetData( int section, uint32 offset, 
+                                      int *bytes_available = NULL, 
+                                      int min_bytes = 0,
+                                      bool update = false );
+        uint32               ReadField( uint32 offset, 
+                                        ShapeField& field, 
+                                        ShapeFieldType field_type,
+                                        int section = sec_record );
+
+        uint32               WriteField( uint32 offset,
+                                         ShapeField& field, 
+                                         PCIDSKBuffer &buffer );
+        void                 ReadSecFromFile( int section, char *buffer,
+                                              int block_offset, 
+                                              int block_count );
+        void                 WriteSecToFile( int section, char *buffer,
+                                             int block_offset, 
+                                             int block_count );
+
      private:
         bool            base_initialized;
         bool            needs_swap;
 
-        uint32          section_offsets[4];
-
-        // Field Definitions
-        std::vector<std::string> field_names;
-        std::vector<std::string> field_descriptions;
-        std::vector<ShapeFieldType>   field_types;
-        std::vector<std::string> field_formats;
-        std::vector<ShapeField>  field_defaults;
-        
-        // Information from the Shape Section of the header.
-        bool                 vertex_block_initialized;
-        uint32               vertex_block_count;
-        uint32               vertex_bytes;
-        std::vector<uint32>  vertex_block_index;
-        
-        bool                 record_block_initialized;
-        uint32               record_block_count;
-        uint32               record_bytes;
-        std::vector<uint32>  record_block_index;
-
+        VecSegHeader    vh;
+        VecSegDataIndex di[2];
+      
         int32                shape_count;
+        ShapeId              highest_shapeid_used;
         //ShapeId              first_shape_id;
         //ShapeId              last_shape_id;
         
@@ -104,6 +133,7 @@ namespace PCIDSK
         std::vector<int32>   shape_index_ids;         // loaded shape ids. 
         std::vector<uint32>  shape_index_vertex_off;  // loaded vertex offsets
         std::vector<uint32>  shape_index_record_off;  // loaded record offsets.
+        bool                 shape_index_page_dirty;
         
         ShapeId              last_shapes_id;
         int                  last_shapes_index;
@@ -114,33 +144,25 @@ namespace PCIDSK
 
         void                 AccessShapeByIndex( int iIndex );
         int                  IndexFromShapeId( ShapeId id );
+        void                 FlushLoadedShapeIndex();
+        void                 PushLoadedIndexIntoMap();
         
         // Cached buffers for GetData();
         PCIDSKBuffer         raw_loaded_data;
         uint32               raw_loaded_data_offset;
+        bool                 raw_loaded_data_dirty;
 
         PCIDSKBuffer         vert_loaded_data;
         uint32               vert_loaded_data_offset;
+        bool                 vert_loaded_data_dirty;
 
         PCIDSKBuffer         record_loaded_data;
         uint32               record_loaded_data_offset;
+        bool                 record_loaded_data_dirty;
 
-        static const int     sec_raw ;
-        static const int     sec_vert;
-        static const int     sec_record;
+        void                 FlushDataBuffer( int section );
+        void                 LoadHeader();
 
-        char                *GetData( int section, uint32 offset, 
-                                      int *bytes_available = NULL, 
-                                      int min_bytes = 0 );
-        void                 ReadSecFromFile( int section, char *buffer,
-                                              int block_offset, 
-                                              int block_count );
-        void                 Initialize();
-
-        uint32               ReadField( uint32 offset, 
-                                        ShapeField& field, 
-                                        ShapeFieldType field_type,
-                                        int section = sec_record );
     };
 } // end namespace PCIDSK
 

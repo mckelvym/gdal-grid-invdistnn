@@ -27,6 +27,8 @@ OBJ = \
 	segment/cpcidskpct.o \
 	segment/cpcidsksegment.o \
 	segment/cpcidskvectorsegment.o \
+	segment/vecsegheader.o \
+	segment/vecsegdataindex.o \
 	segment/metadatasegment_p.o \
 	segment/sysblockmap.o \
 	segment/cpcidskrpcmodel.o \

@@ -94,6 +94,17 @@ for older RSTs.
 
 
 /**
+\brief Fetch Projection
+
+The returned values are the projection parameters in the same form returned
+by PCIDSKGeoref::GetParameters() and the passed in geosys argument is 
+updated with the coordinate system string.
+
+@return Projection parameters as a vector.
+*/
+        virtual std::vector<double> GetProjection( std::string &geosys ) = 0;
+
+/**
 \brief Get field count.
 
 Note that this includes any system attributes, like RingStart, that would
@@ -184,6 +195,33 @@ not normally be shown to the user.
 */
         virtual void        GetFields( ShapeId id, 
                                        std::vector<ShapeField>& list ) = 0;
+
+
+        virtual void        SetProjection(std::string geosys,
+                                          std::vector<double> parms ) = 0;
+
+        virtual void        AddField( std::string name, ShapeFieldType type,
+                                      std::string description,
+                                      std::string format,
+                                      ShapeField *default_value=NULL ) = 0;
+
+        virtual ShapeId     CreateShape( ShapeId id = NullShapeId ) = 0;
+
+        virtual void        SetVertices( ShapeId id, 
+                                         const std::vector<ShapeVertex> &list ) = 0;
+        virtual void        SetFields( ShapeId id, 
+                                       const std::vector<ShapeField>& list) = 0;
+// Methods needed 
+        // GetSRS, SetSRS
+        
+        // AddField
+        // DeleteField
+        // ModifyField?
+        
+        // CreateShape(shapeid)
+        // SetVertices(shapeid,vertices)
+        // SetField/SetFields
+
     };
 
 /************************************************************************/
