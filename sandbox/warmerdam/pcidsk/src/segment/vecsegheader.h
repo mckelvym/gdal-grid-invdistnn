@@ -82,12 +82,13 @@ namespace PCIDSK
         
         CPCIDSKVectorSegment *vs;
 
+        uint32          header_blocks;
+
      private:
 
         bool            initialized;
         bool            needs_swap;
 
-        uint32          header_blocks;
     };
 } // end namespace PCIDSK
 

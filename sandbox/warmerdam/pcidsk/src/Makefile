@@ -27,6 +27,7 @@ OBJ = \
 	segment/cpcidskpct.o \
 	segment/cpcidsksegment.o \
 	segment/cpcidskvectorsegment.o \
+	segment/cpcidskvectorsegment_consistencycheck.o \
 	segment/vecsegheader.o \
 	segment/vecsegdataindex.o \
 	segment/metadatasegment_p.o \

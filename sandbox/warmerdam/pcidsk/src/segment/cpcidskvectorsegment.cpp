@@ -442,7 +442,6 @@ char *CPCIDSKVectorSegment::GetData( int section, uint32 offset,
                             (load_offset + size) / block_page_size - 1, 1 );
         }
 
-        // Now read into our buffer.
         *pbuf_offset = load_offset;
         pbuf->SetSize( size );
 
@@ -450,6 +449,15 @@ char *CPCIDSKVectorSegment::GetData( int section, uint32 offset,
                          load_offset / block_page_size, size / block_page_size );
     }
 
+/* -------------------------------------------------------------------- */
+/*      If an update request goes beyond the end of the last data       */
+/*      byte in a data section, then update the bytes used.  Now        */
+/*      read into our buffer.                                           */
+/* -------------------------------------------------------------------- */
+    if( section != sec_raw
+        && offset + min_bytes > di[section].GetSectionEnd() )
+        di[section].SetSectionEnd( offset + min_bytes );
+    
 /* -------------------------------------------------------------------- */
 /*      Return desired info.                                            */
 /* -------------------------------------------------------------------- */
@@ -623,7 +631,7 @@ std::vector<double> CPCIDSKVectorSegment::GetProjection( std::string &geosys )
 /*      Read the geosys (units) string from SDH5.VEC1 in the segment    */
 /*      header.                                                         */
 /* -------------------------------------------------------------------- */
-    GetHeader().Get( 160, 16, geosys );
+    GetHeader().Get( 160, 16, geosys, 0 ); // do not unpad!
 
     return ProjParmsFromText( geosys, projparms.GetValueString() );
 }

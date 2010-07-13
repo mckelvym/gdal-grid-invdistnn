@@ -119,8 +119,8 @@ void VecSegHeader::InitializeNew()
     // offset to RST
     memcpy( header.buffer + 76, &hoffset, 4 );
 
-    // RST - two zeros means no rst
-    hoffset += 8;
+    // RST - two zeros means no rst + empty string.
+    hoffset += 9;
 
     // offset to Records
     memcpy( header.buffer + 80, &hoffset, 4 );

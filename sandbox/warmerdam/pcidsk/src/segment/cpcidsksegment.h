@@ -85,6 +85,8 @@ namespace PCIDSK
         void PushHistory(const std::string &app,
                          const std::string &message);
 
+        virtual std::string ConsistencyCheck() { return ""; }
+
     protected:
         PCIDSKFile *file;
 

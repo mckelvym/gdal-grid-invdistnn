@@ -44,6 +44,8 @@ namespace PCIDSK
 {
     class VecSegDataIndex 
     {
+        friend class CPCIDSKVectorSegment;
+
     public:
         VecSegDataIndex();
         ~VecSegDataIndex();

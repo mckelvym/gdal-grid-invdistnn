@@ -50,7 +50,7 @@ namespace PCIDSK
     /*                        CPCIDSKVectorSegment                          */
     /************************************************************************/
 
-    class CPCIDSKVectorSegment : public CPCIDSKSegment, 
+    class CPCIDSKVectorSegment : virtual public CPCIDSKSegment, 
                                  public PCIDSKVectorSegment
     {
         friend class VecSegHeader;
@@ -95,6 +95,8 @@ namespace PCIDSK
                                      const std::vector<ShapeVertex>& list );
         void            SetFields( ShapeId id, 
                                    const std::vector<ShapeField>& list );
+
+        std::string     ConsistencyCheck();
 
         // Essentially internal stuff.
         char                *GetData( int section, uint32 offset, 
@@ -163,6 +165,9 @@ namespace PCIDSK
         void                 FlushDataBuffer( int section );
         void                 LoadHeader();
 
+        std::string          ConsistencyCheck_Header();
+        std::string          ConsistencyCheck_DataIndices();
+        std::string          ConsistencyCheck_ShapeIndices();
     };
 } // end namespace PCIDSK
 
