@@ -247,6 +247,15 @@ static void ReportVectorSegment( PCIDSK::PCIDSKSegment *segobj )
         std::vector<PCIDSK::ShapeVertex> vertices;
         unsigned int i, field_count = vecseg->GetFieldCount();
         std::vector<PCIDSK::ShapeField> field_list;
+        std::vector<double> dparms;
+        std::string geosys;
+
+        dparms = vecseg->GetProjection( geosys );
+
+        printf( "  Projection: %s\n       ", geosys.c_str() );
+        for( i=0; i < dparms.size(); i++ )
+            printf("%g,", dparms[i] );
+        printf( "\n" );
 
         printf( "  Attribute fields:\n" );
         for( i = 0; i < field_count; i++ )

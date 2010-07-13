@@ -40,6 +40,7 @@ class VectorReadTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testSchema );
     CPPUNIT_TEST( testRecords );
     CPPUNIT_TEST( testRandomRead );
+    CPPUNIT_TEST( testProjection );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -50,6 +51,7 @@ public:
     void testSchema();
     void testRecords();
     void testRandomRead();
+    void testProjection();
 };
 
 // Registers the fixture into the 'registry'
@@ -101,6 +103,8 @@ void VectorReadTest::testGeometry()
 
     CPPUNIT_ASSERT( fabs(vertex_sum - 6903155159.15) < 1.0 );
 
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
     delete file;
 }
 
@@ -136,6 +140,8 @@ void VectorReadTest::testSchema()
     CPPUNIT_ASSERT( vecseg->GetFieldDescription(29) == "Ring Start" );
     CPPUNIT_ASSERT( vecseg->GetFieldFormat(29) == "%d" );
     CPPUNIT_ASSERT( vecseg->GetFieldDefault(29).GetValueCountedInt().size() == 0 );
+
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
 
     delete file;
 }
@@ -220,6 +226,36 @@ void VectorReadTest::testRandomRead()
 
     CPPUNIT_ASSERT( vertex_list.size() == 4 );
     CPPUNIT_ASSERT( fabs(vertex_list[3].y-1234782.125) < 0.0000001 );
+
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
+    delete file;
+}
+
+void VectorReadTest::testProjection()
+{
+    PCIDSKFile *file;
+    
+    file = PCIDSK::Open( "irvine.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    PCIDSKSegment *seg = file->GetSegment( 26 );
+    PCIDSKVectorSegment *vecseg = dynamic_cast<PCIDSKVectorSegment*>( seg );
+    
+    CPPUNIT_ASSERT( vecseg != NULL );
+
+    std::string geosys;
+    std::vector<double> parms = vecseg->GetProjection( geosys );
+
+    CPPUNIT_ASSERT( geosys == "UTM    11 S E000" );
+    for( unsigned int i = 0; i < 18; i++ )
+    {
+        if( i == 17 )
+            CPPUNIT_ASSERT( parms[i] == -1 );
+        else
+            CPPUNIT_ASSERT( parms[i] == 0 );
+    }
 
     delete file;
 }
