@@ -107,7 +107,7 @@ namespace PCIDSK
                                         int section = sec_record );
 
         uint32               WriteField( uint32 offset,
-                                         ShapeField& field, 
+                                         const ShapeField& field, 
                                          PCIDSKBuffer &buffer );
         void                 ReadSecFromFile( int section, char *buffer,
                                               int block_offset, 

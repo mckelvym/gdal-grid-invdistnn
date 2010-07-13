@@ -272,7 +272,7 @@ uint32 CPCIDSKVectorSegment::ReadField( uint32 offset, ShapeField& field,
 /************************************************************************/
 
 uint32 CPCIDSKVectorSegment::WriteField( uint32 offset, 
-                                         ShapeField& field, 
+                                         const ShapeField& field, 
                                          PCIDSKBuffer& buffer )
 
 {
@@ -1234,10 +1234,84 @@ void CPCIDSKVectorSegment::SetVertices( ShapeId id,
 /************************************************************************/
 
 void CPCIDSKVectorSegment::SetFields( ShapeId id, 
-                                      const std::vector<ShapeField>& list )
+                                      const std::vector<ShapeField>& list_in )
 
 {
-    ThrowPCIDSKException( "SetFields not yet implemented." );
+    uint32 i;
+    int shape_index = IndexFromShapeId( id );
+    std::vector<ShapeField> list = list_in;
+
+    if( list.size() > vh.field_names.size() )
+    {
+        ThrowPCIDSKException( 
+            "Attempt to write %d fields to a layer with only %d fields.", 
+            list.size(), vh.field_names.size() );
+    }
+
+    // fill out missing fields in list with defaults.
+    for( i = list.size(); i < vh.field_names.size(); i++ )
+        list[i] = vh.field_defaults[i];
+
+    AccessShapeByIndex( shape_index );
+
+/* -------------------------------------------------------------------- */
+/*      Format the fields in the buffer.                                */
+/* -------------------------------------------------------------------- */
+    PCIDSKBuffer fbuf(4);
+    uint32 offset = 4;
+
+    for( i = 0; i < list.size(); i++ )
+        offset = WriteField( offset, list[i], fbuf );
+
+/* -------------------------------------------------------------------- */
+/*      Is the current space big enough to hold the new field set?      */
+/* -------------------------------------------------------------------- */
+    uint32 rec_off = shape_index_record_off[shape_index - shape_index_start];
+    uint32 chunk_size = offset;
+
+    if( rec_off != 0xffffffff )
+    {
+        memcpy( &chunk_size, GetData( sec_record, rec_off, NULL, 4 ), 4 );
+        if( needs_swap )
+            SwapData( &chunk_size, 4, 1 );
+
+        if( chunk_size < (uint32) fbuf.buffer_size )
+        {
+            rec_off = 0xffffffff;
+        }
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Do we need to put this at the end of the section?               */
+/* -------------------------------------------------------------------- */
+    if( rec_off == 0xffffffff )
+    {
+        rec_off = di[sec_record].GetSectionEnd();
+        chunk_size = fbuf.buffer_size;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Set the chunk size, and number of fields.                       */
+/* -------------------------------------------------------------------- */
+    memcpy( fbuf.buffer + 0, &chunk_size, 4 ); 
+
+    if( needs_swap )
+        SwapData( fbuf.buffer, 4, 1 );
+
+/* -------------------------------------------------------------------- */
+/*      Write the data into the working buffer.                         */
+/* -------------------------------------------------------------------- */
+    memcpy( GetData( sec_record, rec_off, NULL, fbuf.buffer_size, true ),
+            fbuf.buffer, fbuf.buffer_size );
+
+/* -------------------------------------------------------------------- */
+/*      Record the offset                                               */
+/* -------------------------------------------------------------------- */
+    if( shape_index_record_off[shape_index - shape_index_start] != rec_off )
+    {
+        shape_index_record_off[shape_index - shape_index_start] = rec_off;
+        shape_index_page_dirty = true;
+    }
 }
 
 /************************************************************************/
