@@ -362,7 +362,7 @@ uint32 CPCIDSKVectorSegment::WriteField( uint32 offset,
           memcpy( buffer.buffer+offset, &count, 4 );
           memcpy( buffer.buffer+offset+4, &(value[0]), count * 4 );
           if( needs_swap )
-              SwapData( buffer.buffer, 4, count+1 );
+              SwapData( buffer.buffer+offset, 4, count+1 );
           break;
       }
 
