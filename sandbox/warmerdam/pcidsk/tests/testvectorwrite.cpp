@@ -41,6 +41,7 @@ class VectorWriteTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testSchema );
     CPPUNIT_TEST( testGeometry );
     CPPUNIT_TEST( testStress );
+    CPPUNIT_TEST( testShapeId );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -51,6 +52,7 @@ public:
     void testProjection();
     void testSchema();
     void testGeometry();
+    void testShapeId();
     void testStress();
 };
 
@@ -341,6 +343,90 @@ void VectorWriteTest::testSchema()
     delete file;
 
     unlink( "vectestschema.pix" );
+}
+
+
+// Test assignment of specific shapeids. 
+
+void VectorWriteTest::testShapeId()
+{
+    PCIDSKFile *file;
+    eChanType channel_types[1] = {CHN_8U};
+    
+    file = PCIDSK::Create( "vectestid.pix", 50, 40, 1, channel_types,
+                           "BAND", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    int seg_num = file->CreateSegment("VTEST", "Test write", SEG_VEC, 0);
+    
+    PCIDSKSegment* seg = file->GetSegment(seg_num);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    
+    PCIDSKVectorSegment* vec_seg = dynamic_cast<PCIDSKVectorSegment*>(seg);
+    
+    CPPUNIT_ASSERT(vec_seg != NULL);
+
+    // Create a feature with a specific id.
+
+    ShapeId id = vec_seg->CreateShape( 20 );
+
+    CPPUNIT_ASSERT( id == 20 );
+
+    // Create a feature with defaulted id.
+
+    id = vec_seg->CreateShape();
+
+    CPPUNIT_ASSERT( id == 21 );
+
+    // Create a feature with set id mixed in the existing range.
+
+    id = vec_seg->CreateShape(18);
+
+    CPPUNIT_ASSERT( id == 18 );
+
+    // Create a feature with an already used id, and check for exception.
+
+    try 
+    {
+        vec_seg->CreateShape( 20 );
+        CPPUNIT_ASSERT( false );
+    } 
+    catch( PCIDSK::PCIDSKException ex )
+    {
+        CPPUNIT_ASSERT( strstr(ex.what(),"20") != NULL );
+    }
+
+    // Close and reopen the file.
+    
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
+    delete file;
+
+    file = PCIDSK::Open( "vectestid.pix", "r+", NULL );
+
+    seg = file->GetSegment(seg_num);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    
+    vec_seg = dynamic_cast<PCIDSKVectorSegment*>(seg);
+    
+    CPPUNIT_ASSERT(vec_seg != NULL);
+
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
+    // Create a new feature with a specific id.
+
+    id = vec_seg->CreateShape( 45 );
+
+    CPPUNIT_ASSERT( id == 45 );
+
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
+    delete file;
+
+    unlink( "vectestid.pix" );
 }
 
 // Test minimal geometry writing and reading back.

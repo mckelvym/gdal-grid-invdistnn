@@ -718,8 +718,7 @@ int CPCIDSKVectorSegment::IndexFromShapeId( ShapeId id )
 /* -------------------------------------------------------------------- */
     if( !shapeid_map_active )
     {
-        shapeid_map_active = true;
-        PushLoadedIndexIntoMap();
+        PopulateShapeIdMap();
     }
 
 /* -------------------------------------------------------------------- */
@@ -728,57 +727,16 @@ int CPCIDSKVectorSegment::IndexFromShapeId( ShapeId id )
     if( shapeid_map.count( id ) == 1 )
         return shapeid_map[id];
 
-/* -------------------------------------------------------------------- */
-/*      Load shapeid index pages until we find the desired shapeid,     */
-/*      or we run out.                                                  */
-/* -------------------------------------------------------------------- */
-    int shapeid_pages = (shape_count+shapeid_page_size-1) / shapeid_page_size;
-
-    while( shapeid_pages_certainly_mapped+1 < shapeid_pages )
-    {
-        AccessShapeByIndex( 
-            (shapeid_pages_certainly_mapped+1) * shapeid_page_size );
-        
-        if( shapeid_map.count( id ) == 1 )
-            return shapeid_map[id];
-    }
-    
     return -1;
 }
 
 /************************************************************************/
-/*                         AccessShapeByIndex()                         */
-/*                                                                      */
-/*      This method is responsible for loading the set of               */
-/*      information for shape "shape_index" into the shape_index data   */
-/*      structures if it is not already there.                          */
+/*                          LoadShapeIdPage()                           */
 /************************************************************************/
 
-void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
+void CPCIDSKVectorSegment::LoadShapeIdPage( int page )
 
 {
-    LoadHeader();
-
-/* -------------------------------------------------------------------- */
-/*      Is the requested index already loaded?                          */
-/* -------------------------------------------------------------------- */
-    if( shape_index >= shape_index_start
-        && shape_index < shape_index_start + (int) shape_index_ids.size() )
-        return;
-
-    // this is for requesting the next shapeindex after shapecount on
-    // a partial page. 
-    if( shape_index == shape_count
-        && (int) shape_index_ids.size() < shapeid_page_size
-        && shape_count == (int) shape_index_ids.size() + shape_index_start )
-        return;
-
-/* -------------------------------------------------------------------- */
-/*      If the currently loaded shapeindex is dirty, we should write    */
-/*      it now.                                                         */
-/* -------------------------------------------------------------------- */
-    FlushLoadedShapeIndex();
-
 /* -------------------------------------------------------------------- */
 /*      Load a chunk of shape index information into a                  */
 /*      PCIDSKBuffer.                                                   */
@@ -790,7 +748,7 @@ void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
 
     int entries_to_load = shapeid_page_size;
 
-    shape_index_start = shape_index - (shape_index % shapeid_page_size);
+    shape_index_start = page * shapeid_page_size;
     if( shape_index_start + entries_to_load > shape_count )
         entries_to_load = shape_count - shape_index_start;
 
@@ -828,6 +786,45 @@ void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
 }
 
 /************************************************************************/
+/*                         AccessShapeByIndex()                         */
+/*                                                                      */
+/*      This method is responsible for loading the set of               */
+/*      information for shape "shape_index" into the shape_index data   */
+/*      structures if it is not already there.                          */
+/************************************************************************/
+
+void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
+
+{
+    LoadHeader();
+
+/* -------------------------------------------------------------------- */
+/*      Is the requested index already loaded?                          */
+/* -------------------------------------------------------------------- */
+    if( shape_index >= shape_index_start
+        && shape_index < shape_index_start + (int) shape_index_ids.size() )
+        return;
+
+    // this is for requesting the next shapeindex after shapecount on
+    // a partial page. 
+    if( shape_index == shape_count
+        && (int) shape_index_ids.size() < shapeid_page_size
+        && shape_count == (int) shape_index_ids.size() + shape_index_start )
+        return;
+
+/* -------------------------------------------------------------------- */
+/*      If the currently loaded shapeindex is dirty, we should write    */
+/*      it now.                                                         */
+/* -------------------------------------------------------------------- */
+    FlushLoadedShapeIndex();
+
+/* -------------------------------------------------------------------- */
+/*      Load the page of shapeid information for this shape index.      */
+/* -------------------------------------------------------------------- */
+    LoadShapeIdPage( shape_index / shapeid_page_size );
+}
+
+/************************************************************************/
 /*                       PushLoadedIndexIntoMap()                       */
 /************************************************************************/
 
@@ -841,9 +838,7 @@ void CPCIDSKVectorSegment::PushLoadedIndexIntoMap()
 /* -------------------------------------------------------------------- */
     int loaded_page = shape_index_start / shapeid_page_size;
 
-    if( shapeid_map_active 
-        && shape_index_ids.size() > 0 
-        && shapeid_map.count( shape_index_ids[0] ) == 0 )
+    if( shapeid_map_active && shape_index_ids.size() > 0 )
     {
         unsigned int i;
 
@@ -855,6 +850,35 @@ void CPCIDSKVectorSegment::PushLoadedIndexIntoMap()
 
         if( loaded_page == shapeid_pages_certainly_mapped+1 )
             shapeid_pages_certainly_mapped++;
+    }
+}
+
+/************************************************************************/
+/*                         PopulateShapeIdMap()                         */
+/*                                                                      */
+/*      Completely populate the shapeid->index map.                     */
+/************************************************************************/
+
+void CPCIDSKVectorSegment::PopulateShapeIdMap()
+
+{
+/* -------------------------------------------------------------------- */
+/*      Enable shapeid_map mode, and load the current page.             */
+/* -------------------------------------------------------------------- */
+    if( !shapeid_map_active )
+    {
+        shapeid_map_active = true;
+        PushLoadedIndexIntoMap();
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Load all outstanding pages.                                     */
+/* -------------------------------------------------------------------- */
+    int shapeid_pages = (shape_count+shapeid_page_size-1) / shapeid_page_size;
+
+    while( shapeid_pages_certainly_mapped+1 < shapeid_pages )
+    {
+        LoadShapeIdPage( shapeid_pages_certainly_mapped+1 );
     }
 }
 
@@ -1144,23 +1168,8 @@ ShapeId CPCIDSKVectorSegment::CreateShape( ShapeId id )
     AccessShapeByIndex( shape_count );
 
 /* -------------------------------------------------------------------- */
-/*      For now we do not support user requested shapeid -              */
-/*      eventually we should try to support this.                       */
-/* -------------------------------------------------------------------- */
-    if( id != NullShapeId )
-        ThrowPCIDSKException( "user supplied ids in CreateShape() not yet supported." );
-
-/* -------------------------------------------------------------------- */
 /*      Do we need to assign a shapeid?                                 */
 /* -------------------------------------------------------------------- */
-    if( highest_shapeid_used == NullShapeId && shape_count > 0 )
-    {
-        // we really need to force a pass through all the shapeids to make
-        // this aspect work.
-
-        ThrowPCIDSKException( "pre-checking shape-ids not yet supported." );
-    }
-
     if( id == NullShapeId )
     {
         if( highest_shapeid_used == NullShapeId )
@@ -1170,6 +1179,14 @@ ShapeId CPCIDSKVectorSegment::CreateShape( ShapeId id )
     }
     if( id > highest_shapeid_used )
         highest_shapeid_used = id;
+    else
+    {
+        PopulateShapeIdMap();
+        if( shapeid_map.count(id) > 0 )
+        {
+            ThrowPCIDSKException( "Attempt to create a shape with id '%d', but that already exists.", id );
+        }
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Push this new shape on to our list of shapeids in the           */
@@ -1245,6 +1262,9 @@ void CPCIDSKVectorSegment::DeleteShape( ShapeId id )
     shape_index_record_off[shape_index-shape_index_start] = rec_off;
     
     shape_index_page_dirty = true;
+
+    if( shapeid_map_active )
+        shapeid_map.erase( id );
 
     shape_count--;
 }

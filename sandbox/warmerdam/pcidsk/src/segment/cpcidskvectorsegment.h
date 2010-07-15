@@ -147,8 +147,10 @@ namespace PCIDSK
 
         void                 AccessShapeByIndex( int iIndex );
         int                  IndexFromShapeId( ShapeId id );
+        void                 LoadShapeIdPage( int page );
         void                 FlushLoadedShapeIndex();
         void                 PushLoadedIndexIntoMap();
+        void                 PopulateShapeIdMap();
         
         // Cached buffers for GetData();
         PCIDSKBuffer         raw_loaded_data;

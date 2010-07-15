@@ -173,8 +173,8 @@ int main( int argc, char **argv)
         std::vector<ShapeField>  fields;
         ShapeId   new_id;
 
-//        new_id = vec->CreateShape( *it );
-        new_id = vec->CreateShape();
+        new_id = vec->CreateShape( *it );
+//        new_id = vec->CreateShape();
         
         src_vec->GetFields( *it, fields );
         vec->SetFields( new_id, fields );
