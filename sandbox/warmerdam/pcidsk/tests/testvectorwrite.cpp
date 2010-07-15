@@ -39,6 +39,8 @@ class VectorWriteTest : public CppUnit::TestFixture
  
     CPPUNIT_TEST( testProjection );
     CPPUNIT_TEST( testSchema );
+    CPPUNIT_TEST( testGeometry );
+    CPPUNIT_TEST( testStress );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -47,6 +49,8 @@ public:
     void tearDown();
     void testProjection();
     void testSchema();
+    void testGeometry();
+    void testStress();
 };
 
 // Registers the fixture into the 'registry'
@@ -297,6 +301,8 @@ void VectorWriteTest::testSchema()
 
     // Close and reopen the file.
     
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
     delete file;
 
     file = PCIDSK::Open( "vectestschema.pix", "r", NULL );
@@ -329,7 +335,230 @@ void VectorWriteTest::testSchema()
         CPPUNIT_ASSERT( fields_ret[i] == field_list[i] );
     }
 
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
     delete file;
 
     unlink( "vectestschema.pix" );
 }
+
+// Test minimal geometry writing and reading back.
+
+void VectorWriteTest::testGeometry()
+{
+    PCIDSKFile *file;
+    eChanType channel_types[1] = {CHN_8U};
+    
+    file = PCIDSK::Create( "vectestgeom.pix", 50, 40, 1, channel_types,
+                           "BAND", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    int seg_num = file->CreateSegment("VTEST", "Test write", SEG_VEC, 0);
+    
+    PCIDSKSegment* seg = file->GetSegment(seg_num);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    
+    PCIDSKVectorSegment* vec_seg = dynamic_cast<PCIDSKVectorSegment*>(seg);
+    
+    CPPUNIT_ASSERT(vec_seg != NULL);
+
+    // Create a feature with no geometry.
+
+    ShapeId first_id = vec_seg->CreateShape();
+
+    // Create a feature with geometry.
+
+    std::vector<ShapeVertex> vlist;
+
+    ShapeId id = vec_seg->CreateShape();
+
+    vlist.resize( 4 );
+    
+    vlist[0].x = 0;
+    vlist[0].y = 0;
+    vlist[0].z = 0;
+    vlist[1].x = 100;
+    vlist[1].y = 0;
+    vlist[1].z = 0;
+    vlist[2].x = 100;
+    vlist[2].y = 100;
+    vlist[2].z = 0;
+    vlist[3].x = 0;
+    vlist[3].y = 0;
+    vlist[3].z = 25;
+
+    vec_seg->SetVertices( id, vlist );
+
+    // Check the first shape.
+
+    std::vector<ShapeVertex> v2list;
+
+    vec_seg->GetVertices( first_id, v2list );
+
+    CPPUNIT_ASSERT( v2list.size() == 0 );
+
+    // Check the second shape with real values. 
+    unsigned int i;
+
+    vec_seg->GetVertices( id, v2list );
+
+    CPPUNIT_ASSERT( v2list.size() == vlist.size());
+    
+    for( i = 0; i < vlist.size(); i++ )
+    {
+        CPPUNIT_ASSERT( vlist[i].x == v2list[i].x );
+        CPPUNIT_ASSERT( vlist[i].y == v2list[i].y );
+        CPPUNIT_ASSERT( vlist[i].z == v2list[i].z );
+    }
+
+    // Close and reopen the file.
+    
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
+    delete file;
+
+    file = PCIDSK::Open( "vectestgeom.pix", "r+", NULL );
+
+    seg = file->GetSegment(seg_num);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+    
+    vec_seg = dynamic_cast<PCIDSKVectorSegment*>(seg);
+    
+    CPPUNIT_ASSERT(vec_seg != NULL);
+
+    // Check the first shape.
+
+    vec_seg->GetVertices( first_id, v2list );
+
+    CPPUNIT_ASSERT( v2list.size() == 0 );
+
+    // Check the second shape with real values. 
+
+    vec_seg->GetVertices( id, v2list );
+
+    CPPUNIT_ASSERT( v2list.size() == vlist.size());
+    
+    for( i = 0; i < vlist.size(); i++ )
+    {
+        CPPUNIT_ASSERT( vlist[i].x == v2list[i].x );
+        CPPUNIT_ASSERT( vlist[i].y == v2list[i].y );
+        CPPUNIT_ASSERT( vlist[i].z == v2list[i].z );
+    }
+    
+    // Set vertices on the first feature.
+    
+    vlist.resize(3);
+    vec_seg->SetVertices( first_id, vlist );
+
+    vec_seg->GetVertices( first_id, v2list );
+
+    CPPUNIT_ASSERT( v2list.size() == 3 );
+    CPPUNIT_ASSERT( v2list[2].y == 100 );
+
+    // Grow the geometry for the second feature.
+    vlist.resize(5);
+
+    vlist[3].x = 0;
+    vlist[3].y = 0;
+    vlist[3].z = 25;
+    vlist[4].x = -100;
+    vlist[4].y = -50;
+    vlist[4].z = 15;
+
+    vec_seg->SetVertices( id, vlist );
+
+    vec_seg->GetVertices( id, v2list );
+
+    CPPUNIT_ASSERT( v2list.size() == 5 );
+    CPPUNIT_ASSERT( v2list[2].y == 100 );
+    CPPUNIT_ASSERT( v2list[4].x == -100 );
+
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
+    delete file;
+
+    unlink( "vectestgeom.pix" );
+}
+
+//
+// Try to stress test writing, update and reading on a moderately large
+// layer.
+//
+
+void VectorWriteTest::testStress()
+{
+    PCIDSKFile *file;
+    eChanType channel_types[1] = {CHN_8U};
+    
+    file = PCIDSK::Create( "vecteststress.pix", 50, 40, 1, channel_types,
+                           "BAND", NULL );
+
+    CPPUNIT_ASSERT( file != NULL );
+
+    int seg_num = file->CreateSegment("VTEST", "Test write", SEG_VEC, 0);
+    
+    PCIDSKSegment* seg = file->GetSegment(seg_num);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    
+    PCIDSKVectorSegment* vec_seg = dynamic_cast<PCIDSKVectorSegment*>(seg);
+    
+    CPPUNIT_ASSERT(vec_seg != NULL);
+
+    // Create some simple attributes.
+
+    ShapeField dfield;
+
+    dfield.SetValue( 100 );
+    vec_seg->AddField( "FIELD1", FieldTypeInteger, "Field 1 Description",
+                       "%7d", &dfield );
+
+    vec_seg->AddField( "FIELD2", FieldTypeString, "Field 2 Description",
+                       "" );
+
+    // Create a base set of features with predictable geometry
+    // and fields. 
+
+    const static unsigned int num_features = 100000;
+    unsigned int i;
+    std::vector<ShapeField> fields;
+
+    fields.resize(2);
+
+    for( i = 0; i < num_features; i++ )
+    {
+        ShapeId id = vec_seg->CreateShape();
+        std::string f2;
+        uint32 vcount = i % 30, v;
+
+        fields[0].SetValue( (int32) i+100 );
+
+        f2.append( i % 40, 'a' + (i / 100) % 10 );
+        fields[1].SetValue( f2 );
+
+        vec_seg->SetFields( id, fields );
+
+        std::vector<ShapeVertex> vertices;
+
+        vertices.resize(vcount);
+        for( v = 0; v < vcount; v++ )
+        {
+            vertices[v].x = 100000 + v + i;
+            vertices[v].y = 200000 + v + i*2;
+            vertices[v].z = i/5.0 + v;
+        }
+
+        vec_seg->SetVertices( id, vertices );
+    }
+    
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+
+    delete file;
+
+//    unlink( "vecteststress.pix" );
+}
+

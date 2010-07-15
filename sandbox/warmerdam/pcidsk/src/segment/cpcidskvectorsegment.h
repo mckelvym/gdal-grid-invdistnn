@@ -63,6 +63,7 @@ namespace PCIDSK
         virtual        ~CPCIDSKVectorSegment();
 
         void            Initialize();
+        void            Synchronize();
 
         std::string     GetRst() { return ""; }
         std::vector<double> GetProjection( std::string &geosys );
@@ -130,7 +131,6 @@ namespace PCIDSK
         //ShapeId              first_shape_id;
         //ShapeId              last_shape_id;
         
-        uint32               shape_index_byte_offset; // within segment
         int32                shape_index_start;       // index of first shape
         std::vector<int32>   shape_index_ids;         // loaded shape ids. 
         std::vector<uint32>  shape_index_vertex_off;  // loaded vertex offsets

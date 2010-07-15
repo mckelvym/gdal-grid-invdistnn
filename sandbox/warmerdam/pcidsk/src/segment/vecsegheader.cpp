@@ -35,6 +35,7 @@
 #include "segment/cpcidskvectorsegment.h"
 #include <cassert>
 #include <cstring>
+#include <cstdio>
 
 using namespace PCIDSK;
 
@@ -251,7 +252,6 @@ void VecSegHeader::InitializeExisting()
         SwapData( &(vs->shape_count), 4, 1 );
 
     next_off += 4;
-    vs->shape_index_byte_offset = next_off;
     vs->shape_index_start = 0;
 
     section_sizes[hsec_shape] = next_off - section_offsets[hsec_shape] 
@@ -350,7 +350,7 @@ bool VecSegHeader::GrowSection( int hsec, uint32 new_size )
 /*      If we can grow in place and have space there is nothing to do.  */
 /* -------------------------------------------------------------------- */
     if( grow_ok 
-        && section_offsets[hsec] + section_sizes[hsec] 
+        && section_offsets[hsec] + new_size
         < header_blocks * block_page_size )
     {
         section_sizes[hsec] = new_size;
@@ -374,9 +374,8 @@ bool VecSegHeader::GrowSection( int hsec, uint32 new_size )
 /* -------------------------------------------------------------------- */
     if( new_base + new_size > header_blocks * block_page_size )
     {
-        // We need to grow the header!  Somewhat involved...
-        ThrowPCIDSKException( 
-            "Growing vector segment header not yet implemented." );
+        GrowHeader( (new_base+new_size+block_page_size-1) / block_page_size 
+                    - header_blocks );
     }
 
 /* -------------------------------------------------------------------- */
@@ -446,11 +445,51 @@ uint32 VecSegHeader::ShapeIndexPrepare( uint32 size )
 {
     GrowSection( hsec_shape, 
                  size 
-                 + vs->di[sec_vert].SerializedSize() 
-                 + vs->di[sec_record].SerializedSize() );
+                 + vs->di[sec_vert].size_on_disk 
+                 + vs->di[sec_record].size_on_disk );
 
     return section_offsets[hsec_shape]
-        + vs->di[sec_vert].SerializedSize() 
-        + vs->di[sec_record].SerializedSize();
+        + vs->di[sec_vert].size_on_disk 
+        + vs->di[sec_record].size_on_disk;
+}
+
+/************************************************************************/
+/*                             GrowHeader()                             */
+/*                                                                      */
+/*      Grow the header by the requested number of blocks.  This        */
+/*      will often involve migrating existing vector or record          */
+/*      section blocks on to make space since the header must be        */
+/*      contiguous.                                                     */
+/************************************************************************/
+
+void VecSegHeader::GrowHeader( uint32 new_blocks )
+
+{
+//    fprintf( stderr, "GrowHeader(%d) to %d\n", 
+//             new_blocks, header_blocks + new_blocks );
+
+/* -------------------------------------------------------------------- */
+/*      Process the two existing block maps, moving stuff on if         */
+/*      needed.                                                         */
+/* -------------------------------------------------------------------- */
+    vs->di[sec_vert].VacateBlockRange( header_blocks, new_blocks );
+    vs->di[sec_record].VacateBlockRange( header_blocks, new_blocks );
+
+/* -------------------------------------------------------------------- */
+/*      Write to ensure the segment is the new size.                    */
+/* -------------------------------------------------------------------- */
+    vs->WriteToFile( "\0", (header_blocks+new_blocks) * block_page_size - 1, 1);
+
+/* -------------------------------------------------------------------- */
+/*      Update to new header size.                                      */
+/* -------------------------------------------------------------------- */
+    header_blocks += new_blocks;
+
+    uint32 header_block_buf = header_blocks;
+    
+    if( needs_swap )
+        SwapData( &header_block_buf, 4, 1 );
+    
+    vs->WriteToFile( &header_block_buf, 68, 4 );
 }
 

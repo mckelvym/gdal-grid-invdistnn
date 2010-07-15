@@ -31,6 +31,7 @@
 #include "segment/cpcidskvectorsegment.h"
 #include <cassert>
 #include <cstring>
+#include <cstdio>
 
 using namespace PCIDSK;
 
@@ -39,6 +40,7 @@ using namespace PCIDSK;
 /*      determined by the PCIDSK format and may not be changed.         */
 /* -------------------------------------------------------------------- */
 static const int block_page_size = 8192;  
+
 
 /* -------------------------------------------------------------------- */
 /*      Size of one page of loaded shapeids.  This is not related to    */
@@ -69,7 +71,6 @@ CPCIDSKVectorSegment::CPCIDSKVectorSegment( PCIDSKFile *file, int segment,
     vert_loaded_data_dirty = false;
     record_loaded_data_dirty = false;
 
-    shape_index_byte_offset = 0;
     shape_index_start = 0;
     shape_index_page_dirty = false;
 
@@ -87,6 +88,15 @@ CPCIDSKVectorSegment::CPCIDSKVectorSegment( PCIDSKFile *file, int segment,
 
 CPCIDSKVectorSegment::~CPCIDSKVectorSegment()
 
+{
+    Synchronize();
+}
+
+/************************************************************************/
+/*                            Synchronize()                             */
+/************************************************************************/
+
+void CPCIDSKVectorSegment::Synchronize()
 {
     if( base_initialized )
     {
@@ -433,7 +443,8 @@ char *CPCIDSKVectorSegment::GetData( int section, uint32 offset,
         // the requested section.  This will throw an exception if we
         // are unable to grow the file. 
         if( section != sec_raw
-            && load_offset + size > di[section].GetIndex()->size() && update )
+            && load_offset + size > di[section].GetIndex()->size() * block_page_size
+            && update )
         {
             PCIDSKBuffer zerobuf(block_page_size);
 
@@ -755,6 +766,13 @@ void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
         && shape_index < shape_index_start + (int) shape_index_ids.size() )
         return;
 
+    // this is for requesting the next shapeindex after shapecount on
+    // a partial page. 
+    if( shape_index == shape_count
+        && (int) shape_index_ids.size() < shapeid_page_size
+        && shape_count == (int) shape_index_ids.size() + shape_index_start )
+        return;
+
 /* -------------------------------------------------------------------- */
 /*      If the currently loaded shapeindex is dirty, we should write    */
 /*      it now.                                                         */
@@ -765,6 +783,11 @@ void CPCIDSKVectorSegment::AccessShapeByIndex( int shape_index )
 /*      Load a chunk of shape index information into a                  */
 /*      PCIDSKBuffer.                                                   */
 /* -------------------------------------------------------------------- */
+    uint32 shape_index_byte_offset = 
+        vh.section_offsets[hsec_shape]
+        + di[sec_record].offset_on_disk_within_section
+        + di[sec_record].size_on_disk + 4;
+
     int entries_to_load = shapeid_page_size;
 
     shape_index_start = shape_index - (shape_index % shapeid_page_size);
@@ -1027,6 +1050,8 @@ void CPCIDSKVectorSegment::AddField( std::string name, ShapeFieldType type,
 {
     ShapeField fallback_default;
 
+    LoadHeader();
+
 /* -------------------------------------------------------------------- */
 /*      If no default is provided, use the obvious value.               */
 /* -------------------------------------------------------------------- */
@@ -1106,14 +1131,9 @@ ShapeId CPCIDSKVectorSegment::CreateShape( ShapeId id )
     LoadHeader();
 
 /* -------------------------------------------------------------------- */
-/*      Do we need to move to the last shapeindex page or are we        */
-/*      already there?                                                  */
+/*      Make sure we have the last shapeid index page loaded.           */
 /* -------------------------------------------------------------------- */
-    if( (int) shape_index_ids.size() == shapeid_page_size
-        || (int) shape_index_ids.size() + shape_index_start < shape_count )
-    {
-        ThrowPCIDSKException( "not implemented." );
-    }
+    AccessShapeByIndex( shape_count );
 
 /* -------------------------------------------------------------------- */
 /*      For now we do not support user requested shapeid -              */
@@ -1270,6 +1290,8 @@ void CPCIDSKVectorSegment::SetFields( ShapeId id,
 
     for( i = 0; i < list.size(); i++ )
         offset = WriteField( offset, list[i], fbuf );
+
+    fbuf.SetSize( offset );
 
 /* -------------------------------------------------------------------- */
 /*      Is the current space big enough to hold the new field set?      */

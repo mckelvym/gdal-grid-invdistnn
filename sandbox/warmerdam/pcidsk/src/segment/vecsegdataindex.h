@@ -45,6 +45,7 @@ namespace PCIDSK
     class VecSegDataIndex 
     {
         friend class CPCIDSKVectorSegment;
+        friend class VecSegHeader;
 
     public:
         VecSegDataIndex();
@@ -53,7 +54,6 @@ namespace PCIDSK
         void                 Initialize( CPCIDSKVectorSegment *seg,
                                          int section );
 
-        uint32               GetLocation();
         uint32               SerializedSize();
 
         void                 SetDirty();
@@ -61,6 +61,8 @@ namespace PCIDSK
 
         const std::vector<uint32> *GetIndex();
         void            AddBlockToIndex( uint32 block );
+        void            VacateBlockRange( uint32 start, uint32 count );
+
         uint32          GetSectionEnd();
         void            SetSectionEnd( uint32 new_size );
 
@@ -68,6 +70,9 @@ namespace PCIDSK
         CPCIDSKVectorSegment *vs;
 
         int                  section;
+
+        uint32               offset_on_disk_within_section;
+        uint32               size_on_disk;
 
         bool                 block_initialized;
         uint32               block_count;

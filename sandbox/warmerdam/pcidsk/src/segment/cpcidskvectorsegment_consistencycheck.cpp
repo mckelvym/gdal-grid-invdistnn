@@ -154,6 +154,8 @@ public:
 std::string CPCIDSKVectorSegment::ConsistencyCheck()
 
 {
+    Synchronize();
+    
     std::string report = CPCIDSKSegment::ConsistencyCheck();
 
     report += ConsistencyCheck_Header();

@@ -35,8 +35,15 @@
 #include "segment/cpcidskvectorsegment.h"
 #include <cassert>
 #include <cstring>
+#include <cstdio>
 
 using namespace PCIDSK;
+
+/* -------------------------------------------------------------------- */
+/*      Size of a block in the record/vertice block tables.  This is    */
+/*      determined by the PCIDSK format and may not be changed.         */
+/* -------------------------------------------------------------------- */
+static const int block_page_size = 8192;  
 
 /************************************************************************/
 /*                          VecSegDataIndex()                           */
@@ -69,7 +76,13 @@ void VecSegDataIndex::Initialize( CPCIDSKVectorSegment *vs, int section )
     this->section = section;
     this->vs = vs;
 
-    uint32 offset = vs->di[section].GetLocation();
+    if( section == sec_vert )
+        offset_on_disk_within_section = 0;
+    else 
+        offset_on_disk_within_section = vs->di[sec_vert].SerializedSize();
+
+    uint32 offset = offset_on_disk_within_section 
+        + vs->vh.section_offsets[hsec_shape];
 
     memcpy( &block_count, vs->GetData(sec_raw,offset,NULL,4), 4);
     memcpy( &bytes, vs->GetData(sec_raw,offset+4,NULL,4), 4);
@@ -81,26 +94,8 @@ void VecSegDataIndex::Initialize( CPCIDSKVectorSegment *vs, int section )
         SwapData( &block_count, 4, 1 );
         SwapData( &bytes, 4, 1 );
     }
-}
 
-/************************************************************************/
-/*                            GetLocation()                             */
-/*                                                                      */
-/*      Get the offset within the segment header where this index is    */
-/*      kept.                                                           */
-/************************************************************************/
-
-uint32 VecSegDataIndex::GetLocation()
-
-{
-    if( section == sec_vert )
-        return vs->vh.section_offsets[hsec_shape];
-    else 
-    {
-        assert( section == sec_record );
-        return vs->vh.section_offsets[hsec_shape]
-            + vs->di[sec_vert].SerializedSize();
-    }
+    size_on_disk = block_count * 4 + 8;
 }
 
 /************************************************************************/
@@ -126,7 +121,9 @@ const std::vector<uint32> *VecSegDataIndex::GetIndex()
     if( !block_initialized )
     {
         block_index.resize( block_count );
-        vs->ReadFromFile( &(block_index[0]), GetLocation() + 8, 
+        vs->ReadFromFile( &(block_index[0]), 
+                          offset_on_disk_within_section
+                          + vs->vh.section_offsets[hsec_shape] + 8, 
                           4 * block_count );
 
         bool needs_swap = !BigEndianSystem();
@@ -152,7 +149,6 @@ void VecSegDataIndex::Flush()
 
     GetIndex(); // force loading if not already loaded!
 
-    uint32 offset = GetLocation();
     PCIDSKBuffer wbuf( SerializedSize() );
 
     memcpy( wbuf.buffer + 0, &block_count, 4 );
@@ -163,9 +159,54 @@ void VecSegDataIndex::Flush()
 
     if( needs_swap )
         SwapData( wbuf.buffer, 4, block_count+2 );
-    
-    vs->WriteToFile( wbuf.buffer, offset, wbuf.buffer_size );
 
+    // Make sure this section of the header is large enough.
+    int32 shift = (int32) wbuf.buffer_size - (int32) size_on_disk;
+    
+    if( shift != 0 )
+    {
+        uint32 old_section_size = vs->vh.section_sizes[hsec_shape];
+
+//        fprintf( stderr, "Shifting section %d by %d bytes.\n",
+//                 section, shift );
+
+        vs->vh.GrowSection( hsec_shape, old_section_size + shift );
+
+        if( section == sec_vert )
+        {
+            // move record block index and shape index.
+            vs->MoveData( vs->vh.section_offsets[hsec_shape]
+                          + vs->di[sec_vert].size_on_disk,
+                          vs->vh.section_offsets[hsec_shape]
+                          + vs->di[sec_vert].size_on_disk + shift,
+                          old_section_size - size_on_disk );
+        }
+        else
+        {
+            // only move shape index.
+            vs->MoveData( vs->vh.section_offsets[hsec_shape]
+                          + vs->di[sec_vert].size_on_disk
+                          + vs->di[sec_record].size_on_disk,
+                          vs->vh.section_offsets[hsec_shape]
+                          + vs->di[sec_vert].size_on_disk
+                          + vs->di[sec_record].size_on_disk 
+                          + shift,
+                          old_section_size 
+                          - vs->di[sec_vert].size_on_disk
+                          - vs->di[sec_record].size_on_disk );
+        }
+
+        if( section == sec_vert )
+            vs->di[sec_record].offset_on_disk_within_section += shift;
+    }
+
+    // Actually write to disk.
+    vs->WriteToFile( wbuf.buffer, 
+                     offset_on_disk_within_section 
+                     + vs->vh.section_offsets[hsec_shape], 
+                     wbuf.buffer_size );
+
+    size_on_disk = wbuf.buffer_size;
     dirty = false;
 }
 
@@ -215,4 +256,33 @@ void VecSegDataIndex::SetDirty()
 
 {
     dirty = true;
+}
+
+/************************************************************************/
+/*                          VacateBlockRange()                          */
+/*                                                                      */
+/*      Move any blocks in the indicated block range to the end of      */
+/*      the segment to make space for a growing header.                 */
+/************************************************************************/
+
+void VecSegDataIndex::VacateBlockRange( uint32 start, uint32 count )
+
+{
+    GetIndex(); // make sure loaded.
+
+    unsigned int i;
+    uint32  next_block = vs->GetContentSize() / block_page_size;
+
+    for( i = 0; i < block_count; i++ )
+    {
+        if( block_index[i] >= start && block_index[i] < start+count )
+        {
+            vs->MoveData( block_index[i] * block_page_size,
+                          next_block * block_page_size, 
+                          block_page_size );
+            block_index[i] = next_block;
+            dirty = true;
+            next_block++;
+        }
+    }
 }

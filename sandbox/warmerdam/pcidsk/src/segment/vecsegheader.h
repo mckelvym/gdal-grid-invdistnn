@@ -62,6 +62,7 @@ namespace PCIDSK
         void            InitializeNew();
         void            InitializeExisting();
 
+        void            GrowHeader( uint32 new_blocks );
         bool            GrowSection( int hsec, uint32 new_size );
         void            WriteHeaderSection( int hsec, PCIDSKBuffer &buffer );
 

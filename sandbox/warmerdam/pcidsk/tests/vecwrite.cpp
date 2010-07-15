@@ -84,6 +84,20 @@ int main( int argc, char **argv)
         src_file = Open( src_filename, "r", NULL );
 
 /* -------------------------------------------------------------------- */
+/*      Find the source vector segment.                                 */
+/* -------------------------------------------------------------------- */
+        PCIDSKSegment *src_seg = src_file->GetSegment( SEG_VEC, "" );
+        if( src_seg == NULL )
+        {
+            fprintf( stderr, "No vector segment found on %s, quiting.\n",
+                     src_filename );
+            exit( 1 );
+        }
+
+        PCIDSKVectorSegment *src_vec = 
+            dynamic_cast<PCIDSKVectorSegment*>( src_seg );
+
+/* -------------------------------------------------------------------- */
 /*      Create output file.                                             */
 /* -------------------------------------------------------------------- */
         dst_file = Create( dst_filename, 
@@ -111,89 +125,74 @@ int main( int argc, char **argv)
             parms = src_geo->GetParameters();
             dst_geo->WriteParameters( parms );
         }
-    
+
 /* -------------------------------------------------------------------- */
 /*      Create an output vector segment.                                */
 /* -------------------------------------------------------------------- */
         int vec_seg_number = 
-            dst_file->CreateSegment( "VECWORK", "Test output vectors",
+            dst_file->CreateSegment( src_seg->GetName(), 
+                                     src_seg->GetDescription(),
                                      SEG_VEC, 0L );
 
         PCIDSKSegment *seg = dst_file->GetSegment( vec_seg_number );
         PCIDSKVectorSegment *vec = dynamic_cast<PCIDSKVectorSegment*>( seg );
 
 /* -------------------------------------------------------------------- */
-/*      check empty works ok.                                           */
-/* -------------------------------------------------------------------- */
-
-        assert( vec->GetFieldCount() == 0 );
-
-        ShapeId id = vec->FindFirst();
-
-        assert( id == NullShapeId );
-
-/* -------------------------------------------------------------------- */
-/*      Add one field.                                                  */
+/*      Transfer the projection definition.                             */
 /* -------------------------------------------------------------------- */
         std::vector<double> dparms;
+        std::string geosys;
 
-        vec->SetProjection( "UTM 11 D000", dparms );
-
-        vec->AddField( "ID", FieldTypeInteger, "Key", "%d" );
-        vec->AddField( "FIELD1", FieldTypeString, "Dummy Description", "" );
-
-        dparms.push_back( 6370000 );
-        dparms.push_back( 6375000.2 );
-
-        vec->SetProjection( "LONG D000", dparms );
-
-        ShapeField area_default;
-        area_default.SetValue( (double) -1.0 );
-        vec->AddField( "AREA", FieldTypeDouble, "", "%.2f", &area_default );
+        dparms = src_vec->GetProjection( geosys );
+        vec->SetProjection( geosys, dparms );
 
 /* -------------------------------------------------------------------- */
-/*      Add two empty records.                                          */
+/*      Transfer the fields definitions.                                */
 /* -------------------------------------------------------------------- */
-        id = vec->CreateShape();
+        unsigned int i;
 
-        assert( id == 0 );
+        for( i = 0; i < (unsigned int) src_vec->GetFieldCount(); i++ )
+        {
+            ShapeField dfield = src_vec->GetFieldDefault(i);
+
+            vec->AddField( src_vec->GetFieldName(i),
+                           src_vec->GetFieldType(i),
+                           src_vec->GetFieldDescription(i),
+                           src_vec->GetFieldFormat(i),
+                           &dfield );
+        }
+
+/* -------------------------------------------------------------------- */
+/*      Transfer all the features.                                      */
+/* -------------------------------------------------------------------- */
+    ShapeIterator it = src_vec->begin();
+
+    while( it != src_vec->end() )
+    {
+        std::vector<ShapeVertex> vertices;
+        std::vector<ShapeField>  fields;
+        ShapeId   new_id;
+
+//        new_id = vec->CreateShape( *it );
+        new_id = vec->CreateShape();
         
-        id = vec->CreateShape();
+        src_vec->GetFields( *it, fields );
+        vec->SetFields( new_id, fields );
 
-        assert( id == 1 );
-
-/* -------------------------------------------------------------------- */
-/*      Write vertices.                                                 */
-/* -------------------------------------------------------------------- */
-        std::vector<ShapeVertex> vertex_list;
-        ShapeVertex v;
-
-        v.x = 1000.0;
-        v.y = 2000.0;
-        v.z = 10;
+        src_vec->GetVertices( *it, vertices );
+        vec->SetVertices( new_id, vertices );
         
-        vertex_list.push_back( v );
-
-        v.x = 1200.0;
-        v.y = 1300.0;
-        v.z = 20;
-
-        vertex_list.push_back( v );
-
-        vec->SetVertices( id, vertex_list );
+        it++;
+    }
 
 /* -------------------------------------------------------------------- */
-/*      Write fields.                                                   */
+/*      Check consistency of result.                                    */
 /* -------------------------------------------------------------------- */
-        std::vector<ShapeField> field_list;
-        
-        field_list.resize(3);
+    std::string report = seg->ConsistencyCheck();
 
-        field_list[0].SetValue( 17 );
-        field_list[1].SetValue( "Test Value" );
-        field_list[2].SetValue( 10000.0 );
-
-        vec->SetFields( id, field_list );
+    if( report != "" )
+        printf( "Consistency Report:\n%s", 
+                report.c_str() );
 
 /* -------------------------------------------------------------------- */
 /*      Cleanup                                                         */

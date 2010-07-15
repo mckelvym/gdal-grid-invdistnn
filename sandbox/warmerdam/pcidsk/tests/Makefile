@@ -1,7 +1,9 @@
 
 CXXFLAGS = -g -Wall -I../src -I/usr/local/include -DDEBUG
 
-OBJ =   test_main.o testpcidskexception.o testpcidskfile.o testsegments.o \
+#	testsegments.o \
+
+OBJ =   test_main.o testpcidskexception.o testpcidskfile.o \
 	testpcidskcreate.o testpcidskupdate.o testoverviews.o \
 	testvectorread.o testvectorwrite.o testprojections.o testchannel.o
 
