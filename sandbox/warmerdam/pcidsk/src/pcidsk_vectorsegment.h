@@ -206,22 +206,15 @@ not normally be shown to the user.
                                       ShapeField *default_value=NULL ) = 0;
 
         virtual ShapeId     CreateShape( ShapeId id = NullShapeId ) = 0;
+        virtual void        DeleteShape( ShapeId id ) = 0;
 
         virtual void        SetVertices( ShapeId id, 
                                          const std::vector<ShapeVertex> &list ) = 0;
         virtual void        SetFields( ShapeId id, 
                                        const std::vector<ShapeField>& list) = 0;
 // Methods needed 
-        // GetSRS, SetSRS
-        
-        // AddField
         // DeleteField
         // ModifyField?
-        
-        // CreateShape(shapeid)
-        // SetVertices(shapeid,vertices)
-        // SetField/SetFields
-
     };
 
 /************************************************************************/

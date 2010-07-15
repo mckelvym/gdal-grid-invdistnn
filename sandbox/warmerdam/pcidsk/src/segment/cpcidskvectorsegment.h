@@ -92,6 +92,7 @@ namespace PCIDSK
                                   ShapeField *default_value );
         
         ShapeId         CreateShape( ShapeId id );
+        void            DeleteShape( ShapeId id );
         void            SetVertices( ShapeId id, 
                                      const std::vector<ShapeVertex>& list );
         void            SetFields( ShapeId id, 

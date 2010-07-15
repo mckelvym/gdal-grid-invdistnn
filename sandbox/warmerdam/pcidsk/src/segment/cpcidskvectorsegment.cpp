@@ -909,6 +909,10 @@ void CPCIDSKVectorSegment::GetVertices( ShapeId shape_id,
 {
     int shape_index = IndexFromShapeId( shape_id );
 
+    if( shape_index == -1 )
+        ThrowPCIDSKException( "Attempt to call GetVertices() on non-existing shape id '%d'.",
+                              (int) shape_id );
+
     AccessShapeByIndex( shape_index );
 
     uint32 vert_off = shape_index_vertex_off[shape_index - shape_index_start];
@@ -1017,6 +1021,10 @@ void CPCIDSKVectorSegment::GetFields( ShapeId id,
 {
     unsigned int i;
     int shape_index = IndexFromShapeId( id );
+
+    if( shape_index == -1 )
+        ThrowPCIDSKException( "Attempt to call GetFields() on non-existing shape id '%d'.",
+                              (int) id );
 
     AccessShapeByIndex( shape_index );
 
@@ -1181,6 +1189,67 @@ ShapeId CPCIDSKVectorSegment::CreateShape( ShapeId id )
 }
 
 /************************************************************************/
+/*                            DeleteShape()                             */
+/*                                                                      */
+/*      Delete a shape by shapeid.                                      */
+/************************************************************************/
+
+void CPCIDSKVectorSegment::DeleteShape( ShapeId id )
+
+{
+    int shape_index = IndexFromShapeId( id );
+
+    if( shape_index == -1 )
+        ThrowPCIDSKException( "Attempt to call DeleteShape() on non-existing shape '%d'.",
+                              (int) id );
+
+/* ==================================================================== */
+/*      Our strategy is to move the last shape in our index down to     */
+/*      replace the shape that we are deleting.  Unfortunately this     */
+/*      will result in an out of sequence shapeid, but it is hard to    */
+/*      avoid that without potentially rewriting much of the shape      */
+/*      index.                                                          */
+/*                                                                      */
+/*      Note that the following sequence *does* work for special        */
+/*      cases like deleting the last shape in the list, or deleting     */
+/*      a shape on the same page as the last shape.   At worst a wee    */
+/*      bit of extra work is done.                                      */
+/* ==================================================================== */
+
+/* -------------------------------------------------------------------- */
+/*      Load the page of shapeids containing the last shape in our      */
+/*      index, capture the last shape's details, and remove it.         */
+/* -------------------------------------------------------------------- */
+
+    uint32 vert_off, rec_off;
+    ShapeId  last_id;
+
+    AccessShapeByIndex( shape_count-1 );
+    
+    last_id = shape_index_ids[shape_count-1-shape_index_start];
+    vert_off = shape_index_vertex_off[shape_count-1-shape_index_start];
+    rec_off = shape_index_record_off[shape_count-1-shape_index_start];
+
+    // We don't actually have to modify this area of the index on disk.
+    // Some of the stuff at the end just becomes unreferenced when we
+    // decrement shape_count.
+
+/* -------------------------------------------------------------------- */
+/*      Load the page with the shape we are deleting, and put last      */
+/*      the shapes information over it.                                 */
+/* -------------------------------------------------------------------- */
+    AccessShapeByIndex( shape_index );
+
+    shape_index_ids[shape_index-shape_index_start] = last_id;
+    shape_index_vertex_off[shape_index-shape_index_start] = vert_off;
+    shape_index_record_off[shape_index-shape_index_start] = rec_off;
+    
+    shape_index_page_dirty = true;
+
+    shape_count--;
+}
+
+/************************************************************************/
 /*                            SetVertices()                             */
 /************************************************************************/
 
@@ -1189,6 +1258,11 @@ void CPCIDSKVectorSegment::SetVertices( ShapeId id,
 
 {
     int shape_index = IndexFromShapeId( id );
+
+    if( shape_index == -1 )
+        ThrowPCIDSKException( "Attempt to call SetVertices() on non-existing shape '%d'.",
+                              (int) id );
+
     PCIDSKBuffer vbuf( list.size() * 24 + 8 );
 
     AccessShapeByIndex( shape_index );
@@ -1267,6 +1341,11 @@ void CPCIDSKVectorSegment::SetFields( ShapeId id,
 {
     uint32 i;
     int shape_index = IndexFromShapeId( id );
+
+    if( shape_index == -1 )
+        ThrowPCIDSKException( "Attempt to call SetFields() on non-existing shape id '%d'.",
+                              (int) id );
+
     std::vector<ShapeField> list = list_in;
 
     if( list.size() > vh.field_names.size() )

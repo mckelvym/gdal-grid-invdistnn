@@ -47,6 +47,7 @@ class VectorWriteTest : public CppUnit::TestFixture
 public:
     void setUp();
     void tearDown();
+
     void testProjection();
     void testSchema();
     void testGeometry();
@@ -523,7 +524,7 @@ void VectorWriteTest::testStress()
     // Create a base set of features with predictable geometry
     // and fields. 
 
-    const static unsigned int num_features = 100000;
+    const static unsigned int num_features = 15000;
     unsigned int i;
     std::vector<ShapeField> fields;
 
@@ -557,8 +558,213 @@ void VectorWriteTest::testStress()
     
     CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
 
+    // Reopen the file.
+
     delete file;
 
+    file = PCIDSK::Open( "vecteststress.pix", "r+", NULL );
+
+    seg = file->GetSegment(seg_num);
+    
+    CPPUNIT_ASSERT(seg != NULL);
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+    
+    vec_seg = dynamic_cast<PCIDSKVectorSegment*>(seg);
+    
+    CPPUNIT_ASSERT(vec_seg != NULL);
+
+    // Read the contents, confirming contents.
+
+    ShapeId       counter = 0;
+
+    for( ShapeIterator it = vec_seg->begin();
+         it != vec_seg->end(); 
+         it++, counter++ )
+    {
+        std::vector<ShapeField>  fields;
+        std::vector<ShapeVertex> vertices;
+
+        CPPUNIT_ASSERT( *it == counter );
+
+        vec_seg->GetVertices( *it, vertices );
+        
+        uint32 vcount = (counter % 30);
+        CPPUNIT_ASSERT( vertices.size() == vcount );
+        if( vcount > 0 )
+        {
+            CPPUNIT_ASSERT( vertices[vcount-1].y 
+                            == 200000 + vcount - 1 + counter * 2 );
+        }
+
+        vec_seg->GetFields( *it, fields );
+
+        CPPUNIT_ASSERT( fields[0].GetValueInteger() == counter+100 );
+
+        std::string f2;
+        f2.append( counter % 40, 'a' + (counter / 100) % 10 );
+
+        CPPUNIT_ASSERT( fields[1].GetValueString() == f2 );
+    }
+    
+    // Now we will update selected feature geometries and fields. 
+    
+    ShapeId id;
+    std::vector<ShapeVertex> uvertices;
+    std::vector<ShapeField>  ufields;
+
+    uvertices.resize(15);
+    for( uint32 v = 0; v < uvertices.size(); v++ )
+    {
+        uvertices[v].x = 500000 + v;
+        uvertices[v].y = 600000 + v;
+        uvertices[v].z = -100 + v;
+    }
+
+    ufields.resize(2);
+    ufields[0].SetValue( 1000 );
+    ufields[1].SetValue( "FIXED LENGTH STRING" );
+
+    for( id = 100; id < (ShapeId) num_features; id += 1200 )
+    {
+        vec_seg->SetVertices( id, uvertices );
+        vec_seg->SetFields( id, ufields );
+    }
+
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+    
+    // Confirm updates.
+    
+    counter = 0;
+    for( ShapeIterator it = vec_seg->begin();
+         it != vec_seg->end(); 
+         it++, counter++ )
+    {
+        std::vector<ShapeField>  fields;
+        std::vector<ShapeVertex> vertices;
+
+        CPPUNIT_ASSERT( *it == counter );
+        
+        vec_seg->GetVertices( *it, vertices );
+        vec_seg->GetFields( *it, fields );
+
+        // special case override for modified features.
+        if( (counter-100) % 1200 == 0 )
+        {
+            CPPUNIT_ASSERT( fields[0] == ufields[0] );
+            CPPUNIT_ASSERT( fields[1] == ufields[1] );
+
+            CPPUNIT_ASSERT( vertices.size() == uvertices.size() );
+            for( uint32 v = 0; v < uvertices.size(); v++ )
+            {
+                CPPUNIT_ASSERT( uvertices[v].x == vertices[v].x );
+                CPPUNIT_ASSERT( uvertices[v].y == vertices[v].y );
+                CPPUNIT_ASSERT( uvertices[v].z == vertices[v].z );
+            }
+
+            continue;
+        }
+        
+        // validate original features.
+        uint32 vcount = (counter % 30);
+        CPPUNIT_ASSERT( vertices.size() == vcount );
+        if( vcount > 0 )
+        {
+            CPPUNIT_ASSERT( vertices[vcount-1].y 
+                            == 200000 + vcount - 1 + counter * 2 );
+        }
+
+        CPPUNIT_ASSERT( fields[0].GetValueInteger() == counter+100 );
+
+        std::string f2;
+        f2.append( counter % 40, 'a' + (counter / 100) % 10 );
+
+        CPPUNIT_ASSERT( fields[1].GetValueString() == f2 );
+    }
+
+    // Delete a few shapes
+
+    int delta = 0;
+
+    vec_seg->DeleteShape( (ShapeId) (counter - 1) );
+    delta++;
+
+    if( 3000 < num_features-1 )
+    {
+        vec_seg->DeleteShape( 3000 );
+        delta++;
+    }
+    if( 9000 < num_features-2 )
+    {
+        vec_seg->DeleteShape( 9000 );
+        delta++;
+    }
+    
+    // Confirm deletes.
+    
+    counter = 0;
+    for( ShapeIterator it = vec_seg->begin();
+         it != vec_seg->end(); 
+         it++, counter++ )
+    {
+        std::vector<ShapeField>  fields;
+        std::vector<ShapeVertex> vertices;
+
+        vec_seg->GetVertices( *it, vertices );
+        vec_seg->GetFields( *it, fields );
+
+        if( counter == 3000 || counter == 9000 )
+        {
+            CPPUNIT_ASSERT( *it != counter );
+            continue;
+        }
+
+        if( *it != counter )
+        {
+            printf( "*it = %d, counter = %d\n", 
+                    (int) *it, counter );
+        }
+
+        CPPUNIT_ASSERT( *it == counter );
+        
+        // special case override for modified features.
+        if( (counter-100) % 1200 == 0 )
+        {
+            CPPUNIT_ASSERT( fields[0] == ufields[0] );
+            CPPUNIT_ASSERT( fields[1] == ufields[1] );
+
+            CPPUNIT_ASSERT( vertices.size() == uvertices.size() );
+            for( uint32 v = 0; v < uvertices.size(); v++ )
+            {
+                CPPUNIT_ASSERT( uvertices[v].x == vertices[v].x );
+                CPPUNIT_ASSERT( uvertices[v].y == vertices[v].y );
+                CPPUNIT_ASSERT( uvertices[v].z == vertices[v].z );
+            }
+
+            continue;
+        }
+        
+        // validate original features.
+        uint32 vcount = (counter % 30);
+        CPPUNIT_ASSERT( vertices.size() == vcount );
+        if( vcount > 0 )
+        {
+            CPPUNIT_ASSERT( vertices[vcount-1].y 
+                            == 200000 + vcount - 1 + counter * 2 );
+        }
+
+        CPPUNIT_ASSERT( fields[0].GetValueInteger() == counter+100 );
+
+        std::string f2;
+        f2.append( counter % 40, 'a' + (counter / 100) % 10 );
+
+        CPPUNIT_ASSERT( fields[1].GetValueString() == f2 );
+    }
+
+    CPPUNIT_ASSERT( counter == (int) (num_features - delta) );
+
+
+    CPPUNIT_ASSERT( seg->ConsistencyCheck() == "" );
+    delete file;
 //    unlink( "vecteststress.pix" );
 }
 
