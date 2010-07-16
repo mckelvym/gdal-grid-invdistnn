@@ -82,6 +82,8 @@ namespace PCIDSK
 
         ShapeId         FindFirst();
         ShapeId         FindNext(ShapeId);
+
+        int             GetShapeCount();
         
         void            GetVertices( ShapeId, std::vector<ShapeVertex>& );
         void            GetFields( ShapeId, std::vector<ShapeField>& );

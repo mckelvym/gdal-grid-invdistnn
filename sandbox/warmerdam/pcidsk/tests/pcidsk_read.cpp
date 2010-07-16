@@ -257,6 +257,7 @@ static void ReportVectorSegment( PCIDSK::PCIDSKSegment *segobj )
             printf("%g,", dparms[i] );
         printf( "\n" );
 
+        printf( "  Shape Count: %d\n", vecseg->GetShapeCount() );
         printf( "  Attribute fields:\n" );
         for( i = 0; i < field_count; i++ )
         {

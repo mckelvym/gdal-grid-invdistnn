@@ -82,6 +82,8 @@ void VectorReadTest::testGeometry()
     
     CPPUNIT_ASSERT( vecseg != NULL );
 
+    CPPUNIT_ASSERT( vecseg->GetShapeCount() == 94 );
+
     ShapeIterator it = vecseg->begin();
     std::vector<ShapeVertex> vertex_list;
     double vertex_sum = 0.0;
