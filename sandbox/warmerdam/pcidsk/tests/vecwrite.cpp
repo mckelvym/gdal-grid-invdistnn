@@ -165,34 +165,35 @@ int main( int argc, char **argv)
 /* -------------------------------------------------------------------- */
 /*      Transfer all the features.                                      */
 /* -------------------------------------------------------------------- */
-    ShapeIterator it = src_vec->begin();
-
-    while( it != src_vec->end() )
-    {
         std::vector<ShapeVertex> vertices;
         std::vector<ShapeField>  fields;
-        ShapeId   new_id;
+        ShapeIterator it = src_vec->begin();
 
-        new_id = vec->CreateShape( *it );
-//        new_id = vec->CreateShape();
+        while( it != src_vec->end() )
+        {
+            ShapeId   new_id;
+            
+            new_id = vec->CreateShape( *it );
+            
+            src_vec->GetFields( *it, fields );
+            vec->SetFields( new_id, fields );
+            
+            src_vec->GetVertices( *it, vertices );
+            vec->SetVertices( new_id, vertices );
+            
+            it++;
+        }
         
-        src_vec->GetFields( *it, fields );
-        vec->SetFields( new_id, fields );
-
-        src_vec->GetVertices( *it, vertices );
-        vec->SetVertices( new_id, vertices );
-        
-        it++;
-    }
-
 /* -------------------------------------------------------------------- */
 /*      Check consistency of result.                                    */
 /* -------------------------------------------------------------------- */
-    std::string report = seg->ConsistencyCheck();
-
-    if( report != "" )
-        printf( "Consistency Report:\n%s", 
-                report.c_str() );
+#ifdef notdef
+        std::string report = seg->ConsistencyCheck();
+        
+        if( report != "" )
+            printf( "Consistency Report:\n%s", 
+                    report.c_str() );
+#endif
 
 /* -------------------------------------------------------------------- */
 /*      Cleanup                                                         */
