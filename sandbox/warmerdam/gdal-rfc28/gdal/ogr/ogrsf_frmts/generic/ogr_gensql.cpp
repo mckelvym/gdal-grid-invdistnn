@@ -39,7 +39,8 @@ CPL_CVSID("$Id$");
 
 OGRGenSQLResultsLayer::OGRGenSQLResultsLayer( OGRDataSource *poSrcDS,
                                               void *pSelectInfo, 
-                                              OGRGeometry *poSpatFilter )
+                                              OGRGeometry *poSpatFilter,
+                                              const char *pszWHERE )
 
 {
     swq_select *psSelectInfo = (swq_select *) pSelectInfo;
@@ -53,6 +54,11 @@ OGRGenSQLResultsLayer::OGRGenSQLResultsLayer( OGRDataSource *poSrcDS,
     nNextIndexFID = 0;
     nExtraDSCount = 0;
     papoExtraDS = NULL;
+
+    if( pszWHERE )
+        this->pszWHERE = CPLStrdup(pszWHERE);
+    else
+        this->pszWHERE = NULL;
 
 /* -------------------------------------------------------------------- */
 /*      Identify all the layers involved in the SELECT.                 */
@@ -120,7 +126,7 @@ OGRGenSQLResultsLayer::OGRGenSQLResultsLayer( OGRDataSource *poSrcDS,
     for( int iField = 0; iField < psSelectInfo->result_columns; iField++ )
     {
         swq_col_def *psColDef = psSelectInfo->column_defs + iField;
-        OGRFieldDefn oFDefn( psColDef->field_name, OFTInteger );
+        OGRFieldDefn oFDefn( "", OFTInteger );
         OGRFieldDefn *poSrcFDefn = NULL;
         OGRFeatureDefn *poLayerDefn = 
             papoTableLayers[psColDef->table_index]->GetLayerDefn();
@@ -129,15 +135,28 @@ OGRGenSQLResultsLayer::OGRGenSQLResultsLayer( OGRDataSource *poSrcDS,
             && psColDef->field_index < poLayerDefn->GetFieldCount() )
             poSrcFDefn = poLayerDefn->GetFieldDefn(psColDef->field_index);
 
+        if( strlen(psColDef->field_name) == 0 )
+        {
+            CPLFree( psColDef->field_name );
+            psColDef->field_name = (char *) CPLMalloc(40);
+            sprintf( psColDef->field_name, "FIELD_%d", iField+1 );
+        }
+
         if( psColDef->field_alias != NULL )
         {
             oFDefn.SetName(psColDef->field_alias);
         }
-        else if( psColDef->col_func_name != NULL )
+        else if( psColDef->col_func != SWQCF_NONE )
         {
-            oFDefn.SetName( CPLSPrintf( "%s_%s",psColDef->col_func_name,
-                                        psColDef->field_name) );
+            const swq_operation *op = swq_op_registrar::GetOperator( 
+                (swq_op) psColDef->col_func );
+
+            oFDefn.SetName( CPLSPrintf( "%s_%s",
+                                        op->osName.c_str(),
+                                        psColDef->field_name ) );
         }
+        else
+            oFDefn.SetName( psColDef->field_name );
 
         if( psColDef->col_func == SWQCF_COUNT )
             oFDefn.SetType( OFTInteger );
@@ -166,27 +185,32 @@ OGRGenSQLResultsLayer::OGRGenSQLResultsLayer( OGRDataSource *poSrcDS,
         /* setting up the target_type */
         switch (psColDef->target_type)
         {
-            case SWQ_OTHER:
-              break;
-            case SWQ_INTEGER:
-            case SWQ_BOOLEAN:
-              oFDefn.SetType( OFTInteger );
-              break;
-            case SWQ_FLOAT:
-              oFDefn.SetType( OFTReal );
-              break;
-            case SWQ_STRING:
-              oFDefn.SetType( OFTString );
-              break;
-            case SWQ_TIMESTAMP:
-              oFDefn.SetType( OFTDateTime );
-              break;
-            case SWQ_DATE:
-              oFDefn.SetType( OFTDate );
-              break;
-            case SWQ_TIME:
-              oFDefn.SetType( OFTTime );
-              break;
+          case SWQ_OTHER:
+            break;
+          case SWQ_INTEGER:
+          case SWQ_BOOLEAN:
+            oFDefn.SetType( OFTInteger );
+            break;
+          case SWQ_FLOAT:
+            oFDefn.SetType( OFTReal );
+            break;
+          case SWQ_STRING:
+            oFDefn.SetType( OFTString );
+            break;
+          case SWQ_TIMESTAMP:
+            oFDefn.SetType( OFTDateTime );
+            break;
+          case SWQ_DATE:
+            oFDefn.SetType( OFTDate );
+            break;
+          case SWQ_TIME:
+            oFDefn.SetType( OFTTime );
+            break;
+
+          default:
+            CPLAssert( FALSE );
+            oFDefn.SetType( OFTString );
+            break;
         }
 
         if (psColDef->field_length > 0)
@@ -236,14 +260,10 @@ OGRGenSQLResultsLayer::~OGRGenSQLResultsLayer()
     CPLFree( papoTableLayers );
     papoTableLayers = NULL;
              
-    if( panFIDIndex != NULL )
-        CPLFree( panFIDIndex );
+    CPLFree( panFIDIndex );
 
-    if( poSummaryFeature )
-        delete poSummaryFeature;
-
-    if( pSelectInfo != NULL )
-        swq_select_free( (swq_select *) pSelectInfo );
+    delete poSummaryFeature;
+    delete (swq_select *) pSelectInfo;
 
     if( poDefn != NULL )
     {
@@ -259,6 +279,7 @@ OGRGenSQLResultsLayer::~OGRGenSQLResultsLayer()
         poReg->ReleaseDataSource( papoExtraDS[iEDS] );
 
     CPLFree( papoExtraDS );
+    CPLFree( pszWHERE );
 }
 
 /************************************************************************/
@@ -311,8 +332,7 @@ void OGRGenSQLResultsLayer::ResetReading()
 
     if( psSelectInfo->query_mode == SWQM_RECORDSET )
     {
-        poSrcLayer->SetAttributeFilter( psSelectInfo->whole_where_clause );
-        
+        poSrcLayer->SetAttributeFilter( pszWHERE );
         poSrcLayer->SetSpatialFilter( m_poFilterGeom );
         
         poSrcLayer->ResetReading();
@@ -436,7 +456,6 @@ int OGRGenSQLResultsLayer::TestCapability( const char *pszCap )
         if( EQUAL(pszCap,OLCFastFeatureCount) )
             return TRUE;
     }
-
     return FALSE;
 }
 
@@ -459,8 +478,7 @@ int OGRGenSQLResultsLayer::PrepareSummary()
 /*      Ensure our query parameters are in place on the source          */
 /*      layer.  And initialize reading.                                 */
 /* -------------------------------------------------------------------- */
-    poSrcLayer->SetAttributeFilter( psSelectInfo->whole_where_clause );
-    
+    poSrcLayer->SetAttributeFilter(pszWHERE);
     poSrcLayer->SetSpatialFilter( m_poFilterGeom );
         
     poSrcLayer->ResetReading();
