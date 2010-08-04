@@ -735,37 +735,52 @@ CPLErr swq_select::parse( swq_field_list *field_list,
     for( i = 0; i < result_columns; i++ )
     {
         swq_col_def *def = column_defs + i;
-        swq_field_type  this_type;
 
-        /* identify field */
-        def->field_index = swq_identify_field( def->field_name, field_list,
-                                               &this_type, 
-                                               &(def->table_index) );
+        if( def->expr != NULL && def->expr->eNodeType != SNT_COLUMN )
+        {
+            def->field_index = -1;
+            def->table_index = -1;
 
-        /* record field type */
-        def->field_type = this_type;
+            if( def->expr->Check( field_list ) == SWQ_ERROR )
+                return CE_Failure;
+                
+            def->field_type = def->expr->field_type;
+        }
+        else
+        {
+            swq_field_type  this_type;
+
+            /* identify field */
+            def->field_index = swq_identify_field( def->field_name, field_list,
+                                                   &this_type, 
+                                                   &(def->table_index) );
+            
+            /* record field type */
+            def->field_type = this_type;
+            
+            if( def->field_index == -1 && def->col_func != SWQCF_COUNT )
+            {
+                CPLError( CE_Failure, CPLE_AppDefined, 
+                          "Unrecognised field name %s.", 
+                          def->field_name );
+                return CE_Failure;
+            }
+        }
 
         /* identify column function if present */
         if( (def->col_func == SWQCF_MIN 
              || def->col_func == SWQCF_MAX
              || def->col_func == SWQCF_AVG
              || def->col_func == SWQCF_SUM)
-            && this_type == SWQ_STRING )
+            && def->field_type == SWQ_STRING )
         {
+            // possibly this is already enforced by the checker?
             const swq_operation *op = swq_op_registrar::GetOperator( 
                 (swq_op) def->col_func );
-
+            
             CPLError( CE_Failure, CPLE_AppDefined, 
                       "Use of field function %s() on string field %s illegal.", 
-                      op->osName.c_str(), def->field_name );
-            return CE_Failure;
-        }
-
-        if( def->field_index == -1 && def->col_func != SWQCF_COUNT )
-        {
-            CPLError( CE_Failure, CPLE_AppDefined, 
-                      "Unrecognised field name %s.", 
-                     def->field_name );
+                          op->osName.c_str(), def->field_name );
             return CE_Failure;
         }
     }
