@@ -188,6 +188,12 @@ swq_expr_node *SWQGeneralEvaluator( swq_expr_node *node,
                     / sub_node_values[1]->float_value;
             break;
             
+          case SWQ_MODULUS:
+            poRet->field_type = SWQ_INTEGER;
+            poRet->int_value = ((int) sub_node_values[0]->float_value) 
+                % ((int) sub_node_values[1]->float_value);
+            break;
+            
           default:
             CPLAssert( FALSE );
             delete poRet;
@@ -291,6 +297,11 @@ swq_expr_node *SWQGeneralEvaluator( swq_expr_node *node,
             else
                 poRet->int_value = sub_node_values[0]->int_value 
                     / sub_node_values[1]->int_value;
+            break;
+            
+          case SWQ_MODULUS:
+            poRet->int_value = sub_node_values[0]->int_value 
+                % sub_node_values[1]->int_value;
             break;
             
           default:
@@ -530,7 +541,12 @@ swq_field_type SWQGeneralChecker( swq_expr_node *poNode )
         eRetType = SWQ_BOOLEAN;
         eArgType = SWQ_STRING;
         break;
-      
+
+      case SWQ_MODULUS:
+        eRetType = SWQ_INTEGER;
+        eArgType = SWQ_INTEGER;
+        break;
+
       case SWQ_ADD:
         SWQAutoPromoteIntegerToFloat( poNode );
         if( poNode->papoSubExpr[0]->field_type == SWQ_STRING )

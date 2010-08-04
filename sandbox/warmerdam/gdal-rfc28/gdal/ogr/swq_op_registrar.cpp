@@ -156,6 +156,7 @@ void swq_op_registrar::Initialize()
     AddOperator( "-", SWQ_SUBTRACT );
     AddOperator( "*", SWQ_MULTIPLY );
     AddOperator( "/", SWQ_DIVIDE );
+    AddOperator( "%", SWQ_MODULUS );
     AddOperator( "CONCAT", SWQ_CONCAT );
     AddOperator( "SUBSTR", SWQ_SUBSTR );
 

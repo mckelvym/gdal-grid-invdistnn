@@ -40,6 +40,7 @@ typedef enum {
     SWQ_SUBTRACT,
     SWQ_MULTIPLY,
     SWQ_DIVIDE,
+    SWQ_MODULUS,
     SWQ_CONCAT,
     SWQ_SUBSTR,
     SWQ_AVG,

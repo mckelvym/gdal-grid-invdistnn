@@ -3,6 +3,7 @@
  *
  * Component: OGR SQL Engine
  * Purpose: expression and select parser grammar.
+ *          Requires Bison 2.4.0 or newer to process.  Use "make parser" target.
  * Author: Frank Warmerdam <warmerdam@pobox.com>
  * 
  ******************************************************************************
@@ -74,7 +75,7 @@ static void swqerror( swq_parse_context *context, const char *msg )
 %token SWQT_SELECT_START
 
 %left SWQT_OR SWQT_AND SWQT_NOT
-%left '+' '-' '*' '/'
+%left '+' '-' '*' '/' '%'
 
 %%
 
@@ -340,6 +341,13 @@ value_expr:
 	| value_expr '/' value_expr
 		{
 			$$ = new swq_expr_node( SWQ_DIVIDE );
+			$$->PushSubExpression( $1 );
+			$$->PushSubExpression( $3 );
+		}
+
+	| value_expr '%' value_expr
+		{
+			$$ = new swq_expr_node( SWQ_MODULUS );
 			$$->PushSubExpression( $1 );
 			$$->PushSubExpression( $3 );
 		}

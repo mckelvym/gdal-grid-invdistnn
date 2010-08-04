@@ -360,6 +360,7 @@ char *swq_expr_node::Unparse( swq_field_list *field_list )
       case SWQ_SUBTRACT:
       case SWQ_MULTIPLY:
       case SWQ_DIVIDE:
+      case SWQ_MODULUS:
         CPLAssert( nSubExprCount == 2 );
         osExpr.Printf( "(%s) %s (%s)", 
                        apszSubExpr[0],
