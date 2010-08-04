@@ -108,6 +108,11 @@ swq_expr_node *SWQGeneralEvaluator( swq_expr_node *node,
         poRet = new swq_expr_node(0);
         poRet->field_type = node->field_type;
 
+        if( sub_node_values[0]->field_type == SWQ_INTEGER )
+            sub_node_values[0]->float_value = sub_node_values[0]->int_value;
+        if( sub_node_values[1]->field_type == SWQ_INTEGER )
+            sub_node_values[1]->float_value = sub_node_values[1]->int_value;
+
         switch( (swq_op) node->nOperation )
         {
           case SWQ_EQ:
