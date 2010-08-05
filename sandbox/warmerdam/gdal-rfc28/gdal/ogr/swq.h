@@ -84,6 +84,7 @@ typedef swq_expr_node *(*swq_op_evaluator)(swq_expr_node *op,
 typedef swq_field_type (*swq_op_checker)( swq_expr_node *op );
 
 class swq_expr_node {
+    static void   Quote( CPLString & );
 public:
     swq_expr_node();
 

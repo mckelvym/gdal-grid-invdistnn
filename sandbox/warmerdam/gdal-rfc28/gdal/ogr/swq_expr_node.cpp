@@ -171,12 +171,37 @@ void swq_expr_node::ReverseSubExpressions()
 swq_field_type swq_expr_node::Check( swq_field_list *poFieldList )
 
 {
+/* -------------------------------------------------------------------- */
+/*      If something is a string constant, we must check if it is       */
+/*      actually a reference to a field in which case we will           */
+/*      convert it into a column type.                                  */
+/* -------------------------------------------------------------------- */
+    if( eNodeType == SNT_CONSTANT && field_type == SWQ_STRING )
+    {
+        int wrk_field_index, wrk_table_index;
+        swq_field_type wrk_field_type;
+
+        wrk_field_index = 
+            swq_identify_field( string_value, poFieldList,
+                                &wrk_field_type, &wrk_table_index );
+        
+        if( wrk_field_index >= 0 )
+        {
+            eNodeType = SNT_COLUMN;
+            field_index = -1;
+            table_index = -1;
+        }
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Otherwise we take constants literally.                          */
+/* -------------------------------------------------------------------- */
     if( eNodeType == SNT_CONSTANT )
         return field_type;
 
 /* -------------------------------------------------------------------- */
-/*      If this is intended to a field definition, but has not yet      */
-/*      been looked up, we do so now.                                   */
+/*      If this is intended to be a field definition, but has not       */
+/*      yet been looked up, we do so now.                               */
 /* -------------------------------------------------------------------- */
     if( eNodeType == SNT_COLUMN && field_index == -1 )
     {
@@ -192,11 +217,6 @@ swq_field_type swq_expr_node::Check( swq_field_list *poFieldList )
 
             return SWQ_ERROR;
             
-        }
-        else
-        {
-            CPLFree( string_value );
-            string_value = NULL;
         }
     }
     
@@ -279,6 +299,32 @@ void swq_expr_node::Dump( FILE * fp, int depth )
 }
 
 /************************************************************************/
+/*                               Quote()                                */
+/*                                                                      */
+/*      Add quoting necessary to unparse a string.                      */
+/************************************************************************/
+
+void swq_expr_node::Quote( CPLString &osTarget )
+
+{
+    CPLString osNew;
+    int i;
+
+    osNew = "'";
+
+    for( i = 0; i < (int) osTarget.size(); i++ )
+    {
+        if( osTarget[i] == '\'' )
+            osNew += "''";
+        else
+            osNew += osTarget[i];
+    }
+    osNew += "'";
+
+    osTarget = osNew;
+}
+
+/************************************************************************/
 /*                              Unparse()                               */
 /************************************************************************/
 
@@ -297,7 +343,10 @@ char *swq_expr_node::Unparse( swq_field_list *field_list )
         else if( field_type == SWQ_FLOAT )
             osExpr.Printf( "%.15g", float_value );
         else 
-            osExpr.Printf( "'%s'", string_value );
+        {
+            osExpr = string_value;
+            Quote( osExpr );
+        }
         
         return CPLStrdup(osExpr);
     }
@@ -307,10 +356,6 @@ char *swq_expr_node::Unparse( swq_field_list *field_list )
 /* -------------------------------------------------------------------- */
     if( eNodeType == SNT_COLUMN )
     {
-        // do we still have the original text?
-        if( string_value != NULL )
-            return CPLStrdup( string_value );
-
         if( field_index != -1 
             && table_index < field_list->table_count 
             && table_index > 0 )
@@ -319,6 +364,8 @@ char *swq_expr_node::Unparse( swq_field_list *field_list )
                            field_list->names[field_index] );
         else if( field_index != -1 )
             osExpr.Printf( "%s", field_list->names[field_index] );
+
+        Quote( osExpr );
 
         return CPLStrdup(osExpr.c_str());
     }

@@ -906,7 +906,10 @@ OGRLayer * OGRDataSource::ExecuteSQL( const char *pszStatement,
 /*      Extract the WHERE expression to use separately.                 */
 /* -------------------------------------------------------------------- */
     if( psSelectInfo->where_expr != NULL )
+    {
         pszWHERE = psSelectInfo->where_expr->Unparse( &sFieldList );
+        CPLDebug( "OGR", "Unparse() -> %s", pszWHERE );
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Everything seems OK, try to instantiate a results layer.        */
