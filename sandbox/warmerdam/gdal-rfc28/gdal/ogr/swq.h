@@ -23,6 +23,12 @@
 #include "cpl_conv.h"
 #include "cpl_string.h"
 
+#if defined(_WIN32) && !defined(_WIN32_WCE)
+#  define strcasecmp stricmp
+#elif defined(_WIN32_WCE)
+#  define strcasecmp _stricmp
+#endif
+
 typedef enum {
     SWQ_OR,
     SWQ_AND,

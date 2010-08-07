@@ -248,7 +248,7 @@ swq_select_summarize( swq_select *select_info,
 /* -------------------------------------------------------------------- */
 /*      Do various checking.                                            */
 /* -------------------------------------------------------------------- */
-    if( !select_info->query_mode == SWQM_RECORDSET )
+    if( select_info->query_mode == SWQM_RECORDSET )
         return "swq_select_summarize() called on non-summary query.";
 
     if( dest_column < 0 || dest_column >= select_info->result_columns )
@@ -506,7 +506,7 @@ int swq_identify_field( const char *token, swq_field_list *field_list,
     {
         int  t_id = 0;
 
-        if( strcasecmp( field_list->names[i], field_token ) != 0 )
+        if( !EQUAL( field_list->names[i], field_token ) )
             continue;
 
         /* Do the table specifications match? */
@@ -514,8 +514,7 @@ int swq_identify_field( const char *token, swq_field_list *field_list,
         {
             t_id = field_list->table_ids[i];
             if( table_name[0] != '\0' 
-                && strcasecmp(table_name,
-                              field_list->table_defs[t_id].table_alias) != 0 )
+                && !EQUAL(table_name,field_list->table_defs[t_id].table_alias))
                 continue;
 
 //            if( t_id != 0 && table_name[0] == '\0' )

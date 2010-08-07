@@ -401,7 +401,7 @@ int swq_select::PushField( swq_expr_node *poExpr, const char *pszAlias,
         // field width.
         if( poExpr->nSubExprCount > 3 && parse_precision )
         {
-            col_def->field_precision = poExpr->papoSubExpr[2]->int_value;
+            col_def->field_precision = poExpr->papoSubExpr[3]->int_value;
         }
         
         // Strip off the CAST operator and replace with underlying expression.
