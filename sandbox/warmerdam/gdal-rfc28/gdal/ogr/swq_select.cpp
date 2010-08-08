@@ -729,6 +729,7 @@ CPLErr swq_select::parse( swq_field_list *field_list,
     if( eError != CE_None )
         return eError;
 
+    
 /* -------------------------------------------------------------------- */
 /*      Identify field information.                                     */
 /* -------------------------------------------------------------------- */

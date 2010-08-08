@@ -209,6 +209,8 @@ int swq_test_like( const char *input, const char *pattern );
 
 swq_expr_node *SWQGeneralEvaluator( swq_expr_node *, swq_expr_node **);
 swq_field_type SWQGeneralChecker( swq_expr_node *node );
+swq_expr_node *SWQCastEvaluator( swq_expr_node *, swq_expr_node **);
+swq_field_type SWQCastChecker( swq_expr_node *node );
 
 /****************************************************************************/
 

@@ -166,7 +166,7 @@ void swq_op_registrar::Initialize()
     AddOperator( "COUNT", SWQ_COUNT, NULL, SWQColumnFuncChecker );
     AddOperator( "SUM", SWQ_SUM, NULL, SWQColumnFuncChecker );
 
-    AddOperator( "CAST", SWQ_CAST, NULL, SWQColumnFuncChecker );
+    AddOperator( "CAST", SWQ_CAST, SWQCastEvaluator, SWQCastChecker );
 }
 
 /************************************************************************/
