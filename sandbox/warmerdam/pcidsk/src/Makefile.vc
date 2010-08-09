@@ -29,6 +29,7 @@ OBJ = \
 	segment\cpcidskgeoref.obj \
 	segment\cpcidsksegment.obj \
 	segment\cpcidskvectorsegment.obj \
+	segment\cpcidskvectorsegment_consistencycheck.obj \
 	segment\cpcidskrpcmodel.obj \
 	segment\metadatasegment_p.obj \
 	segment\sysblockmap.obj \

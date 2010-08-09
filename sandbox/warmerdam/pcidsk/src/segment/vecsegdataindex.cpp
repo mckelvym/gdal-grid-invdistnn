@@ -120,16 +120,19 @@ const std::vector<uint32> *VecSegDataIndex::GetIndex()
 /* -------------------------------------------------------------------- */
     if( !block_initialized )
     {
-        block_index.resize( block_count );
-        vs->ReadFromFile( &(block_index[0]), 
-                          offset_on_disk_within_section
-                          + vs->vh.section_offsets[hsec_shape] + 8, 
-                          4 * block_count );
-
         bool needs_swap = !BigEndianSystem();
 
-        if( needs_swap )
-            SwapData( &(block_index[0]), 4, block_count );
+        block_index.resize( block_count );
+        if( block_count > 0 )
+        {
+            vs->ReadFromFile( &(block_index[0]), 
+                              offset_on_disk_within_section
+                              + vs->vh.section_offsets[hsec_shape] + 8, 
+                              4 * block_count );
+
+            if( needs_swap )
+                SwapData( &(block_index[0]), 4, block_count );
+        }
 
         block_initialized = true;
     }
