@@ -36,7 +36,9 @@ OBJ = \
 	segment\cpcidsk_tex.obj \
 	segment\cpcidskpct.obj \
 	segment\cpcidskapmodel.obj \
-	segment\cpcidskgcp2segment.obj 
+	segment\cpcidskgcp2segment.obj \
+	segment\vecsegdataindex.obj \
+	segment\vecsegheader.obj 
 
 default:	pcidsk.lib
 
