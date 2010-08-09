@@ -254,6 +254,48 @@ def ogr_rfc28_12():
         return 'fail'
 
 ###############################################################################
+# Test SUBSTR operator in the context of a WHERE clause.
+
+def ogr_rfc28_13():
+    gdaltest.lyr.SetAttributeFilter( "SUBSTR(PRFEDEA,4,4) = '3423'" )
+
+    count = gdaltest.lyr.GetFeatureCount()
+    if count != 1:
+        gdaltest.post_reason( 'Got wrong count with GetFeatureCount() - %d, expecting 1' % count )
+        return 'fail'
+
+    gdaltest.lyr.SetAttributeFilter( '' )
+    return 'success'
+
+###############################################################################
+# test selecting fixed string fields.
+
+def ogr_rfc28_14():
+    lyr = gdaltest.ds.ExecuteSQL( "SELECT SUBSTR(PRFEDEA,3,5) from poly where eas_id in (168,179)" )
+
+    expect = [ '43411', '43423' ]
+    tr = ogrtest.check_features_against_list( lyr, 'prfedea', expect )
+    
+    if tr:
+        return 'success'
+    else:
+        return 'fail'
+
+###############################################################################
+# Test CONCAT with more than two arguments.
+
+def ogr_rfc28_15():
+    lyr = gdaltest.ds.ExecuteSQL( "SELECT CONCAT(PRFEDEA,' ',CAST(EAS_ID AS CHARACTER(3))) from poly where eas_id in (168,179)" )
+
+    expect = [ '35043411 168', '35043423 179' ]
+    tr = ogrtest.check_features_against_list( lyr, 'prfedea', expect )
+    
+    if tr:
+        return 'success'
+    else:
+        return 'fail'
+
+###############################################################################
 def ogr_rfc28_cleanup():
     gdaltest.lyr = None
     gdaltest.ds.Destroy()
@@ -275,6 +317,9 @@ gdaltest_list = [
     ogr_rfc28_10,
     ogr_rfc28_11,
     ogr_rfc28_12,
+    ogr_rfc28_13,
+    ogr_rfc28_14,
+    ogr_rfc28_15,
     ogr_rfc28_cleanup ]
 
 if __name__ == '__main__':
