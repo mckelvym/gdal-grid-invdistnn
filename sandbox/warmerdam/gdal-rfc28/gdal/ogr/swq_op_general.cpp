@@ -387,7 +387,10 @@ swq_expr_node *SWQGeneralEvaluator( swq_expr_node *node,
           case SWQ_ADD:
           {
               CPLString osResult = sub_node_values[0]->string_value;
-              osResult += sub_node_values[1]->string_value;
+              int i;
+
+              for( i = 1; i < node->nSubExprCount; i++ )
+                  osResult += sub_node_values[i]->string_value;
               
               poRet->string_value = CPLStrdup(osResult);
               break;
@@ -614,7 +617,6 @@ swq_field_type SWQGeneralChecker( swq_expr_node *poNode )
       case SWQ_CONCAT:
         eRetType = SWQ_STRING;
         eArgType = SWQ_STRING;
-        nArgCount = 2;
         break;
 
       case SWQ_SUBSTR:
