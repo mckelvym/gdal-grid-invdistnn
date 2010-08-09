@@ -149,7 +149,7 @@ SysVirtualFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
 
             loaded_block_dirty = true;
         } else {
-            int num_full_blocks = (size - buffer_offset) / block_size;
+            int num_full_blocks = (int) ((size - buffer_offset) / block_size);
             
             WriteBlocks(request_block, num_full_blocks, (uint8*)buffer + buffer_offset);
             
@@ -200,7 +200,7 @@ void SysVirtualFile::ReadFromFile( void *buffer, uint64 offset, uint64 size )
         } else {
             // Use the bulk loading of blocks. First, compute the range
             // of full blocks we need to load
-            int num_full_blocks = (size - buffer_offset)/block_size;
+            int num_full_blocks = (int) ((size - buffer_offset)/block_size);
             
 #if 0
             printf("Attempting a coalesced read of %d blocks (from %d) in buffer at %d\n", 

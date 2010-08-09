@@ -214,10 +214,10 @@ void SysBlockMap::AllocateBlocks()
 /*      Allocate another set of space.                                  */
 /* -------------------------------------------------------------------- */
     uint64 new_big_blocks = 16;
-    int new_bytes = new_big_blocks * SysVirtualFile::block_size;
+    uint64 new_bytes = new_big_blocks * SysVirtualFile::block_size;
     seg = file->GetSegment( growing_segment );
-    int block_index_in_segment = 
-        seg->GetContentSize() / SysVirtualFile::block_size;
+    int block_index_in_segment = (int) 
+        (seg->GetContentSize() / SysVirtualFile::block_size);
 
     seg->WriteToFile( "\0", seg->GetContentSize() + new_bytes - 1, 1 );
     
@@ -227,8 +227,8 @@ void SysBlockMap::AllocateBlocks()
     if( block_map_offset + 28 * (block_count + new_big_blocks) 
         + virtual_files.size() * 24 > (unsigned int) seg_data.buffer_size )
         seg_data.SetSize( 
-            block_map_offset + 28 * (block_count + new_big_blocks) 
-            + virtual_files.size() * 24 );
+            (int) (block_map_offset + 28 * (block_count + new_big_blocks) 
+                   + virtual_files.size() * 24) );
 
     // push the layer list on.
     memmove( seg_data.buffer + layer_list_offset + new_big_blocks*28, 
@@ -244,7 +244,7 @@ void SysBlockMap::AllocateBlocks()
          block_index < block_count + new_big_blocks;
          block_index++ )
     {
-        uint64 bi_offset = block_map_offset + block_index * 28;
+        int bi_offset = (int) (block_map_offset + block_index * 28);
 
         seg_data.Put( growing_segment, bi_offset, 4 );
         seg_data.Put( block_index_in_segment++, bi_offset+4, 8 );
@@ -259,7 +259,7 @@ void SysBlockMap::AllocateBlocks()
     first_free_block = block_count;
     seg_data.Put( first_free_block, 26, 8 );
 
-    block_count += new_big_blocks;
+    block_count += (int) new_big_blocks;
     seg_data.Put( block_count, 18, 8 );
 
     layer_list_offset = block_map_offset + 28 * block_count;
