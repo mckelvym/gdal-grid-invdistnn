@@ -274,7 +274,7 @@ void VecSegDataIndex::VacateBlockRange( uint32 start, uint32 count )
     GetIndex(); // make sure loaded.
 
     unsigned int i;
-    uint32  next_block = vs->GetContentSize() / block_page_size;
+    uint32  next_block = (uint32) (vs->GetContentSize() / block_page_size);
 
     for( i = 0; i < block_count; i++ )
     {
