@@ -435,6 +435,11 @@ void SysVirtualFile::LoadBlocks(int requested_block_start,
 void SysVirtualFile::LoadBMEntrysTo( int target_index )
 
 {
+    if( target_index > 0 )
+    {
+        target_index += 200 - (target_index%200);
+    }
+    
     while( (target_index == -1 || (int) block_segment.size() <= target_index) 
            && next_bm_entry_to_load != -1 )
     {

@@ -152,6 +152,8 @@ void SysBlockMap::PartialLoad()
                   layer_data.buffer_size);
 
     partial_loaded = true;
+
+//    FullLoad();
 }
 
 /************************************************************************/
@@ -163,10 +165,10 @@ void SysBlockMap::PartialLoad()
 void SysBlockMap::FullLoad()
 
 {
+    PartialLoad();
+
     if( full_loaded )
         return;
-
-    PartialLoad();
 
 //    printf( "<FullLoad>" );
 //    fflush( stdout );
