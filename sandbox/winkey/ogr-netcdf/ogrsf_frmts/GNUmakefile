@@ -25,7 +25,7 @@ SUBDIRS-$(HAVE_INGRES)  += ingres
 SUBDIRS-$(HAVE_VFK)     += vfk
 SUBDIRS-$(HAVE_LIBKML)  += libkml
 SUBDIRS-$(CURL_SETTING) += wfs
-
+SUBDIRS-$(NETCDF_SETTING) += netcdf
 ifeq ($(PCIDSK_SETTING),internal)
 SUBDIRS-yes  += pcidsk
 endif
