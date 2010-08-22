@@ -44,7 +44,7 @@ class OGRNETCDFLayer : public OGRLayer
     int                 nNextFID;
 
   public:
-    OGRNETCDFLayer( const char *pszFilename );
+    OGRNETCDFLayer( const char *pszFilename, int iNCid );
    ~OGRNETCDFLayer();
 
     void                ResetReading();

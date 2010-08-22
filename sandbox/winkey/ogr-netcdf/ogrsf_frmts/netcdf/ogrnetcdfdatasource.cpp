@@ -28,6 +28,8 @@
 
 #include "ogrnetcdf.h"
 
+#include <netcdf.h>
+
 /******************************************************************************
  Datasource constructor
 ******************************************************************************/
@@ -62,24 +64,25 @@ OGRNETCDFDataSource::~OGRNETCDFDataSource()
 int  OGRNETCDFDataSource::Open( const char *pszFilename, int bUpdate )
 {
 
-	/***** Does this appear to be an .nc file *****/
-	
-    if( !EQUAL( CPLGetExtension(pszFilename), "nc" ) )
-        return FALSE;
+    int ncid;
 
-    if( bUpdate )
-    {
-	CPLError( CE_Failure, CPLE_OpenFailed, 
+	if( bUpdate ) {
+	    CPLError( CE_Failure, CPLE_OpenFailed, 
                   "Update access not supported by the NETCDF driver." );
         return FALSE;
     }
 
-	/***** Create a corresponding layer. *****/
+    /***** Does this appear to be an .nc file *****/
+	
+    if (NC_NOERR != nc_open(pszFilename, NC_NOWRITE, &ncid ) )
+        return FALSE;
+
+    /***** Create a corresponding layer. *****/
 
 	nLayers = 1;
     papoLayers = (OGRNETCDFLayer **) CPLMalloc(sizeof(void*));
     
-    papoLayers[0] = new OGRNETCDFLayer ( pszFilename );
+    papoLayers[0] = new OGRNETCDFLayer ( pszFilename, ncid );
 
     pszName = CPLStrdup( pszFilename );
 

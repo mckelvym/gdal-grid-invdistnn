@@ -32,7 +32,7 @@
  Layer constructor
 ******************************************************************************/
 
-OGRNETCDFLayer::OGRNETCDFLayer( const char *pszFilename )
+OGRNETCDFLayer::OGRNETCDFLayer( const char *pszFilename, int iNCid )
 
 {
     nNextFID = 0;
