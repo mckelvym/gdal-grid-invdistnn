@@ -185,5 +185,9 @@ void OGRRegisterAll()
 #ifdef WFS_ENABLED
     RegisterOGRWFS();
 #endif
+#ifdef NETCDF_ENABLED
+    RegisterOGRNETCDF();
+#endif
+
 } /* OGRRegisterAll */
 
