@@ -29,4 +29,10 @@
 #ifndef HAVE_OGRNETCDFFEILD_H
 #define HAVE_OGRNETCDFFEILD_H
 
+void nc2FeatureDef (
+    int Ncid,
+    int nVars,
+    int nUnlimdimid,
+    OGRFeatureDefn * poFeatureDefn );
+
 #endif

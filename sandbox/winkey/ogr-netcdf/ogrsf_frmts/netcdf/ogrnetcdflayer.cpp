@@ -30,6 +30,7 @@
 #include <ogr_feature.h>
 
 #include "ogrnetcdffeat.h"
+#include "ogrnetcdffield.h"
 
 #include <netcdf.h>
 
@@ -49,94 +50,11 @@ OGRNETCDFLayer::OGRNETCDFLayer( const char *pszFilename, int Ncid )
    
     int status = nc_inq(nNcid, &nDims, &nVars, &nGatts, &nUnlimdimid);
 
-    printf("status = %i, nNcid = %i, nDims = %i, nVars = %i, nGatts = %i, nUnlimdimid = %i\n",
-           status, nNcid, nDims, nVars, nGatts, nUnlimdimid);
-
     /***** get the total number of features *****/
 
     status = nc_inq_dimlen(nNcid, nUnlimdimid, &nFeat);
 
-    /***** go through the vars *****/
-    
-    int nVid;
-    for (nVid = 0 ; nVid < nVars ; nVid++) {
-        
-        char szVName[NC_MAX_NAME+1];
-        nc_type VType;
-        int nVDims;
-        int anDimIds[NC_MAX_VAR_DIMS];
-        int nAtts;
-        status = nc_inq_var (Ncid, nVid, szVName, &VType, &nVDims, anDimIds,
-                          &nAtts);
-
-        if (anDimIds[0] == nUnlimdimid) {
-            OGRFieldType eTypeIn;
-            int nAddMe = 0;
-            
-            switch (VType) {
-                
-                case NC_BYTE:
-                    
-                    if (nVDims < 3) {
-                        eTypeIn = OFTBinary;
-                        nAddMe = 1;
-                    }
-                    
-                    break;
-                    
-                case NC_CHAR:
-                
-                    if (nVDims == 2) {
-                        eTypeIn = OFTString;
-                        nAddMe = 1;
-                    }
-                    else if (nVDims == 3) {
-                        eTypeIn = OFTStringList;
-                        nAddMe = 1;
-                    }
-
-                    break;
-                    
-                case NC_SHORT:
-                case NC_INT:
-                            
-                    if (nVDims == 1) {
-                        eTypeIn = OFTInteger;
-                        nAddMe = 1;
-                    }
-                    else if (nVDims == 2) {
-                        eTypeIn = OFTIntegerList;
-                        nAddMe = 1;
-                    }
-                    
-                    break;
-                    
-                case NC_FLOAT:
-                case NC_DOUBLE:
-                    
-                    if (nVDims == 1) {
-                        eTypeIn = OFTReal;
-                        nAddMe = 1;
-                    }
-                    else if (nVDims == 2) {
-                        eTypeIn = OFTRealList;
-                        nAddMe = 1;
-                    }
-                    break;
-                    
-                case NC_NAT:
-                default:
-                    break;
-                
-            }
-
-            if (nAddMe) {
-                OGRFieldDefn oFieldDefn (szVName, eTypeIn);
-                poFeatureDefn->AddFieldDefn ( &oFieldDefn );
-            }
-                    
-        }
-    }
+    nc2FeatureDef (Ncid, nVars, nUnlimdimid, poFeatureDefn );
 
     OGRFieldDefn oFieldTemplate( "Name", OFTString );
 
