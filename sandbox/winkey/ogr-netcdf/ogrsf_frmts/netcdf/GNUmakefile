@@ -3,7 +3,8 @@
 include ../../../GDALmake.opt
 
 CORE_OBJ = ogrnetcdffeat.o \
-           ogrnetcdfgeom.o
+           ogrnetcdfgeom.o \
+           ogrnetcdffield.o
 
 OGR_OBJ =	ogrnetcdfdriver.o ogrnetcdfdatasource.o ogrnetcdflayer.o
 
@@ -22,4 +23,5 @@ clean:
 $(O_OBJ):	ogrnetcdf.h \
             ogrnetcdffeat.h \
             ogrnetcdfgeom.h \
+            ogrnetcdffield.h
           
