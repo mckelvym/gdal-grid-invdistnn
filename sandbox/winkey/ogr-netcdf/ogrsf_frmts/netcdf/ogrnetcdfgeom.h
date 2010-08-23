@@ -29,4 +29,10 @@
 #ifndef HAVE_OGRNETCDFFEAT_H
 #define HAVE_OGRNETCDFFEAT_H
 
+OGRGeometry *nc2geom (
+    int nNcid,
+    long nFID,
+    OGRSpatialReference *poSRS );
+
+
 #endif

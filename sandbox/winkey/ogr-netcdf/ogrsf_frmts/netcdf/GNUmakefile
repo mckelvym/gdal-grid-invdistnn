@@ -2,7 +2,8 @@
 
 include ../../../GDALmake.opt
 
-CORE_OBJ = ogrnetcdffeat.o
+CORE_OBJ = ogrnetcdffeat.o \
+           ogrnetcdfgeom.o
 
 OGR_OBJ =	ogrnetcdfdriver.o ogrnetcdfdatasource.o ogrnetcdflayer.o
 
@@ -19,5 +20,6 @@ clean:
 	rm -f *.o $(O_OBJ)
 
 $(O_OBJ):	ogrnetcdf.h \
-            ogrnetcdffeat.h 
+            ogrnetcdffeat.h \
+            ogrnetcdfgeom.h \
           

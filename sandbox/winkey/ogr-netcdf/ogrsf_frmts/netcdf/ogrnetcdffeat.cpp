@@ -29,6 +29,7 @@
 #include <ogrsf_frmts.h>
 #include <ogr_geometry.h>
 
+#include "ogrnetcdfgeom.h"
 #include "ogrnetcdffeat.h"
 
 OGRFeature *nc2feat (
@@ -42,8 +43,8 @@ OGRFeature *nc2feat (
 
     /***** geometry *****/
 
-    //OGRGeometry *poGeom = nc2geom ( nNcid, nFID, poSRS );
-    //poFeat->SetGeometryDirectly ( poGeom );
+    OGRGeometry *poGeom = nc2geom ( nNcid, nFID, poSRS );
+    poFeat->SetGeometryDirectly ( poGeom );
 
     /***** fields *****/
 

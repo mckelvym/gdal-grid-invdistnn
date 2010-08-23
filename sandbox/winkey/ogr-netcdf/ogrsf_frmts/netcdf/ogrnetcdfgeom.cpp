@@ -33,3 +33,70 @@
 
 #include <netcdf.h>
 
+OGRGeometry *nc2geom (
+    int nNcid,
+    long nFID,
+    OGRSpatialReference *poSRS )
+{
+
+    OGRGeometry *poGeom = NULL;
+    
+    const char *pszYVar = CPLGetConfigOption ( "OGR_NETCDF_YVAR", "latitude" );
+    const char *pszXVar = CPLGetConfigOption ( "OGR_NETCDF_XVAR", "longitude" );
+    const char *pszZvar = CPLGetConfigOption ( "OGR_NETCDF_ZVAR", "elevation" );
+
+    int nXVarId;
+    int nYVarId;
+    int nZVarId;
+    int bHasZ = 0;
+    
+    if (NC_NOERR != nc_inq_varid (nNcid, pszXVar, &nXVarId) ||
+        NC_NOERR != nc_inq_varid (nNcid, pszYVar, &nYVarId)) {
+        return poGeom;
+    }
+
+    if (NC_NOERR == nc_inq_varid (nNcid, pszZvar, &nZVarId))
+        bHasZ = 1;
+
+    
+    int nXDims; 
+    int nYDims;
+    int nZDims;
+    
+    nc_inq_varndims (nNcid, nXVarId, &nXDims);
+    nc_inq_varndims (nNcid, nYVarId, &nYDims);
+
+    /***** point *****/
+    
+    if (nXDims == 1 && nYDims == 1) {
+        if (!bHasZ) {
+            double x;
+            double y;
+            size_t count[1] = {1};
+            size_t start[1] = {nFID};
+            
+            nc_get_vara_double(nNcid, nXVarId, start, count, &x);
+            nc_get_vara_double(nNcid, nYVarId, start, count, &y);
+
+            poGeom = new OGRPoint (x, y);
+        }
+        else {
+            double x;
+            double y;
+            double z;
+            size_t count[1] = {1};
+            size_t start[1] = {nFID};
+
+            nc_get_vara_double(nNcid, nXVarId, start, count, &x);
+            nc_get_vara_double(nNcid, nYVarId, start, count, &y);
+            nc_get_vara_double(nNcid, nZVarId, start, count, &z);
+
+            poGeom = new OGRPoint (x, y, z);
+            
+        }
+
+    }
+    
+    return poGeom;
+}
+    
