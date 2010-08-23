@@ -29,6 +29,8 @@
 #include "ogrnetcdf.h"
 #include <ogr_feature.h>
 
+#include "ogrnetcdffeat.h"
+
 #include <netcdf.h>
 
 /******************************************************************************
@@ -50,8 +52,13 @@ OGRNETCDFLayer::OGRNETCDFLayer( const char *pszFilename, int Ncid )
     printf("status = %i, nNcid = %i, nDims = %i, nVars = %i, nGatts = %i, nUnlimdimid = %i\n",
            status, nNcid, nDims, nVars, nGatts, nUnlimdimid);
 
-    int nVid;
+    /***** get the total number of features *****/
 
+    status = nc_inq_dimlen(nNcid, nUnlimdimid, &nFeat);
+
+    /***** go through the vars *****/
+    
+    int nVid;
     for (nVid = 0 ; nVid < nVars ; nVid++) {
         
         char szVName[NC_MAX_NAME+1];
@@ -149,13 +156,87 @@ OGRNETCDFLayer::~OGRNETCDFLayer()
 }
 
 /******************************************************************************
- Layer GetNextFeature method
+ Method to get the next feature on the layer
+
+ Args:          none
+ 
+ Returns:       The next feature, or NULL if there is no more
+                
+******************************************************************************/
+
+OGRFeature *OGRNETCDFLayer::GetNextRawFeature (
+     )
+{
+    OGRFeature *poFeat = NULL;
+
+    if (nNextFID < (int) nFeat) {
+
+        poFeat = GetFeature(nNextFID);
+        nNextFID++;
+        
+    }
+
+    return poFeat;
+}
+
+/******************************************************************************
+ Method to get the next feature on the layer
+
+ Args:          none
+ 
+ Returns:       The next feature, or NULL if there is no more
+
+ this function copyed from the sqlite driver
 ******************************************************************************/
 
 OGRFeature *OGRNETCDFLayer::GetNextFeature()
+
 {
-    return NULL;
+    for( ; TRUE; )
+    {
+        OGRFeature      *poFeature;
+
+        poFeature = GetNextRawFeature();
+        if( poFeature == NULL )
+            return NULL;
+
+        if( (m_poFilterGeom == NULL
+            || FilterGeometry( poFeature->GetGeometryRef() ) )
+            && (m_poAttrQuery == NULL
+                || m_poAttrQuery->Evaluate( poFeature )) )
+            return poFeature;
+
+        delete poFeature;
+    }
 }
+
+
+/******************************************************************************
+ Layer SetNextByIndex method
+******************************************************************************/
+
+OGRErr 	OGRNETCDFLayer::SetNextByIndex (long nIndex) {
+    if (nIndex < (int)nFeat + 1)
+        nNextFID = nIndex;
+    else
+        nNextFID = nFeat - 1;
+
+    return OGRERR_NONE;
+}
+
+OGRFeature *OGRNETCDFLayer::GetFeature (long nFID) {
+    
+    OGRFeature *poFeat = nc2feat (nNcid, nFID, poFeatureDefn, poSRS);
+
+    poFeat->SetFID(nFID);
+    
+
+    nNextFID = nFID + 1;
+    
+    return poFeat;
+}
+
+
 
 /******************************************************************************
  Layer ResetReading method
@@ -172,13 +253,7 @@ void OGRNETCDFLayer::ResetReading()
 ******************************************************************************/
 
 int OGRNETCDFLayer::GetFeatureCount( int bForce ) {
-    size_t nFeat;
 
-    int status = nc_inq_dimlen(nNcid, nUnlimdimid, &nFeat);
-
-    if (status != NC_NOERR)
-        return -1;
-    
     return (int) nFeat;
 }
 

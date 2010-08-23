@@ -38,8 +38,7 @@
 class OGRNETCDFLayer : public OGRLayer
 {
     OGRFeatureDefn     *poFeatureDefn;
-
-    FILE               *fp;
+    OGRSpatialReference *poSRS;
 
     int                 nNextFID;
     int                 nNcid;
@@ -47,14 +46,17 @@ class OGRNETCDFLayer : public OGRLayer
     int                 nVars;
     int                 nGatts;
     int                 nUnlimdimid;
-        
+    size_t              nFeat;
+    
   public:
     OGRNETCDFLayer( const char *pszFilename, int nNcid );
    ~OGRNETCDFLayer();
 
     void                ResetReading();
     OGRFeature *        GetNextFeature();
-
+    OGRFeature *        GetNextRawFeature();
+    OGRErr              SetNextByIndex(long);
+    OGRFeature *        GetFeature(long);
     OGRFeatureDefn *    GetLayerDefn() { return poFeatureDefn; }
     int                 GetFeatureCount( int bForce );
     int                 TestCapability( const char * );
