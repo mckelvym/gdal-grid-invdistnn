@@ -35,7 +35,6 @@
 ******************************************************************************/
 
 OGRNETCDFDataSource::OGRNETCDFDataSource()
-
 {
     papoLayers = NULL;
     nLayers = 0;

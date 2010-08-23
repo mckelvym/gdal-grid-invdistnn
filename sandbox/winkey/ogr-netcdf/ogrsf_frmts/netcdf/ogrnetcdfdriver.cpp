@@ -35,6 +35,7 @@
 ******************************************************************************/
 
 OGRNETCDFDriver::~OGRNETCDFDriver()
+
 {
 }
 
@@ -88,4 +89,5 @@ void RegisterOGRNETCDF()
 {
     OGRSFDriverRegistrar::GetRegistrar()->
         RegisterDriver( new OGRNETCDFDriver );
+    printf("gotcha\n");
 }

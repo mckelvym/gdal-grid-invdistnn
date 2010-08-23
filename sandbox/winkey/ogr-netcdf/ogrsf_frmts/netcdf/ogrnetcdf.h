@@ -42,17 +42,22 @@ class OGRNETCDFLayer : public OGRLayer
     FILE               *fp;
 
     int                 nNextFID;
-
+    int                 nNcid;
+    int                 nDims;
+    int                 nVars;
+    int                 nGatts;
+    int                 nUnlimdimid;
+        
   public:
-    OGRNETCDFLayer( const char *pszFilename, int iNCid );
+    OGRNETCDFLayer( const char *pszFilename, int nNcid );
    ~OGRNETCDFLayer();
 
     void                ResetReading();
     OGRFeature *        GetNextFeature();
 
     OGRFeatureDefn *    GetLayerDefn() { return poFeatureDefn; }
-
-    int                 TestCapability( const char * ) { return FALSE; }
+    int                 GetFeatureCount( int bForce );
+    int                 TestCapability( const char * );
 };
 
 /******************************************************************************
