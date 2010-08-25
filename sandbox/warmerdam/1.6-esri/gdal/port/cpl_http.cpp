@@ -108,6 +108,24 @@ static size_t CPLHdrWriteFct(void *buffer, size_t size, size_t nmemb, void *reqI
 /*      Fetch a document from an url and return in a string.            */
 /************************************************************************/
 
+/**
+ * \brief Fetch a document from an url and return in a string.
+ *
+ * @param pszURL valid URL recognized by underlying download library (libcurl)
+ * @param papszOptions option list as a NULL-terminated array of strings. May be NULL.
+ *                     The following options are handled :
+ * <ul>
+ * <li>TIMEOUT=val, where val is in seconds</li>
+ * <li>HEADERS=val, where val is an extra header to use when getting a web page.
+ *                  For example "Accept: application/x-ogcwkt"
+ * <li>HTTPAUTH=[BASIC/NTLM/ANY] to specify an authentication scheme to use.
+ * <li>USERPWD=userid:password to specify a user and password for authentication
+ * </ul>
+ *
+ * @return a CPLHTTPResult* structure that must be freed by CPLHTTPDestroyResult(),
+ *         or NULL if libcurl support is diabled
+ */
+
 CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
 
 {
@@ -162,6 +180,28 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
 
     // turn off SSL verification, accept all servers with ssl
     curl_easy_setopt(http_handle, CURLOPT_SSL_VERIFYPEER, FALSE);
+
+    /* Support control over HTTPAUTH */
+    const char *pszHttpAuth = CSLFetchNameValue( papszOptions, "HTTPAUTH" );
+    if( pszHttpAuth == NULL )
+        /* do nothing */;
+    else if( EQUAL(pszHttpAuth,"BASIC") )
+        curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC );
+    else if( EQUAL(pszHttpAuth,"NTLM") )
+        curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_NTLM );
+    else if( EQUAL(pszHttpAuth,"ANY") )
+        curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_ANY );
+    else
+    {
+        CPLError( CE_Warning, CPLE_AppDefined,
+                  "Unsupported HTTPAUTH value '%s', ignored.", 
+                  pszHttpAuth );
+    }
+
+    /* Support setting userid:password */
+    const char *pszUserPwd = CSLFetchNameValue( papszOptions, "USERPWD" );
+    if( pszUserPwd != NULL )
+        curl_easy_setopt(http_handle, CURLOPT_USERPWD, pszUserPwd );
 
     /* Enable following redirections.  Requires libcurl 7.10.1 at least */
     curl_easy_setopt(http_handle, CURLOPT_FOLLOWLOCATION, 1 );
