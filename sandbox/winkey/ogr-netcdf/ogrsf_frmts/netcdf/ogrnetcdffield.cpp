@@ -43,6 +43,8 @@ void nc2field (
     const char *pszYVar = CPLGetConfigOption ( "OGR_NETCDF_YVAR", "latitude" );
     const char *pszXVar = CPLGetConfigOption ( "OGR_NETCDF_XVAR", "longitude" );
     const char *pszZVar = CPLGetConfigOption ( "OGR_NETCDF_ZVAR", "elevation" );
+    const char *pszFillAttr = CPLGetConfigOption ( "OGR_NETCDF_FILL_ATTR_NAME", "_FillValue" );
+    const char *pszMissingAttr = CPLGetConfigOption ( "OGR_NETCDF_MISSING_ATTR_NAME", "missing_value" );
 
     /***** go through the vars *****/
     
@@ -127,7 +129,26 @@ void nc2field (
             
                         nc_get_vara_int(nNcid, nVid, start, count, &nVar);
 
-                        poOgrFeat->SetField(nField, nVar);
+                        int nFillValue;
+                        int nFillStatus = nc_get_att_int(nNcid, nVid,
+                                                         pszFillAttr,
+                                                         &nFillValue);
+                        
+                        int nMissingValue;
+                        int nMissingStatus = nc_get_att_int(nNcid, nVid,
+                                                            pszMissingAttr,
+                                                            &nMissingValue);
+
+                        if (nFillStatus == NC_NOERR && nVar == nFillValue) {
+                            break;
+                        }
+                        else if (nMissingStatus == NC_NOERR &&
+                                 nVar == nMissingValue) {
+                            break;
+                        }
+                        else {
+                            poOgrFeat->SetField(nField, nVar);
+                        }
                     }
 
                     /***** 2d *****/
@@ -163,7 +184,26 @@ void nc2field (
             
                         nc_get_vara_double(nNcid, nVid, start, count, &dfVar);
 
-                        poOgrFeat->SetField(nField, dfVar);
+                        double nFillValue;
+                        int nFillStatus = nc_get_att_double(nNcid, nVid,
+                                                            pszFillAttr,
+                                                            &nFillValue);
+                        
+                        double nMissingValue;
+                        int nMissingStatus = nc_get_att_double(nNcid, nVid,
+                                                               pszMissingAttr,
+                                                               &nMissingValue);
+
+                        if (nFillStatus == NC_NOERR && dfVar == nFillValue) {
+                            break;
+                        }
+                        else if (nMissingStatus == NC_NOERR &&
+                                 dfVar == nMissingValue) {
+                            break;
+                        }
+                        else {
+                            poOgrFeat->SetField(nField, dfVar);
+                        }
                     }
 
                     /***** 2d *****/
