@@ -30,10 +30,13 @@
 #include <ogr_geometry.h>
 
 #include "ogrnetcdfgeom.h"
+#include "ogrnetcdffield.h"
 #include "ogrnetcdffeat.h"
 
 OGRFeature *nc2feat (
     int nNcid,
+    int nVars,
+    int nUnlimdimid,
     int nFID,
     OGRFeatureDefn * poFeatDefn,
     OGRSpatialReference *poSRS)
@@ -48,7 +51,7 @@ OGRFeature *nc2feat (
 
     /***** fields *****/
 
-    //nc2field ( poFeat, nNcid, nFID);
+    nc2field (nNcid, nVars, nUnlimdimid, nFID, poFeat);
 
     return poFeat;
 }

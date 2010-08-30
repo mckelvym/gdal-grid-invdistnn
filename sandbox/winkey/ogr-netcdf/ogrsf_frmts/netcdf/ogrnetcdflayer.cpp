@@ -144,7 +144,7 @@ OGRErr 	OGRNETCDFLayer::SetNextByIndex (long nIndex) {
 
 OGRFeature *OGRNETCDFLayer::GetFeature (long nFID) {
     
-    OGRFeature *poFeat = nc2feat (nNcid, nFID, poFeatureDefn, poSRS);
+    OGRFeature *poFeat = nc2feat (nNcid, nVars, nUnlimdimid, nFID, poFeatureDefn, poSRS);
 
     poFeat->SetFID(nFID);
     

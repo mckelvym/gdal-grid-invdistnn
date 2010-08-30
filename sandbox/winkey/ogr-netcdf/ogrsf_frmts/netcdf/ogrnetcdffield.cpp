@@ -32,6 +32,169 @@
 
 #include <netcdf.h>
 
+void nc2field (
+    int nNcid,
+    int nVars,
+    int nUnlimdimid,
+    long nFID,
+    OGRFeature * poOgrFeat)
+{
+
+    const char *pszYVar = CPLGetConfigOption ( "OGR_NETCDF_YVAR", "latitude" );
+    const char *pszXVar = CPLGetConfigOption ( "OGR_NETCDF_XVAR", "longitude" );
+    const char *pszZVar = CPLGetConfigOption ( "OGR_NETCDF_ZVAR", "elevation" );
+
+    /***** go through the vars *****/
+    
+    int nVid;
+    for (nVid = 0 ; nVid < nVars ; nVid++) {
+        
+        char szVName[NC_MAX_NAME+1];
+        nc_type VType;
+        int nVDims;
+        int anDimIds[NC_MAX_VAR_DIMS];
+        int nAtts;
+        nc_inq_var (nNcid, nVid, szVName, &VType, &nVDims, anDimIds, &nAtts);
+
+        if (EQUAL(pszXVar, szVName) || EQUAL(pszYVar, szVName) ||
+            EQUAL(pszZVar, szVName))
+            continue;
+            
+        if (anDimIds[0] == nUnlimdimid) {
+
+            int nField = poOgrFeat->GetFieldIndex(szVName);
+            
+            switch (VType) {
+                
+                case NC_BYTE:
+                    
+                    
+                    
+                    break;
+                    
+                case NC_CHAR:
+
+                    /***** single char *****/
+                
+                    if (nVDims == 1) {
+
+                        char pszVar[2] = {0};
+                        size_t count[1] = {1};
+                        size_t start[1] = {nFID};
+            
+                        nc_get_vara_text(nNcid, nVid, start, count, pszVar);
+
+                        poOgrFeat->SetField(nField, pszVar);
+                    }
+
+                    
+
+                    /***** string *****/
+
+                    else if (nVDims == 2) {
+
+                        size_t nDSize;
+
+                        nc_inq_dimlen(nNcid, anDimIds[1], &nDSize);
+                        
+                        char *pszVar = (char*) CPLMalloc(sizeof(char)*nDSize);
+                        pszVar[nDSize - 1] = 0;
+                        size_t count[2] = {1, nDSize};
+                        size_t start[2] = {nFID, 0};
+            
+                        nc_get_vara_text(nNcid, nVid, start, count, pszVar);
+
+                        poOgrFeat->SetField(nField, pszVar);
+
+                    }
+
+                    /***** array of strings *****/
+
+                    else if (nVDims == 3) {
+                    }
+                    
+                    break;
+                    
+                case NC_SHORT:
+                case NC_INT:
+                            
+                    /***** 1d *****/
+                
+                    if (nVDims == 1) {
+                        int nVar;
+                        size_t count[1] = {1};
+                        size_t start[1] = {nFID};
+            
+                        nc_get_vara_int(nNcid, nVid, start, count, &nVar);
+
+                        poOgrFeat->SetField(nField, nVar);
+                    }
+
+                    /***** 2d *****/
+
+                    else if (nVDims == 2) {
+                        size_t nDSize;
+
+                        nc_inq_dimlen(nNcid, anDimIds[1], &nDSize);
+                        
+                        int *panVar = (int*) CPLMalloc(sizeof(int)*nDSize);
+
+                        size_t count[2] = {1, nDSize};
+                        size_t start[2] = {nFID, 0};
+            
+                        nc_get_vara_int(nNcid, nVid, start, count, panVar);
+
+                        poOgrFeat->SetField(nField, nDSize, panVar);
+                        
+                        
+                    }
+                    
+                    break;
+                    
+                case NC_FLOAT:
+                case NC_DOUBLE:
+                    
+                    /***** 1d *****/
+                
+                    if (nVDims == 1) {
+                        double dfVar;
+                        size_t count[1] = {1};
+                        size_t start[1] = {nFID};
+            
+                        nc_get_vara_double(nNcid, nVid, start, count, &dfVar);
+
+                        poOgrFeat->SetField(nField, dfVar);
+                    }
+
+                    /***** 2d *****/
+
+                    else if (nVDims == 2) {
+                        size_t nDSize;
+
+                        nc_inq_dimlen(nNcid, anDimIds[1], &nDSize);
+                        
+                        double *padVar = (double*) CPLMalloc(sizeof(double)*nDSize);
+
+                        size_t count[2] = {1, nDSize};
+                        size_t start[2] = {nFID, 0};
+            
+                        nc_get_vara_double(nNcid, nVid, start, count, padVar);
+
+                        poOgrFeat->SetField(nField, nDSize, padVar);
+                    }
+
+                    break;
+                    
+                case NC_NAT:
+                default:
+                    break;
+                
+            }
+        }
+    }
+    
+}
+    
 void nc2FeatureDef (
     int Ncid,
     int nVars,
@@ -76,7 +239,7 @@ void nc2FeatureDef (
                     
                 case NC_CHAR:
                 
-                    if (nVDims == 2) {
+                    if (nVDims == 1 || nVDims == 2) {
                         eTypeIn = OFTString;
                         nAddMe = 1;
                     }

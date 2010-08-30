@@ -31,6 +31,8 @@
 
 OGRFeature *nc2feat (
     int nNcid,
+    int nVars,
+    int nUnlimdimid,
     int nFID,
     OGRFeatureDefn * poFeatDefn,
     OGRSpatialReference *poSRS);
