@@ -27,6 +27,7 @@
  *****************************************************************************/
 
 #include <ogr_feature.h>
+#include <cpl_conv.h>
 
 #include "ogrnetcdffield.h"
 
@@ -125,7 +126,8 @@ void nc2field (
                         nc_get_vara_text(nNcid, nVid, start, count, pszVar);
 
                         poOgrFeat->SetField(nField, pszVar);
-                        
+
+                        CPLFree(pszVar);
                     }
 
                     /***** array of strings *****/
@@ -183,7 +185,7 @@ void nc2field (
 
                         poOgrFeat->SetField(nField, nDSize, panVar);
                         
-                        
+                        CPLFree(panVar);
                     }
                     
                     break;
@@ -235,6 +237,8 @@ void nc2field (
                         nc_get_vara_double(nNcid, nVid, start, count, padVar);
 
                         poOgrFeat->SetField(nField, nDSize, padVar);
+
+                        CPLFree(padVar);
                     }
 
                     break;
