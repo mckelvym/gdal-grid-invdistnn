@@ -86,7 +86,25 @@ void nc2field (
             
                         nc_get_vara_text(nNcid, nVid, start, count, pszVar);
 
-                        poOgrFeat->SetField(nField, pszVar);
+                        char pszFillValue[2] = {0};
+                        int nFillStatus = nc_get_att_text(nNcid, nVid,
+                                                          pszFillAttr,
+                                                          pszFillValue);
+                        
+                        char pszMissingValue[2] = {0};
+                        int nMissingStatus = nc_get_att_text(nNcid, nVid,
+                                                             pszMissingAttr,
+                                                             pszMissingValue);
+
+                        if (nFillStatus == NC_NOERR &&
+                            EQUAL(pszVar, pszFillValue)) {
+                        }
+                        else if (nMissingStatus == NC_NOERR &&
+                                 EQUAL(pszVar, pszMissingValue)) {
+                        }
+                        else {
+                            poOgrFeat->SetField(nField, pszVar);
+                        }
                     }
 
                     
@@ -107,7 +125,7 @@ void nc2field (
                         nc_get_vara_text(nNcid, nVid, start, count, pszVar);
 
                         poOgrFeat->SetField(nField, pszVar);
-
+                        
                     }
 
                     /***** array of strings *****/
@@ -140,11 +158,9 @@ void nc2field (
                                                             &nMissingValue);
 
                         if (nFillStatus == NC_NOERR && nVar == nFillValue) {
-                            break;
                         }
                         else if (nMissingStatus == NC_NOERR &&
                                  nVar == nMissingValue) {
-                            break;
                         }
                         else {
                             poOgrFeat->SetField(nField, nVar);
@@ -195,11 +211,9 @@ void nc2field (
                                                                &nMissingValue);
 
                         if (nFillStatus == NC_NOERR && dfVar == nFillValue) {
-                            break;
                         }
                         else if (nMissingStatus == NC_NOERR &&
                                  dfVar == nMissingValue) {
-                            break;
                         }
                         else {
                             poOgrFeat->SetField(nField, dfVar);
