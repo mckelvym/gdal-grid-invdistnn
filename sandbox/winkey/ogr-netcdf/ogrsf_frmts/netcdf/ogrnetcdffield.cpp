@@ -81,9 +81,9 @@ void nc2field (
                 
                     if (nVDims == 1) {
 
-                        char pszVar[2] = {0};
-                        size_t count[1] = {1};
-                        size_t start[1] = {nFID};
+                        char pszVar[3] = {0};
+                        size_t count[2] = {1, 0};
+                        size_t start[2] = {nFID, 0};
             
                         nc_get_vara_text(nNcid, nVid, start, count, pszVar);
 
@@ -114,7 +114,7 @@ void nc2field (
 
                     else if (nVDims == 2) {
 
-                        size_t nDSize;
+                        size_t nDSize = 0;
 
                         nc_inq_dimlen(nNcid, anDimIds[1], &nDSize);
                         
@@ -125,9 +125,60 @@ void nc2field (
             
                         nc_get_vara_text(nNcid, nVid, start, count, pszVar);
 
-                        poOgrFeat->SetField(nField, pszVar);
+                        size_t nFillLen = 0;
+                        int nFillLenStatus = nc_inq_attlen (nNcid, nVid,
+                                                            pszFillAttr,
+                                                            &nFillLen);
+
+                        char *pszFillValue = NULL;
+                        int nFillStatus = NC_NOERR;
+                        
+                        if (nFillLenStatus == NC_NOERR) {
+                            pszFillValue = (char*) CPLMalloc(sizeof(char) *
+                                                             nFillLen);
+                            pszFillValue[nFillLen - 1] = 0;
+
+                            nFillStatus = nc_get_att_text(nNcid, nVid,
+                                                          pszFillAttr,
+                                                          pszFillValue);
+                        }
+
+                        size_t nMissingLen = 0;
+                        int nMissingLenStatus = nc_inq_attlen (nNcid, nVid,
+                                                               pszMissingAttr,
+                                                               &nMissingLen);
+                        
+                        char *pszMissingValue = NULL;
+                        int nMissingStatus = NC_NOERR;
+                        if (nMissingLenStatus == NC_NOERR) {
+                            pszMissingValue = (char*) CPLMalloc(sizeof(char) *
+                                                                nMissingLen);
+                            pszMissingValue[nMissingLen - 1] = 0;
+
+                            nMissingStatus = nc_get_att_text(nNcid, nVid,
+                                                             pszMissingAttr,
+                                                             pszMissingValue);
+                        }
+
+                        if (nFillLenStatus == NC_NOERR &&
+                            nFillStatus == NC_NOERR &&
+                            EQUAL(pszVar, pszFillValue)) {
+                        }
+                        else if (nMissingLenStatus == NC_NOERR &&
+                                 nMissingStatus == NC_NOERR &&
+                                 EQUAL(pszVar, pszMissingValue)) {
+                        }
+                        else {
+                            poOgrFeat->SetField(nField, pszVar);
+                        }
 
                         CPLFree(pszVar);
+                        
+                        if (nFillLenStatus == NC_NOERR)
+                            CPLFree(pszFillValue);
+                        
+                        if (nMissingLenStatus == NC_NOERR)
+                            CPLFree(pszMissingValue);
                     }
 
                     /***** array of strings *****/
@@ -143,18 +194,18 @@ void nc2field (
                     /***** 1d *****/
                 
                     if (nVDims == 1) {
-                        int nVar;
+                        int nVar = 0;
                         size_t count[1] = {1};
                         size_t start[1] = {nFID};
             
                         nc_get_vara_int(nNcid, nVid, start, count, &nVar);
 
-                        int nFillValue;
+                        int nFillValue = 0;
                         int nFillStatus = nc_get_att_int(nNcid, nVid,
                                                          pszFillAttr,
                                                          &nFillValue);
                         
-                        int nMissingValue;
+                        int nMissingValue = 0;
                         int nMissingStatus = nc_get_att_int(nNcid, nVid,
                                                             pszMissingAttr,
                                                             &nMissingValue);
@@ -172,7 +223,7 @@ void nc2field (
                     /***** 2d *****/
 
                     else if (nVDims == 2) {
-                        size_t nDSize;
+                        size_t nDSize = 0;
 
                         nc_inq_dimlen(nNcid, anDimIds[1], &nDSize);
                         
@@ -196,18 +247,18 @@ void nc2field (
                     /***** 1d *****/
                 
                     if (nVDims == 1) {
-                        double dfVar;
+                        double dfVar = 0;
                         size_t count[1] = {1};
                         size_t start[1] = {nFID};
             
                         nc_get_vara_double(nNcid, nVid, start, count, &dfVar);
 
-                        double nFillValue;
+                        double nFillValue = 0;
                         int nFillStatus = nc_get_att_double(nNcid, nVid,
                                                             pszFillAttr,
                                                             &nFillValue);
                         
-                        double nMissingValue;
+                        double nMissingValue = 0;
                         int nMissingStatus = nc_get_att_double(nNcid, nVid,
                                                                pszMissingAttr,
                                                                &nMissingValue);
@@ -225,7 +276,7 @@ void nc2field (
                     /***** 2d *****/
 
                     else if (nVDims == 2) {
-                        size_t nDSize;
+                        size_t nDSize = 0;
 
                         nc_inq_dimlen(nNcid, anDimIds[1], &nDSize);
                         
@@ -269,10 +320,10 @@ void nc2FeatureDef (
     int nVid;
     for (nVid = 0 ; nVid < nVars ; nVid++) {
         
-        char szVName[NC_MAX_NAME+1];
+        char szVName[NC_MAX_NAME+1] = {0};
         nc_type VType;
-        int nVDims;
-        int anDimIds[NC_MAX_VAR_DIMS];
+        int nVDims = 0;
+        int anDimIds[NC_MAX_VAR_DIMS] = {0};
         int nAtts;
         nc_inq_var (Ncid, nVid, szVName, &VType, &nVDims, anDimIds, &nAtts);
 

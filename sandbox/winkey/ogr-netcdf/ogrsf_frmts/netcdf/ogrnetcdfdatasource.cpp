@@ -63,7 +63,7 @@ OGRNETCDFDataSource::~OGRNETCDFDataSource()
 int  OGRNETCDFDataSource::Open( const char *pszFilename, int bUpdate )
 {
 
-    int ncid;
+    int ncid = 0;
 
 	if( bUpdate ) {
 	    CPLError( CE_Failure, CPLE_OpenFailed, 
