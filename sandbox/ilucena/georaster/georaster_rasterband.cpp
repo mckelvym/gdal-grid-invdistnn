@@ -206,8 +206,8 @@ CPLErr GeoRasterRasterBand::IReadBlock( int nBlockXOff,
                                         int nBlockYOff,
                                         void *pImage )
 {
-    CPLDebug("GEOR","Read(L=%d,B=%d,R=%d,C=%d)",
-            nOverviewLevel, nBand, nBlockYOff, nBlockXOff );
+//    CPLDebug("GEOR","Read(L=%d,B=%d,R=%d,C=%d)",
+//            nOverviewLevel, nBand, nBlockYOff, nBlockXOff );
     
     if( poGeoRaster->GetDataBlock( nBand,
                                    nOverviewLevel,
@@ -240,8 +240,8 @@ CPLErr GeoRasterRasterBand::IWriteBlock( int nBlockXOff,
                                          int nBlockYOff,
                                          void *pImage )
 {
-    CPLDebug("GEOR","Write(L=%d,B=%d,R=%d,C=%d)",
-            nOverviewLevel, nBand, nBlockYOff, nBlockXOff );
+//    CPLDebug("GEOR","Write(L=%d,B=%d,R=%d,C=%d)",
+//            nOverviewLevel, nBand, nBlockYOff, nBlockXOff );
 
     if( poGeoRaster->SetDataBlock( nBand,
                                    nOverviewLevel,

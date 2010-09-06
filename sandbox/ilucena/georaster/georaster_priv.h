@@ -85,7 +85,8 @@ void jpeg_vsiio_dest (j_compress_ptr cinfo, FILE * outfile);
 //  Default maximum query limit
 
 #define GEOR_QUERY_LIMIT 3000L
-#define GEOR_QUERY_WINDOW 2000L
+#define GEOR_QUERY_WINDOW 1500L
+#define DEFAULT_MAX_WINDOW 10
 
 struct hRDTFields {
     int             nLevel;
@@ -481,6 +482,7 @@ public:
     int                 eForceCoordLocation;
     unsigned int        anULTCoordinate[3];
     long                nQueryLimit;
+    long                nQueryWindow;
 };
 
 #endif /* ifndef _GEORASTER_PRIV_H_INCLUDED */

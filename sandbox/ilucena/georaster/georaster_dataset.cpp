@@ -226,7 +226,7 @@ GDALDataset* GeoRasterDataset::Open( GDALOpenInfo* poOpenInfo )
     }
 
     //  -------------------------------------------------------------------
-    //  Check for query limit variable
+    //  Check for maximum number of rows in a RDT query
     //  -------------------------------------------------------------------
 
     poGRW->nQueryLimit = GEOR_QUERY_LIMIT;
@@ -236,7 +236,21 @@ GDALDataset* GeoRasterDataset::Open( GDALOpenInfo* poOpenInfo )
 
     if( ! EQUAL(pszGEOR_QUERY_LIMIT, "-1") && OWIsNumeric(pszGEOR_QUERY_LIMIT) )
     {
-        poGRW->nQueryLimit = atoi(pszGEOR_QUERY_LIMIT);
+        poGRW->nQueryLimit = atoi( pszGEOR_QUERY_LIMIT );
+    }
+
+    //  -------------------------------------------------------------------
+    //  Check for maximum number of columns/rows in a RDT query window
+    //  -------------------------------------------------------------------
+
+    poGRW->nQueryWindow = GEOR_QUERY_WINDOW;
+
+    const char *pszGEOR_QUERY_WINDOW =
+        CPLGetConfigOption( "GEOR_QUERY_WINDOW", "-1" );
+
+    if( ! EQUAL(pszGEOR_QUERY_WINDOW, "-1") && OWIsNumeric(pszGEOR_QUERY_WINDOW) )
+    {
+        poGRW->nQueryWindow = atoi( pszGEOR_QUERY_WINDOW );
     }
 
     //  -------------------------------------------------------------------

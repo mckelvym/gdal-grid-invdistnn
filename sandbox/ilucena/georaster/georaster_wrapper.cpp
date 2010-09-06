@@ -100,6 +100,7 @@ GeoRasterWrapper::GeoRasterWrapper()
     bWriteOnly          = false;
     nRandonQuery        = -1;
     nQueryLimit         = GEOR_QUERY_LIMIT;
+    nQueryWindow        = GEOR_QUERY_WINDOW;
 }
 
 //  ---------------------------------------------------------------------------
@@ -1113,6 +1114,7 @@ void GeoRasterWrapper::PrepareToOverwrite( void )
     bWriteOnly          = false;
     nRandonQuery        = -1;
     nQueryLimit         = GEOR_QUERY_LIMIT;
+    nQueryWindow        = GEOR_QUERY_WINDOW;
 }
 
 //  ---------------------------------------------------------------------------
@@ -1723,6 +1725,12 @@ bool GeoRasterWrapper::InitializeIO( void )
 
 bool GeoRasterWrapper::QueryBlocks( hRDTFields* phKey )
 {
+    CPLDebug("GEOR","Block requested (L=%d,B=%d,R=%d,C=%d)",
+            phKey->nLevel,
+            phKey->nBand,
+            phKey->nRow,
+            phKey->nColumn );
+
     CPLString osQuery;
 
     osQuery.Printf(
@@ -1766,13 +1774,24 @@ bool GeoRasterWrapper::QueryBlocks( hRDTFields* phKey )
             
     if( nRandonQuery )
     {
-        // ----------------------------------------------------------------
-        //  Check if the total number of blocks is less than the limit
-        // ----------------------------------------------------------------
-
         if( nBlockCount <= nQueryLimit )
         {
+            // ------------------------------------------------------------
+            //  Total number of blocks is less than the limit
+            // ------------------------------------------------------------
+
             nCount = nBlockCount;
+        }
+        else if ( pahLevels[phKey->nLevel].nBlockCount <= nQueryLimit )
+        {
+            // ------------------------------------------------------------
+            //  Number of blocks on that level is less than the limit
+            // ------------------------------------------------------------
+
+            osQuery.append( CPLSPrintf( " AND\n"
+                "       PYRAMIDLEVEL = %d", phKey->nLevel ) );
+
+            nCount = pahLevels[phKey->nLevel].nBlockCount;
         }
         else
         {
@@ -1780,12 +1799,12 @@ bool GeoRasterWrapper::QueryBlocks( hRDTFields* phKey )
             //  Calculate a view window that could fit a 2000x2000 display
             // ------------------------------------------------------------
 
-            int nWRsz = ( ( GEOR_QUERY_WINDOW + nColumnBlockSize - 1 ) / nRowBlockSize );
-            int nWCsz = ( ( GEOR_QUERY_WINDOW + nColumnBlockSize - 1 ) / nColumnBlockSize );
+            int nWRsz = ( ( nQueryWindow + nColumnBlockSize - 1 ) / nRowBlockSize );
+            int nWCsz = ( ( nQueryWindow + nColumnBlockSize - 1 ) / nColumnBlockSize );
 
-            // ------------------------------------------------------------
+            //  -----------------------------------------------------------
             //  Calculate how many view windows could fit under the limit
-            // ------------------------------------------------------------
+            //  -----------------------------------------------------------
 
             int nY = phKey->nRow;
             int nX = phKey->nColumn;
@@ -1794,8 +1813,9 @@ bool GeoRasterWrapper::QueryBlocks( hRDTFields* phKey )
             long nTotal = 1L;
 
             int i = 0;
+            int nTries = MIN( sqrt( nQueryLimit / ( nWRsz * nWCsz ) ), DEFAULT_MAX_WINDOW );
             
-            for( i = 1; i < 10 && nTotal < GEOR_QUERY_LIMIT; i++ )
+            for( i = 1; i < nTries && nTotal < nQueryLimit; i++ )
             {
                 // Calculate top-left cell
 
@@ -1814,7 +1834,7 @@ bool GeoRasterWrapper::QueryBlocks( hRDTFields* phKey )
 
                 nTotal = ( ( nY2 - nY ) * ( nX2 - nX ) ) * nTotalBandBlocks;
 
-                if( nTotal < GEOR_QUERY_LIMIT )
+                if( nTotal < nQueryLimit )
                 {
                     nCount = nTotal;
                 }
@@ -1903,35 +1923,39 @@ bool GeoRasterWrapper::QueryBlocks( hRDTFields* phKey )
         }
     }
 
+//    CPLDebug("GEOR","Expecting %ld block(s)",nCount);
+
     // --------------------------------------------------------------------
     // Allocate array of LOB Locators
     // --------------------------------------------------------------------
 
-    VSIFree( panRDTLevel );
-    VSIFree( panRDTBand );
-    VSIFree( panRDTRow );
-    VSIFree( panRDTColumn );
-
-    if( pahLocator && nBlocksOnQuery )
+    if( nBlocksOnQuery != nCount)
     {
-        OWStatement::Free( pahLocator, nBlocksOnQuery );
-    }
+        VSIFree( panRDTLevel );
+        VSIFree( panRDTBand );
+        VSIFree( panRDTRow );
+        VSIFree( panRDTColumn );
 
-    panRDTLevel  = (int*) VSIMalloc2( sizeof(int), nCount );
-    panRDTBand   = (int*) VSIMalloc2( sizeof(int), nCount );
-    panRDTRow    = (int*) VSIMalloc2( sizeof(int), nCount );
-    panRDTColumn = (int*) VSIMalloc2( sizeof(int), nCount );
+        if( pahLocator && nBlocksOnQuery )
+        {
+            OWStatement::Free( pahLocator, nBlocksOnQuery );
+        }
 
-    pahLocator = (OCILobLocator**) VSIMalloc2( sizeof(void*), nCount );
+        panRDTLevel  = (int*) VSIMalloc2( sizeof(int), nCount );
+        panRDTBand   = (int*) VSIMalloc2( sizeof(int), nCount );
+        panRDTRow    = (int*) VSIMalloc2( sizeof(int), nCount );
+        panRDTColumn = (int*) VSIMalloc2( sizeof(int), nCount );
+        pahLocator   = (OCILobLocator**) VSIMalloc2( sizeof(void*), nCount );
 
-    if ( pahLocator     == NULL ||
-         panRDTLevel    == NULL ||
-         panRDTBand     == NULL ||
-         panRDTRow      == NULL ||
-         panRDTColumn   == NULL )
-    {
-        CPLError( CE_Failure, CPLE_OutOfMemory, "InitializeIO: Out of memory" );
-        return false;
+        if ( pahLocator     == NULL ||
+             panRDTLevel    == NULL ||
+             panRDTBand     == NULL ||
+             panRDTRow      == NULL ||
+             panRDTColumn   == NULL )
+        {
+            CPLError( CE_Failure, CPLE_OutOfMemory, "InitializeIO: Out of memory" );
+            return false;
+        }
     }
 
     //  --------------------------------------------------------------------
@@ -1963,7 +1987,7 @@ bool GeoRasterWrapper::QueryBlocks( hRDTFields* phKey )
         return false;
     }
 
-    CPLDebug("GEOR","Selected %ld blocks",nCount);
+//    CPLDebug("GEOR","Selected %ld block(s)",nCount);
     
     nBlocksOnQuery = nCount;
     
