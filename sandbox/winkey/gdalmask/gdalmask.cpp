@@ -589,7 +589,7 @@ void do_nearblack(
 
         int iCol;
         for(iCol = 0; iCol < nXDstSize; iCol ++)
-            pabyMask[iCol] = 255;
+            pabyMask[iCol] = 0;
 
         /***** proccess the line *****/
         
@@ -798,7 +798,7 @@ static void ProcessLine(
 
             /***** set the mask value *****/
             
-            pabyMask[i] = 0;
+            pabyMask[i] = 255;
             
         }
     }
@@ -858,7 +858,7 @@ static void ProcessLine(
 
             /***** set the mask value *****/
             
-            pabyMask[i] = 0;
+            pabyMask[i] = 255;
             
 
         }
