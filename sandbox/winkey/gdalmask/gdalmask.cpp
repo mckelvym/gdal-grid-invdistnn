@@ -414,7 +414,8 @@ void do_regular(
                                       0, 0            /* pixel size */
                                      );
 
-#warning fixme no error check
+                if( eErr != CE_None )
+                    exit(1);
             }
 
             /***** use the alpha band? *****/
@@ -435,7 +436,8 @@ void do_regular(
                                       0, 0            /* pixel size */
                                      );
                 
-#warning fixme no error check
+                if( eErr != CE_None )
+                    exit(1);
                 
                 eErr = GDALRasterIO ( hMaskBand,
                                       GF_Write,
@@ -448,7 +450,8 @@ void do_regular(
                                       0, 0            /* pixel size */
                                      );
                 
-#warning fixme no error check
+                if( eErr != CE_None )
+                    exit(1);
                 
             }
 
@@ -485,7 +488,8 @@ void do_regular(
                                      );
                              
                                 
-#warning fixme no error check
+                if( eErr != CE_None )
+                    exit(1);
                 
             }
 
@@ -505,7 +509,8 @@ void do_regular(
                                       0, 0            /* pixel size */
                                      );
 
-#warning fixme no error check
+            if( eErr != CE_None )
+                exit(1);
             }
         }
     }
@@ -580,8 +585,8 @@ void do_nearblack(
                                   0, 0            /* pixel size */
                                  );
         
-                                
-#warning fixme no error check
+            if( eErr != CE_None )
+                exit(1);
                 
         }
 
@@ -589,7 +594,7 @@ void do_nearblack(
 
         int iCol;
         for(iCol = 0; iCol < nXDstSize; iCol ++)
-            pabyMask[iCol] = 0;
+            pabyMask[iCol] = 255;
 
         /***** proccess the line *****/
         
@@ -615,12 +620,13 @@ void do_nearblack(
                                   0, 0            /* pixel size */
                                  );
 
-#warning fixme no error check
+            if( eErr != CE_None )
+                exit(1);
                 
         }
         
         /***** write the mask line out *****/
-         
+
         CPLErr eErr;
         eErr = GDALRasterIO ( hMaskBand,
                               GF_Write,
@@ -632,6 +638,8 @@ void do_nearblack(
                               GDT_Byte,           
                               0, 0            /* pixel size */
                              );
+        if( eErr != CE_None )
+            exit(1);
         
         if (!bQuiet)
             GDALTermProgress( 0.5 * ((iLine+1) / (double) nYDstSize), NULL, NULL );
@@ -644,8 +652,11 @@ void do_nearblack(
     
     for( iLine = nYDstSize-1; iLine >= 0; iLine-- )
     {
+
+        /***** read the line back from the dst file *****/
+        
         for (int iBand = 0; iBand < 3; iBand++) { 
-                
+             
             CPLErr eErr;
             eErr = GDALRasterIO ( pahDstBands[iBand],
                                   GF_Read,
@@ -658,13 +669,30 @@ void do_nearblack(
                                   0, 0            /* pixel size */
                                  );
         
-                                
-#warning fixme no error check
-                
+            if( eErr != CE_None )
+                exit(1);
         }
 
         CPLErr eErr;
 
+        /***** read the mask back from the dst file *****/
+
+                eErr = GDALRasterIO ( hMaskBand,
+                              GF_Read,
+                              0, iLine,       /* offset of the start of the line */
+                              nXDstSize, 1,   /* current line size */
+                              pabyMask,
+                              nXDstSize,      /* x size of buffer */
+                              1,              /* y size of buffer */
+                              GDT_Byte,           
+                              0, 0            /* pixel size */
+                             );
+        
+        if( eErr != CE_None )
+            exit(1);
+
+        /***** proccess the line *****/
+        
         ProcessLine( papabyBuf, pabyMask, 0, nXDstSize-1, nNearDist, nMaxNonBlack,
                      bNearWhite, panLastLineCounts, FALSE, TRUE );
         
@@ -683,13 +711,13 @@ void do_nearblack(
                                   GDT_Byte,           
                                   0, 0            /* pixel size */
                                  );
-
-#warning fixme no error check
+            if( eErr != CE_None )
+                exit(1);
                 
         }
         
         /***** write the mask line out *****/
-         
+            
         eErr = GDALRasterIO ( hMaskBand,
                               GF_Write,
                               0, iLine,       /* offset of the start of the line */
@@ -701,6 +729,8 @@ void do_nearblack(
                               0, 0            /* pixel size */
                              );
         
+        if( eErr != CE_None )
+            exit(1);
         
         if (!bQuiet)
             GDALTermProgress( 0.5 + 0.5 * (nYDstSize-iLine) / (double) nYDstSize, 
@@ -717,6 +747,39 @@ void do_nearblack(
 
     CPLFree(pabyMask);
 
+}
+
+/******************************************************************************
+    function to test a pixel for NON black
+
+******************************************************************************/
+
+int IsNonBlack (int bNearWhite, int nNearDist, GByte r, GByte g, GByte b) {
+    int bIsNonBlack = FALSE;
+    
+    if ( bNearWhite ) {
+         if ( 255 - r > nNearDist ||
+              255 - g > nNearDist ||
+              255 - b > nNearDist
+            )
+        {
+            bIsNonBlack = TRUE;
+        }
+    }
+            
+    else if ( ! bNearWhite ) {
+        if ( r > nNearDist ||
+             g > nNearDist ||
+             b > nNearDist
+           )
+        {
+            bIsNonBlack = TRUE;
+        }
+    }
+
+    //printf("%i %i %i %i\n", r, g, b, bIsNonBlack);
+
+    return bIsNonBlack;
 }
 
 /************************************************************************/
@@ -756,34 +819,17 @@ static void ProcessLine(
             if( panLastLineCounts[i] > nMaxNonBlack )
                 continue;
 
+            if ( IsNonBlack(bNearWhite, nNearDist, papabyBufm[0][i],
+                 papabyBufm[1][i], papabyBufm[2][i]) )
+            {
 
-            if ( bNearWhite &&
-                 ( 255 - papabyBufm[0][i] > nNearDist ||
-                   255 - papabyBufm[1][i] > nNearDist ||
-                   255 - papabyBufm[2][i] > nNearDist
-                  ) )
-            {
-                bIsNonBlack = TRUE;
-            }
-
-            else if ( ! bNearWhite &&
-                      ( papabyBufm[0][i] > nNearDist ||
-                        papabyBufm[0][i] > nNearDist ||
-                        papabyBufm[0][i] > nNearDist
-                    ) )
-            {
-                bIsNonBlack = TRUE;
-            }
-            
-            if( bIsNonBlack )
-            {
                 panLastLineCounts[i]++;
 
                 if( panLastLineCounts[i] > nMaxNonBlack )
                     continue; 
             }
 
-            /***** at this point the pexel is conciderd to be nearblack *****/
+            /***** at this point the pixel is conciderd to be nearblack *****/
         
             else
                 panLastLineCounts[i] = 0;
@@ -798,7 +844,7 @@ static void ProcessLine(
 
             /***** set the mask value *****/
             
-            pabyMask[i] = 255;
+            pabyMask[i] = 0;
             
         }
     }
@@ -818,33 +864,17 @@ static void ProcessLine(
         for( i = iStart; i != iEnd; i += iDir )
         {
             int iBand;
-            int bIsNonBlack = FALSE;
-
-            if ( bNearWhite &&
-                 ( 255 - papabyBufm[0][i] > nNearDist ||
-                   255 - papabyBufm[1][i] > nNearDist ||
-                   255 - papabyBufm[2][i] > nNearDist
-                  ) )
-            {
-                bIsNonBlack = TRUE;
-            }
-
-            else if ( ! bNearWhite &&
-                      ( papabyBufm[0][i] > nNearDist ||
-                        papabyBufm[0][i] > nNearDist ||
-                        papabyBufm[0][i] > nNearDist
-                    ) )
-            {
-                bIsNonBlack = TRUE;
-            }
-
-            if( bIsNonBlack )
+            if ( IsNonBlack(bNearWhite, nNearDist, papabyBufm[0][i],
+                 papabyBufm[1][i], papabyBufm[2][i]) )
             {
                 nNonBlackPixels++;
 
                 if( nNonBlackPixels > nMaxNonBlack )
                     return;
             }
+
+            /***** at this point the pixel is conciderd to be nearblack *****/
+
             else
                 nNonBlackPixels = 0;
 
@@ -858,7 +888,7 @@ static void ProcessLine(
 
             /***** set the mask value *****/
             
-            pabyMask[i] = 255;
+            pabyMask[i] = 0;
             
 
         }
