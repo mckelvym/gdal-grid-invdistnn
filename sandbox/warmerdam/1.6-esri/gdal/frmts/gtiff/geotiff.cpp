@@ -3516,7 +3516,7 @@ void GTiffDataset::WriteGeoTIFFInfo()
         bPixelIsPoint = true;
         bPointGeoIgnore = 
             CSLTestBoolean( CPLGetConfigOption("GTIFF_POINT_GEO_IGNORE",
-                                               "TRUE") );
+                                               "FALSE") );
     }
 
 /* -------------------------------------------------------------------- */
@@ -4970,7 +4970,7 @@ CPLErr GTiffDataset::OpenOffset( TIFF *hTIFFIn,
             bPixelIsPoint = true;
             bPointGeoIgnore = 
                 CSLTestBoolean( CPLGetConfigOption("GTIFF_POINT_GEO_IGNORE",
-                                                   "TRUE") );
+                                                   "FALSE") );
         }
 
         GTIFFree( psGTIF );
@@ -6537,7 +6537,7 @@ GTiffDataset::CreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         bPixelIsPoint = true;
         bPointGeoIgnore = 
             CSLTestBoolean( CPLGetConfigOption("GTIFF_POINT_GEO_IGNORE",
-                                               "TRUE") );
+                                               "FALSE") );
     }
 
 /* -------------------------------------------------------------------- */
