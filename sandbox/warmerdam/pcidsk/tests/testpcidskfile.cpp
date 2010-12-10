@@ -47,6 +47,7 @@ class PCIDSKFileTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testRLE );
     CPPUNIT_TEST( testJPEG );
     CPPUNIT_TEST( testSparse );
+    CPPUNIT_TEST( testFunkyBand );
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -64,6 +65,7 @@ public:
     void testRLE();
     void testJPEG();
     void testSparse();
+    void testFunkyBand();
 };
 
 // Registers the fixture into the 'registry'
@@ -398,6 +400,46 @@ void PCIDSKFileTest::testSparse()
     channel->ReadBlock( 0, data_block );
 
     CPPUNIT_ASSERT( data_block[256*99+45] == 0 );
+
+    delete irvine;
+}
+
+void PCIDSKFileTest::testFunkyBand()
+{
+    // This tests a problem mixed "new" band interleaved file per #3876.
+
+    PCIDSKFile *irvine;
+    PCIDSKChannel *channel;
+    unsigned char data_block[512*4];
+
+    irvine = PCIDSK::Open( "irvine_bandOrder.pix", "r", NULL );
+
+    CPPUNIT_ASSERT( irvine != NULL );
+
+    channel = irvine->GetChannel(1);
+
+    CPPUNIT_ASSERT( channel->GetBlockWidth() == 512 );
+    CPPUNIT_ASSERT( channel->GetBlockHeight() == 1 );
+    CPPUNIT_ASSERT( channel->GetType() == CHN_16S );
+
+    channel->ReadBlock( 17, data_block );
+
+    CPPUNIT_ASSERT( data_block[45] == 0 );
+
+    channel = irvine->GetChannel(2);
+    CPPUNIT_ASSERT( channel->GetType() == CHN_8U );
+
+    channel = irvine->GetChannel(3);
+    CPPUNIT_ASSERT( channel->GetType() == CHN_16U );
+
+    channel = irvine->GetChannel(4);
+    CPPUNIT_ASSERT( channel->GetType() == CHN_32R );
+
+    channel->ReadBlock( 17, data_block );
+    CPPUNIT_ASSERT( data_block[45] == 0 );
+
+    channel = irvine->GetChannel(5);
+    CPPUNIT_ASSERT( channel->GetType() == CHN_8U );
 
     delete irvine;
 }
