@@ -56,6 +56,7 @@ int OGR_G_GetPointCount( OGRGeometryH hGeom )
         return 1;
 
       case wkbLineString:
+      case wkbCircularString:
       {
           OGRLineString *poLine = (OGRLineString *) hGeom;
           return poLine->getNumPoints();
@@ -98,6 +99,7 @@ double OGR_G_GetX( OGRGeometryH hGeom, int i )
       }
 
       case wkbLineString:
+      case wkbCircularString:
       {
           OGRLineString* poLS = (OGRLineString *) hGeom;
           if (i < 0 || i >= poLS->getNumPoints())
@@ -144,6 +146,7 @@ double OGR_G_GetY( OGRGeometryH hGeom, int i )
       }
 
       case wkbLineString:
+      case wkbCircularString:
       {
           OGRLineString* poLS = (OGRLineString *) hGeom;
           if (i < 0 || i >= poLS->getNumPoints())
@@ -190,6 +193,7 @@ double OGR_G_GetZ( OGRGeometryH hGeom, int i )
       }
 
       case wkbLineString:
+      case wkbCircularString:
       {
           OGRLineString* poLS = (OGRLineString *) hGeom;
           if (i < 0 || i >= poLS->getNumPoints())
@@ -245,6 +249,7 @@ void OGR_G_GetPoint( OGRGeometryH hGeom, int i,
       break;
 
       case wkbLineString:
+      case wkbCircularString:
       {
           OGRLineString* poLS = (OGRLineString *) hGeom;
           if (i < 0 || i >= poLS->getNumPoints())
@@ -312,6 +317,7 @@ void OGR_G_SetPoint( OGRGeometryH hGeom, int i,
       break;
 
       case wkbLineString:
+      case wkbCircularString:
       {
           if (i < 0)
           {
@@ -368,6 +374,7 @@ void OGR_G_SetPoint_2D( OGRGeometryH hGeom, int i,
       break;
 
       case wkbLineString:
+      case wkbCircularString:
       {
           if (i < 0)
           {
@@ -416,6 +423,7 @@ void OGR_G_AddPoint( OGRGeometryH hGeom,
       break;
 
       case wkbLineString:
+      case wkbCircularString:
         ((OGRLineString *) hGeom)->addPoint( dfX, dfY, dfZ );
         break;
 
@@ -455,6 +463,7 @@ void OGR_G_AddPoint_2D( OGRGeometryH hGeom,
       break;
 
       case wkbLineString:
+      case wkbCircularString:
         ((OGRLineString *) hGeom)->addPoint( dfX, dfY );
         break;
 
@@ -767,6 +776,7 @@ double OGR_G_Length( OGRGeometryH hGeom )
     {
       case wkbLinearRing:
       case wkbLineString:
+      case wkbCircularString:
         fLength = ((OGRCurve *) hGeom)->get_Length();
         break;
 

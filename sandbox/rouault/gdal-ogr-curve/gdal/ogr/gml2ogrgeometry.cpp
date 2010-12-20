@@ -667,82 +667,11 @@ static OGRGeometry *GML2OGRGeometry_XMLNode( const CPLXMLNode *psNode,
         double y1 = poLine->getY(1);
         double x2 = poLine->getX(2);
         double y2 = poLine->getY(2);
-        double dx01 = x1 - x0;
-        double dy01 = y1 - y0;
-        double dx12 = x2 - x1;
-        double dy12 = y2 - y1;
-        double c01 = dx01 * (x0 + x1) / 2 + dy01 * (y0 + y1) / 2;
-        double c12 = dx12 * (x1 + x2) / 2 + dy12 * (y1 + y2) / 2;
-        double det = dx01 * dy12 - dx12 * dy01;
-        if (det == 0)
-        {
-            return poLine;
-        }
-        double cx =  (c01 * dy12 - c12 * dy01) / det;
-        double cy =  (- c01 * dx12 + c12 * dx01) / det;
+        delete poLine;
 
-        double alpha0 = atan2(y0 - cy, x0 - cx);
-        double alpha1 = atan2(y1 - cy, x1 - cx);
-        double alpha2 = atan2(y2 - cy, x2 - cx);
-        double alpha3;
-        double R = sqrt((x0 - cx) * (x0 - cx) + (y0 - cy) * (y0 - cy));
-
-        /* if det is negative, the orientation if clockwise */
-        if (det < 0)
-        {
-            if (alpha1 > alpha0)
-                alpha1 -= 2 * PI;
-            if (alpha2 > alpha1)
-                alpha2 -= 2 * PI;
-            alpha3 = alpha0 - 2 * PI;
-        }
-        else
-        {
-            if (alpha1 < alpha0)
-                alpha1 += 2 * PI;
-            if (alpha2 < alpha1)
-                alpha2 += 2 * PI;
-            alpha3 = alpha0 + 2 * PI;
-        }
-
-        CPLAssert((alpha0 <= alpha1 && alpha1 <= alpha2 && alpha2 <= alpha3) ||
-                  (alpha0 >= alpha1 && alpha1 >= alpha2 && alpha2 >= alpha3));
-
-        int nSign = (det >= 0) ? 1 : -1;
-
-        double alpha;
-        double dfStep =
-            atof(CPLGetConfigOption("OGR_ARC_STEPSIZE","4")) / 180 * PI;
-        if (dfStep <= 0.1)
-            dfStep = 4. / 180 * PI;
-
-        poLine->setNumPoints(0);
-
-        dfStep *= nSign;
-
-        for(alpha = alpha0; (alpha - alpha1) * nSign < 0; alpha += dfStep)
-        {
-            poLine->addPoint(cx + R * cos(alpha), cy + R * sin(alpha));
-        }
-        for(alpha = alpha1; (alpha - alpha2) * nSign < 0; alpha += dfStep)
-        {
-            poLine->addPoint(cx + R * cos(alpha), cy + R * sin(alpha));
-        }
-
-        if (EQUAL(pszBaseGeometry,"Circle"))
-        {
-            for(alpha = alpha2; (alpha - alpha3) * nSign < 0; alpha += dfStep)
-            {
-                poLine->addPoint(cx + R * cos(alpha), cy + R * sin(alpha));
-            }
-            poLine->addPoint(cx + R * cos(alpha3), cy + R * sin(alpha3));
-        }
-        else
-        {
-            poLine->addPoint(cx + R * cos(alpha2), cy + R * sin(alpha2));
-        }
-
-        return poLine;
+        return OGRGeometryFactory::curveToLineString(x0, y0, x1, y1, x2, y2,
+                                                     EQUAL(pszBaseGeometry,"Circle"),
+                                                     0);
     }
 
 /* -------------------------------------------------------------------- */

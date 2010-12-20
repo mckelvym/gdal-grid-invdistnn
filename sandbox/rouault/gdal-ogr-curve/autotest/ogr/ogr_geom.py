@@ -695,6 +695,93 @@ def ogr_geom_empty():
     return 'success'
 
 ###############################################################################
+# Test OGRCircularString
+
+def ogr_geom_circularstring():
+
+    in_wkt = 'CIRCULARSTRING (0 0,1 1,1 -1)'
+    g1 = ogr.CreateGeometryFromWkt(in_wkt)
+    out_wkt = g1.ExportToWkt()
+    if in_wkt != out_wkt:
+        print(out_wkt)
+        return 'fail'
+
+    env = g1.GetEnvelope()
+    expected_env = (0.0, 1.9993908270190959, -1.0, 1.0)
+    for i in range(4):
+        if abs(env[i] - expected_env[i]) > 0.01:
+            print(env)
+            return 'fail'
+
+    length = g1.Length()
+    expected_length = 4.7123889803846897  # 3/2 * PI
+    if abs(length - expected_length) > 0.01:
+        print(length)
+        return 'fail'
+
+    g2 = ogr.CreateGeometryFromWkb(g1.ExportToWkb())
+    out_wkt = g2.ExportToWkt()
+    if in_wkt != out_wkt:
+        print(out_wkt)
+        return 'fail'
+
+    g2 = ogr.CreateGeometryFromWkb(g1.ExportToWkb(byte_order=ogr.wkbNDR))
+    out_wkt = g2.ExportToWkt()
+    if in_wkt != out_wkt:
+        print(out_wkt)
+        return 'fail'
+
+    in_wkt = 'CIRCULARSTRING (0 0 10,1 1 20,2 0 30)'
+    g1 = ogr.CreateGeometryFromWkt(in_wkt)
+    out_wkt = g1.ExportToWkt()
+    if in_wkt != out_wkt:
+        print(out_wkt)
+        return 'fail'
+
+    g2 = ogr.CreateGeometryFromWkb(g1.ExportToWkb())
+    out_wkt = g2.ExportToWkt()
+    if in_wkt != out_wkt:
+        print(out_wkt)
+        return 'fail'
+
+    g2 = ogr.CreateGeometryFromWkb(g1.ExportToWkb(byte_order=ogr.wkbNDR))
+    out_wkt = g2.ExportToWkt()
+    if in_wkt != out_wkt:
+        print(out_wkt)
+        return 'fail'
+
+
+    gdal.SetConfigOption('OGR_STROKE_CURVE', 'TRUE')
+    gdal.SetConfigOption('OGR_ARC_STEPSIZE', '45')
+    in_wkt = 'CIRCULARSTRING (0 0,1 1,1 -1)'
+    g1 = ogr.CreateGeometryFromWkt(in_wkt)
+    gdal.SetConfigOption('OGR_STROKE_CURVE', 'FALSE')
+    gdal.SetConfigOption('OGR_ARC_STEPSIZE', None)
+
+    expected_g = ogr.CreateGeometryFromWkt('LINESTRING (0.0 0.0,0.292893218813453 0.707106781186548,1 1,1.707106781186547 0.707106781186547,2 0,1.707106781186547 -0.707106781186547,1 -1)')
+    if ogrtest.check_feature_geometry(g1, expected_g) != 0:
+        print(g1)
+        return 'fail'
+
+
+    in_wkt = 'CIRCULARSTRING (0 0,1 1,1 -1)'
+    g1 = ogr.CreateGeometryFromWkt(in_wkt)
+    in_wkb = g1.ExportToWkb()
+
+    gdal.SetConfigOption('OGR_STROKE_CURVE', 'TRUE')
+    gdal.SetConfigOption('OGR_ARC_STEPSIZE', '45')
+    g1 = ogr.CreateGeometryFromWkb(in_wkb)
+    gdal.SetConfigOption('OGR_STROKE_CURVE', 'FALSE')
+    gdal.SetConfigOption('OGR_ARC_STEPSIZE', None)
+
+    expected_g = ogr.CreateGeometryFromWkt('LINESTRING (0.0 0.0,0.292893218813453 0.707106781186548,1 1,1.707106781186547 0.707106781186547,2 0,1.707106781186547 -0.707106781186547,1 -1)')
+    if ogrtest.check_feature_geometry(g1, expected_g) != 0:
+        print(g1)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
 # cleanup
 
 def ogr_geom_cleanup():
@@ -727,6 +814,7 @@ gdaltest_list = [
     ogr_geom_length_multilinestring,
     ogr_geom_length_geometrycollection,
     ogr_geom_empty,
+    ogr_geom_circularstring,
     ogr_geom_cleanup ]
 
 if __name__ == '__main__':

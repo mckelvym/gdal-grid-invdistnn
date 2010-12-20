@@ -134,6 +134,11 @@ void OGRGeometry::dumpReadable( FILE * fp, const char * pszPrefix, char** papszO
                 poLine = (OGRLineString*)this;
                 fprintf( fp, "%d points\n", poLine->getNumPoints() );
                 break;
+            case wkbCircularString:
+            case wkbCircularString25D:
+                poLine = (OGRCircularString*)this;
+                fprintf( fp, "%d points\n", poLine->getNumPoints() );
+                break;
             case wkbPolygon:
             case wkbPolygon25D:
             {
@@ -1524,6 +1529,8 @@ OGRwkbGeometryType OGRFromOGCGeomType( const char *pszGeomType )
         return wkbMultiPolygon;
     else if ( EQUAL(pszGeomType, "GEOMETRYCOLLECTION") )
         return wkbGeometryCollection;
+    else if ( EQUAL(pszGeomType, "CIRCULARSTRING") )
+        return wkbCircularString;
     else
         return wkbUnknown;
 }
@@ -1554,6 +1561,8 @@ const char * OGRToOGCGeomType( OGRwkbGeometryType eGeomType )
             return "MULTIPOLYGON";
         case wkbGeometryCollection:
             return "GEOMETRYCOLLECTION";
+        case wkbCircularString:
+            return "CIRCULARSTRING";
         default:
             return "";
     }
@@ -1626,6 +1635,12 @@ const char *OGRGeometryTypeToName( OGRwkbGeometryType eType )
 
       case wkbGeometryCollection25D:
         return "3D Geometry Collection";
+
+      case wkbCircularString:
+        return "Circular String";
+
+      case wkbCircularString25D:
+        return "3D Circular String";
 
       case wkbNone:
         return "None";

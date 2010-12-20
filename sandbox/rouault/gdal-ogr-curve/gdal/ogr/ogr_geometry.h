@@ -322,6 +322,41 @@ class CPL_DLL OGRLineString : public OGRCurve
 };
 
 /************************************************************************/
+/*                         OGRCircularString                            */
+/************************************************************************/
+
+/**
+ * Concrete representation of a circular string.
+ */
+
+class CPL_DLL OGRCircularString : public OGRLineString
+{
+  public:
+                OGRCircularString();
+    virtual     ~OGRCircularString();
+
+    // IWks Interface
+    virtual int WkbSize() const;
+    virtual OGRErr importFromWkb( unsigned char *, int = -1 );
+    virtual OGRErr exportToWkb( OGRwkbByteOrder, unsigned char * ) const;
+    virtual OGRErr importFromWkt( char ** );
+
+    // IGeometry interface
+    virtual OGRGeometry *clone() const;
+    virtual void getEnvelope( OGREnvelope * psEnvelope ) const;
+
+    // ICurve methods
+    virtual double get_Length() const;
+
+    // non-standard from OGRGeometry
+    virtual OGRwkbGeometryType getGeometryType() const;
+    virtual const char *getGeometryName() const;
+    virtual void segmentize(double dfMaxLength);
+
+    OGRLineString* curveToLineString(double dfMaxAngleStepSizeDegrees) const;
+};
+
+/************************************************************************/
 /*                            OGRLinearRing                             */
 /************************************************************************/
 
@@ -651,6 +686,11 @@ class CPL_DLL OGRGeometryFactory
                               double dfRotation, 
                               double dfStartAngle, double dfEndAngle,
                               double dfMaxAngleStepSizeDegrees );
+    static OGRLineString*
+        curveToLineString(
+                        double x0, double y0, double x1, double y1, double x2, double y2,
+                        int bIsCircle,
+                        double dfMaxAngleStepSizeDegrees );
 };
 
 OGRwkbGeometryType CPL_DLL OGRFromOGCGeomType( const char *pszGeomType );

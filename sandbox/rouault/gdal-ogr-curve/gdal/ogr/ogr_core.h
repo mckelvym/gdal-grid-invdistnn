@@ -182,6 +182,8 @@ typedef enum
     wkbMultiPolygon = 6,    /**< GeometryCollection of Polygons, standard WKB */
     wkbGeometryCollection = 7, /**< geometric object that is a collection of 1
                                     or more geometric objects, standard WKB */
+    wkbCircularString = 8,  /**< 1-dimensional geometric object with circular
+                             *   interpolation between Points, non standard (matches Postgis liblwgeom.h) */
     wkbNone = 100,          /**< non-standard, for pure attribute records */
     wkbLinearRing = 101,    /**< non-standard, just for createGeometry() */
     wkbPoint25D = 0x80000001, /**< 2.5D extension as per 99-402 */
@@ -190,7 +192,8 @@ typedef enum
     wkbMultiPoint25D = 0x80000004, /**< 2.5D extension as per 99-402 */
     wkbMultiLineString25D = 0x80000005, /**< 2.5D extension as per 99-402 */
     wkbMultiPolygon25D = 0x80000006, /**< 2.5D extension as per 99-402 */
-    wkbGeometryCollection25D = 0x80000007 /**< 2.5D extension as per 99-402 */
+    wkbGeometryCollection25D = 0x80000007, /**< 2.5D extension as per 99-402 */
+    wkbCircularString25D = 0x80000008 /**< 2.5D extension as per 99-402 */
 } OGRwkbGeometryType;
 
 #define wkb25DBit 0x80000000

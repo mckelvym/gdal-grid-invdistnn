@@ -79,6 +79,7 @@ OGRErr OGRGeometryFactory::createFromWkb(unsigned char *pabyData,
 
 {
     OGRwkbGeometryType eGeometryType;
+    int nGeometryType;
     OGRwkbByteOrder eByteOrder;
     OGRErr      eErr;
     OGRGeometry *poGeom;
@@ -122,6 +123,14 @@ OGRErr OGRGeometryFactory::createFromWkb(unsigned char *pabyData,
     else
         eGeometryType = (OGRwkbGeometryType) pabyData[4];
 
+    memcpy(&nGeometryType, pabyData + 1, 4);
+    if( OGR_SWAP( eByteOrder ) )
+        nGeometryType = CPL_SWAP32(nGeometryType);
+    if (nGeometryType == 1000001)
+        eGeometryType = wkbCircularString;
+    else if (nGeometryType == 3000003)
+        eGeometryType = wkbCircularString25D;
+    
 /* -------------------------------------------------------------------- */
 /*      Instantiate a geometry of the appropriate type, and             */
 /*      initialize from the input stream.                               */
@@ -141,6 +150,14 @@ OGRErr OGRGeometryFactory::createFromWkb(unsigned char *pabyData,
 /* -------------------------------------------------------------------- */
     if( eErr == OGRERR_NONE )
     {
+        if ( wkbFlatten(poGeom->getGeometryType()) == wkbCircularString &&
+             CSLTestBoolean(CPLGetConfigOption("OGR_STROKE_CURVE", "FALSE")) )
+        {
+            OGRLineString* poLine = ((OGRCircularString*)poGeom)->curveToLineString(0);
+            delete poGeom;
+            poGeom = poLine;
+        }
+        
         poGeom->assignSpatialReference( poSR );
         *ppoReturn = poGeom;
     }
@@ -287,6 +304,11 @@ OGRErr OGRGeometryFactory::createFromWkt(char **ppszData,
         poGeom = new OGRMultiLineString();
     }
 
+    else if( EQUAL(szToken,"CIRCULARSTRING") )
+    {
+        poGeom = new OGRCircularString();
+    }
+
     else
     {
         return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
@@ -302,6 +324,14 @@ OGRErr OGRGeometryFactory::createFromWkt(char **ppszData,
 /* -------------------------------------------------------------------- */
     if( eErr == OGRERR_NONE )
     {
+        if ( wkbFlatten(poGeom->getGeometryType()) == wkbCircularString &&
+             CSLTestBoolean(CPLGetConfigOption("OGR_STROKE_CURVE", "FALSE")) )
+        {
+            OGRLineString* poLine = ((OGRCircularString*)poGeom)->curveToLineString(0);
+            delete poGeom;
+            poGeom = poLine;
+        }
+
         poGeom->assignSpatialReference( poSR );
         *ppoReturn = poGeom;
         *ppszData = pszInput;
@@ -394,6 +424,9 @@ OGRGeometryFactory::createGeometry( OGRwkbGeometryType eGeometryType )
 
       case wkbLinearRing:
           return new OGRLinearRing();
+
+      case wkbCircularString:
+          return new OGRCircularString();
 
       default:
           return NULL;
@@ -2450,4 +2483,101 @@ OGR_G_ApproximateArcAngles(
         dfCenterX, dfCenterY, dfZ, 
         dfPrimaryRadius, dfSecondaryRadius, dfRotation,
         dfStartAngle, dfEndAngle, dfMaxAngleStepSizeDegrees );
+}
+
+/************************************************************************/
+/*                         curveToLineString()                          */
+/************************************************************************/
+
+OGRLineString* OGRGeometryFactory::curveToLineString(
+    double x0, double y0, double x1, double y1, double x2, double y2,
+    int bIsCircle,
+    double dfMaxAngleStepSizeDegrees )
+{
+    OGRLineString* poLine = new OGRLineString();
+
+    double dx01 = x1 - x0;
+    double dy01 = y1 - y0;
+    double dx12 = x2 - x1;
+    double dy12 = y2 - y1;
+    double c01 = dx01 * (x0 + x1) / 2 + dy01 * (y0 + y1) / 2;
+    double c12 = dx12 * (x1 + x2) / 2 + dy12 * (y1 + y2) / 2;
+    double det = dx01 * dy12 - dx12 * dy01;
+    if (det == 0)
+    {
+        poLine->addPoint(x0, y0);
+        poLine->addPoint(x1, y1);
+        poLine->addPoint(x2, y2);
+        return poLine;
+    }
+    double cx =  (c01 * dy12 - c12 * dy01) / det;
+    double cy =  (- c01 * dx12 + c12 * dx01) / det;
+
+    double alpha0 = atan2(y0 - cy, x0 - cx);
+    double alpha1 = atan2(y1 - cy, x1 - cx);
+    double alpha2 = atan2(y2 - cy, x2 - cx);
+    double alpha3;
+    double R = sqrt((x0 - cx) * (x0 - cx) + (y0 - cy) * (y0 - cy));
+
+    /* if det is negative, the orientation if clockwise */
+    if (det < 0)
+    {
+        if (alpha1 > alpha0)
+            alpha1 -= 2 * PI;
+        if (alpha2 > alpha1)
+            alpha2 -= 2 * PI;
+        alpha3 = alpha0 - 2 * PI;
+    }
+    else
+    {
+        if (alpha1 < alpha0)
+            alpha1 += 2 * PI;
+        if (alpha2 < alpha1)
+            alpha2 += 2 * PI;
+        alpha3 = alpha0 + 2 * PI;
+    }
+
+    CPLAssert((alpha0 <= alpha1 && alpha1 <= alpha2 && alpha2 <= alpha3) ||
+                (alpha0 >= alpha1 && alpha1 >= alpha2 && alpha2 >= alpha3));
+
+    int nSign = (det >= 0) ? 1 : -1;
+
+    // support default arc step setting.
+    if( dfMaxAngleStepSizeDegrees == 0 )
+    {
+        dfMaxAngleStepSizeDegrees =
+            atof(CPLGetConfigOption("OGR_ARC_STEPSIZE","4"));
+    }
+
+    double alpha;
+    double dfStep =
+        dfMaxAngleStepSizeDegrees / 180 * PI;
+    if (dfStep <= 0.1)
+        dfStep = 4. / 180 * PI;
+
+    dfStep *= nSign;
+
+    for(alpha = alpha0; (alpha - alpha1) * nSign < 0; alpha += dfStep)
+    {
+        poLine->addPoint(cx + R * cos(alpha), cy + R * sin(alpha));
+    }
+    for(alpha = alpha1; (alpha - alpha2) * nSign < 0; alpha += dfStep)
+    {
+        poLine->addPoint(cx + R * cos(alpha), cy + R * sin(alpha));
+    }
+
+    if (bIsCircle)
+    {
+        for(alpha = alpha2; (alpha - alpha3) * nSign < 0; alpha += dfStep)
+        {
+            poLine->addPoint(cx + R * cos(alpha), cy + R * sin(alpha));
+        }
+        poLine->addPoint(cx + R * cos(alpha3), cy + R * sin(alpha3));
+    }
+    else
+    {
+        poLine->addPoint(cx + R * cos(alpha2), cy + R * sin(alpha2));
+    }
+
+    return poLine;
 }
