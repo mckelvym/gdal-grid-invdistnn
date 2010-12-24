@@ -64,12 +64,13 @@ using namespace PCIDSK;
 /*                             CPCIDSKFile()                             */
 /************************************************************************/
 
-CPCIDSKFile::CPCIDSKFile()
+CPCIDSKFile::CPCIDSKFile( std::string filename )
 
 {
     io_handle = NULL;
     io_mutex = NULL;
     updatable = false;
+    base_filename = filename;
 
 /* -------------------------------------------------------------------- */
 /*      Initialize the metadata object, but do not try to load till     */
@@ -429,6 +430,10 @@ void CPCIDSKFile::InitializeFromHeader()
         std::string filename;
         ih.Get(64,64,filename);
 
+        // adjust it relative to the path of the pcidsk file.
+        filename = MergeRelativePath( interfaces.io,
+                                      base_filename, filename );
+
         // work out channel type from header
         eChanType pixel_type;
         const char *pixel_type_string = ih.Get( 160, 8 );
@@ -482,7 +487,7 @@ void CPCIDSKFile::InitializeFromHeader()
                  && filename != ""
                  && strncmp(((const char*)ih.buffer)+250, "        ", 8 ) != 0 )
         {
-            channel = new CExternalChannel( ih, ih_offset, fh, 
+            channel = new CExternalChannel( ih, ih_offset, fh, filename,
                                             channelnum, this, pixel_type );
         }
 
