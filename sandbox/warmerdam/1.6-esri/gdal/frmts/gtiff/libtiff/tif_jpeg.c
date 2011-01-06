@@ -1017,6 +1017,10 @@ JPEGPreDecode(TIFF* tif, uint16 s)
 	 */
 	if (TIFFjpeg_read_header(sp, TRUE) != JPEG_HEADER_OK)
 		return (0);
+
+        tif->tif_rawcp = (uint8*) sp->src.next_input_byte;
+        tif->tif_rawcc = sp->src.bytes_in_buffer;
+
 	/*
 	 * Check image parameters and set decompression parameters.
 	 */
@@ -1200,6 +1204,13 @@ JPEGDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
 	tmsize_t nrows;
 	(void) s;
 
+        /*
+        ** Update available information, buffer may have been refilled
+        ** between decode requests
+        */
+	sp->src.next_input_byte = (const JOCTET*) tif->tif_rawcp;
+	sp->src.bytes_in_buffer = (size_t) tif->tif_rawcc;
+        
 	nrows = cc / sp->bytesperline;
 	if (cc % sp->bytesperline)
 		TIFFWarningExt(tif->tif_clientdata, tif->tif_name, "fractional scanline not read");
@@ -1288,6 +1299,10 @@ JPEGDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
 			_TIFFfree( line_work_buf );
 	}
 
+        /* Update information on consumed data */
+        tif->tif_rawcp = (uint8*) sp->src.next_input_byte;
+        tif->tif_rawcc = sp->src.bytes_in_buffer;
+                
 	/* Close down the decompressor if we've finished the strip or tile. */
 	return sp->cinfo.d.output_scanline < sp->cinfo.d.output_height
 	    || TIFFjpeg_finish_decompress(sp);
@@ -1982,7 +1997,10 @@ JPEGResetUpsampled( TIFF* tif )
 	 * Must recalculate cached tile size in case sampling state changed.
 	 * Should we really be doing this now if image size isn't set? 
 	 */
-	tif->tif_tilesize = isTiled(tif) ? TIFFTileSize(tif) : (tmsize_t)(-1);   
+        if( tif->tif_tilesize > 0 )
+            tif->tif_tilesize = isTiled(tif) ? TIFFTileSize(tif) : (tmsize_t)(-1);   
+        if( tif->tif_scanlinesize > 0 )
+            tif->tif_scanlinesize = TIFFScanlineSize(tif); 
 }
 
 static int
