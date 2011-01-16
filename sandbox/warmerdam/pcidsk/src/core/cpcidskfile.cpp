@@ -383,14 +383,23 @@ void CPCIDSKFile::InitializeFromHeader()
 /*      Get the number of each channel type - only used for some        */
 /*      interleaving cases.                                             */
 /* -------------------------------------------------------------------- */
-    int count_8u = atoi(fh.Get(464,4));
-    int count_16s = atoi(fh.Get(468,4));
-    int count_16u = atoi(fh.Get(472,4));
-    int count_32r = atoi(fh.Get(476,4));
-    int count_c16u = atoi(fh.Get(480,4));
-    int count_c16s = atoi(fh.Get(484,4));
-    int count_c32r = atoi(fh.Get(488,4));
+    int count_8u = 0, count_16s = 0, count_16u = 0, count_32r = 0;
+    int count_c16u = 0, count_c16s = 0, count_c32r = 0;
 
+    if (strcmp(fh.Get(464,4), "    ") == 0)
+    {
+            count_8u = channel_count;
+    }
+    else
+    {
+            count_8u = atoi(fh.Get(464,4));
+            count_16s = atoi(fh.Get(468,4));
+            count_16u = atoi(fh.Get(472,4));
+            count_32r = atoi(fh.Get(476,4));
+            count_c16u = atoi(fh.Get(480,4));
+            count_c16s = atoi(fh.Get(484,4));
+            count_c32r = atoi(fh.Get(488,4));
+    }
 /* -------------------------------------------------------------------- */
 /*      for pixel interleaved files we need to compute the length of    */
 /*      a scanline padded out to a 512 byte boundary.                   */
