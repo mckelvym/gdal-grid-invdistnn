@@ -24,7 +24,7 @@ cpl_config.h:	cpl_config.h.in
 $(LIB): $(OBJ)
 	rm -f $(LIB)
 	$(AR) rc $(LIB) $(OBJ)
-
+	ranlib $(LIB)
 
 dist:	clean
 	rm -f $(HOME)/cpl.zip

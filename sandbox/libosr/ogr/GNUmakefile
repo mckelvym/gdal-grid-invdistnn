@@ -18,4 +18,4 @@ clean:
 $(LIB): $(OBJ)
 	rm -f $(LIB)
 	$(AR) rc $(LIB) $(OBJ)
-
+	ranlib $(LIB)
