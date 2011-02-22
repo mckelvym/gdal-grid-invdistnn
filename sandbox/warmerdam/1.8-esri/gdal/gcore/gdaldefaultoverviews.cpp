@@ -396,6 +396,22 @@ CPLErr GDALDefaultOverviews::CleanOverviews()
 
     return eErr;
 }
+
+/************************************************************************/
+/*                           UnloadOverviews()                          */
+/*                                                                      */
+/*      Unload external overview dataset, allow reloading later.        */
+/************************************************************************/
+CPLErr GDALDefaultOverviews::UnloadOverviews()
+{
+    if( poODS == NULL )
+        return CE_None;	
+
+    GDALClose( poODS );
+    poODS = NULL;
+    bCheckedForOverviews = false;
+    return CE_None;	
+}
     
 /************************************************************************/
 /*                      BuildOverviewsSubDataset()                      */

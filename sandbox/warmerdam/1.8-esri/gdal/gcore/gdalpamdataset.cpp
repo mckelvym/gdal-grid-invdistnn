@@ -161,7 +161,7 @@ void GDALPamDataset::FlushCache()
 /*                           SerializeToXML()                           */
 /************************************************************************/
 
-CPLXMLNode *GDALPamDataset::SerializeToXML( const char *pszUnused )
+CPLXMLNode *GDALPamDataset::SerializeToXML( const char *pszVRTPath )
 
 {
     CPLString oFmt;
@@ -269,7 +269,7 @@ CPLXMLNode *GDALPamDataset::SerializeToXML( const char *pszUnused )
         if( poBand == NULL || !(poBand->GetMOFlags() & GMO_PAM_CLASS) )
             continue;
 
-        psBandTree = poBand->SerializeToXML( pszUnused );
+        psBandTree = poBand->SerializeToXML( pszVRTPath );
 
         if( psBandTree != NULL )
             CPLAddXMLChild( psDSTree, psBandTree );
@@ -652,6 +652,9 @@ CPLErr GDALPamDataset::TryLoadXML()
 /* -------------------------------------------------------------------- */
     nPamFlags &= ~GPF_DIRTY;
 
+    if( CSLTestBoolean( CPLGetConfigOption("FAST_OPEN", "NO") ) )
+         return CE_None;
+
 /* -------------------------------------------------------------------- */
 /*      Try reading the file.                                           */
 /* -------------------------------------------------------------------- */
@@ -702,10 +705,12 @@ CPLErr GDALPamDataset::TryLoadXML()
     }
 
 /* -------------------------------------------------------------------- */
-/*      If we fail, try .aux.                                           */
+/*      Try .aux.                                                       */
 /* -------------------------------------------------------------------- */
+    TryLoadAux();
+
     if( psTree == NULL )
-        return TryLoadAux();
+        return CE_None;
 
 /* -------------------------------------------------------------------- */
 /*      Initialize ourselves from this XML tree.                        */
@@ -747,7 +752,9 @@ CPLErr GDALPamDataset::TrySaveXML()
 /* -------------------------------------------------------------------- */
 /*      Build the XML representation of the auxilary metadata.          */
 /* -------------------------------------------------------------------- */
-    psTree = SerializeToXML( NULL );
+    CPLString osVRTPath = CPLGetPath(psPam->pszPamFilename);
+
+    psTree = SerializeToXML( osVRTPath );
 
     if( psTree == NULL )
     {

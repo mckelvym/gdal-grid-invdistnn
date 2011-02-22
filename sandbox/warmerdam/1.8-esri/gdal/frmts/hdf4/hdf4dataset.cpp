@@ -879,6 +879,12 @@ GDALDataset *HDF4Dataset::Open( GDALOpenInfo * poOpenInfo )
 /*  Process grid layers.                                                */
 /* -------------------------------------------------------------------- */
         hHDF4 = GDopen( poOpenInfo->pszFilename, DFACC_READ );
+        if( hHDF4 < 0)
+        {
+            CPLError( CE_Failure, CPLE_OpenFailed, "Failed to open HDF4 `%s'.\n", poOpenInfo->pszFilename );
+            return NULL;
+        }
+
         nSubDatasets = GDinqgrid( poOpenInfo->pszFilename, NULL, &nStrBufSize );
 #if DEBUG
         CPLDebug( "HDF4", "Number of HDF-EOS grids: %d", (int)nSubDatasets );

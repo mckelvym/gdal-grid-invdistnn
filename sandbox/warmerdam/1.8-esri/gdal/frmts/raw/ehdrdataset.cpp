@@ -183,7 +183,7 @@ EHdrRasterBand::EHdrRasterBand( GDALDataset *poDS,
         nBlockYSize = 1;
 
         SetMetadataItem( "NBITS", 
-                         CPLString().Printf( "%d", nBits ),
+                         CPLString().Printf( "%ld", nBits ),
                          "IMAGE_STRUCTURE" );
     }
 
@@ -968,7 +968,7 @@ GDALDataset *EHdrDataset::Open( GDALOpenInfo * poOpenInfo )
     if( poOpenInfo->papszSiblingFiles )
     {
         int iFile = CSLFindString(poOpenInfo->papszSiblingFiles, 
-                                  CPLFormFilename( NULL, osName, "hdr" ) );
+                              CPLFormFilename( NULL, osName, "hdr" ) );
         if( iFile < 0 ) // return if there is no corresponding .hdr file
             return NULL;
         
@@ -1260,16 +1260,16 @@ GDALDataset *EHdrDataset::Open( GDALOpenInfo * poOpenInfo )
         eDataType = GDT_Byte;
     else if( nBits == -1 )
     {
-        if( chPixelType == 'F' )
-        {
-            eDataType = GDT_Float32;
-            nBits = 32;
-        }
-        else
-        {
-            eDataType = GDT_Byte;
-            nBits = 8;
-        }
+      if( chPixelType == 'F' )
+      {
+        eDataType = GDT_Float32;
+        nBits = 32;
+      }
+      else
+      {
+        eDataType = GDT_Byte;
+        nBits = 8;
+      }
     }
     else
     {
@@ -1330,7 +1330,7 @@ GDALDataset *EHdrDataset::Open( GDALOpenInfo * poOpenInfo )
 
         if( bNoDataSet )
             poBand->SetNoDataValue( dfNoData );
-
+            
         if( bHasMin && bHasMax )
         {
             poBand->dfMin = dfMin;

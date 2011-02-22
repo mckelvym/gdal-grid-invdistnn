@@ -3,34 +3,41 @@ GDAL_ROOT	=	..\..
 
 !INCLUDE $(GDAL_ROOT)\nmake.opt
 
-KAKINC = -I$(KAKSRC)/managed/all_includes \
-       -I$(KAKSRC)/apps/jp2
+KAKINC = -I$(KAKDIR)/include
 OBJ_EXT =	obj
-OBJ_PREFIX =	$(KAKDIR)\v6_generated_x86
-OBJ_CONFIG =	release
+#!IFDEF WIN64
+#OBJ_PREFIX =	$(KAKDIR)\v6_generated_x64
+#!ELSE
+#OBJ_PREFIX =	$(KAKDIR)\v6_generated_x86
+#!ENDIF
+#!IFNDEF DEBUG
+#OBJ_CONFIG =	release
+#!ELSE
+#OBJ_CONFIG =	debug
+#!ENDIF
 
-KAK_APPS_OBJ =	\
-	     $(OBJ_PREFIX)\compress\$(OBJ_CONFIG)\args.obj \
-	     $(OBJ_PREFIX)\compress\$(OBJ_CONFIG)\image_in.obj \
-	     $(OBJ_PREFIX)\expand\$(OBJ_CONFIG)\image_out.obj \
-	     $(OBJ_PREFIX)\compress\$(OBJ_CONFIG)\jp2.obj \
-	     $(OBJ_PREFIX)\merge\$(OBJ_CONFIG)\mj2.obj \
-	     $(OBJ_PREFIX)\compress\$(OBJ_CONFIG)\roi_sources.obj \
-	     $(OBJ_PREFIX)\compress\$(OBJ_CONFIG)\palette.obj \
-	     $(OBJ_PREFIX)\buffered_expand\$(OBJ_CONFIG)\kdu_stripe_decompressor.obj \
-	     $(OBJ_PREFIX)\render\$(OBJ_CONFIG)\kdu_region_decompressor.obj \
-	     $(OBJ_PREFIX)\compress\$(OBJ_CONFIG)\kdu_tiff.obj \
-	     $(OBJ_PREFIX)\compress\$(OBJ_CONFIG)\jpx.obj
+#KAK_APPS_OBJ =	\
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\args.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\image_in.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\image_out.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\jp2.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\mj2.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\roi_sources.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\palette.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\kdu_stripe_decompressor.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\kdu_region_decompressor.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\kdu_tiff.obj \
+#	     $(OBJ_PREFIX)\coresys\$(OBJ_CONFIG)\jpx.obj
 
 OBJ	=	jp2kakdataset.obj
 EXTRAFLAGS = 	$(KAKINC) /DKDU_PENTIUM_MSVC /EHsc
 
-default:	$(OBJ) kakinstall
+default:	$(OBJ) 
 	xcopy /D  /Y *.obj ..\o
 
-kakinstall:
-	for %d in ( $(KAK_APPS_OBJ) ) do \
-	  xcopy /D /Y %d ..\o
+#kakinstall:
+#	for %d in ( $(KAK_APPS_OBJ) ) do \
+#	  xcopy /D /Y %d ..\o
 	
 clean:
 	-del *.obj

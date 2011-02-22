@@ -36,9 +36,26 @@
 #include "cpl_string.h"
 #include "cpl_csv.h"
 #include "gdal_proxy.h"
+#include <string>
+#include <vector>
 
 CPL_CVSID("$Id$");
 
+
+static double Apply( double *C, double P, double L, double H );
+
+static void Cleanup( std::vector<char*> &charDataContainer );
+
+static void DensifyGCPs( GDAL_GCP **psGCPs, int &nGCPCount );
+
+static bool RPCTransform( NITFRPC00BInfo *psRPCInfo,
+                          double         *pXCoord,
+                          double         *pYCoord,
+                          int             nGCPCount );
+
+static void UpdateGCPsWithRPC( NITFRPC00BInfo *psRPCInfo,
+                               GDAL_GCP       *psGCPs,
+                               int            &nGCPCount );
 static void NITFPatchImageLength( const char *pszFilename,
                                   GUIntBig nImageOffset, 
                                   GIntBig nPixelCount, const char *pszIC );
@@ -53,6 +70,11 @@ static int NITFWriteJPEGImage( GDALDataset *, VSILFILE *, vsi_l_offset, char **,
                                GDALProgressFunc pfnProgress, 
                                void * pProgressData );
 #endif
+
+char   **ExtractEsriMD( char **papszMD );
+static std::string Base64Encode( unsigned char const *pBytesToEncode,
+                                 unsigned int         nDataLen );
+
 
 /************************************************************************/
 /* ==================================================================== */
@@ -87,6 +109,9 @@ class NITFDataset : public GDALPamDataset
 
     GDALMultiDomainMetadata oSpecialMD;
 
+    void         InitializeNITFDESs();
+    void         InitializeNITFMetadata();
+    void         InitializeNITFTREs();
     void         InitializeCGMMetadata();
     void         InitializeTextMetadata();
     void         InitializeTREMetadata();
@@ -99,6 +124,7 @@ class NITFDataset : public GDALPamDataset
     CPLErr       ScanJPEGBlocks( void );
     CPLErr       ReadJPEGBlock( int, int );
     void         CheckGeoSDEInfo();
+    char**       AddFile(char **papszFileList, const char* EXTENSION, const char* extension);
 
     int          nIMIndex;
     CPLString    osNITFFilename;
@@ -108,7 +134,7 @@ class NITFDataset : public GDALPamDataset
 
     char       **papszTextMDToWrite;
     char       **papszCgmMDToWrite;
-    
+
     int          bInLoadXML;
 
   public:
@@ -133,6 +159,7 @@ class NITFDataset : public GDALPamDataset
     virtual int    GetGCPCount();
     virtual const char *GetGCPProjection();
     virtual const GDAL_GCP *GetGCPs();
+    virtual char **GetFileList(void);
 
     virtual char      **GetMetadata( const char * pszDomain = "" );
     virtual const char *GetMetadataItem( const char * pszName,
@@ -968,7 +995,14 @@ NITFDataset::~NITFDataset()
 /* -------------------------------------------------------------------- */
     if( poJ2KDataset != NULL )
     {
+        int i;
+
         GDALClose( (GDALDatasetH) poJ2KDataset );
+        
+        // the bands are really jpeg2000 bands ... remove them 
+        // from the NITF list so they won't get destroyed twice.
+        for( i = 0; i < nBands && papoBands != NULL; i++ )
+            papoBands[i] = NULL;
     }
 
 /* -------------------------------------------------------------------- */
@@ -990,7 +1024,14 @@ NITFDataset::~NITFDataset()
 /* -------------------------------------------------------------------- */
     if( poJPEGDataset != NULL )
     {
+        int i;
+
         GDALClose( (GDALDatasetH) poJPEGDataset );
+        
+        // the bands are really jpeg bands ... remove them 
+        // from the NITF list so they won't get destroyed twice.
+        for( i = 0; i < nBands && papoBands != NULL; i++ )
+            papoBands[i] = NULL;
     }
 
     CPLFree( panJPEGBlockOffset );
@@ -1277,6 +1318,31 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
                       "because some channels have differing resolutions." );
             
             nUsableBands = poDS->poJ2KDataset->GetRasterCount();
+        }
+
+        // Force NITF derived color space info 
+        for( iBand = 0; iBand < nUsableBands; iBand++ )
+        {
+            NITFBandInfo *psBandInfo = psImage->pasBandInfo + iBand;
+            GDALRasterBand *poBand=poDS->poJ2KDataset->GetRasterBand(iBand+1);
+            
+            CPLPushErrorHandler( CPLQuietErrorHandler );
+            if( EQUAL(psBandInfo->szIREPBAND,"R") )
+                poBand->SetColorInterpretation( GCI_RedBand );
+            if( EQUAL(psBandInfo->szIREPBAND,"G") )
+                poBand->SetColorInterpretation( GCI_GreenBand );
+            if( EQUAL(psBandInfo->szIREPBAND,"B") )
+                poBand->SetColorInterpretation( GCI_BlueBand );
+            if( EQUAL(psBandInfo->szIREPBAND,"M") )
+                poBand->SetColorInterpretation( GCI_GrayIndex );
+            if( EQUAL(psBandInfo->szIREPBAND,"Y") )
+                poBand->SetColorInterpretation( GCI_YCbCr_YBand );
+            if( EQUAL(psBandInfo->szIREPBAND,"Cb") )
+                poBand->SetColorInterpretation( GCI_YCbCr_CbBand );
+            if( EQUAL(psBandInfo->szIREPBAND,"Cr") )
+                poBand->SetColorInterpretation( GCI_YCbCr_CrBand );
+            CPLPopErrorHandler();
+            CPLErrorReset();
         }
     }
 
@@ -1662,6 +1728,14 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
         }
     }
 
+
+    /* Do we have RPC00 information? */
+    int            bHasRPC00 = FALSE;
+    NITFRPC00BInfo sRPCInfo;
+
+    if( psImage && NITFReadRPC00B( psImage, &sRPCInfo ) && sRPCInfo.SUCCESS )
+        bHasRPC00 = TRUE;
+        
 /* -------------------------------------------------------------------- */
 /*      Do we have IGEOLO data that can be treated as a                 */
 /*      geotransform?  Our approach should support images in an         */
@@ -1711,6 +1785,14 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
 
         psGCPs[3].dfGCPX		= psImage->dfLLX;
         psGCPs[3].dfGCPY		= psImage->dfLLY;
+
+        if( (bHasRPC00) &&  ( (psImage->chICORDS == 'G') || (psImage->chICORDS == 'C') ) )
+        {
+            if( nGCPCount == 4 )
+                DensifyGCPs( &psGCPs, nGCPCount );
+
+            UpdateGCPsWithRPC( &sRPCInfo, psGCPs, nGCPCount );
+        }
     }
 
 /* -------------------------------------------------------------------- */
@@ -1735,7 +1817,7 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
               || psImage->dfLRX != 0 || psImage->dfLLX != 0)
              && psImage->chICORDS != ' ' && 
              ( poDS->bGotGeoTransform == FALSE ) &&
-             nGCPCount == 4 )
+             nGCPCount >= 4 )
     {
         CPLDebug( "GDAL", 
                   "NITFDataset::Open() wasn't able to derive a first order\n"
@@ -1781,6 +1863,7 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
 /* -------------------------------------------------------------------- */
 /*      Do we have metadata.                                            */
 /* -------------------------------------------------------------------- */
+    char **papszCSEXRA_MD;
     char **papszMergedMD;
     char **papszUSE00A_MD;
 
@@ -1837,6 +1920,16 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
                                  psImage->szIMAG );
         }
 
+        // CSEXRA
+        papszCSEXRA_MD = NITFReadCSEXRA( psImage );
+        if( papszCSEXRA_MD != NULL )
+        {
+            papszMergedMD = CSLInsertStrings( papszMergedMD, 
+                                              CSLCount( papszCSEXRA_MD ),
+                                              papszCSEXRA_MD );
+            CSLDestroy( papszCSEXRA_MD );
+        }
+
         // USE00A 
         papszUSE00A_MD = NITFReadUSE00A( psImage );
         if( papszUSE00A_MD != NULL )
@@ -1867,6 +1960,16 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
         }
     }
         
+    // Extract ESRI generic metadata.
+    char **papszESRI_MD = ExtractEsriMD( papszMergedMD );
+    if( papszESRI_MD != NULL )
+    {
+        papszMergedMD = CSLInsertStrings( papszMergedMD, 
+                                          CSLCount( papszESRI_MD ),
+                                          papszESRI_MD );
+        CSLDestroy( papszESRI_MD );
+    }
+
     poDS->SetMetadata( papszMergedMD );
     CSLDestroy( papszMergedMD );
 
@@ -1897,10 +2000,7 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
 /* -------------------------------------------------------------------- */
 /*      Do we have RPC info.                                            */
 /* -------------------------------------------------------------------- */
-    NITFRPC00BInfo sRPCInfo;
-
-    if( psImage
-        && NITFReadRPC00B( psImage, &sRPCInfo ) && sRPCInfo.SUCCESS )
+    if( psImage && bHasRPC00 )
     {
         char szValue[1280];
         int  i;
@@ -2647,6 +2747,363 @@ CPLErr NITFDataset::SetProjection(const char* _pszProjection)
     return CE_None;
 }
 
+
+/************************************************************************/
+/*                       InitializeNITFDESs()                           */
+/************************************************************************/
+
+void NITFDataset::InitializeNITFDESs()
+{
+    static const char *pszDESsDomain = "NITF_DES";
+
+	char **ppszDESsList = oSpecialMD.GetMetadata( pszDESsDomain );
+
+	if( ppszDESsList != NULL ) return;
+
+/* -------------------------------------------------------------------- */
+/*  Go through all the segments and process all DES segments.           */
+/* -------------------------------------------------------------------- */
+	
+	char               *pachDESData  = NULL;
+	char               *pszLine      = NULL;
+	size_t              nDESDataSize = 0;
+	std::string         encodedDESData("");
+	std::vector<char*>  tmpKeyValStore;
+    
+	tmpKeyValStore.clear();
+
+	for( int iSegment = 0; iSegment < psFile->nSegmentCount; iSegment++ )
+	{
+		NITFSegmentInfo *psSegInfo = psFile->pasSegmentInfo + iSegment;
+
+        if( EQUAL(psSegInfo->szSegmentType,"DE") )
+		{
+			nDESDataSize = psSegInfo->nSegmentHeaderSize + psSegInfo->nSegmentSize;
+	        pachDESData  = (char*) VSIMalloc( nDESDataSize + 1 );
+
+			if (pachDESData == NULL)
+			{
+				CPLError( CE_Failure, CPLE_OutOfMemory, "Cannot allocate memory for DES segment" );
+				Cleanup( tmpKeyValStore );
+				return;
+			}
+
+			if( VSIFSeekL( psFile->fp, psSegInfo->nSegmentHeaderStart, 
+						  SEEK_SET ) != 0 
+				|| VSIFReadL( pachDESData, 1, nDESDataSize, 
+							 psFile->fp ) != nDESDataSize )
+			{
+				CPLError( CE_Failure, CPLE_FileIO, 
+						  "Failed to read %u byte DES subheader from " CPL_FRMT_GUIB ".",
+						  nDESDataSize,
+						  psSegInfo->nSegmentHeaderStart );
+				CPLFree( pachDESData );
+				return;
+			}
+
+			pachDESData[nDESDataSize] = '\0';
+
+/* -------------------------------------------------------------------- */
+/*          Accumulate all the DES segments.                            */
+/* -------------------------------------------------------------------- */
+
+		    encodedDESData = Base64Encode( (unsigned char const *) pachDESData, nDESDataSize );
+
+			CPLFree( pachDESData );
+			pachDESData = NULL;
+
+			if( encodedDESData.empty() )
+			{
+				CPLError(CE_Failure, CPLE_AppDefined, "Failed to encode DES subheader data!");
+				Cleanup( tmpKeyValStore );
+				return;
+			}
+
+			// The length of the DES subheader data plus a space is append to the beginning of the encoded
+			// string so that we can recover the actual length of the image subheader when we decode it.
+	      
+			char buffer[20];
+
+			sprintf(buffer, "%d", nDESDataSize);
+
+			std::string desSubheaderStr(buffer);
+			desSubheaderStr.append(" ");
+			desSubheaderStr.append(encodedDESData);
+
+			pszLine = (char *) CPLMalloc(desSubheaderStr.size()+1);
+            sprintf( pszLine, "%s", desSubheaderStr.c_str() );
+
+            tmpKeyValStore.push_back( pszLine );
+            pszLine = NULL;
+		}
+	}
+
+    // create string list.
+	size_t nNumDESs = tmpKeyValStore.size();
+
+	if ( nNumDESs > 0 )
+	{
+        char **papszNewList = (char **) CPLMalloc( (nNumDESs+1)*sizeof(char*) );
+        char **papszDst     = papszNewList;
+
+		for( size_t ii = 0; ii < nNumDESs; ++ii )
+		{
+            *papszDst             = tmpKeyValStore.at(ii);
+			tmpKeyValStore.at(ii) = NULL;
+			papszDst++;
+		}
+
+        *papszDst = NULL;
+
+		oSpecialMD.SetMetadata( papszNewList, pszDESsDomain );
+		CSLDestroy( papszNewList );
+		tmpKeyValStore.clear();
+	}
+}
+
+/************************************************************************/
+/*                       InitializeNITFTREs()                           */
+/************************************************************************/
+
+void NITFDataset::InitializeNITFTREs()
+{
+    static const char *pszFileHeaderTREsDomain   = "NITF_FILE_HEADER_TRES";
+    static const char *pszImageSegmentTREsDomain = "NITF_IMAGE_SEGMENT_TRES";
+ 
+    char **ppszFileHeaderTREsList   = oSpecialMD.GetMetadata( pszFileHeaderTREsDomain );
+    char **ppszImageSegmentTREsList = oSpecialMD.GetMetadata( pszImageSegmentTREsDomain );
+
+    if( (ppszFileHeaderTREsList != NULL) && (ppszImageSegmentTREsList != NULL ) ) return;
+
+/* -------------------------------------------------------------------- */
+/*      Loop over TRE sources (file and image).                         */
+/* -------------------------------------------------------------------- */
+
+	char               *pszLine       = NULL;
+    const char *pszTREsDomain = NULL;
+    std::vector<char*>  tmpKeyValStore;
+
+    tmpKeyValStore.clear();
+
+    for( int nTRESrc = 0; nTRESrc < 2; nTRESrc++ )
+    {
+        int   nTREBytes  = 0;
+        char *pszTREData = NULL;
+
+/* -------------------------------------------------------------------- */
+/*      Extract file header or image segment TREs.                      */
+/* -------------------------------------------------------------------- */
+
+        if( nTRESrc == 0 )
+        {
+            if( ppszFileHeaderTREsList != NULL ) continue;
+
+            nTREBytes     = psFile->nTREBytes;
+            pszTREData    = psFile->pachTRE;
+            pszTREsDomain = pszFileHeaderTREsDomain;
+        }
+        else
+        {
+            if( ppszImageSegmentTREsList != NULL ) continue;
+
+            if( psImage ) 
+            {
+                nTREBytes     = psImage->nTREBytes;
+                pszTREData    = psImage->pachTRE;
+                pszTREsDomain = pszImageSegmentTREsDomain;
+            }
+            else
+            {
+                nTREBytes  = 0;
+                pszTREData = NULL;
+            }
+        }
+
+/* -------------------------------------------------------------------- */
+/*      Loop over TREs.                                                 */
+/* -------------------------------------------------------------------- */
+
+        while( nTREBytes >= 11 )
+        {
+            char szTemp[100];
+            char szTag[7];
+            char *pszEscapedData = NULL;
+            int nThisTRESize = atoi(NITFGetField(szTemp, pszTREData, 6, 5 ));
+
+            if (nThisTRESize < 0)
+            {
+                NITFGetField(szTemp, pszTREData, 0, 6 );
+                CPLError(CE_Failure, CPLE_AppDefined, "Invalid size (%d) for TRE %s",
+                        nThisTRESize, szTemp);
+
+				Cleanup( tmpKeyValStore );
+                return;
+            }
+
+            if (nThisTRESize > nTREBytes - 11)
+            {
+                CPLError(CE_Failure, CPLE_AppDefined, "Not enough bytes in TRE");
+				Cleanup( tmpKeyValStore );
+                return;
+            }
+
+            strncpy( szTag, pszTREData, 6 );
+            szTag[6] = '\0';
+
+            // trim white off tag. 
+            while( strlen(szTag) > 0 && szTag[strlen(szTag)-1] == ' ' )
+                szTag[strlen(szTag)-1] = '\0';
+            
+            // escape data. 
+            pszEscapedData = CPLEscapeString( pszTREData + 6,
+                                              nThisTRESize + 5,
+                                              CPLES_BackslashQuotable );
+
+            pszLine = (char *) CPLMalloc( strlen(szTag)+strlen(pszEscapedData)+2 );
+            sprintf( pszLine, "%s=%s", szTag, pszEscapedData );
+            tmpKeyValStore.push_back( pszLine );
+
+            CPLFree( pszEscapedData );
+			pszEscapedData = NULL;
+			pszLine        = NULL;
+            
+            nTREBytes  -= (nThisTRESize + 11);
+            pszTREData += (nThisTRESize + 11);
+        }
+
+		// create string list.
+		size_t nNumTREs = tmpKeyValStore.size();
+
+		if ( nNumTREs > 0 )
+		{
+            char **papszNewList = (char **) CPLMalloc( (nNumTREs+1)*sizeof(char*) );
+            char **papszDst     = papszNewList;
+
+			for( size_t ii = 0; ii < nNumTREs; ++ii )
+			{
+                *papszDst             = tmpKeyValStore.at(ii);
+				tmpKeyValStore.at(ii) = NULL;
+				papszDst++;
+			}
+
+            *papszDst = NULL;
+
+			oSpecialMD.SetMetadata( papszNewList, pszTREsDomain );
+			CSLDestroy( papszNewList );
+			tmpKeyValStore.clear();
+		}
+    }
+}
+
+/************************************************************************/
+/*                       InitializeNITFMetadata()                        */
+/************************************************************************/
+
+void NITFDataset::InitializeNITFMetadata()
+
+{
+    static const char *pszDomainName            = "NITF_METADATA";
+    static const char *pszTagNITFFileHeader     = "NITFFileHeader";
+    static const char *pszTagNITFImageSubheader = "NITFImageSubheader";
+
+    if( oSpecialMD.GetMetadata( pszDomainName ) != NULL )
+        return;
+
+    // nHeaderLenOffset is the number of bytes to skip from the beginning of the NITF file header
+    // in order to get to the field HL (NITF file header length).
+
+    int nHeaderLen       = 0;
+    int nHeaderLenOffset = 0;
+
+    // Get the NITF file header length.
+
+    if( psFile->pachHeader != NULL )
+    {
+      if ( (strncmp(psFile->pachHeader, "NITF02.10", 9) == 0) || (strncmp(psFile->pachHeader, "NSIF01.00", 9) == 0) )
+          nHeaderLenOffset = 354;
+      else if ( (strncmp(psFile->pachHeader, "NITF01.10", 9) == 0) || (strncmp(psFile->pachHeader, "NITF02.00", 9) == 0) )
+		  nHeaderLenOffset = ( strncmp((psFile->pachHeader+280), "999998", 6 ) == 0 ) ? 394 : 354;
+    }
+
+    char fieldHL[7];
+
+    if( nHeaderLenOffset > 0 )
+    {
+      char *pszFieldHL = psFile->pachHeader + nHeaderLenOffset;
+
+      memcpy(fieldHL, pszFieldHL, 6);
+      fieldHL[6] = '\0';
+      nHeaderLen = atoi(fieldHL);
+    }
+
+    if( nHeaderLen <= 0 )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Zero length NITF file header!");
+        return;
+    }
+
+    std::string encodedHeader = Base64Encode((unsigned char const *) psFile->pachHeader, nHeaderLen);
+
+    if (encodedHeader.empty())
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Failed to encode NITF file header!");
+        return;
+    }
+
+    // The length of the NITF file header plus a space is append to the beginning of the encoded string so
+    // that we can recover the length of the NITF file header when we decode it without having to pull it
+    // out the HL field again.
+
+    std::string nitfFileheaderStr(fieldHL);
+    nitfFileheaderStr.append(" ");
+    nitfFileheaderStr.append(encodedHeader);
+
+    oSpecialMD.SetMetadataItem( pszTagNITFFileHeader, nitfFileheaderStr.c_str(), pszDomainName );
+
+    // Get the image subheader length.
+
+    int nImageSubheaderLen = 0;
+    
+    for( int i = 0; i < psFile->nSegmentCount; ++i )
+    {
+        if (strncmp(psFile->pasSegmentInfo[i].szSegmentType, "IM", 2) == 0)
+        {
+            nImageSubheaderLen = psFile->pasSegmentInfo[i].nSegmentHeaderSize;
+            break;
+        }
+    }
+
+    if( nImageSubheaderLen < 0 )
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid length NITF image subheader!");
+        return;
+    }
+
+    if( nImageSubheaderLen > 0 )
+    {
+        std::string encodedImageSubheader = Base64Encode((unsigned char const *) psImage->pachHeader, nImageSubheaderLen);
+    
+        if( encodedImageSubheader.empty() )
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Failed to encode image subheader!");
+            return;
+        }
+
+        // The length of the image subheader plus a space is append to the beginning of the encoded string so
+        // that we can recover the actual length of the image subheader when we decode it.
+      
+        char buffer[20];
+
+        sprintf(buffer, "%d", nImageSubheaderLen);
+
+        std::string imageSubheaderStr(buffer);
+        imageSubheaderStr.append(" ");
+        imageSubheaderStr.append(encodedImageSubheader);
+
+        oSpecialMD.SetMetadataItem( pszTagNITFImageSubheader, imageSubheaderStr.c_str(), pszDomainName );
+    }
+}
+
 /************************************************************************/
 /*                       InitializeCGMMetadata()                        */
 /************************************************************************/
@@ -2987,6 +3444,30 @@ void NITFDataset::InitializeTREMetadata()
 char **NITFDataset::GetMetadata( const char * pszDomain )
 
 {
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_METADATA") )
+    {
+        InitializeNITFMetadata();
+        return oSpecialMD.GetMetadata( pszDomain );
+    }
+
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_DES") )
+    {
+        InitializeNITFDESs();
+        return oSpecialMD.GetMetadata( pszDomain );
+    }
+
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_FILE_HEADER_TRES") )
+    {
+        InitializeNITFTREs();
+        return oSpecialMD.GetMetadata( pszDomain );
+    }
+
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_IMAGE_SEGMENT_TRES") )
+    {
+        InitializeNITFTREs();
+        return oSpecialMD.GetMetadata( pszDomain );
+    }
+
     if( pszDomain != NULL && EQUAL(pszDomain,"CGM") )
     {
         InitializeCGMMetadata();
@@ -3016,6 +3497,24 @@ const char *NITFDataset::GetMetadataItem(const char * pszName,
                                          const char * pszDomain )
 
 {
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_METADATA") )
+    {
+        InitializeNITFMetadata();
+        return oSpecialMD.GetMetadataItem( pszName, pszDomain );
+    }
+
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_FILE_HEADER_TRES") )
+    {
+        InitializeNITFTREs();
+        return oSpecialMD.GetMetadataItem( pszName, pszDomain );
+    }
+
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_IMAGE_SEGMENT_TRES") )
+    {
+        InitializeNITFTREs();
+        return oSpecialMD.GetMetadataItem( pszName, pszDomain );
+    }
+
     if( pszDomain != NULL && EQUAL(pszDomain,"CGM") )
     {
         InitializeCGMMetadata();
@@ -3186,6 +3685,16 @@ CPLErr NITFDataset::IBuildOverviews( const char *pszResampling,
         poJ2KDataset->IBuildOverviews( pszResampling, 0, NULL, 
                                        nListBands, panBandList, 
                                        GDALDummyProgress, NULL );
+
+/* -------------------------------------------------------------------- */
+/*      ESRI specific, unload overview dataset first. JPEG and JP2      */
+/*      proxy bands cause underlying dataset to open .OVR in ArcGIS.    */
+/* -------------------------------------------------------------------- */
+    if( poJ2KDataset != NULL )
+			poJ2KDataset->GetOverviewManager()->UnloadOverviews();
+
+    if( poJPEGDataset != NULL )
+			poJPEGDataset->GetOverviewManager()->UnloadOverviews();
 
 /* -------------------------------------------------------------------- */
 /*      Use the overview manager to build requested overviews.          */
@@ -3530,6 +4039,52 @@ CPLErr NITFDataset::ReadJPEGBlock( int iBlockX, int iBlockY )
     delete poDS;
 
     return eErr;
+}
+
+/************************************************************************/
+/*                            GetFileList()                             */
+/************************************************************************/
+
+char **NITFDataset::GetFileList()
+
+{
+    char **papszFileList = GDALPamDataset::GetFileList();
+
+/* -------------------------------------------------------------------- */
+/*      Check for .imd file.                                            */
+/* -------------------------------------------------------------------- */
+    papszFileList = AddFile( papszFileList, "IMD", "imd" );
+
+/* -------------------------------------------------------------------- */
+/*      Check for .rpb file.                                            */
+/* -------------------------------------------------------------------- */
+    papszFileList = AddFile( papszFileList, "RPB", "rpb" );
+
+/* -------------------------------------------------------------------- */
+/*      Check for other files.                                          */
+/* -------------------------------------------------------------------- */
+    papszFileList = AddFile( papszFileList, "ATT", "att" );
+    papszFileList = AddFile( papszFileList, "EPH", "eph" );
+    papszFileList = AddFile( papszFileList, "GEO", "geo" );
+    papszFileList = AddFile( papszFileList, "XML", "xml" );
+
+    return papszFileList;
+}
+
+char **NITFDataset::AddFile(char **papszFileList, const char* EXTENSION, const char* extension)
+{
+    VSIStatBufL sStatBuf;
+    CPLString osTarget = CPLResetExtension( osNITFFilename, EXTENSION );
+    if( VSIStatL( osTarget, &sStatBuf ) == 0 )
+        papszFileList = CSLAddString( papszFileList, osTarget );
+    else
+    {
+        osTarget = CPLResetExtension( osNITFFilename, extension );
+        if( VSIStatL( osTarget, &sStatBuf ) == 0 )
+            papszFileList = CSLAddString( papszFileList, osTarget );
+    }
+
+    return papszFileList;
 }
 
 /************************************************************************/
@@ -3970,6 +4525,28 @@ NITFDataset::NITFCreateCopy(
         osTRE += papszSrcMD[iMD];
 
         papszFullOptions = CSLAddString( papszFullOptions, osTRE );
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Prepare for text segments.                                      */
+/* -------------------------------------------------------------------- */
+    int iOpt, nNUMT = 0;
+
+    for( iOpt = 0; 
+         papszTextMD != NULL && papszTextMD[iOpt] != NULL; 
+         iOpt++ )
+    {
+        if( !EQUALN(papszTextMD[iOpt],"DATA_",5) )
+            continue;
+
+        nNUMT++;
+    }
+
+    if( nNUMT > 0 )
+    {
+        papszFullOptions = CSLAddString( papszFullOptions, 
+                                         CPLString().Printf( "NUMT=%d", 
+                                                             nNUMT ) );
     }
 
 /* -------------------------------------------------------------------- */
@@ -5534,4 +6111,363 @@ void GDALRegister_NITF()
 
         GetGDALDriverManager()->RegisterDriver( poDriver );
     }
+}
+
+
+double Apply( double *C, double P, double L, double H )
+{
+    // Polynomial equation for RPC00B.
+
+    double H2 = H * H;
+    double L2 = L * L;
+    double P2 = P * P;
+
+    return  C[0]
+          + C[1]*L     + C[2]*P     + C[3]*H     + C[4]*L*P   + C[5]*L*H  
+          + C[6]*P*H   + C[7]*L2    + C[8]*P2    + C[9]*H2    + C[10]*P*L*H
+          + C[11]*L*L2 + C[12]*L*P2 + C[13]*L*H2 + C[14]*L2*P + C[15]*P*P2
+          + C[16]*P*H2 + C[17]*L2*H + C[18]*P2*H + C[19]*H*H2;
+} 
+
+static void Cleanup( std::vector<char*> &charDataContainer )
+{
+    for( int ii = 0; ii < charDataContainer.size(); ++ii )
+	{
+		if( charDataContainer.at(ii) != NULL )
+		{
+            CPLFree( charDataContainer.at(ii) );
+			charDataContainer.at(ii) = NULL;
+		}
+	}
+
+    charDataContainer.clear();
+}
+
+
+void DensifyGCPs( GDAL_GCP **psGCPs, int &nGCPCount )
+{
+    // Given the four corner points of an extent (UL, UR, LR, LL), this method
+    // will add three points to each line segment and return a total of 16 points
+    // including the four original corner points.
+
+    if ( (nGCPCount != 4) || (psGCPs == NULL) ) return;
+
+    const int  nDensifiedGCPs  = 16;
+    GDAL_GCP  *psDensifiedGCPs = (GDAL_GCP*) CPLMalloc(sizeof(GDAL_GCP)*nDensifiedGCPs);
+
+    GDALInitGCPs( nDensifiedGCPs, psDensifiedGCPs );
+
+    bool   ok          = true;
+    double xLeftPt     = 0.0;
+    double xMidPt      = 0.0;
+    double xRightPt    = 0.0;
+    double yLeftPt     = 0.0;
+    double yMidPt      = 0.0;
+    double yRightPt    = 0.0;
+    int    count       = 0;
+    int    idx         = 0;
+    int    nGCPCountM1 = nGCPCount - 1;
+
+    for( int ii = 0; ( (ii < nGCPCount) && (ok) ) ; ++ii )
+    {
+      idx = ( ii != 3 ) ? ii+1 : 0;
+
+      try
+      {
+          psDensifiedGCPs[count].dfGCPX = (*psGCPs)[ii].dfGCPX;
+          psDensifiedGCPs[count].dfGCPY = (*psGCPs)[ii].dfGCPY;
+
+          xMidPt = ((*psGCPs)[ii].dfGCPX+(*psGCPs)[idx].dfGCPX) * 0.5;
+          yMidPt = ((*psGCPs)[ii].dfGCPY+(*psGCPs)[idx].dfGCPY) * 0.5;
+
+          xLeftPt = ((*psGCPs)[ii].dfGCPX+xMidPt) * 0.5;
+          yLeftPt = ((*psGCPs)[ii].dfGCPY+yMidPt) * 0.5;
+
+          xRightPt = (xMidPt+(*psGCPs)[idx].dfGCPX) * 0.5;
+          yRightPt = (yMidPt+(*psGCPs)[idx].dfGCPY) * 0.5;
+
+          psDensifiedGCPs[count+1].dfGCPX = xLeftPt;
+          psDensifiedGCPs[count+1].dfGCPY = yLeftPt;
+          psDensifiedGCPs[count+2].dfGCPX = xMidPt;
+          psDensifiedGCPs[count+2].dfGCPY = yMidPt;
+          psDensifiedGCPs[count+3].dfGCPX = xRightPt;
+          psDensifiedGCPs[count+3].dfGCPY = yRightPt;
+
+          count += nGCPCount;
+
+      }
+      catch (...)
+      {
+          ok = false;
+      }
+    }
+
+    if( !ok )
+    {
+        GDALDeinitGCPs( nDensifiedGCPs, psDensifiedGCPs );
+        CPLFree( psDensifiedGCPs );
+        psDensifiedGCPs = NULL;
+
+        return;
+    }
+
+    GDALDeinitGCPs( nGCPCount, *psGCPs );
+    CPLFree( *psGCPs );
+
+    *psGCPs         = psDensifiedGCPs;
+    nGCPCount       = nDensifiedGCPs;
+    psDensifiedGCPs = NULL;
+}
+
+
+bool RPCTransform( NITFRPC00BInfo *psRPCInfo, 
+                   double         *pGCPXCoord,
+                   double         *pGCPYCoord,
+                   int             nGCPCount )
+{
+    if( (psRPCInfo == NULL) || (pGCPXCoord == NULL) ||
+      (pGCPYCoord == NULL) || (nGCPCount <= 0) ) return (false);
+
+    bool   ok = true;
+    double H  = 0.0;
+    double L  = 0.0;
+    double P  = 0.0;
+    double u  = 0.0;
+    double v  = 0.0;
+    double z  = psRPCInfo->HEIGHT_OFF;
+
+    double heightScaleInv = 1.0/psRPCInfo->HEIGHT_SCALE;
+    double latScaleInv    = 1.0/psRPCInfo->LAT_SCALE;
+    double longScaleInv   = 1.0/psRPCInfo->LONG_SCALE;
+
+    for( int ii = 0; ( (ii < nGCPCount) && (ok) ); ++ii )
+    {
+        try
+        {
+            P = ( pGCPYCoord[ii] - psRPCInfo->LAT_OFF )    * latScaleInv;
+            L = ( pGCPXCoord[ii] - psRPCInfo->LONG_OFF)    * longScaleInv;
+            H = ( z              - psRPCInfo->HEIGHT_OFF ) * heightScaleInv;
+
+            u = Apply( psRPCInfo->SAMP_NUM_COEFF, P, L, H )/Apply( psRPCInfo->SAMP_DEN_COEFF, P, L, H );
+            v = Apply( psRPCInfo->LINE_NUM_COEFF, P, L, H )/Apply( psRPCInfo->LINE_DEN_COEFF, P, L, H );
+
+            pGCPXCoord[ii] = u*psRPCInfo->SAMP_SCALE + psRPCInfo->SAMP_OFF;
+            pGCPYCoord[ii] = v*psRPCInfo->LINE_SCALE + psRPCInfo->LINE_OFF;
+        }
+        catch (...)
+        {
+            ok = false;
+        }
+    }
+
+    return (ok);
+}
+
+
+void UpdateGCPsWithRPC( NITFRPC00BInfo *psRPCInfo,
+                        GDAL_GCP       *psGCPs,
+                        int            &nGCPCount )
+{
+    if( (psRPCInfo == NULL) || (!psRPCInfo->SUCCESS) ||
+      (psGCPs == NULL) || (nGCPCount < 4) ) return;
+
+    double *pGCPXCoord = NULL;
+    double *pGCPYCoord = NULL;
+
+    try
+    {
+        pGCPXCoord = new double[nGCPCount];
+        pGCPYCoord = new double[nGCPCount];
+    }
+    catch (...)
+    {
+        if( pGCPXCoord != NULL )
+        {
+            delete [] (pGCPXCoord);
+            pGCPXCoord = NULL;
+        }
+
+        if( pGCPYCoord != NULL )
+        {
+            delete [] (pGCPYCoord);
+            pGCPYCoord = NULL;
+        }
+    }
+
+    if( (pGCPXCoord == NULL) || (pGCPYCoord == NULL) ) return;
+
+    bool ok = true;
+
+    for( int ii = 0; ( (ii < nGCPCount) && (ok) ); ++ii )
+    {
+        try
+        {
+            pGCPXCoord[ii] = psGCPs[ii].dfGCPX;
+            pGCPYCoord[ii] = psGCPs[ii].dfGCPY;
+        }
+        catch (...)
+        {
+            ok = false;
+        }
+    }
+
+    if( (ok) && (RPCTransform( psRPCInfo, pGCPXCoord, pGCPYCoord, nGCPCount )) )
+    {
+        // Replace the image coordinates of the input GCPs.
+
+        for( int jj = 0; jj < nGCPCount; ++jj )
+        {
+            psGCPs[jj].dfGCPPixel = pGCPXCoord[jj];
+            psGCPs[jj].dfGCPLine  = pGCPYCoord[jj];
+        }
+    }
+
+    delete [] (pGCPXCoord);
+    delete [] (pGCPYCoord);
+
+    pGCPXCoord = NULL;
+    pGCPYCoord = NULL;
+}
+
+/*
+ * This function was extracted from the base64 cpp utility published by René Nyffenegger.
+ * The code was modified cosmetically so that the coding style is inlined with this file.
+ * The original code can be found at http://www.adp-gmbh.ch/cpp/common/base64.html.
+ *
+ * The following is the original notice of this function.
+ *
+ * base64.cpp and base64.h
+ *
+ *  Copyright (C) 2004-2008 René Nyffenegger
+ *
+ *  This source code is provided 'as-is', without any express or implied
+ *  warranty. In no event will the author be held liable for any damages
+ *  arising from the use of this software.
+ *
+ *  Permission is granted to anyone to use this software for any purpose,
+ *  including commercial applications, and to alter it and redistribute it
+ *  freely, subject to the following restrictions:
+ *
+ *  1. The origin of this source code must not be misrepresented; you must not
+ *     claim that you wrote the original source code. If you use this source code
+ *     in a product, an acknowledgment in the product documentation would be
+ *     appreciated but is not required.
+ *
+ *  2. Altered source versions must be plainly marked as such, and must not be
+ *     misrepresented as being the original source code.
+ *
+ *  3. This notice may not be removed or altered from any source distribution.
+ *
+ *  René Nyffenegger rene.nyffenegger@adp-gmbh.ch
+*/
+std::string Base64Encode( unsigned char const *pBytesToEncode,
+                          unsigned int         nDataLen )
+{
+  static const std::string base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+  int           i = 0;
+  int           j = 0;
+  std::string   result("");
+  unsigned char charArray3[3];
+  unsigned char charArray4[4];
+
+  while( nDataLen-- )
+  {
+    charArray3[i++] = *(pBytesToEncode++);
+
+    if( i == 3 )
+    {
+      charArray4[0] = (charArray3[0] & 0xfc) >> 2;
+      charArray4[1] = ((charArray3[0] & 0x03) << 4) + ((charArray3[1] & 0xf0) >> 4);
+      charArray4[2] = ((charArray3[1] & 0x0f) << 2) + ((charArray3[2] & 0xc0) >> 6);
+      charArray4[3] = charArray3[2] & 0x3f;
+
+      for( i = 0; i < 4; i++ )
+      {
+        result += base64Chars[charArray4[i]];
+      }
+
+      i = 0;
+    }
+  }
+
+  if( i )
+  {
+    for( j = i; j < 3; j++ )
+    {
+      charArray3[j] = '\0';
+    }
+
+    charArray4[0] = (charArray3[0]  & 0xfc) >> 2;
+    charArray4[1] = ((charArray3[0] & 0x03) << 4) + ((charArray3[1] & 0xf0) >> 4);
+    charArray4[2] = ((charArray3[1] & 0x0f) << 2) + ((charArray3[2] & 0xc0) >> 6);
+    charArray4[3] = charArray3[2] & 0x3f;
+
+    for ( j = 0; j < (i + 1); j++ )
+    {
+      result += base64Chars[charArray4[j]];
+    }
+
+    while( i++ < 3 )
+      result += '=';
+  }
+
+  return (result);
+}
+
+/*
+ * Extracts ESRI-specific required meta data from metadata string list papszStrList.
+ */
+char **ExtractEsriMD( char **papszMD )
+{
+  char **papszEsriMD = NULL;
+
+  if( papszMD )
+  {
+    // These are the current generic ESRI metadata.
+
+    const char *const pEsriMDAngleToNorth = "ESRI_MD_ANGLE_TO_NORTH";
+    const char *const pEsriMDCloudCover   = "ESRI_MD_ISCLOUDCOVER";    
+    const char *const pEsriMDSunAzimuth   = "ESRI_MD_SUN_AZIMUTH";
+    const char *const pEsriMDSunElevation = "ESRI_MD_SUN_ELEVATION";
+    
+    char         szField[11];
+    const char  *pCCImageSegment = CSLFetchNameValue( papszMD, "NITF_IID1" );
+    std::string  ccSegment("false");
+
+    if( ( pCCImageSegment != NULL ) && ( strlen(pCCImageSegment) <= 10 ) )
+    {
+      szField[0] = '\0';
+      strncpy( szField, pCCImageSegment, strlen(pCCImageSegment) );
+      szField[strlen(pCCImageSegment)] = '\0';
+
+      // trim white off tag. 
+      while( ( strlen(szField) > 0 ) && ( szField[strlen(szField)-1] == ' ' ) )
+        szField[strlen(szField)-1] = '\0';
+
+      if ((strlen(szField) == 2) && (EQUALN(szField, "CC", 2))) ccSegment.assign("true");
+    }
+   
+    const char *pAngleToNorth = CSLFetchNameValue( papszMD, "NITF_CSEXRA_ANGLE_TO_NORTH" );
+    const char *pSunAzimuth   = CSLFetchNameValue( papszMD, "NITF_CSEXRA_SUN_AZIMUTH" );
+    const char *pSunElevation = CSLFetchNameValue( papszMD, "NITF_CSEXRA_SUN_ELEVATION" );
+
+    if( pAngleToNorth == NULL )
+      pAngleToNorth = CSLFetchNameValue( papszMD, "NITF_USE00A_ANGLE_TO_NORTH" );
+
+    if( pSunAzimuth == NULL )
+      pSunAzimuth = CSLFetchNameValue( papszMD, "NITF_USE00A_SUN_AZ" );
+
+    if( pSunElevation == NULL )
+      pSunElevation = CSLFetchNameValue( papszMD, "NITF_USE00A_SUN_EL" );
+    
+    // CSLAddNameValue will not add the key/value pair if the value is NULL.
+
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDAngleToNorth, pAngleToNorth );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDCloudCover,   ccSegment.c_str() );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDSunAzimuth,   pSunAzimuth );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDSunElevation, pSunElevation );
+  }
+
+  return (papszEsriMD);
 }

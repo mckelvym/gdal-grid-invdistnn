@@ -586,6 +586,9 @@ int HFAGetBandNoData( HFAHandle hHFA, int nBand, double *pdfNoData )
 
     HFABand *poBand = hHFA->papoBand[nBand-1];
 
+    if( !poBand->bNoDataSet && poBand->nOverviews > 0 )
+      poBand = poBand->papoOverviews[0];
+
     *pdfNoData = poBand->dfNoData;
     return poBand->bNoDataSet;
 }
@@ -1025,11 +1028,15 @@ int HFAGetGeoTransform( HFAHandle hHFA, double *padfGeoTransform )
         padfGeoTransform[0] = psMapInfo->upperLeftCenter.x
             - psMapInfo->pixelSize.width*0.5;
         padfGeoTransform[1] = psMapInfo->pixelSize.width;
+        if(padfGeoTransform[1] == 0.0)
+          padfGeoTransform[1] = 1.0;
         padfGeoTransform[2] = 0.0;
         if( psMapInfo->upperLeftCenter.y >= psMapInfo->lowerRightCenter.y )
             padfGeoTransform[5] = - psMapInfo->pixelSize.height;
         else
             padfGeoTransform[5] = psMapInfo->pixelSize.height;
+        if(padfGeoTransform[5] == 0.0)
+          padfGeoTransform[5] = 1.0;
 
         padfGeoTransform[3] = psMapInfo->upperLeftCenter.y
             - padfGeoTransform[5]*0.5;
@@ -1138,6 +1145,8 @@ CPLErr HFASetMapInfo( HFAHandle hHFA, const Eprj_MapInfo *poMapInfo )
             + strlen(poMapInfo->units) + 1;
 
         pabyData = poMIEntry->MakeData( nSize );
+        if(!pabyData)
+          return CE_Failure;
         memset( pabyData, 0, nSize );
 
         poMIEntry->SetPosition();
@@ -1439,11 +1448,13 @@ CPLErr HFASetProParameters( HFAHandle hHFA, const Eprj_ProParameters *poPro )
         if( poPro->proExeName != NULL )
             nSize += strlen(poPro->proExeName) + 1;
 
-        pabyData = poMIEntry->MakeData( nSize );
-        poMIEntry->SetPosition();
-
         // Initialize the whole thing to zeros for a clean start.
         memset( poMIEntry->GetData(), 0, poMIEntry->GetDataSize() );
+
+        pabyData = poMIEntry->MakeData( nSize );
+        if(!pabyData)
+          return CE_Failure;
+        poMIEntry->SetPosition();
 
 /* -------------------------------------------------------------------- */
 /*      Write the various fields.                                       */
@@ -1584,11 +1595,13 @@ CPLErr HFASetDatum( HFAHandle hHFA, const Eprj_Datum *poDatum )
         if( poDatum->gridname != NULL )
             nSize += strlen(poDatum->gridname) + 1;
 
-        pabyData = poDatumEntry->MakeData( nSize );
-        poDatumEntry->SetPosition();
-
         // Initialize the whole thing to zeros for a clean start.
         memset( poDatumEntry->GetData(), 0, poDatumEntry->GetDataSize() );
+
+        pabyData = poDatumEntry->MakeData( nSize );
+        if(!pabyData)
+          return CE_Failure;
+        poDatumEntry->SetPosition();
 
 /* -------------------------------------------------------------------- */
 /*      Write the various fields.                                       */
@@ -2881,14 +2894,14 @@ const char *HFAGetIGEFilename( HFAHandle hHFA )
         HFAEntry    *poDMS = NULL;
         std::vector<HFAEntry*> apoDMSList = 
             hHFA->poRoot->FindChildren( NULL, "ImgExternalRaster" );
-
+        
         if( apoDMSList.size() > 0 )
             poDMS = apoDMSList[0];
         
 /* -------------------------------------------------------------------- */
 /*      Get the IGE filename from if we have an ExternalRasterDMS       */
 /* -------------------------------------------------------------------- */
-        if( poDMS )
+        if ( poDMS )
         {
             const char *pszRawFilename =
                 poDMS->GetStringField( "fileName.string" );
@@ -2913,8 +2926,8 @@ const char *HFAGetIGEFilename( HFAHandle hHFA )
                                 CPLFormFilename( NULL, osBasename, 
                                                  osExtension ) );
                     else
-                        hHFA->pszIGEFilename = CPLStrdup( pszRawFilename );
-                }
+                hHFA->pszIGEFilename = CPLStrdup( pszRawFilename );
+        }
                 else
                     hHFA->pszIGEFilename = CPLStrdup( pszRawFilename );
             }
@@ -3218,7 +3231,7 @@ int HFAReadXFormStack( HFAHandle hHFA,
         Efga_Polynomial sForward, sReverse;
         memset( &sForward, 0, sizeof(sForward) );
         memset( &sReverse, 0, sizeof(sReverse) );
-        
+
         if( EQUAL(poXForm->GetType(),"Efga_Polynomial") )
         {
             bSuccess = 

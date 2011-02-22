@@ -3,7 +3,7 @@ GDAL_ROOT	=	..
 
 XTRAOBJ =	$(SETARGV)
 
-LIBS	=	$(GDAL_ROOT)\gdal_i.lib
+LIBS	=	$(GDAL_ROOT)\gdal_i$(TARGET).lib
 
 XTRAFLAGS =	-I..\frmts -I..\alg -I..\ogr -I..\ogr\ogrsf_frmts
 

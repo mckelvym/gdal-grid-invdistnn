@@ -918,7 +918,7 @@ static CPLErr UncompressBlock( GByte *pabyCData, int nSrcBytes,
             int		i;
 
             CPLAssert( nDataValue >= 0 && nDataValue < 4 );
-
+            
             for( i = 0; i < nRepeatCount; i++ )
             {
                 if( (nPixelsOutput & 0x3) == 0 )
@@ -958,7 +958,7 @@ static CPLErr UncompressBlock( GByte *pabyCData, int nSrcBytes,
 
     return CE_None;
     
-  not_enough_bytes:
+not_enough_bytes:
 
     CPLError(CE_Failure, CPLE_AppDefined, "Not enough bytes in compressed block");
     return CE_Failure;

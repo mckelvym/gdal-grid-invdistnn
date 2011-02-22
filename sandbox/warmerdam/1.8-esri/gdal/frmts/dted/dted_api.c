@@ -171,7 +171,7 @@ DTEDInfo * DTEDOpen( const char * pszFilename,
     psDInfo->fp = fp;
 
     psDInfo->bUpdate = EQUAL(pszAccess,"r+b");
-
+    
     psDInfo->nUHLOffset = (int)VSIFTellL( fp ) - DTED_UHL_SIZE;
     psDInfo->pachUHLRecord = (char *) CPLMalloc(DTED_UHL_SIZE);
     memcpy( psDInfo->pachUHLRecord, achRecord, DTED_UHL_SIZE );
@@ -212,11 +212,11 @@ DTEDInfo * DTEDOpen( const char * pszFilename,
 /* -------------------------------------------------------------------- */
     if (!bIsWeirdDTED)
     {
-        psDInfo->dfPixelSizeX =
-            atoi(DTEDGetField(szResult,achRecord,21,4)) / 36000.0;
+    psDInfo->dfPixelSizeX =
+        atoi(DTEDGetField(szResult,achRecord,21,4)) / 36000.0;
 
-        psDInfo->dfPixelSizeY =
-            atoi(DTEDGetField(szResult,achRecord,25,4)) / 36000.0;
+    psDInfo->dfPixelSizeY =
+        atoi(DTEDGetField(szResult,achRecord,25,4)) / 36000.0;
 
         psDInfo->nXSize = atoi(DTEDGetField(szResult,achRecord,48,4));
         psDInfo->nYSize = atoi(DTEDGetField(szResult,achRecord,52,4));
@@ -236,9 +236,9 @@ DTEDInfo * DTEDOpen( const char * pszFilename,
     /* create a scope so I don't need to declare these up top */
     if (!bIsWeirdDTED)
     {
-        deg = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,5,3)));
-        min = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,8,2)));
-        sec = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,10,2)));
+    deg = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,5,3)));
+    min = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,8,2)));
+    sec = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,10,2)));
         chHemisphere = achRecord[11];
     }
     else
@@ -269,9 +269,9 @@ DTEDInfo * DTEDOpen( const char * pszFilename,
 
     if (!bIsWeirdDTED)
     {
-        deg = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,13,3)));
-        min = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,16,2)));
-        sec = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,18,2)));
+    deg = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,13,3)));
+    min = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,16,2)));
+    sec = atoi(stripLeadingZeros(DTEDGetField(szResult,achRecord,18,2)));
         chHemisphere = achRecord[19];
     }
     else
@@ -598,7 +598,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachUHLRecord + 8;
         else
-            *ppszLocation = psDInfo->pachUHLRecord + 4;
+        *ppszLocation = psDInfo->pachUHLRecord + 4;
         *pnLength = 8;
         break;
 
@@ -606,7 +606,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachUHLRecord + 24;
         else
-            *ppszLocation = psDInfo->pachUHLRecord + 12;
+        *ppszLocation = psDInfo->pachUHLRecord + 12;
         *pnLength = 8;
         break;
 
@@ -614,7 +614,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachUHLRecord + 56;
         else
-            *ppszLocation = psDInfo->pachUHLRecord + 28;
+        *ppszLocation = psDInfo->pachUHLRecord + 28;
         *pnLength = 4;
         break;
 
@@ -622,7 +622,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachUHLRecord + 60;
         else
-            *ppszLocation = psDInfo->pachUHLRecord + 32;
+        *ppszLocation = psDInfo->pachUHLRecord + 32;
         *pnLength = 3;
         break;
 
@@ -630,7 +630,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = NULL;
         else
-            *ppszLocation = psDInfo->pachUHLRecord + 35;
+        *ppszLocation = psDInfo->pachUHLRecord + 35;
         *pnLength = 12;
         break;
 
@@ -638,7 +638,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 174;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 87;
+        *ppszLocation = psDInfo->pachDSIRecord + 87;
         *pnLength = 2;
         break;
 
@@ -646,7 +646,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 176;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 89;
+        *ppszLocation = psDInfo->pachDSIRecord + 89;
         *pnLength = 1;
         break;
 
@@ -654,7 +654,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 177;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 90;
+        *ppszLocation = psDInfo->pachDSIRecord + 90;
         *pnLength = 4;
         break;
 
@@ -662,7 +662,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 181;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 94;
+        *ppszLocation = psDInfo->pachDSIRecord + 94;
         *pnLength = 4;
         break;
 
@@ -670,7 +670,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 185;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 98;
+        *ppszLocation = psDInfo->pachDSIRecord + 98;
         *pnLength = 4;
         break;
 
@@ -678,7 +678,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 189;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 102;
+        *ppszLocation = psDInfo->pachDSIRecord + 102;
         *pnLength = 8;
         break;
 
@@ -686,15 +686,15 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 267;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 141;
+        *ppszLocation = psDInfo->pachDSIRecord + 141;
         *pnLength = 3;
         break;
 
-      case DTEDMD_HORIZDATUM:
+      case DTEDMD_HORIZDATUM: 
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 270;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 144; 
+        *ppszLocation = psDInfo->pachDSIRecord + 144; 
         *pnLength = 5; 
         break; 
 
@@ -702,7 +702,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = NULL;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 149;
+        *ppszLocation = psDInfo->pachDSIRecord + 149;
         *pnLength = 10;
         break;
 
@@ -710,7 +710,7 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = NULL;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 159;
+        *ppszLocation = psDInfo->pachDSIRecord + 159;
         *pnLength = 4;
         break;
 
@@ -743,15 +743,15 @@ static void DTEDGetMetadataLocation( DTEDInfo *psDInfo,
         if (bIsWeirdDTED)
             *ppszLocation = NULL;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 64;
+        *ppszLocation = psDInfo->pachDSIRecord + 64;
         *pnLength = 15;
         break;
 
-      case DTEDMD_NIMA_DESIGNATOR:
+      case DTEDMD_NIMA_DESIGNATOR: 
         if (bIsWeirdDTED)
             *ppszLocation = psDInfo->pachDSIRecord + 118;
         else
-            *ppszLocation = psDInfo->pachDSIRecord + 59;
+        *ppszLocation = psDInfo->pachDSIRecord + 59;
         *pnLength = 5;
         break;
 
@@ -774,7 +774,7 @@ char *DTEDGetMetadata( DTEDInfo *psDInfo, DTEDMetaDataCode eCode )
 
     DTEDGetMetadataLocation( psDInfo, eCode, &pszFieldSrc, &nFieldLen );
     if( pszFieldSrc == NULL )
-        return strdup( "" );
+        return VSIStrdup( "" );
 
     pszResult = (char *) malloc(nFieldLen+1);
     strncpy( pszResult, pszFieldSrc, nFieldLen );

@@ -331,6 +331,7 @@ CPLErr HDF5ImageRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 		      H5P_DEFAULT, 
 		      pImage );
 
+    H5Sclose(memspace);
     return CE_None;
 }
 
@@ -379,7 +380,7 @@ GDALDataset *HDF5ImageDataset::Open( GDALOpenInfo * poOpenInfo )
     /* printf("poOpenInfo->pszFilename %s\n",poOpenInfo->pszFilename); */
     char **papszName = 
         CSLTokenizeString2(  poOpenInfo->pszFilename,
-                             ":", CSLT_HONOURSTRINGS|CSLT_PRESERVEESCAPES );
+                                            ":", CSLT_HONOURSTRINGS|CSLT_PRESERVEESCAPES );
 
     if( !((CSLCount(papszName) == 3) || (CSLCount(papszName) == 4)) )
     {

@@ -513,7 +513,7 @@ int GTIFGetEllipsoidInfo( int nEllipseCode, char ** ppszName,
     pszFilename = CSVFilename("ellipsoid.csv" );
 
     dfSemiMajor =
-        atof(CSVGetField( pszFilename,
+        CPLAtof(CSVGetField( pszFilename,
                           "ELLIPSOID_CODE", szSearchKey, CC_Integer,
                           "SEMI_MAJOR_AXIS" ) );
 
@@ -542,7 +542,7 @@ int GTIFGetEllipsoidInfo( int nEllipseCode, char ** ppszName,
     if( pdfSemiMinor != NULL )
     {
         *pdfSemiMinor =
-            atof(CSVGetField( pszFilename,
+            CPLAtof(CSVGetField( pszFilename,
                               "ELLIPSOID_CODE", szSearchKey, CC_Integer,
                               "SEMI_MINOR_AXIS" )) * dfToMeters;
 
@@ -551,7 +551,7 @@ int GTIFGetEllipsoidInfo( int nEllipseCode, char ** ppszName,
             double	dfInvFlattening;
             
             dfInvFlattening = 
-                atof(CSVGetField( pszFilename,
+                CPLAtof(CSVGetField( pszFilename,
                                   "ELLIPSOID_CODE", szSearchKey, CC_Integer,
                                   "INV_FLATTENING" ));
             *pdfSemiMinor = dfSemiMajor * (1 - 1.0/dfInvFlattening);
@@ -924,7 +924,7 @@ int GTIFGetUOMAngleInfo( int nUOMAngleCode,
                               "FACTOR_B" ));
         
         dfFactorC = 
-            atof(CSVGetField( pszFilename,
+            CPLAtof(CSVGetField( pszFilename,
                               "UOM_CODE", szSearchKey, CC_Integer,
                               "FACTOR_C" ));
 
@@ -1976,6 +1976,15 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
     int		i;
     short	nGeogUOMLinear;
     double	dfInvFlattening;
+    char*	pszOldLocale;
+
+/* -------------------------------------------------------------------- */
+/*      All functions contain atof need to have locale support          */
+/*      Restoring the original locale must be called before any return. */
+/* -------------------------------------------------------------------- */
+    
+    pszOldLocale = strdup(setlocale( LC_NUMERIC, NULL) );
+    setlocale( LC_NUMERIC, "C" );
     
 /* -------------------------------------------------------------------- */
 /*      Initially we default all the information we can.                */
@@ -2126,8 +2135,12 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
 /*      Check for a datum setting, and then use the datum to derive     */
 /*      an ellipsoid.                                                   */
 /* -------------------------------------------------------------------- */
+    /* if there is no GeogGeodeticDatumGeoKey setting, we can use the one got */
+    /* from GTIFGetGCSInfo.                                                   */
+    i = (psDefn->Datum != KvUserDefined) ? psDefn->Datum : KvUserDefined;
     GTIFKeyGet(psGTIF, GeogGeodeticDatumGeoKey, &(psDefn->Datum), 0, 1 );
-
+    if(psDefn->Datum == KvUserDefined)
+      psDefn->Datum = i;
     if( psDefn->Datum != KvUserDefined )
     {
         GTIFGetDatumInfo( psDefn->Datum, NULL, &(psDefn->Ellipsoid) );
@@ -2137,8 +2150,12 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
 /*      Check for an explicit ellipsoid.  Use the ellipsoid to          */
 /*      derive the ellipsoid characteristics, if possible.              */
 /* -------------------------------------------------------------------- */
+    /* if there is no GeogEllipsoidGeoKey setting, we can use the one got */
+    /* from GTIFGetDatumInfo.                                             */
+    i = (psDefn->Ellipsoid != KvUserDefined) ? psDefn->Ellipsoid : KvUserDefined;
     GTIFKeyGet(psGTIF, GeogEllipsoidGeoKey, &(psDefn->Ellipsoid), 0, 1 );
-
+    if(psDefn->Ellipsoid == KvUserDefined)
+      psDefn->Ellipsoid = i;
     if( psDefn->Ellipsoid != KvUserDefined )
     {
         GTIFGetEllipsoidInfo( psDefn->Ellipsoid, NULL,
@@ -2240,6 +2257,9 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
         else
             psDefn->ProjParm[6] = 10000000.0;
     }
+
+    setlocale( LC_NUMERIC, pszOldLocale );
+    CPLFree( pszOldLocale );
 
     return TRUE;
 }

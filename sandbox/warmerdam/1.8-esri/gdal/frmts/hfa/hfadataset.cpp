@@ -249,6 +249,34 @@ static const int anUsgsEsriZones[] =
 };
 
 
+static OGRErr SetMiller_Cylindrical( OGRSpatialReference*	poSRS,
+              double dfCenterLong,
+              double dfFalseEasting, double dfFalseNorthing )
+{
+    poSRS->SetProjection( SRS_PT_MILLER_CYLINDRICAL );
+    poSRS->SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, dfCenterLong );
+    poSRS->SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    poSRS->SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
+static OGRErr SetHOTINE_OBLIQUE_MERCATOR( OGRSpatialReference*	poSRS,
+               double dfCenterLat, double dfCenterLong,
+               double dfAzimuth, double dfScale,
+               double dfFalseEasting, double dfFalseNorthing )
+{
+    poSRS->SetProjection( SRS_PT_HOTINE_OBLIQUE_MERCATOR );
+    poSRS->SetNormProjParm( SRS_PP_LATITUDE_OF_CENTER, dfCenterLat );
+    poSRS->SetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, dfCenterLong );
+    poSRS->SetNormProjParm( SRS_PP_AZIMUTH, dfAzimuth );
+    poSRS->SetNormProjParm( SRS_PP_SCALE_FACTOR, dfScale );
+    poSRS->SetNormProjParm( SRS_PP_FALSE_EASTING, dfFalseEasting );
+    poSRS->SetNormProjParm( SRS_PP_FALSE_NORTHING, dfFalseNorthing );
+
+    return OGRERR_NONE;
+}
+
 /************************************************************************/
 /* ==================================================================== */
 /*				HFADataset				*/
@@ -281,6 +309,8 @@ class CPL_DLL HFADataset : public GDALPamDataset
     void        UseXFormStack( int nStepCount,
                                Efga_Polynomial *pasPolyListForward,
                                Efga_Polynomial *pasPolyListReverse );
+    int         WritePEStringIfNeeded( OGRSpatialReference*	poSRS );
+    void        ClearSR(int deleteProjectionX);
 
   protected:
     virtual CPLErr IRasterIO( GDALRWFlag, int, int, int, int,
@@ -552,8 +582,8 @@ HFARasterBand::HFARasterBand( HFADataset *poDS, int nBand, int iOverview )
         }
     }
 
-    poDefaultRAT = ReadNamedRAT( "Descriptor_Table" );
-}
+            poDefaultRAT = ReadNamedRAT( "Descriptor_Table" );
+    }
 
 /************************************************************************/
 /*                           ~HFARasterBand()                           */
@@ -878,7 +908,7 @@ double HFARasterBand::GetMinimum( int *pbSuccess )
     {
         if( pbSuccess )
             *pbSuccess = TRUE;
-        return atof(pszValue);
+        return CPLAtofM(pszValue);
     }
     else
     {
@@ -899,7 +929,7 @@ double HFARasterBand::GetMaximum( int *pbSuccess )
     {
         if( pbSuccess )
             *pbSuccess = TRUE;
-        return atof(pszValue);
+        return CPLAtofM(pszValue);
     }
     else
     {
@@ -1545,7 +1575,7 @@ GDALRasterAttributeTable *HFARasterBand::ReadNamedRAT( const char *pszName )
             
             if( padfBinValues != NULL )
             {
-                poRAT->CreateColumn( "Value", GFT_Integer, GFU_MinMax );
+                poRAT->CreateColumn( "BinValues", GFT_Real, GFU_MinMax );
                 for( i = 0; i < nRowCount; i++ )
                     poRAT->SetValue( i, poRAT->GetColumnCount()-1, 
                                      padfBinValues[i] );
@@ -2046,7 +2076,7 @@ CPLErr HFADataset::WriteProjection()
         sPro.proNumber = EPRJ_EQUIRECTANGULAR;
         sPro.proName = (char*) "Equirectangular";
         sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
-        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_ORIGIN)*D2R;
         sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
         sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
     }
@@ -2073,7 +2103,18 @@ CPLErr HFADataset::WriteProjection()
         sPro.proName = (char*) "Oblique Mercator (Hotine)";
         sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR,1.0);
         sPro.proParams[3] = oSRS.GetProjParm(SRS_PP_AZIMUTH)*D2R;
-        /* hopefully the rectified grid angle is zero */
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_CENTER)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+        sPro.proParams[12] = 1.0;
+    }
+    else if( EQUAL(pszProjName,SRS_PT_Hotine_Oblique_Mercator_Azimuth_Center) )
+    {
+        sPro.proNumber = EPRJ_HOTINE_OBLIQUE_MERCATOR_AZIMUTH_CENTER;
+        sPro.proName = (char*) "Hotine Oblique Mercator Azimuth Center";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR,1.0);
+        sPro.proParams[3] = oSRS.GetProjParm(SRS_PP_AZIMUTH)*D2R;
         sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_CENTER)*D2R;
         sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER)*D2R;
         sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
@@ -2161,6 +2202,17 @@ CPLErr HFADataset::WriteProjection()
         sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
         sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
     }
+    else if( EQUAL(pszProjName,SRS_PT_TWO_POINT_EQUIDISTANT) )
+    {
+        sPro.proNumber = EPRJ_TWO_POINT_EQUIDISTANT;
+        sPro.proName = (char*) "Two_Point_Equidistant";
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+        sPro.proParams[8] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_POINT_1, 0.0)*D2R;
+        sPro.proParams[9] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_POINT_1, 0.0)*D2R;
+        sPro.proParams[10] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_POINT_2, 60.0)*D2R;
+        sPro.proParams[11] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_POINT_2, 60.0)*D2R;
+    }
     else if( EQUAL(pszProjName,SRS_PT_BONNE) )
     {
         sPro.proNumber = EPRJ_BONNE;
@@ -2222,6 +2274,185 @@ CPLErr HFADataset::WriteProjection()
         sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
         sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
     }
+    else if( EQUAL(pszProjName,"Equidistant_Cylindrical") )
+    {
+        sPro.proNumber = EPRJ_EQUIDISTANT_CYLINDRICAL;
+        sPro.proName = (char*) "Equidistant_Cylindrical";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Krovak") )
+    {
+        sPro.proNumber = EPRJ_KROVAK;
+        sPro.proName = (char*) "Krovak";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR, 1.0);
+        sPro.proParams[3] = oSRS.GetProjParm(SRS_PP_AZIMUTH)*D2R;
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_CENTER)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+        sPro.proParams[8] = oSRS.GetProjParm(SRS_PP_XY_PLANE_ROTATION, 0.0)*D2R;
+        sPro.proParams[9] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[10] = oSRS.GetProjParm(SRS_PP_X_SCALE, 1.0);
+        sPro.proParams[11] = oSRS.GetProjParm(SRS_PP_Y_SCALE, 1.0);
+    }
+    else if( EQUAL(pszProjName, "Local") )
+    {
+        sPro.proNumber = EPRJ_LOCAL;
+        sPro.proName = (char*) "Local";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR, 1.0);
+        sPro.proParams[3] = oSRS.GetProjParm(SRS_PP_AZIMUTH)*D2R;
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_CENTER)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Double_Stereographic") )
+    {
+        sPro.proNumber = EPRJ_DOUBLE_STEREOGRAPHIC;
+        sPro.proName = (char*) "Double_Stereographic";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR, 1.0);
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_ORIGIN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Aitoff") )
+    {
+        sPro.proNumber = EPRJ_AITOFF;
+        sPro.proName = (char*) "Aitoff";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Craster_Parabolic") )
+    {
+        sPro.proNumber = EPRJ_CRASTER_PARABOLIC;
+        sPro.proName = (char*) "Craster_Parabolic";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Cylindrical_Equal_Area") )
+    {
+        sPro.proNumber = EPRJ_CYLINDRICAL_EQUAL_AREA;
+        sPro.proName = (char*) "Cylindrical_Equal_Area";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Flat_Polar_Quartic") )
+    {
+        sPro.proNumber = EPRJ_FLAT_POLAR_QUARTIC;
+        sPro.proName = (char*) "Flat_Polar_Quartic";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Times") )
+    {
+        sPro.proNumber = EPRJ_TIMES;
+        sPro.proName = (char*) "Times";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Winkel_Tripel") )
+    {
+        sPro.proNumber = EPRJ_WINKEL_TRIPEL;
+        sPro.proName = (char*) "Winkel_Tripel";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Hammer_Aitoff") )
+    {
+        sPro.proNumber = EPRJ_HAMMER_AITOFF;
+        sPro.proName = (char*) "Hammer_Aitoff";
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Vertical_Near_Side_Perspective") )
+    {
+        sPro.proNumber = EPRJ_VERTICAL_NEAR_SIDE_PERSPECTIVE;
+        sPro.proName = (char*) "Vertical_Near_Side_Perspective";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_HEIGHT);
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_CENTER, 75.0)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER, 40.0)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Hotine_Oblique_Mercator_Azimuth_Center") )
+    {
+        sPro.proNumber = EPRJ_HOTINE_OBLIQUE_MERCATOR_AZIMUTH_CENTER;
+        sPro.proName = (char*) "Hotine_Oblique_Mercator_Azimuth_Center";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR, 1.0);
+        sPro.proParams[3] = oSRS.GetProjParm(SRS_PP_AZIMUTH, 45.0)*D2R; 
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_CENTER, 75.0)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER, 40.0)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Hotine_Oblique_Mercator_Two_Point_Center") )
+    {
+        sPro.proNumber = EPRJ_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_CENTER;
+        sPro.proName = (char*) "Hotine_Oblique_Mercator_Two_Point_Center";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR, 1.0);
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER, 40.0)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+        sPro.proParams[8] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_POINT_1, 0.0)*D2R;
+        sPro.proParams[9] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_POINT_1, 0.0)*D2R;
+        sPro.proParams[10] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_POINT_2, 60.0)*D2R;
+        sPro.proParams[11] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_POINT_2, 60.0)*D2R;
+    }
+    else if( EQUAL(pszProjName, "Hotine_Oblique_Mercator_Two_Point_Natural_Origin") )
+    {
+        sPro.proNumber = EPRJ_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_NATURAL_ORIGIN;
+        sPro.proName = (char*) "Hotine_Oblique_Mercator_Two_Point_Natural_Origin";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR, 1.0);
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER, 40.0)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+        sPro.proParams[8] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_POINT_1, 0.0)*D2R;
+        sPro.proParams[9] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_POINT_1, 0.0)*D2R;
+        sPro.proParams[10] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_POINT_2, 60.0)*D2R;
+        sPro.proParams[11] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_POINT_2, 60.0)*D2R;
+    }
+    else if( EQUAL(pszProjName,SRS_PT_Hotine_Oblique_Mercator_Azimuth_Natural_Origin) )
+    {
+        sPro.proNumber = EPRJ_HOTINE_OBLIQUE_MERCATOR_AZIMUTH_NATURAL_ORIGIN;
+        sPro.proName = (char*) "Hotine_Oblique_Mercator_Azimuth_Natural_Origin";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_SCALE_FACTOR,1.0);
+        sPro.proParams[3] = oSRS.GetProjParm(SRS_PP_AZIMUTH)*D2R;
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_LONGITUDE_OF_CENTER)*D2R;
+        sPro.proParams[5] = oSRS.GetProjParm(SRS_PP_LATITUDE_OF_CENTER)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Stereographic_North_Pole") )
+    {
+        sPro.proNumber = EPRJ_STEREOGRAPHIC_NORTH_POLE;
+        sPro.proName = (char*) "Stereographic_North_Pole";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
+    else if( EQUAL(pszProjName, "Stereographic_South_Pole") )
+    {
+        sPro.proNumber = EPRJ_STEREOGRAPHIC_SOUTH_POLE;
+        sPro.proName = (char*) "Stereographic_South_Pole";
+        sPro.proParams[2] = oSRS.GetProjParm(SRS_PP_CENTRAL_MERIDIAN)*D2R;
+        sPro.proParams[4] = oSRS.GetProjParm(SRS_PP_STANDARD_PARALLEL_1)*D2R;
+        sPro.proParams[6] = oSRS.GetProjParm(SRS_PP_FALSE_EASTING);
+        sPro.proParams[7] = oSRS.GetProjParm(SRS_PP_FALSE_NORTHING);
+    }
     else if( EQUAL(pszProjName,"New_Zealand_Map_Grid") )
     {
         sPro.proType = EPRJ_EXTERNAL;
@@ -2242,15 +2473,15 @@ CPLErr HFADataset::WriteProjection()
     else if( oSRS.IsProjected() || oSRS.IsGeographic() )
     {
         if(!bPEStringStored)
-        {
-            char *pszPEString = NULL;
-            oSRS.morphToESRI();
-            oSRS.exportToWkt( &pszPEString );
-            // need to transform this into ESRI format.
-            HFASetPEString( hHFA, pszPEString );
-            CPLFree( pszPEString );
+      {
+        char *pszPEString = NULL;
+        oSRS.morphToESRI();
+        oSRS.exportToWkt( &pszPEString );
+        // need to transform this into ESRI format.
+        HFASetPEString( hHFA, pszPEString );
+        CPLFree( pszPEString );
             bPEStringStored = TRUE;
-        }
+      }
     }
     else
     {
@@ -2345,7 +2576,7 @@ CPLErr HFADataset::WriteProjection()
             HFASetPEString( hHFA, "" );
     }
     else if( !bPEStringStored )
-        ClearSR(hHFA);
+      ::ClearSR(hHFA);
 
 /* -------------------------------------------------------------------- */
 /*      Cleanup                                                         */
@@ -2683,6 +2914,15 @@ HFAPCSStructToWKT( const Eprj_Datum *psDatum,
         // UTM description.
         oSRS.SetProjCS( "unnamed" );
         oSRS.SetUTM( psPro->proZone, psPro->proParams[3] >= 0.0 );
+
+        // The PCS name from the above function may be different with the input name. 
+        // If there is a PCS name in psMapInfo that is different with 
+        // the one in psPro, just use it as the PCS name. This case happens 
+        // if the dataset's SR was written by the new GDAL. 
+        if( psMapInfo && strlen(psMapInfo->proName) > 0 
+         && strlen(psPro->proName) > 0 
+         && !EQUAL(psMapInfo->proName, psPro->proName) )
+          oSRS.SetProjCS( psMapInfo->proName );
         break;
 
       case EPRJ_STATE_PLANE:
@@ -2692,12 +2932,42 @@ HFAPCSStructToWKT( const Eprj_Datum *psDatum,
           
           pszUnitsName = CPLStrdup( pszUnitsName );
 
+          /* Historically, hfa used esri state plane zone code. Try esri pe string first. */ 
+          int zoneCode = ESRIToUSGSZone(psPro->proZone);
+          char nad[32];
+          strcpy(nad, "HARN");
+          if(psDatum)
+            strcpy(nad, psDatum->datumname);
+          char units[32];
+          strcpy(units, "meters");
+          if(psMapInfo)
+            strcpy(units, psMapInfo->units);
+          else if(pszUnitsName && strlen(pszUnitsName) > 0)
+            strcpy(units, pszUnitsName);
+          int proNu = 0;
+          if(psPro)
+            proNu = psPro->proNumber;
+          if(oSRS.ImportFromStatePlaneWKT(zoneCode, nad, units, proNu) == OGRERR_NONE)
+          {
+             CPLFree( pszUnitsName );
+             oSRS.morphFromESRI();
+             oSRS.AutoIdentifyEPSG();
+             oSRS.Fixup();
+             if( oSRS.exportToWkt( &pszNewProj ) == OGRERR_NONE )
+                return pszNewProj;
+          }
+
           /* Set state plane zone.  Set NAD83/27 on basis of spheroid */
           oSRS.SetStatePlane( ESRIToUSGSZone(psPro->proZone), 
                               fabs(psPro->proSpheroid.a - 6378137.0)< 1.0,
                               pszUnitsName, dfLinearUnits );
 
           CPLFree( pszUnitsName );
+          // Same as the UTM, The following is needed.
+          if( psMapInfo && strlen(psMapInfo->proName) > 0 
+           && strlen(psPro->proName) > 0 
+           && !EQUAL(psMapInfo->proName, psPro->proName) )
+            oSRS.SetProjCS( psMapInfo->proName );
       }
       break;
 
@@ -2708,6 +2978,18 @@ HFAPCSStructToWKT( const Eprj_Datum *psDatum,
         break;
 
       case EPRJ_LAMBERT_CONFORMAL_CONIC:
+        // check the possible Wisconsin first
+        if(psDatum && psMapInfo && EQUAL(psDatum->datumname, "HARN"))
+        {
+          if(oSRS.ImportFromWisconsinWKT("Lambert_Conformal_Conic", psPro->proParams[4]*R2D, psPro->proParams[5]*R2D, psMapInfo->units) == OGRERR_NONE)
+          {
+             oSRS.morphFromESRI();
+             oSRS.AutoIdentifyEPSG();
+             oSRS.Fixup();
+             if( oSRS.exportToWkt( &pszNewProj ) == OGRERR_NONE )
+                return pszNewProj;
+          }
+        }
         oSRS.SetLCC( psPro->proParams[2]*R2D, psPro->proParams[3]*R2D,
                      psPro->proParams[5]*R2D, psPro->proParams[4]*R2D,
                      psPro->proParams[6], psPro->proParams[7] );
@@ -2743,6 +3025,19 @@ HFAPCSStructToWKT( const Eprj_Datum *psDatum,
         break;
 
       case EPRJ_TRANSVERSE_MERCATOR:
+      case EPRJ_GAUSS_KRUGER:
+        // check the possible Wisconsin first
+        if(psDatum && psMapInfo && EQUAL(psDatum->datumname, "HARN"))
+        {
+          if(oSRS.ImportFromWisconsinWKT("Transverse_Mercator", psPro->proParams[4]*R2D, psPro->proParams[5]*R2D, psMapInfo->units) == OGRERR_NONE)
+          {
+             oSRS.morphFromESRI();
+             oSRS.AutoIdentifyEPSG();
+             oSRS.Fixup();
+             if( oSRS.exportToWkt( &pszNewProj ) == OGRERR_NONE )
+                return pszNewProj;
+          }
+        }
         oSRS.SetTM( psPro->proParams[5]*R2D, psPro->proParams[4]*R2D,
                     psPro->proParams[2],
                     psPro->proParams[6], psPro->proParams[7] );
@@ -2862,6 +3157,12 @@ HFAPCSStructToWKT( const Eprj_Datum *psDatum,
                     psPro->proParams[6], psPro->proParams[7] );
         break;
 
+      case EPRJ_TWO_POINT_EQUIDISTANT:
+          oSRS.SetTwoPointEquidistant(psPro->proParams[9] * R2D, psPro->proParams[11] * R2D,
+                             psPro->proParams[8] * R2D, psPro->proParams[10] * R2D,
+                             psPro->proParams[7], psPro->proParams[5] * R2D);
+      break;
+
       case EPRJ_STEREOGRAPHIC_EXTENDED:
         oSRS.SetStereographic( psPro->proParams[5]*R2D,psPro->proParams[4]*R2D,
                                psPro->proParams[2],
@@ -2920,13 +3221,105 @@ HFAPCSStructToWKT( const Eprj_Datum *psDatum,
       break;
 
       case EPRJ_BEHRMANN:
-      {
-          oSRS.SetProjection( "Behrmann" );
-          oSRS.SetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 
-                           psPro->proParams[4] * R2D );
-          oSRS.SetNormProjParm( SRS_PP_FALSE_EASTING, psPro->proParams[6] );
-          oSRS.SetNormProjParm( SRS_PP_FALSE_NORTHING, psPro->proParams[6] );
-      }
+          oSRS.SetBehrmann(psPro->proParams[4] * R2D,
+                           psPro->proParams[6], psPro->proParams[7]);
+      break;
+
+      case EPRJ_KROVAK:
+          oSRS.SetKrovakEsri(psPro->proParams[5] * R2D, psPro->proParams[4] * R2D,
+                             psPro->proParams[3] * R2D, psPro->proParams[9] * R2D, 
+                             psPro->proParams[2], psPro->proParams[6],
+                             psPro->proParams[7], psPro->proParams[10],
+                             psPro->proParams[11], psPro->proParams[8] * R2D);
+      break;
+
+      case EPRJ_LOCAL:
+          oSRS.SetLocal(psPro->proParams[5] * R2D, psPro->proParams[4] * R2D,
+                             psPro->proParams[3] * R2D, psPro->proParams[2], 
+                             psPro->proParams[6], psPro->proParams[7]);
+      break;
+
+      case EPRJ_DOUBLE_STEREOGRAPHIC:
+          oSRS.SetDoubleStereographic(psPro->proParams[5] * R2D, psPro->proParams[4] * R2D,
+                             psPro->proParams[2], psPro->proParams[6],
+                             psPro->proParams[7]);
+      break;
+
+      case EPRJ_AITOFF:
+          oSRS.SetAitoff(psPro->proParams[4] * R2D, psPro->proParams[6],
+                             psPro->proParams[7]);
+      break;
+
+      case EPRJ_CRASTER_PARABOLIC:
+          oSRS.SetCrasterParabolic(psPro->proParams[4] * R2D, psPro->proParams[6],
+                             psPro->proParams[7]);
+      break;
+
+      case EPRJ_CYLINDRICAL_EQUAL_AREA:
+          oSRS.SetCEA(psPro->proParams[2] * R2D, psPro->proParams[4] * R2D, 
+                             psPro->proParams[6], psPro->proParams[7]);
+      break;
+
+      case EPRJ_FLAT_POLAR_QUARTIC:
+          oSRS.SetFlatPolarQuartic(psPro->proParams[4] * R2D, psPro->proParams[6],
+                             psPro->proParams[7]);
+      break;
+
+      case EPRJ_TIMES:
+          oSRS.SetTimes(psPro->proParams[4] * R2D, psPro->proParams[6],
+                             psPro->proParams[7]);
+      break;
+
+      case EPRJ_WINKEL_TRIPEL:
+          oSRS.SetWinkelTripel(psPro->proParams[2] * R2D, psPro->proParams[4] * R2D, 
+                             psPro->proParams[6], psPro->proParams[7]);
+      break;
+
+      case EPRJ_HAMMER_AITOFF:
+          oSRS.SetHammerAitoff(psPro->proParams[4] * R2D, psPro->proParams[6],
+                             psPro->proParams[7]);
+      break;
+
+      case EPRJ_VERTICAL_NEAR_SIDE_PERSPECTIVE:
+          oSRS.SetVerticalNearSidePerspective(psPro->proParams[5] * R2D, psPro->proParams[4] * R2D,
+                             psPro->proParams[2], psPro->proParams[6],
+                             psPro->proParams[7]);
+      break;
+
+      case EPRJ_HOTINE_OBLIQUE_MERCATOR_AZIMUTH_CENTER:
+          oSRS.SetHotineObliqueMercatorAzimuthCenter(psPro->proParams[5] * R2D, psPro->proParams[4] * R2D,
+                             psPro->proParams[3] * R2D, psPro->proParams[2],
+                             psPro->proParams[6], psPro->proParams[7]);
+      break;
+
+      case EPRJ_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_CENTER:
+          oSRS.SetHotineObliqueMercatorTwoPointCenter(psPro->proParams[9] * R2D, psPro->proParams[11] * R2D,
+                             psPro->proParams[8] * R2D, psPro->proParams[10] * R2D,
+                             psPro->proParams[2], psPro->proParams[6],
+                             psPro->proParams[7], psPro->proParams[5] * R2D);
+      break;
+
+      case EPRJ_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_NATURAL_ORIGIN:
+          oSRS.SetHotineObliqueMercatorTwoPointNaturalOrigin(psPro->proParams[9] * R2D, psPro->proParams[11] * R2D,
+                             psPro->proParams[8] * R2D, psPro->proParams[10] * R2D,
+                             psPro->proParams[2], psPro->proParams[6],
+                             psPro->proParams[7], psPro->proParams[5] * R2D);
+      break;
+
+      case EPRJ_HOTINE_OBLIQUE_MERCATOR_AZIMUTH_NATURAL_ORIGIN:
+          oSRS.SetHotineObliqueMercatorAzimuthNaturalOrigin(psPro->proParams[5] * R2D, psPro->proParams[4] * R2D,
+                            psPro->proParams[3] * R2D, psPro->proParams[2],
+                            psPro->proParams[6], psPro->proParams[7]);
+      break;
+
+      case EPRJ_STEREOGRAPHIC_NORTH_POLE:
+          oSRS.SetStereographicNorthPole(psPro->proParams[4] * R2D, psPro->proParams[2] * R2D,
+                           psPro->proParams[6], psPro->proParams[7]);
+      break;
+
+      case EPRJ_STEREOGRAPHIC_SOUTH_POLE:
+          oSRS.SetStereographicSouthPole(psPro->proParams[4] * R2D, psPro->proParams[2] * R2D,
+                           psPro->proParams[6], psPro->proParams[7]);
       break;
 
       default:

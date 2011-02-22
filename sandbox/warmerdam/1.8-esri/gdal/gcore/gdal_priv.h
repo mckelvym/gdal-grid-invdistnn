@@ -191,6 +191,7 @@ class CPL_DLL GDALDefaultOverviews
                                          void *pProgressData );
 
     CPLErr     CleanOverviews();
+    CPLErr     UnloadOverviews();
 
     // Mask Related
 
@@ -321,6 +322,8 @@ class CPL_DLL GDALDataset : public GDALMajorObject
 
     CPLErr BuildOverviews( const char *, int, int *,
                            int, int *, GDALProgressFunc, void * );
+
+		inline virtual GDALDefaultOverviews* GetOverviewManager() { return &oOvManager; }
 };
 
 /* ******************************************************************** */

@@ -1,20 +1,13 @@
 
 GDAL_ROOT	=	..\..
 
-KAKINC = -I$(KAKSRC)/managed/all_includes \
-       -I$(KAKSRC)/apps/jp2 -I$(KAKSRC)/apps/caching_sources
-
-OBJ	=	jpipkakdataset.obj kdu_cache.obj
-EXTRAFLAGS = 	$(KAKINC) -DKDU_PENTIUM_MSVC /EHsc
+OBJ	=	JPIPKAKDataset.obj
+EXTRAFLAGS = 	-I$(KAKDIR)\include /DCORESYS_IMPORTS /DKDU_AUX_IMPORTS /DKDU_PENTIUM_MSVC
 
 !INCLUDE $(GDAL_ROOT)\nmake.opt
 
-
 default:	$(OBJ)
 	xcopy /D  /Y *.obj ..\o
-
-kdu_cache.cpp:	  $(KAKSRC)\apps\caching_sources\kdu_cache.cpp
-	copy $(KAKSRC)\apps\caching_sources\kdu_cache.cpp 
 
 clean:
 	-del *.obj

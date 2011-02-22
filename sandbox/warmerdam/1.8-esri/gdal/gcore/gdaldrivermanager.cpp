@@ -624,8 +624,13 @@ void GDALDriverManager::AutoLoadDrivers()
             const char *pszExtension = CPLGetExtension( papszFiles[iFile] );
             void   *pRegister;
 
+#if ( defined( _WIN32 ) && ( defined(DEBUG) || defined(_DEBUG) ) )
+            if( !EQUALN(papszFiles[iFile],"debug_gdal_",11) )
+                continue;
+#else
             if( !EQUALN(papszFiles[iFile],"gdal_",5) )
                 continue;
+#endif
 
             if( !EQUAL(pszExtension,"dll") 
                 && !EQUAL(pszExtension,"so") 

@@ -268,6 +268,15 @@ int EPSGGetUOMAngleInfo( int nUOMAngleCode,
             pszUOMName = "radian";
             dfInDegrees = 180.0 / PI;
             break;
+        
+          case 9102:
+          case 9107:
+          case 9108:
+          case 9110:
+          case 9122:
+            pszUOMName = "degree";
+            dfInDegrees = 1.0;
+            break;
 
           case 9103:
             pszUOMName = "arc-minute";
@@ -1685,21 +1694,6 @@ static OGRErr SetEPSGVertCS( OGRSpatialReference * poSRS, int nVertCSCode )
                          atoi(CSLGetField( papszRecord,
                                            CSVGetFileFieldId(pszFilename,
                                                              "DATUM_CODE"))) );
-
-/* -------------------------------------------------------------------- */
-/*      Should we add a geoidgrids extension node?                      */
-/* -------------------------------------------------------------------- */
-    const char *pszMethod = 
-        CSLGetField( papszRecord, 
-                     CSVGetFileFieldId(pszFilename,"COORD_OP_METHOD_CODE_1"));
-    if( pszMethod && EQUAL(pszMethod,"9665") )
-    {
-        const char *pszParm11 = 
-            CSLGetField( papszRecord, 
-                         CSVGetFileFieldId(pszFilename,"PARM_1_1"));
-
-        poSRS->SetExtension( "VERT_CS|VERT_DATUM", "PROJ4_GRIDS", pszParm11 );
-    }
     
 /* -------------------------------------------------------------------- */
 /*      Set linear units.                                               */
@@ -1801,15 +1795,7 @@ static OGRErr SetEPSGCompdCS( OGRSpatialReference * poSRS, int nCCSCode )
 
     eErr = SetEPSGProjCS( &oPCS, nPCSCode );
     if( eErr != OGRERR_NONE )
-    {
-        // perhaps it is a GCS?
-        eErr = SetEPSGGeogCS( &oPCS, nPCSCode );
-    }
-
-    if( eErr != OGRERR_NONE )
-    {
         return eErr;
-    }
 
     poSRS->GetRoot()->AddChild( 
         oPCS.GetRoot()->Clone() );
@@ -2177,12 +2163,6 @@ OGRErr OGRSpatialReference::SetStatePlane( int nZone, int bNAD83,
 /*                          OSRSetStatePlane()                          */
 /************************************************************************/
 
-/**
- * \brief Set State Plane projection definition.
- *
- * This function is the same as OGRSpatialReference::SetStatePlane().
- */ 
- 
 OGRErr OSRSetStatePlane( OGRSpatialReferenceH hSRS, int nZone, int bNAD83 )
 
 {
@@ -2195,12 +2175,6 @@ OGRErr OSRSetStatePlane( OGRSpatialReferenceH hSRS, int nZone, int bNAD83 )
 /*                     OSRSetStatePlaneWithUnits()                      */
 /************************************************************************/
 
-/**
- * \brief Set State Plane projection definition.
- *
- * This function is the same as OGRSpatialReference::SetStatePlane().
- */ 
- 
 OGRErr OSRSetStatePlaneWithUnits( OGRSpatialReferenceH hSRS, 
                                   int nZone, int bNAD83,
                                   const char *pszOverrideUnitName,
@@ -2388,12 +2362,6 @@ OGRErr OGRSpatialReference::AutoIdentifyEPSG()
 /*                        OSRAutoIdentifyEPSG()                         */
 /************************************************************************/
 
-/**
- * \brief Set EPSG authority info if possible.
- *
- * This function is the same as OGRSpatialReference::AutoIdentifyEPSG().
- */ 
- 
 OGRErr OSRAutoIdentifyEPSG( OGRSpatialReferenceH hSRS )
 
 {
@@ -2418,8 +2386,6 @@ OGRErr OSRAutoIdentifyEPSG( OGRSpatialReferenceH hSRS )
  * FALSE will be returned for all coordinate systems that are not geographic,
  * or that do not have an EPSG code set. 
  *
- * This method is the same as the C function OSREPSGTreatsAsLatLong().
- *
  * @return TRUE or FALSE. 
  */ 
 
@@ -2437,7 +2403,7 @@ int OGRSpatialReference::EPSGTreatsAsLatLong()
     OGR_SRSNode *poFirstAxis = GetAttrNode( "GEOGCS|AXIS" );
 
     if( poFirstAxis == NULL )
-        return FALSE;
+        return TRUE;
 
     if( poFirstAxis->GetChildCount() >= 2 
         && EQUAL(poFirstAxis->GetChild(1)->GetValue(),"NORTH") )
@@ -2450,13 +2416,6 @@ int OGRSpatialReference::EPSGTreatsAsLatLong()
 /*                       OSREPSGTreatsAsLatLong()                       */
 /************************************************************************/
 
-/**
- * \brief This function returns TRUE if EPSG feels this geographic coordinate
- * system should be treated as having lat/long coordinate ordering.
- *
- * This function is the same as OGRSpatialReference::OSREPSGTreatsAsLatLong().
- */ 
- 
 int OSREPSGTreatsAsLatLong( OGRSpatialReferenceH hSRS )
 
 {
