@@ -30,6 +30,7 @@
 
 #include "gdal_pam.h"
 #include "cpl_string.h"
+#include <map>
 
 CPL_CVSID("$Id$");
 
@@ -252,28 +253,82 @@ int GDALMultiDomainMetadata::XMLInit( CPLXMLNode *psTree, int bMerge )
 /* -------------------------------------------------------------------- */
         else
         {
+            /* Keep a map of keys to ensure that if duplicate keys are found */
+            /* in the metadata, the newer values will replace the older */
+            /* ones, as done with CSLSetNameValue() before r21714 */
+            std::map<CPLString, int> oMap;
             if( bMerge )
             {
                 papszMD = GetMetadata( pszDomain );
                 if( papszMD != NULL )
+                {
                     papszMD = CSLDuplicate( papszMD );
+                    for(int i=0;papszMD[i] != NULL;i++)
+                    {
+                        char* pszKey = NULL;
+                        CPLParseNameValue(papszMD[i], &pszKey);
+                        if (pszKey)
+                        {
+                            oMap[pszKey] = i;
+                            CPLFree(pszKey);
+                        }
+                    }
+                }
+            }
+            
+            int nCount = 0;
+            for( psMDI = psMetadata->psChild; psMDI != NULL; 
+                 psMDI = psMDI->psNext )
+            {
+                if( !EQUAL(psMDI->pszValue,"MDI") 
+                    || psMDI->eType != CXT_Element 
+                    || psMDI->psChild == NULL 
+                    || psMDI->psChild->psNext == NULL 
+                    || psMDI->psChild->eType != CXT_Attribute
+                    || psMDI->psChild->psChild == NULL )
+                    continue;
+                nCount ++;
             }
 
-                for( psMDI = psMetadata->psChild; psMDI != NULL;
-                     psMDI = psMDI->psNext )
-                {
-                    if( !EQUAL(psMDI->pszValue,"MDI")
-                        || psMDI->eType != CXT_Element
-                        || psMDI->psChild == NULL
-                        || psMDI->psChild->psNext == NULL
-                        || psMDI->psChild->eType != CXT_Attribute
-                        || psMDI->psChild->psChild == NULL )
-                        continue;
-
-                papszMD = 
-                    CSLSetNameValue( papszMD, 
-                                     psMDI->psChild->psChild->pszValue, 
-                                     psMDI->psChild->psNext->pszValue );
+            if( nCount > 0 )
+            {
+                int nPrevSize = CSLCount(papszMD);
+                papszMD = (char**)CPLRealloc(papszMD,
+                            (nPrevSize + nCount + 1) * sizeof(char*));
+                int i = nPrevSize;
+            for( psMDI = psMetadata->psChild; psMDI != NULL; 
+                 psMDI = psMDI->psNext )
+            {
+                if( !EQUAL(psMDI->pszValue,"MDI") 
+                    || psMDI->eType != CXT_Element 
+                    || psMDI->psChild == NULL 
+                    || psMDI->psChild->psNext == NULL 
+                    || psMDI->psChild->eType != CXT_Attribute
+                    || psMDI->psChild->psChild == NULL )
+                    continue;
+                
+                    char* pszName = psMDI->psChild->psChild->pszValue;
+                    char* pszValue = psMDI->psChild->psNext->pszValue;
+                    if( pszName != NULL && pszValue != NULL )
+                    {
+                        char* pszLine = (char *) CPLMalloc(strlen(pszName)+
+                                                        strlen(pszValue)+2);
+                        sprintf( pszLine, "%s=%s", pszName, pszValue );
+                        std::map<CPLString, int>::iterator iter = oMap.find(pszName);
+                        if (iter == oMap.end())
+                        {
+                            oMap[pszName] = i;
+                            papszMD[i++] = pszLine;
+                        }
+                        else
+                        {
+                            int iToReplace = iter->second;
+                            CPLFree(papszMD[iToReplace]);
+                            papszMD[iToReplace] = pszLine;
+                        }
+                    }
+                }
+                papszMD[i] = NULL;
             }
         }
 
@@ -326,15 +381,28 @@ CPLXMLNode *GDALMultiDomainMetadata::Serialize()
 
         if( !bFormatXML )
         {
+            CPLXMLNode* psLastChild = NULL;
+            if( psMD->psChild != NULL )
+            {
+                psLastChild = psMD->psChild;
+                while( psLastChild->psNext != NULL )
+                    psLastChild = psLastChild->psNext; 
+            }
             for( int i = 0; papszMD != NULL && papszMD[i] != NULL; i++ )
             {
                 const char *pszRawValue;
-                char *pszKey;
+                char *pszKey = NULL;
                 CPLXMLNode *psMDI;
                 
                 pszRawValue = CPLParseNameValue( papszMD[i], &pszKey );
                 
-                psMDI = CPLCreateXMLNode( psMD, CXT_Element, "MDI" );
+                psMDI = CPLCreateXMLNode( NULL, CXT_Element, "MDI" );
+                if( psLastChild == NULL )
+                    psMD->psChild = psMDI;
+                else
+                    psLastChild->psNext = psMDI;
+                psLastChild = psMDI;
+
                 CPLSetXMLValue( psMDI, "#key", pszKey );
                 CPLCreateXMLNode( psMDI, CXT_Text, pszRawValue );
                 
