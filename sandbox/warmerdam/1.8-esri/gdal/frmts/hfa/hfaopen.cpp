@@ -1448,13 +1448,13 @@ CPLErr HFASetProParameters( HFAHandle hHFA, const Eprj_ProParameters *poPro )
         if( poPro->proExeName != NULL )
             nSize += strlen(poPro->proExeName) + 1;
 
-        // Initialize the whole thing to zeros for a clean start.
-        memset( poMIEntry->GetData(), 0, poMIEntry->GetDataSize() );
-
         pabyData = poMIEntry->MakeData( nSize );
         if(!pabyData)
           return CE_Failure;
         poMIEntry->SetPosition();
+
+        // Initialize the whole thing to zeros for a clean start.
+        memset( poMIEntry->GetData(), 0, poMIEntry->GetDataSize() );
 
 /* -------------------------------------------------------------------- */
 /*      Write the various fields.                                       */
@@ -1595,13 +1595,13 @@ CPLErr HFASetDatum( HFAHandle hHFA, const Eprj_Datum *poDatum )
         if( poDatum->gridname != NULL )
             nSize += strlen(poDatum->gridname) + 1;
 
-        // Initialize the whole thing to zeros for a clean start.
-        memset( poDatumEntry->GetData(), 0, poDatumEntry->GetDataSize() );
-
         pabyData = poDatumEntry->MakeData( nSize );
         if(!pabyData)
           return CE_Failure;
         poDatumEntry->SetPosition();
+
+        // Initialize the whole thing to zeros for a clean start.
+        memset( poDatumEntry->GetData(), 0, poDatumEntry->GetDataSize() );
 
 /* -------------------------------------------------------------------- */
 /*      Write the various fields.                                       */
