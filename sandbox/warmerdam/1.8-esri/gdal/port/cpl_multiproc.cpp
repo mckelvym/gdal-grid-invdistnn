@@ -475,11 +475,16 @@ const char *CPLGetThreadingModel()
 void *CPLCreateMutex()
 
 {
-    HANDLE hMutex;
+    CRITICAL_SECTION *pcs;
 
-    hMutex = CreateMutex( NULL, TRUE, NULL );
+    pcs = (CRITICAL_SECTION *)CPLMalloc(sizeof(*pcs));
+    if( pcs )
+    {
+      InitializeCriticalSectionAndSpinCount(pcs, 4000);
+      EnterCriticalSection(pcs);
+    }
 
-    return (void *) hMutex;
+    return (void *) pcs;
 }
 
 /************************************************************************/
@@ -489,12 +494,16 @@ void *CPLCreateMutex()
 int CPLAcquireMutex( void *hMutexIn, double dfWaitInSeconds )
 
 {
-    HANDLE hMutex = (HANDLE) hMutexIn;
-    DWORD  hr;
+    CRITICAL_SECTION *pcs = (CRITICAL_SECTION *)hMutexIn;
+    BOOL ret;
 
-    hr = WaitForSingleObject( hMutex, (int) (dfWaitInSeconds * 1000) );
+    while( !(ret = TryEnterCriticalSection(pcs)) && dfWaitInSeconds > 0.0 )
+    {
+        CPLSleep( MIN(dfWaitInSeconds,0.125) );
+        dfWaitInSeconds -= 0.125;
+    }
     
-    return hr != WAIT_TIMEOUT;
+    return ret;
 }
 
 /************************************************************************/
@@ -504,9 +513,9 @@ int CPLAcquireMutex( void *hMutexIn, double dfWaitInSeconds )
 void CPLReleaseMutex( void *hMutexIn )
 
 {
-    HANDLE hMutex = (HANDLE) hMutexIn;
+    CRITICAL_SECTION *pcs = (CRITICAL_SECTION *)hMutexIn;
 
-    ReleaseMutex( hMutex );
+    LeaveCriticalSection(pcs);
 }
 
 /************************************************************************/
@@ -516,9 +525,10 @@ void CPLReleaseMutex( void *hMutexIn )
 void CPLDestroyMutex( void *hMutexIn )
 
 {
-    HANDLE hMutex = (HANDLE) hMutexIn;
+    CRITICAL_SECTION *pcs = (CRITICAL_SECTION *)hMutexIn;
 
-    CloseHandle( hMutex );
+    DeleteCriticalSection( pcs );
+    CPLFree( pcs );
 }
 
 /************************************************************************/
