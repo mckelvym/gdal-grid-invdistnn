@@ -84,6 +84,11 @@ CBandInterleavedChannel::CBandInterleavedChannel( PCIDSKBuffer &image_header,
 
     if( filename.length() == 0 )
         file->GetIODetails( &io_handle_p, &io_mutex_p );
+
+    else
+        filename = MergeRelativePath( file->GetInterfaces()->io,
+                                      file->GetFilename(), 
+                                      filename );
 }
 
 /************************************************************************/
@@ -287,7 +292,15 @@ void CBandInterleavedChannel
     pixel_offset = this->pixel_offset;
     line_offset = this->line_offset;
     little_endian = (byte_order == 'S');
-    filename = this->filename;
+
+/* -------------------------------------------------------------------- */
+/*      We fetch the filename from the header since it will be the      */
+/*      "clean" version without any paths.                              */
+/* -------------------------------------------------------------------- */
+    PCIDSKBuffer ih(64);
+    file->ReadFromFile( ih.buffer, ih_offset+64, 64 );
+
+    ih.Get(0,64,filename);
 }
 
 /************************************************************************/
@@ -333,7 +346,10 @@ void CBandInterleavedChannel
 /* -------------------------------------------------------------------- */
 /*      Update local configuration.                                     */
 /* -------------------------------------------------------------------- */
-    this->filename = filename;
+    this->filename = MergeRelativePath( file->GetInterfaces()->io,
+                                        file->GetFilename(), 
+                                        filename );
+
     start_byte = image_offset;
     this->pixel_offset = pixel_offset;
     this->line_offset = line_offset;
