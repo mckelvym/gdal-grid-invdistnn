@@ -41,6 +41,7 @@ class PCIDSKCreateTest : public CppUnit::TestFixture
     CPPUNIT_TEST( tiledRLE );
     CPPUNIT_TEST( tiledJPEG );
     CPPUNIT_TEST( testErrors );
+    CPPUNIT_TEST( testFILE );
     
     // Complex creation and opening support
     CPPUNIT_TEST(createComplex16U);
@@ -57,6 +58,7 @@ public:
     void tiledRLE();
     void tiledJPEG();
     void testErrors();
+    void testFILE();
     void createComplex16U();
     void createComplex16S();
     void createComplex32R();
@@ -483,3 +485,61 @@ void PCIDSKCreateTest::testErrors()
     }
 }
 
+/************************************************************************/
+/*                              testFILE()                              */
+/************************************************************************/
+
+void PCIDSKCreateTest::testFILE()
+{
+    std::string sFilename = "TestFileOption.pix";
+    
+    unlink( sFilename.c_str() );
+
+    std::string sOption = "FILE";
+    PCIDSK::eChanType panTypes[1];
+
+    panTypes[0] = PCIDSK::CHN_8U;
+
+    PCIDSK::PCIDSKFile *poFile = PCIDSK::Create(sFilename, 500, 750,
+                                                1, panTypes, sOption, NULL);
+
+    PCIDSK::PCIDSKChannel* poChannel = poFile->GetChannel(1);
+
+    int nWidth = poChannel->GetBlockWidth();
+    int nHeight = poChannel->GetBlockHeight();
+    PCIDSK::eChanType eType = poChannel->GetType();
+
+    CPPUNIT_ASSERT_EQUAL(PCIDSK::CHN_8U,eType);
+
+    int nBufSize = nWidth*nHeight;
+    unsigned char* pBuf = new unsigned char[nBufSize];
+
+    for(int i=0 ; i < nBufSize ; i++)
+    {
+        pBuf[i] = 10;
+    }
+
+    for(int block=0 ; block < poChannel->GetBlockCount(); block++)
+    {
+        poChannel->WriteBlock(block,pBuf);
+    }
+
+    uint64 image_offset, pixel_offset, line_offset;
+    bool little_endian;
+    std::string fetched_filename;
+
+    poChannel->GetChanInfo( fetched_filename, image_offset, pixel_offset,
+                            line_offset, little_endian );
+
+    CPPUNIT_ASSERT( fetched_filename == "TestFileOption.001" );
+    CPPUNIT_ASSERT( image_offset == 0 );
+    CPPUNIT_ASSERT( pixel_offset == 1 );
+    CPPUNIT_ASSERT( line_offset == 500 );
+    CPPUNIT_ASSERT_EQUAL( little_endian, true );
+
+    delete [] pBuf;
+    delete poFile;
+
+    unlink( sFilename.c_str() );
+    unlink( "TestFileOption.001" );
+}

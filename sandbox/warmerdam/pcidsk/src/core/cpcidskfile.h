@@ -88,7 +88,7 @@ namespace PCIDSK
         void      ReadFromFile( void *buffer, uint64 offset, uint64 size );
 
         void      GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp,
-            std::string filename = "" );
+                                std::string filename="", bool writable=false );
 
         bool      GetEDBFileDetails( EDBFile** file_p, Mutex **io_mutex_p,
                                      std::string filename );
