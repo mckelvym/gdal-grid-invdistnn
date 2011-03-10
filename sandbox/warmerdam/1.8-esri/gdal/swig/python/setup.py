@@ -165,10 +165,10 @@ osr_module = Extension('osgeo._osr',
                     extra_compile_args = extra_compile_args,
                     extra_link_args = extra_link_args)
 
-ogr_module = Extension('osgeo._ogr',
-                    sources=['extensions/ogr_wrap.cpp'],
-                    extra_compile_args = extra_compile_args,
-                    extra_link_args = extra_link_args)
+#ogr_module = Extension('osgeo._ogr',
+#                    sources=['extensions/ogr_wrap.cpp'],
+#                    extra_compile_args = extra_compile_args,
+#                    extra_link_args = extra_link_args)
 
 
 array_module = Extension('osgeo._gdal_array',
@@ -178,11 +178,11 @@ array_module = Extension('osgeo._gdal_array',
 
 ext_modules = [gdal_module,
               gdalconst_module,
-              osr_module,
-              ogr_module]
+              osr_module]
+#              ogr_module]
 
 py_modules = ['gdal',
-              'ogr',
+#              'ogr',
               'osr',
               'gdalconst']
       
