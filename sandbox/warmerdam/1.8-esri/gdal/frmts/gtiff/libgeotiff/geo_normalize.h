@@ -167,6 +167,13 @@ void CPL_DLL GTIFDeaccessCSV( void );
 int CPL_DLL GTIFGetDefn( GTIF *psGTIF, GTIFDefn * psDefn );
 void CPL_DLL GTIFPrintDefn( GTIFDefn *, FILE * );
 void CPL_DLL GTIFFreeDefn( GTIF * );
+#ifdef ESRI_BUILD
+void CPL_DLL FetchProjParms( GTIF * psGTIF, GTIFDefn * psDefn );
+int CPL_DLL ProjMethodToCTProjMethod( int nEPSG );
+int CPL_DLL GTIFSetGTParmIds( int nCTProjection, 
+                               int *panProjParmId, 
+                               int *panEPSGCodes );
+#endif
 
 void CPL_DLL SetCSVFilenameHook( const char *(*CSVFileOverride)(const char *) );
 

@@ -2487,6 +2487,49 @@ void GTIFPrintDefn( GTIFDefn * psDefn, FILE * fp )
     }
 }
 
+#ifdef ESRI_BUILD
+/************************************************************************/
+/*                           FetchProjParms()                           */
+/*                                                                      */
+/*      Fetch the projection parameters for a particular projection     */
+/*      from a GeoTIFF file, and fill the GTIFDefn structure out        */
+/*      with them.                                                      */
+/************************************************************************/
+
+void FetchProjParms( GTIF * psGTIF, GTIFDefn * psDefn )
+{
+  GTIFFetchProjParms( psGTIF, psDefn );
+  return;
+}
+
+/************************************************************************/
+/*                           ProjMethodToCTProjMethod()                 */
+/*                                                                      */
+/*      Convert between the EPSG enumeration for projection methods,    */
+/*      and the GeoTIFF CT codes.                                       */
+/************************************************************************/
+int ProjMethodToCTProjMethod( int nEPSG )
+{
+  return EPSGProjMethodToCTProjMethod( nEPSG );
+}
+
+/************************************************************************/
+/*                           GTIFSetGTParmIds()                         */
+/*                                                                      */
+/*      This is hard coded logic to set the GeoTIFF parameter           */
+/*      identifiers for all the EPSG supported projections.  As the     */
+/*      trf_method.csv table grows with new projections, this code      */
+/*      will need to be updated.                                        */
+/************************************************************************/
+
+int GTIFSetGTParmIds( int nCTProjection, 
+                       int *panProjParmId, 
+                       int *panEPSGCodes )
+{
+  return SetGTParmIds( nCTProjection, panProjParmId, panEPSGCodes );
+}
+#endif
+
 /************************************************************************/
 /*                           GTIFFreeMemory()                           */
 /*                                                                      */
