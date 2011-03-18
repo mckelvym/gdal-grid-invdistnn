@@ -76,6 +76,9 @@ char   **ExtractEsriMD( char **papszMD );
 static std::string Base64Encode( unsigned char const *pBytesToEncode,
                                  unsigned int         nDataLen );
 
+static char **NITFReadHeaderTreCSDIDA(NITFFile *psFile);
+
+
 
 /************************************************************************/
 /* ==================================================================== */
@@ -2221,7 +2224,9 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
 /*      Do we have metadata.                                            */
 /* -------------------------------------------------------------------- */
     char **papszCSEXRA_MD;
+    char **papszCSDIDA_MD;
     char **papszMergedMD;
+    char **papszPIAIMC_MD;
     char **papszUSE00A_MD;
 
     // File and Image level metadata.
@@ -2277,6 +2282,16 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
                                  psImage->szIMAG );
         }
 
+        // CSDIDA
+        papszCSDIDA_MD = NITFReadHeaderTreCSDIDA( psFile );
+        if( papszCSDIDA_MD != NULL )
+        {
+            papszMergedMD = CSLInsertStrings( papszMergedMD, 
+                                              CSLCount( papszCSDIDA_MD ),
+                                              papszCSDIDA_MD );
+            CSLDestroy( papszCSDIDA_MD );
+        }
+
         // CSEXRA
         papszCSEXRA_MD = NITFReadCSEXRA( psImage );
         if( papszCSEXRA_MD != NULL )
@@ -2285,6 +2300,16 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
                                               CSLCount( papszCSEXRA_MD ),
                                               papszCSEXRA_MD );
             CSLDestroy( papszCSEXRA_MD );
+        }
+
+        // PIAIMC
+        papszPIAIMC_MD = NITFReadPIAIMC( psImage );
+        if( papszPIAIMC_MD != NULL )
+        {
+            papszMergedMD = CSLInsertStrings( papszMergedMD, 
+                                              CSLCount( papszPIAIMC_MD ),
+                                              papszPIAIMC_MD );
+            CSLDestroy( papszPIAIMC_MD );
         }
 
         // USE00A 
@@ -6783,10 +6808,18 @@ char **ExtractEsriMD( char **papszMD )
   {
     // These are the current generic ESRI metadata.
 
-    const char *const pEsriMDAngleToNorth = "ESRI_MD_ANGLE_TO_NORTH";
-    const char *const pEsriMDCloudCover   = "ESRI_MD_ISCLOUDCOVER";    
-    const char *const pEsriMDSunAzimuth   = "ESRI_MD_SUN_AZIMUTH";
-    const char *const pEsriMDSunElevation = "ESRI_MD_SUN_ELEVATION";
+    const char *const pEsriMDAcquisitionDate   = "ESRI_MD_ACQUISITION_DATE";
+    const char *const pEsriMDAngleToNorth      = "ESRI_MD_ANGLE_TO_NORTH";
+    const char *const pEsriMDDataType          = "ESRI_MD_DATA_TYPE";
+    const char *const pEsriMDIsCloudCover      = "ESRI_MD_ISCLOUDCOVER";
+    const char *const pEsriMDOffNaDir          = "ESRI_MD_OFF_NADIR";
+    const char *const pEsriMDPercentCloudCover = "ESRI_MD_PERCENT_CLOUD_COVER";
+    const char *const pEsriMDProductName       = "ESRI_MD_PRODUCT_NAME";
+    const char *const pEsriMDSensorAzimuth     = "ESRI_MD_SENSOR_AZIMUTH";
+    const char *const pEsriMDSensorElevation   = "ESRI_MD_SENSOR_ELEVATION";
+    const char *const pEsriMDSensorName        = "ESRI_MD_SENSOR_NAME";
+    const char *const pEsriMDSunAzimuth        = "ESRI_MD_SUN_AZIMUTH";
+    const char *const pEsriMDSunElevation      = "ESRI_MD_SUN_ELEVATION";
     
     char         szField[11];
     const char  *pCCImageSegment = CSLFetchNameValue( papszMD, "NITF_IID1" );
@@ -6805,11 +6838,30 @@ char **ExtractEsriMD( char **papszMD )
       if ((strlen(szField) == 2) && (EQUALN(szField, "CC", 2))) ccSegment.assign("true");
     }
    
-    const char *pAngleToNorth = CSLFetchNameValue( papszMD, "NITF_CSEXRA_ANGLE_TO_NORTH" );
-    const char *pSunAzimuth   = CSLFetchNameValue( papszMD, "NITF_CSEXRA_SUN_AZIMUTH" );
-    const char *pSunElevation = CSLFetchNameValue( papszMD, "NITF_CSEXRA_SUN_ELEVATION" );
+    const char *pAcquisitionDate   = CSLFetchNameValue( papszMD, "NITF_FDT" );
+    const char *pAngleToNorth      = CSLFetchNameValue( papszMD, "NITF_CSEXRA_ANGLE_TO_NORTH" );
+    const char *pPercentCloudCover = CSLFetchNameValue( papszMD, "NITF_PIAIMC_CLOUDCVR" );
+    const char *pProductName       = CSLFetchNameValue( papszMD, "NITF_CSDIDA_PRODUCT_ID" );
+    const char *pSensorName        = CSLFetchNameValue( papszMD, "NITF_PIAIMC_SENSNAME" );
+    const char *pSunAzimuth        = CSLFetchNameValue( papszMD, "NITF_CSEXRA_SUN_AZIMUTH" );
+    const char *pSunElevation      = CSLFetchNameValue( papszMD, "NITF_CSEXRA_SUN_ELEVATION" );
+
+    // get ESRI_MD_DATA_TYPE.
+    const char *pDataType        = NULL;
+    const char *pImgSegFieldICAT = CSLFetchNameValue( papszMD, "NITF_ICAT" );
+
+    if( ( pImgSegFieldICAT != NULL ) && ( EQUALN(pImgSegFieldICAT, "DTEM", 4) ) )
+      pDataType = "Elevation";
+    else
+      pDataType = "Generic";
 
     if( pAngleToNorth == NULL )
+      pAngleToNorth = CSLFetchNameValue( papszMD, "NITF_USE00A_ANGLE_TO_NORTH" );
+
+    // percent cloud cover == 999 means that the information is not available. 
+    if( (pPercentCloudCover != NULL) &&  (EQUALN(pPercentCloudCover, "999", 3)) )
+      pPercentCloudCover = NULL;
+
       pAngleToNorth = CSLFetchNameValue( papszMD, "NITF_USE00A_ANGLE_TO_NORTH" );
 
     if( pSunAzimuth == NULL )
@@ -6820,11 +6872,109 @@ char **ExtractEsriMD( char **papszMD )
     
     // CSLAddNameValue will not add the key/value pair if the value is NULL.
 
-    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDAngleToNorth, pAngleToNorth );
-    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDCloudCover,   ccSegment.c_str() );
-    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDSunAzimuth,   pSunAzimuth );
-    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDSunElevation, pSunElevation );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDAcquisitionDate,   pAcquisitionDate );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDAngleToNorth,      pAngleToNorth );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDDataType,          pDataType );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDIsCloudCover,      ccSegment.c_str() );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDProductName,       pProductName );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDPercentCloudCover, pPercentCloudCover );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDSensorName,        pSensorName );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDSunAzimuth,        pSunAzimuth );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDSunElevation,      pSunElevation );
   }
 
   return (papszEsriMD);
+}
+
+/*
+ * Read NITF file header TRE CSDIDA and return contents as metadata strings.
+ */
+char **NITFReadHeaderTreCSDIDA( NITFFile *psFile )
+{
+    const char *pachTRE = NULL;
+    int  nTRESize;
+    char **papszMD = NULL;
+    int nRemainingBytes;
+
+
+/* -------------------------------------------------------------------- */
+/*      Do we have the TRE?                                             */
+/* -------------------------------------------------------------------- */
+    if( psFile != NULL )
+      pachTRE = NITFFindTRE( psFile->pachTRE, psFile->nTREBytes, "CSDIDA", &nTRESize);
+
+    if( pachTRE == NULL )
+        return NULL;
+
+    if( nTRESize != 70 )
+    {
+        CPLError( CE_Warning, CPLE_AppDefined, 
+                  "CSDIDA TRE wrong size, ignoring." );
+        return NULL;
+    }
+
+    nRemainingBytes = psFile->nTREBytes - (pachTRE - psFile->pachTRE);
+
+    if (nRemainingBytes < 70)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                "Cannot read CSDIDA TRE. Not enough bytes");
+        return FALSE;
+    }
+/* -------------------------------------------------------------------- */
+/*      Parse out field values.                                         */
+/* -------------------------------------------------------------------- */
+
+    NITFExtractMetadata( &papszMD, pachTRE,   0,   2, 
+                         "NITF_CSDIDA_DAY" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   2,   3, 
+                         "NITF_CSDIDA_MONTH" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   5,   4, 
+                         "NITF_CSDIDA_YEAR" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   9,   2, 
+                         "NITF_CSDIDA_PLATFORM_CODE" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   11,   2, 
+                         "NITF_CSDIDA_VEHICLE_ID" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   13,   2, 
+                         "NITF_CSDIDA_PASS" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   15,   3, 
+                         "NITF_CSDIDA_OPERATION" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   18,   2, 
+                         "NITF_CSDIDA_SENSOR_ID" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   20,   2, 
+                         "NITF_CSDIDA_PRODUCT_ID" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   22,   4, 
+                         "NITF_CSDIDA_RESERVED_0" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   26,   14, 
+                         "NITF_CSDIDA_TIME" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   40,   14, 
+                         "NITF_CSDIDA_PROCESS_TIME" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   54,   2, 
+                         "NITF_CSDIDA_RESERVED_1" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   56,   2, 
+                         "NITF_CSDIDA_RESERVED_2" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   58,   1, 
+                         "NITF_CSDIDA_RESERVED_3" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   59,   1, 
+                         "NITF_CSDIDA_RESERVED_4" );
+
+    NITFExtractMetadata( &papszMD, pachTRE,   60,   10, 
+                         "NITF_CSDIDA_SOFTWARE_VERSION_NUMBER" );
+
+    return papszMD;
 }
