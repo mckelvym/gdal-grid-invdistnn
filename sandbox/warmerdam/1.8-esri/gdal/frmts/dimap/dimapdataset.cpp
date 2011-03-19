@@ -429,6 +429,15 @@ GDALDataset *DIMAPDataset::Open( GDALOpenInfo * poOpenInfo )
                 CPLFree( pszProjection );
             }
         }
+    } 
+    else 
+    {
+      /* Check underlying raster for SRS. We have cases where HORIZONTAL_CS_CODE is empty */
+      /* and the underlying raster is georeferenced.                                      */
+        if ( poDS->poImageDS->GetProjectionRef() )
+        {
+            poDS->osProjection = poDS->poImageDS->GetProjectionRef();
+        }
     }
 
 /* -------------------------------------------------------------------- */
