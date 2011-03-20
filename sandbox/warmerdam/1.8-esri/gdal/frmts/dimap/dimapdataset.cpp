@@ -32,6 +32,7 @@
 #include "gdal_pam.h"
 #include "cpl_minixml.h"
 #include "ogr_spatialref.h"
+#include "gdal_proxy.h"
 
 CPL_CVSID("$Id$");
 
@@ -82,6 +83,27 @@ class DIMAPDataset : public GDALPamDataset
 
 /************************************************************************/
 /* ==================================================================== */
+/*                        DIMAPWrapperRasterBand                        */
+/* ==================================================================== */
+/************************************************************************/
+class DIMAPWrapperRasterBand : public GDALProxyRasterBand
+{
+  GDALRasterBand* poBaseBand;
+
+  protected:
+    virtual GDALRasterBand* RefUnderlyingRasterBand() { return poBaseBand; }
+
+  public:
+    DIMAPWrapperRasterBand( GDALRasterBand* poBaseBand )
+        {
+            this->poBaseBand = poBaseBand;
+            eDataType = poBaseBand->GetRasterDataType();
+            poBaseBand->GetBlockSize(&nBlockXSize, &nBlockYSize);
+        }
+    ~DIMAPWrapperRasterBand() {}
+};
+/************************************************************************/
+/* ==================================================================== */
 /*				DIMAPDataset				*/
 /* ==================================================================== */
 /************************************************************************/
@@ -123,7 +145,10 @@ DIMAPDataset::~DIMAPDataset()
     }
 
     if( poImageDS != NULL )
+    {
         delete poImageDS;
+        poImageDS = NULL;
+    }
 
     CSLDestroy(papszXMLDimapMetadata);
 
@@ -132,8 +157,9 @@ DIMAPDataset::~DIMAPDataset()
 /*      delete them since they really belonged to poImageDS.            */
 /* -------------------------------------------------------------------- */
     int iBand;
-    for( iBand = 0; iBand < GetRasterCount(); iBand++ )
-        papoBands[iBand] = NULL;
+    for( iBand = 0; iBand < nBands; iBand++ )
+        delete papoBands[iBand];
+    nBands = 0;
 }
 
 /************************************************************************/
@@ -334,7 +360,7 @@ GDALDataset *DIMAPDataset::Open( GDALOpenInfo * poOpenInfo )
     CPLAssert( nBands == poDS->poImageDS->GetRasterCount() );
 
     for( iBand = 1; iBand <= poDS->poImageDS->GetRasterCount(); iBand++ )
-        poDS->SetBand( iBand, poDS->poImageDS->GetRasterBand( iBand ) );
+        poDS->SetBand( iBand, new DIMAPWrapperRasterBand(poDS->poImageDS->GetRasterBand( iBand )) );
 
 /* -------------------------------------------------------------------- */
 /*      Try to collect simple insertion point.                          */
