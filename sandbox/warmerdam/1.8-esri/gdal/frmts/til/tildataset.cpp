@@ -48,9 +48,14 @@ class CPL_DLL TILDataset : public GDALPamDataset
     VRTDataset *poVRTDS;
     std::vector<GDALDataset *> apoTileDS;
 
+    CPLString                  osRPBFilename;
+    CPLString                  osIMDFilename;
+
   public:
     TILDataset();
     ~TILDataset();
+
+    virtual char **GetFileList(void);
 
     static GDALDataset *Open( GDALOpenInfo * );
     static int Identify( GDALOpenInfo *poOpenInfo );
@@ -177,8 +182,13 @@ GDALDataset *TILDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Try to find the corresponding .IMD file.                        */
 /* -------------------------------------------------------------------- */
-    char **papszIMD = GDALLoadIMDFile( poOpenInfo->pszFilename, 
-                                       poOpenInfo->papszSiblingFiles );
+    char **papszIMD = NULL;
+    CPLString osIMDFilename = 
+        GDALFindAssociatedFile( poOpenInfo->pszFilename, "IMD", 
+                                poOpenInfo->papszSiblingFiles, 0 );
+
+    if( osIMDFilename != "" )
+        papszIMD = GDALLoadIMDFile( osIMDFilename, NULL );
 
     if( papszIMD == NULL )
     {
@@ -228,6 +238,8 @@ GDALDataset *TILDataset::Open( GDALOpenInfo * poOpenInfo )
 
     poDS = new TILDataset();
 
+    poDS->osIMDFilename = osIMDFilename; 
+    poDS->SetMetadata( papszIMD, "IMD" );
     poDS->nRasterXSize = atoi(CSLFetchNameValueDef(papszIMD,"numColumns","0"));
     poDS->nRasterYSize = atoi(CSLFetchNameValueDef(papszIMD,"numRows","0"));
     if (!GDALCheckDatasetDimensions(poDS->nRasterXSize, poDS->nRasterYSize))
@@ -338,14 +350,9 @@ GDALDataset *TILDataset::Open( GDALOpenInfo * poOpenInfo )
         osKey.Printf( "TILE_%d.LRRowOffset", iTile );
         int nLRY = atoi(CSLFetchNameValueDef(papszTIL, osKey, "0"));
 
-#ifdef notdef
-        GDALDataset *poTileDS = (GDALDataset *) 
-            GDALOpen(osFilename,GA_ReadOnly);
-#else
         GDALDataset *poTileDS = 
             new GDALProxyPoolDataset( osFilename, 
                                       nLRX - nULX + 1, nLRY - nULY + 1 );
-#endif
         if( poTileDS == NULL )
             continue;
 
@@ -353,10 +360,9 @@ GDALDataset *TILDataset::Open( GDALOpenInfo * poOpenInfo )
 
         for( iBand = 1; iBand <= nBandCount; iBand++ )
         {
-#ifndef notdef
             ((GDALProxyPoolDataset *) poTileDS)->
                 AddSrcBandDescription( eDT, nLRX - nULX + 1, 1 );
-#endif            
+
             GDALRasterBand *poSrcBand = poTileDS->GetRasterBand(iBand);
 
             VRTSourcedRasterBand *poVRTBand = 
@@ -373,17 +379,20 @@ GDALDataset *TILDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Set RPC and IMD metadata.                                       */
 /* -------------------------------------------------------------------- */
-    char **papszRPCMD = GDALLoadRPBFile( poOpenInfo->pszFilename,
-                                         poOpenInfo->papszSiblingFiles );
-        
-    if( papszRPCMD != NULL )
+    poDS->osRPBFilename = 
+        GDALFindAssociatedFile( poOpenInfo->pszFilename, "RPB", 
+                                poOpenInfo->papszSiblingFiles, 0 );
+    if( poDS->osRPBFilename != "" )
     {
-        poDS->SetMetadata( papszRPCMD, "RPC" );
-        CSLDestroy( papszRPCMD );
+        char **papszRPCMD = GDALLoadRPBFile( poOpenInfo->pszFilename,
+                                             poOpenInfo->papszSiblingFiles );
+        
+        if( papszRPCMD != NULL )
+        {
+            poDS->SetMetadata( papszRPCMD, "RPC" );
+            CSLDestroy( papszRPCMD );
+        }
     }
-
-    if( papszIMD != NULL )
-        poDS->SetMetadata( papszIMD, "IMD" );
 
 /* -------------------------------------------------------------------- */
 /*      Cleanup                                                         */
@@ -402,6 +411,29 @@ GDALDataset *TILDataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename );
 
     return( poDS );
+}
+
+/************************************************************************/
+/*                            GetFileList()                             */
+/************************************************************************/
+
+char **TILDataset::GetFileList()
+
+{
+    unsigned int  i;
+    char **papszFileList = GDALPamDataset::GetFileList();
+
+    for( i = 0; i < apoTileDS.size(); i++ )
+        papszFileList = CSLAddString( papszFileList,
+                                      apoTileDS[i]->GetDescription() );
+    
+    papszFileList = CSLAddString( papszFileList, osIMDFilename );
+
+
+    if( osRPBFilename != "" )
+        papszFileList = CSLAddString( papszFileList, osRPBFilename );
+
+    return papszFileList;
 }
 
 /************************************************************************/
