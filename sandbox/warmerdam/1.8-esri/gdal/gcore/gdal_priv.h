@@ -904,10 +904,9 @@ int CPL_DLL GDALCheckBandCount( int nBands, int bIsZeroAllowed );
 #define EQUAL_TO_NODATA(dfValue, dfNoDataValue) \
  (dfValue == dfNoDataValue || (dfNoDataValue != 0 && fabs(1 - dfValue / dfNoDataValue) < 1e-10 ))
 
+CPL_C_END
 
 CPLString GDALFindAssociatedFile( const char *pszBasename, const char *pszExt,
                                   char **papszSiblingFiles, int nFlags );
-
-CPL_C_END
 
 #endif /* ndef GDAL_PRIV_H_INCLUDED */
