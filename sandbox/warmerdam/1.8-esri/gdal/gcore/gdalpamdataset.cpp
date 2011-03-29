@@ -430,7 +430,15 @@ CPLErr GDALPamDataset::XMLInit( CPLXMLNode *psTree, const char *pszUnused )
         for( psXMLGCP = psGCPList->psChild; psXMLGCP != NULL; 
              psXMLGCP = psXMLGCP->psNext )
             nGCPMax++;
-         
+        
+        // ESRI specific: We always load from .aux first.
+        if( psPam->nGCPCount > 0 )
+        {
+            GDALDeinitGCPs( psPam->nGCPCount, psPam->pasGCPList );
+            CPLFree( psPam->pasGCPList );
+            psPam->nGCPCount = 0;
+            psPam->pasGCPList = 0;
+        }
         psPam->pasGCPList = (GDAL_GCP *) CPLCalloc(sizeof(GDAL_GCP),nGCPMax);
          
         for( psXMLGCP = psGCPList->psChild; psXMLGCP != NULL; 
