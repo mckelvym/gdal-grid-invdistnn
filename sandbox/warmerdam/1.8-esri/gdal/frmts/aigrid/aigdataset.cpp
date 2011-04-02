@@ -216,7 +216,10 @@ const GDALRasterAttributeTable *AIGRasterBand::GetDefaultRAT()
         poODS->bHasReadRat = TRUE;
     }
 
-    return poODS->poRAT;
+    if( poODS->poRAT )
+        return poODS->poRAT;
+    else
+        return GDALPamRasterBand::GetDefaultRAT();
 }
 
 /************************************************************************/
@@ -281,7 +284,7 @@ GDALColorInterp AIGRasterBand::GetColorInterpretation()
     if( poODS->poCT != NULL )
         return GCI_PaletteIndex;
     else
-        return GCI_Undefined;
+        return GDALPamRasterBand::GetColorInterpretation();
 }
 
 /************************************************************************/
@@ -293,7 +296,10 @@ GDALColorTable *AIGRasterBand::GetColorTable()
 {
     AIGDataset	*poODS = (AIGDataset *) poDS;
 
-    return poODS->poCT;
+    if( poODS->poCT != NULL )
+        return poODS->poCT;
+    else
+        return GDALPamRasterBand::GetColorTable();
 }
 
 /************************************************************************/
@@ -557,6 +563,29 @@ GDALDataset *AIGDataset::Open( GDALOpenInfo * poOpenInfo )
     char **papszFileList = VSIReadDir( osCoverName );
     int iFile;
     int bGotOne = FALSE;
+
+    if (papszFileList == NULL)
+    {
+        /* Useful when reading from /vsicurl/ on servers that don't */
+        /* return a file list */
+        /* such as /vsicurl/http://eros.usgs.gov/archive/nslrsda/GeoTowns/NLCD/89110458 */
+        do
+        {
+            osTestName.Printf( "%s/W001001.ADF", osCoverName.c_str() );
+            if( VSIStatL( osTestName, &sStatBuf ) == 0 )
+            {
+                bGotOne = TRUE;
+                break;
+            }
+
+            osTestName.Printf( "%s/w001001.adf", osCoverName.c_str() );
+            if( VSIStatL( osTestName, &sStatBuf ) == 0 )
+            {
+                bGotOne = TRUE;
+                break;
+            }
+        } while(0);
+    }
 
     for( iFile = 0; 
          papszFileList != NULL && papszFileList[iFile] != NULL && !bGotOne;
