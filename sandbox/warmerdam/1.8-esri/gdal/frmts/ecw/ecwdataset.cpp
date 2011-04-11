@@ -1534,17 +1534,20 @@ const char *ECWDataset::GetProjectionRef()
 CPLErr ECWDataset::GetGeoTransform( double * padfTransform )
 
 {
-    if( (GetProjectionRef() != pszProjection  
-         && strlen(GetProjectionRef()) > 0)
-        || !bGeoTransformValid )
+    if(bGeoTransformValid)
     {
-        return GDALPamDataset::GetGeoTransform( padfTransform );
+        const char* prj = GDALPamDataset::GetProjectionRef();
+        if(prj && strlen(prj) > 0)
+            bGeoTransformValid = GDALPamDataset::GetGeoTransform(padfTransform) != CE_None;
     }
-    else
+    
+    if(bGeoTransformValid)
     {
         memcpy( padfTransform, adfGeoTransform, sizeof(double) * 6 );
         return( CE_None );
     }
+    
+    return GDALPamDataset::GetGeoTransform(padfTransform);
 }
 
 /************************************************************************/

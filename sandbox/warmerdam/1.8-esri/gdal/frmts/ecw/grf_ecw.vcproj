@@ -44,14 +44,14 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="\GDAL\gdal\gcore;\GDAL\gdal\port;\GDAL\gdal\ogr;\GDAL\codec\ECW\include"
-				PreprocessorDefinitions="FRMT_ecw;WIN32;_WIN32_WINNT=0x0500"
+				AdditionalIncludeDirectories="\GDAL\gdal\gcore;\GDAL\gdal\port;\GDAL\gdal\ogr;\GDAL\gdal\frmts\gtiff;\GDAL\codec\ECW\include"
+				PreprocessorDefinitions="FRMT_ecw;WIN32;_WIN32_WINNT=0x0500;ECWSDK_VERSION=41;NO_COMPRESS;_DEBUG;DEBUG"
 				StringPooling="false"
 				MinimalRebuild="false"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				BufferSecurityCheck="true"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
@@ -68,7 +68,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="gdal_id.lib NCSEcwd.lib NCSUtild.lib"
+				AdditionalDependencies="gdal_id.lib NCSEcw4_ROd.lib  NCSUtil4d.lib"
 				OutputFile="/GDAL/gdal/grf_ecwd.dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="\GDAL\gdal;\GDAL\codec\ECW\lib"
@@ -129,14 +129,14 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="\GDAL\gdal\gcore;\GDAL\gdal\port;\GDAL\gdal\ogr;\GDAL\codec\ECW\include"
-				PreprocessorDefinitions="FRMT_ecw;WIN32;_WIN32_WINNT=0x0500"
+				AdditionalIncludeDirectories="\GDAL\gdal\gcore;\GDAL\gdal\port;\GDAL\gdal\ogr;\GDAL\gdal\frmts\gtiff;\GDAL\codec\ECW\include"
+				PreprocessorDefinitions="FRMT_ecw;WIN32;_WIN32_WINNT=0x0500;ECWSDK_VERSION=41;NO_COMPRESS;_DEBUG;DEBUG"
 				StringPooling="false"
 				MinimalRebuild="false"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				BufferSecurityCheck="true"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
@@ -153,7 +153,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="gdal_id.lib NCSEcwd.lib NCSUtild.lib"
+				AdditionalDependencies="gdal_id.lib NCSEcw4_ROd.lib  NCSUtil4d.lib"
 				OutputFile="/GDAL/gdal/grf_ecwd.dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="\GDAL\gdal;\GDAL\codec\ECW\lib\amd64"
@@ -212,16 +212,16 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="\GDAL\gdal\gcore;\GDAL\gdal\port;\GDAL\gdal\ogr;\GDAL\codec\ECW\include"
-				PreprocessorDefinitions="FRMT_ecw;WIN32;_WIN32_WINNT=0x0500"
+				AdditionalIncludeDirectories="\GDAL\gdal\gcore;\GDAL\gdal\port;\GDAL\gdal\ogr;\GDAL\gdal\frmts\gtiff;\GDAL\codec\ECW\include"
+				PreprocessorDefinitions="FRMT_ecw;WIN32;_WIN32_WINNT=0x0500;ECWSDK_VERSION=41;NO_COMPRESS"
 				StringPooling="true"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile="$(IntDir)\$(ProjectName).pch"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
-				DebugInformationFormat="3"
+				DebugInformationFormat="0"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -235,11 +235,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="gdal_i.lib NCSEcw.lib NCSUtil.lib"
+				AdditionalDependencies="gdal_i.lib NCSEcw4_RO.lib NCSUtil4.lib"
 				OutputFile="/GDAL/gdal/grf_ecw.dll"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="\GDAL\gdal;\GDAL\codec\ECW\lib"
-				GenerateDebugInformation="true"
+				GenerateDebugInformation="false"
 				ProgramDatabaseFile="/GDAL/gdal/grf_ecw.pdb"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -297,16 +297,16 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="\GDAL\gdal\gcore;\GDAL\gdal\port;\GDAL\gdal\ogr;\GDAL\codec\ECW\include"
-				PreprocessorDefinitions="FRMT_ecw;WIN32;_WIN32_WINNT=0x0500"
+				AdditionalIncludeDirectories="\GDAL\gdal\gcore;\GDAL\gdal\port;\GDAL\gdal\ogr;\GDAL\gdal\frmts\gtiff;\GDAL\codec\ECW\include"
+				PreprocessorDefinitions="FRMT_ecw;WIN32;_WIN32_WINNT=0x0500;ECWSDK_VERSION=41;NO_COMPRESS"
 				StringPooling="true"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile="$(IntDir)\$(ProjectName).pch"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
-				DebugInformationFormat="3"
+				DebugInformationFormat="0"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -320,11 +320,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="gdal_i.lib NCSEcw.lib NCSUtil.lib"
+				AdditionalDependencies="gdal_i.lib NCSEcw4_RO.lib NCSUtil4.lib"
 				OutputFile="/GDAL/gdal/grf_ecw.dll"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="\GDAL\gdal;\GDAL\codec\ECW\lib\amd64"
-				GenerateDebugInformation="true"
+				GenerateDebugInformation="false"
 				ProgramDatabaseFile="/GDAL/gdal/grf_ecw.pdb"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -436,6 +436,10 @@
 						UsePrecompiledHeader="0"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\..\gcore\gdaljp2metadata.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\grf_ecw.cpp"
