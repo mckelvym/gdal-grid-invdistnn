@@ -6813,19 +6813,10 @@ TIFF *GTiffDataset::CreateLL( const char * pszFilename,
          * If image contains 3 or 4 bands and datatype is Byte then we will
          * assume it is RGB. In all other cases assume it is MINISBLACK.
          */
-        if( nBands == 3 && eType == GDT_Byte )
+        if( nBands >= 3 && nBands <= 4 && eType == GDT_Byte )
         {
             TIFFSetField( hTIFF, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB );
             nSamplesAccountedFor = 3;
-        }
-        else if( nBands == 4 && eType == GDT_Byte )
-        {
-            uint16 v[1];
-
-            v[0] = EXTRASAMPLE_ASSOCALPHA;
-            TIFFSetField(hTIFF, TIFFTAG_EXTRASAMPLES, 1, v);
-            TIFFSetField( hTIFF, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB );
-            nSamplesAccountedFor = 4;
         }
         else
         {
