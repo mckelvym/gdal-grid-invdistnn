@@ -91,6 +91,9 @@ char CPL_DLL *CPLStrdup( const char * );
 
 #endif /* CPL_SERV_H_INTERNAL */
 
+const char CPL_DLL * CPL_STDCALL CPLGetConfigOption( const char *, const char * );
+void CPL_DLL CPL_STDCALL CPLDebug( const char *, const char *, ... );
+
 CPL_C_END
 
 static const char *papszDatumEquiv[] =
@@ -396,6 +399,80 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
        }
     }
     
+/* -------------------------------------------------------------------- */
+/*      #3901: In libgeotiff 1.3.0 and earlier we incorrectly           */
+/*      interpreted linear projection parameter geokeys (false          */
+/*      easting/northing) as being in meters instead of the             */
+/*      coordinate system of the file.   The following code attempts    */
+/*      to provide mechanisms for fixing the issue if we are linked     */
+/*      with an older version of libgeotiff.                            */
+/* -------------------------------------------------------------------- */
+    int iParm;
+    const char *pszLinearUnits = 
+        CPLGetConfigOption( "GTIFF_LINEAR_UNITS", "DEFAULT" );
+
+#if LIBGEOTIFF_VERSION <= 1300
+    if( EQUAL(pszLinearUnits,"DEFAULT") && psDefn->Projection == KvUserDefined )
+    {
+        for( iParm = 0; iParm < psDefn->nParms; iParm++ )
+        {
+            switch( psDefn->ProjParmId[iParm] )
+            {
+              case ProjFalseEastingGeoKey:
+              case ProjFalseNorthingGeoKey:
+              case ProjFalseOriginEastingGeoKey:
+              case ProjFalseOriginNorthingGeoKey:
+              case ProjCenterEastingGeoKey:
+              case ProjCenterNorthingGeoKey:
+                if( psDefn->UOMLengthInMeters != 0 
+                    && psDefn->UOMLengthInMeters != 1.0 )
+                {
+                    psDefn->ProjParm[iParm] *= psDefn->UOMLengthInMeters;
+                    CPLDebug( "GTIFF", "converting geokey to meters to fix bug in old libgeotiff" );
+                }
+                break;
+
+              default:
+                break;
+            }
+        }
+    }
+#endif /* LIBGEOTIFF_VERSION <= 1300 */
+
+/* -------------------------------------------------------------------- */
+/*      #3901: If folks have broken GeoTIFF files generated with        */
+/*      older versions of GDAL+libgeotiff, then they may need a         */
+/*      hack to allow them to be read properly.  This is that           */
+/*      hack.  We basically try to undue the conversion applied by      */
+/*      libgeotiff to meters (or above) to simulate the old             */
+/*      behavior.                                                       */
+/* -------------------------------------------------------------------- */
+    if( EQUAL(pszLinearUnits,"BROKEN") && psDefn->Projection == KvUserDefined )
+    {
+        for( iParm = 0; iParm < psDefn->nParms; iParm++ )
+        {
+            switch( psDefn->ProjParmId[iParm] )
+            {
+              case ProjFalseEastingGeoKey:
+              case ProjFalseNorthingGeoKey:
+              case ProjFalseOriginEastingGeoKey:
+              case ProjFalseOriginNorthingGeoKey:
+              case ProjCenterEastingGeoKey:
+              case ProjCenterNorthingGeoKey:
+                if( psDefn->UOMLengthInMeters != 0 
+                    && psDefn->UOMLengthInMeters != 1.0 )
+                {
+                    psDefn->ProjParm[iParm] /= psDefn->UOMLengthInMeters;
+                    CPLDebug( "GTIFF", "converting geokey to accomodate old broken file due to GTIFF_LINEAR_UNITS=BROKEN setting." );
+                }
+                break;
+
+              default:
+                break;
+            }
+        }
+    }
+
 /* -------------------------------------------------------------------- */
 /*      If this is a projected SRS we set the PROJCS keyword first      */
 /*      to ensure that the GEOGCS will be a child.                      */
@@ -1246,10 +1323,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
 
     else if( poSRS->GetUTMZone() != 0 )
@@ -1321,10 +1398,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_TRANSVERSE_MERCATOR_SOUTH_ORIENTED) )
@@ -1349,10 +1426,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_MERCATOR_2SP) 
@@ -1379,10 +1456,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_OBLIQUE_STEREOGRAPHIC) )
@@ -1407,10 +1484,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_STEREOGRAPHIC) )
@@ -1435,10 +1512,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_POLAR_STEREOGRAPHIC) )
@@ -1463,10 +1540,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_HOTINE_OBLIQUE_MERCATOR) )
@@ -1497,10 +1574,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_CASSINI_SOLDNER) )
@@ -1522,10 +1599,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_EQUIDISTANT_CONIC) )
@@ -1553,10 +1630,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_POLYCONIC) )
@@ -1581,10 +1658,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_AZIMUTHAL_EQUIDISTANT) )
@@ -1606,10 +1683,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_MILLER_CYLINDRICAL) )
@@ -1631,10 +1708,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_EQUIRECTANGULAR) )
@@ -1659,10 +1736,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_STANDARD_PARALLEL_1, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_GNOMONIC) )
@@ -1684,10 +1761,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_LAMBERT_AZIMUTHAL_EQUAL_AREA) )
@@ -1709,10 +1786,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_ORTHOGRAPHIC) )
@@ -1734,10 +1811,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_NEW_ZEALAND_MAP_GRID) )
@@ -1759,10 +1836,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_ROBINSON) )
@@ -1781,10 +1858,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_SINUSOIDAL) )
@@ -1803,10 +1880,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_LONGITUDE_OF_CENTER, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_VANDERGRINTEN) )
@@ -1825,10 +1902,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_CENTRAL_MERIDIAN, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_ALBERS_CONIC_EQUAL_AREA) )
@@ -1856,10 +1933,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_STANDARD_PARALLEL_2, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP) )
@@ -1887,10 +1964,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_STANDARD_PARALLEL_2, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseOriginEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseOriginNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     
     else if( EQUAL(pszProjection,SRS_PT_LAMBERT_CONFORMAL_CONIC_1SP) )
@@ -1915,10 +1992,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_SCALE_FACTOR, 1.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
 
     else if( EQUAL(pszProjection,SRS_PT_CYLINDRICAL_EQUAL_AREA) )
@@ -1940,10 +2017,10 @@ int GTIFSetFromOGISDefn( GTIF * psGTIF, const char *pszOGCWKT )
                    poSRS->GetNormProjParm( SRS_PP_STANDARD_PARALLEL_1, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseEastingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_EASTING, 0.0 ) );
         
         GTIFKeySet(psGTIF, ProjFalseNorthingGeoKey, TYPE_DOUBLE, 1,
-                   poSRS->GetNormProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
+                   poSRS->GetProjParm( SRS_PP_FALSE_NORTHING, 0.0 ) );
     }
     else
     {
