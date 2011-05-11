@@ -76,9 +76,9 @@ char   **ExtractEsriMD( char **papszMD );
 static std::string Base64Encode( unsigned char const *pBytesToEncode,
                                  unsigned int         nDataLen );
 
-static char **NITFReadHeaderTreCSDIDA(NITFFile *psFile);
+static char **NITFReadHeaderTreCSDIDA( NITFFile *psFile );
 
-
+static void SetBandMetadata( NITFImage *psImage, GDALRasterBand *poBand, int nBand );
 
 /************************************************************************/
 /* ==================================================================== */
@@ -1778,6 +1778,9 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
         {
             GDALRasterBand* poBaseBand =
                 poBaseDS->GetRasterBand(iBand+1);
+
+            SetBandMetadata( psImage, poBaseBand, iBand+1 );
+
             NITFWrapperRasterBand* poBand =
                 new NITFWrapperRasterBand(poDS, poBaseBand, iBand+1 );
                 
@@ -1819,6 +1822,8 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
                 delete poDS;
                 return NULL;
             }
+
+            SetBandMetadata( psImage, poBand, iBand+1 );
             poDS->SetBand( iBand+1, poBand );
         }
     }
@@ -6807,11 +6812,12 @@ char **ExtractEsriMD( char **papszMD )
   if( papszMD )
   {
     // These are the current generic ESRI metadata.
-
     const char *const pEsriMDAcquisitionDate   = "ESRI_MD_ACQUISITION_DATE";
     const char *const pEsriMDAngleToNorth      = "ESRI_MD_ANGLE_TO_NORTH";
+    const char *const pEsriMDCircularError     = "ESRI_MD_CE";
     const char *const pEsriMDDataType          = "ESRI_MD_DATA_TYPE";
     const char *const pEsriMDIsCloudCover      = "ESRI_MD_ISCLOUDCOVER";
+    const char *const pEsriMDLinearError       = "ESRI_MD_LE";
     const char *const pEsriMDOffNaDir          = "ESRI_MD_OFF_NADIR";
     const char *const pEsriMDPercentCloudCover = "ESRI_MD_PERCENT_CLOUD_COVER";
     const char *const pEsriMDProductName       = "ESRI_MD_PRODUCT_NAME";
@@ -6831,7 +6837,7 @@ char **ExtractEsriMD( char **papszMD )
       strncpy( szField, pCCImageSegment, strlen(pCCImageSegment) );
       szField[strlen(pCCImageSegment)] = '\0';
 
-      // trim white off tag. 
+      // Trim white off tag. 
       while( ( strlen(szField) > 0 ) && ( szField[strlen(szField)-1] == ' ' ) )
         szField[strlen(szField)-1] = '\0';
 
@@ -6840,13 +6846,15 @@ char **ExtractEsriMD( char **papszMD )
    
     const char *pAcquisitionDate   = CSLFetchNameValue( papszMD, "NITF_FDT" );
     const char *pAngleToNorth      = CSLFetchNameValue( papszMD, "NITF_CSEXRA_ANGLE_TO_NORTH" );
+    const char *pCircularError     = CSLFetchNameValue( papszMD, "NITF_CSEXRA_CIRCL_ERR" );      // Unit in feet.
+    const char *pLinearError       = CSLFetchNameValue( papszMD, "NITF_CSEXRA_LINEAR_ERR" );     // Unit in feet.
     const char *pPercentCloudCover = CSLFetchNameValue( papszMD, "NITF_PIAIMC_CLOUDCVR" );
     const char *pProductName       = CSLFetchNameValue( papszMD, "NITF_CSDIDA_PRODUCT_ID" );
     const char *pSensorName        = CSLFetchNameValue( papszMD, "NITF_PIAIMC_SENSNAME" );
     const char *pSunAzimuth        = CSLFetchNameValue( papszMD, "NITF_CSEXRA_SUN_AZIMUTH" );
     const char *pSunElevation      = CSLFetchNameValue( papszMD, "NITF_CSEXRA_SUN_ELEVATION" );
 
-    // get ESRI_MD_DATA_TYPE.
+    // Get ESRI_MD_DATA_TYPE.
     const char *pDataType        = NULL;
     const char *pImgSegFieldICAT = CSLFetchNameValue( papszMD, "NITF_ICAT" );
 
@@ -6858,7 +6866,7 @@ char **ExtractEsriMD( char **papszMD )
     if( pAngleToNorth == NULL )
       pAngleToNorth = CSLFetchNameValue( papszMD, "NITF_USE00A_ANGLE_TO_NORTH" );
 
-    // percent cloud cover == 999 means that the information is not available. 
+    // Percent cloud cover == 999 means that the information is not available. 
     if( (pPercentCloudCover != NULL) &&  (EQUALN(pPercentCloudCover, "999", 3)) )
       pPercentCloudCover = NULL;
 
@@ -6871,11 +6879,12 @@ char **ExtractEsriMD( char **papszMD )
       pSunElevation = CSLFetchNameValue( papszMD, "NITF_USE00A_SUN_EL" );
     
     // CSLAddNameValue will not add the key/value pair if the value is NULL.
-
     papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDAcquisitionDate,   pAcquisitionDate );
     papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDAngleToNorth,      pAngleToNorth );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDCircularError,     pCircularError );
     papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDDataType,          pDataType );
     papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDIsCloudCover,      ccSegment.c_str() );
+    papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDLinearError,       pLinearError );
     papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDProductName,       pProductName );
     papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDPercentCloudCover, pPercentCloudCover );
     papszEsriMD = CSLAddNameValue( papszEsriMD, pEsriMDSensorName,        pSensorName );
@@ -6977,4 +6986,59 @@ char **NITFReadHeaderTreCSDIDA( NITFFile *psFile )
                          "NITF_CSDIDA_SOFTWARE_VERSION_NUMBER" );
 
     return papszMD;
+}
+
+
+void SetBandMetadata( NITFImage *psImage, GDALRasterBand *poBand, int nBand )
+{
+    if( (psImage != NULL) && (poBand != NULL) && (nBand > 0) )
+    {
+        NITFBandInfo *psBandInfo = psImage->pasBandInfo + nBand - 1;
+
+        if( psBandInfo != NULL )
+        {
+            // Set metadata BandName, WavelengthMax and WavelengthMin.
+
+            if ( psBandInfo->szIREPBAND != NULL )
+            {
+                if( EQUAL(psBandInfo->szIREPBAND,"B") )
+                {
+                    poBand->SetMetadataItem( "BandName", "Blue" );
+                    poBand->SetMetadataItem( "WavelengthMax", psBandInfo->szISUBCAT );
+                    poBand->SetMetadataItem( "WavelengthMin", psBandInfo->szISUBCAT );
+                }
+                else if( EQUAL(psBandInfo->szIREPBAND,"G") )
+                {
+                    poBand->SetMetadataItem( "BandName", "Green" );
+                    poBand->SetMetadataItem( "WavelengthMax", psBandInfo->szISUBCAT );
+                    poBand->SetMetadataItem( "WavelengthMin", psBandInfo->szISUBCAT );
+                }
+                else if( EQUAL(psBandInfo->szIREPBAND,"R") )
+                {
+                    poBand->SetMetadataItem( "BandName", "Red" );
+                    poBand->SetMetadataItem( "WavelengthMax", psBandInfo->szISUBCAT );
+                    poBand->SetMetadataItem( "WavelengthMin", psBandInfo->szISUBCAT );
+                }
+                else if( EQUAL(psBandInfo->szIREPBAND,"N") )
+                {
+                    poBand->SetMetadataItem( "BandName", "NearInfrared" );
+                    poBand->SetMetadataItem( "WavelengthMax", psBandInfo->szISUBCAT );
+                    poBand->SetMetadataItem( "WavelengthMin", psBandInfo->szISUBCAT );
+                }
+                else if( ( EQUAL(psBandInfo->szIREPBAND,"M") ) || ( ( psImage->szIREP != NULL ) && ( EQUAL(psImage->szIREP,"MONO") ) ) )
+                {
+                    poBand->SetMetadataItem( "BandName", "Panchromatic" );
+                }
+                else
+                {
+                    if( ( psImage->szICAT != NULL ) && ( EQUAL(psImage->szICAT,"IR") ) )
+                    {
+                        poBand->SetMetadataItem( "BandName", "Infrared" );
+                        poBand->SetMetadataItem( "WavelengthMax", psBandInfo->szISUBCAT );
+                        poBand->SetMetadataItem( "WavelengthMin", psBandInfo->szISUBCAT );
+                    }
+                }
+            }
+        }
+    }
 }
