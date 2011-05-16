@@ -21,6 +21,7 @@ OBJ = \
 	core/pcidsk_utils.o \
 	core/edb_pcidsk.o \
 	core/sysvirtualfile.o \
+	core/clinksegment.o \
 	port/io_stdio.o \
 	port/pthread_mutex.o \
 	segment/cpcidskgeoref.o \
@@ -36,7 +37,12 @@ OBJ = \
 	segment/cpcidskgcp2segment.o \
 	segment/cpcidskbitmap.o \
 	segment/cpcidsk_tex.o \
-	segment/cpcidskapmodel.o
+	segment/cpcidskapmodel.o \
+	segment/cpcidsktoutinmodel.o \
+	segment/cpcidskads40model.o \
+	segment/cpcidsk_array.o \
+	segment/cpcidskbinarysegment.o \
+	segment/cpcidskephemerissegment.o \
 
 
 CXXFLAGS = -g -O0 -Wall -fPIC -I. $(JPEG_FLAGS)

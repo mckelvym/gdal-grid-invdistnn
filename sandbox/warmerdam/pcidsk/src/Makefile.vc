@@ -24,6 +24,7 @@ OBJ = \
 	core\pcidsk_pubutils.obj \
 	core\pcidsk_utils.obj \
 	core\sysvirtualfile.obj \
+	core\clinksegment.obj \
 	port\io_win32.obj \
 	port\win32_mutex.obj \
 	segment\cpcidskgeoref.obj \
@@ -40,6 +41,16 @@ OBJ = \
 	segment\cpcidskgcp2segment.obj \
 	segment\vecsegdataindex.obj \
 	segment\vecsegheader.obj 
+	segment\cpcidskrpcmodel.obj \
+	segment\cpcidskgcp2segment.obj \
+	segment\cpcidskbitmap.obj \
+	segment\cpcidsk_tex.obj \
+	segment\cpcidskapmodel.obj \
+	segment\cpcidsktoutinmodel.obj \
+	segment\cpcidskads40model.obj \
+	segment\cpcidsk_array.obj \
+	segment\cpcidskbinarysegment.obj \
+	segment\cpcidskephemerissegment.obj \
 
 default:	pcidsk.lib
 
