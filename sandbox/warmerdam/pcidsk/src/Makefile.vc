@@ -40,12 +40,7 @@ OBJ = \
 	segment\cpcidskapmodel.obj \
 	segment\cpcidskgcp2segment.obj \
 	segment\vecsegdataindex.obj \
-	segment\vecsegheader.obj 
-	segment\cpcidskrpcmodel.obj \
-	segment\cpcidskgcp2segment.obj \
-	segment\cpcidskbitmap.obj \
-	segment\cpcidsk_tex.obj \
-	segment\cpcidskapmodel.obj \
+	segment\vecsegheader.obj \
 	segment\cpcidsktoutinmodel.obj \
 	segment\cpcidskads40model.obj \
 	segment\cpcidsk_array.obj \
