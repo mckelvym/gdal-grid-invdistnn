@@ -81,7 +81,7 @@ namespace PCIDSK
 
         void     AccessDB() const;
 
-        std::string filename;
+        mutable std::string filename;
     };
 } // end namespace PCIDSK
 

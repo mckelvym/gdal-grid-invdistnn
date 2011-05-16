@@ -38,6 +38,7 @@
 #include "core/pcidsk_utils.h"
 #include "core/cpcidskfile.h"
 #include "channel/cexternalchannel.h"
+#include "core/clinksegment.h"
 #include <cassert>
 #include <cstring>
 #include <cstdio>
@@ -71,6 +72,10 @@ CExternalChannel::CExternalChannel( PCIDSKBuffer &image_header,
     eysize = atoi(image_header.Get( 274, 8 ));
 
     echannel = atoi(image_header.Get( 282, 8 ));
+
+    if (echannel == 0) {
+        echannel = channelnum;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Establish the file we will be accessing.                        */
