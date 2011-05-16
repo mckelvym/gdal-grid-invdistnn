@@ -42,6 +42,7 @@ class PCIDSKCreateTest : public CppUnit::TestFixture
     CPPUNIT_TEST( tiledJPEG );
     CPPUNIT_TEST( testErrors );
     CPPUNIT_TEST( testFILE );
+    CPPUNIT_TEST( testLongFILE );
     
     // Complex creation and opening support
     CPPUNIT_TEST(createComplex16U);
@@ -59,6 +60,7 @@ public:
     void tiledJPEG();
     void testErrors();
     void testFILE();
+    void testLongFILE();
     void createComplex16U();
     void createComplex16S();
     void createComplex32R();
@@ -542,4 +544,92 @@ void PCIDSKCreateTest::testFILE()
 
     unlink( sFilename.c_str() );
     unlink( "TestFileOption.001" );
+}
+
+/************************************************************************/
+/*                            testLongFILE()                            */
+/************************************************************************/
+
+void PCIDSKCreateTest::testLongFILE()
+{
+    std::string sFilename = "ThisFilenameIsSoLongThatTheLinkedFileNamesWillNotFitInThe64CharacterField.pix";
+    std::string sLinkFilename = sFilename.substr(0,sFilename.size()-4) + ".001";
+    
+    unlink( sFilename.c_str() );
+
+    std::string sOption = "FILE";
+    PCIDSK::eChanType panTypes[1];
+
+    panTypes[0] = PCIDSK::CHN_8U;
+
+    PCIDSK::PCIDSKFile *poFile = PCIDSK::Create(sFilename, 500, 750,
+                                                1, panTypes, sOption, NULL);
+
+    PCIDSK::PCIDSKChannel* poChannel = poFile->GetChannel(1);
+
+    int nWidth = poChannel->GetBlockWidth();
+    int nHeight = poChannel->GetBlockHeight();
+    PCIDSK::eChanType eType = poChannel->GetType();
+
+    CPPUNIT_ASSERT_EQUAL(PCIDSK::CHN_8U,eType);
+
+    int nBufSize = nWidth*nHeight;
+    unsigned char* pBuf = new unsigned char[nBufSize];
+
+    for(int i=0 ; i < nBufSize ; i++)
+    {
+        pBuf[i] = 10;
+    }
+
+    for(int block=0 ; block < poChannel->GetBlockCount(); block++)
+    {
+        poChannel->WriteBlock(block,pBuf);
+    }
+
+    uint64 image_offset, pixel_offset, line_offset;
+    bool little_endian;
+    std::string fetched_filename;
+
+    poChannel->GetChanInfo( fetched_filename, image_offset, pixel_offset,
+                            line_offset, little_endian );
+
+    CPPUNIT_ASSERT( fetched_filename == sLinkFilename );
+    CPPUNIT_ASSERT( image_offset == 0 );
+    CPPUNIT_ASSERT( pixel_offset == 1 );
+    CPPUNIT_ASSERT( line_offset == 500 );
+    CPPUNIT_ASSERT_EQUAL( little_endian, true );
+
+    CPPUNIT_ASSERT( poFile->GetSegment( 1024 )->GetName() == "Link" );
+
+    // Ensure that resetting the filename to something short will clear
+    // the link segment. 
+    
+    poChannel->SetChanInfo( "short.001", image_offset, pixel_offset,
+                            line_offset, little_endian );
+
+    poChannel->GetChanInfo( fetched_filename, image_offset, pixel_offset,
+                            line_offset, little_endian );
+
+    CPPUNIT_ASSERT( poFile->GetSegment( 1024 ) == NULL );
+
+    CPPUNIT_ASSERT( fetched_filename == "short.001" );
+
+    // Ensure that resetting the filename to something long will recreate
+    // a link segment.
+    
+    poChannel->SetChanInfo( sLinkFilename, image_offset, pixel_offset,
+                            line_offset, little_endian );
+
+    poChannel->GetChanInfo( fetched_filename, image_offset, pixel_offset,
+                            line_offset, little_endian );
+
+    CPPUNIT_ASSERT( poFile->GetSegment( 1024 )->GetName() == "Link" );
+
+    CPPUNIT_ASSERT( fetched_filename == sLinkFilename );
+
+    delete [] pBuf;
+    delete poFile;
+
+    unlink( sFilename.c_str() );
+    unlink( sLinkFilename.c_str() );
 }

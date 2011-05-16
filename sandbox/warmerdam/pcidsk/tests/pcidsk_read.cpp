@@ -145,7 +145,10 @@ void ReportGCPSegment(PCIDSK::PCIDSKGCPSegment *segobj)
     
     unsigned int gcp_num = 1;
     while (iter != gcps.end()) {
-        printf("%d: [%s] Proj: [%s]\n", gcp_num, (*iter).GetIDString(), (*iter).GetMapUnits().c_str());
+        std::string map_units, proj_parms;
+        (*iter).GetMapUnits( map_units, proj_parms );
+        printf("%d: [%s] Proj: [%s] [%s]\n", gcp_num, (*iter).GetIDString(), 
+               map_units.c_str(), proj_parms.c_str() );
         printf("\t(%f, %f, %f) -> (%f, %f)\n",
             (*iter).GetX(), (*iter).GetY(), (*iter).GetZ(),
             (*iter).GetPixel(), (*iter).GetLine());
