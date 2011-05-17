@@ -138,11 +138,14 @@ CPCIDSKFile::~CPCIDSKFile()
 
     for( i_file=0; i_file < file_list.size(); i_file++ )
     {
-        delete file_list[i_file].io_mutex;
-        file_list[i_file].io_mutex = NULL;
+        delete file_list[i_file]->io_mutex;
+        file_list[i_file]->io_mutex = NULL;
 
-        interfaces.io->Close( file_list[i_file].io_handle );
-        file_list[i_file].io_handle = NULL;
+        interfaces.io->Close( file_list[i_file]->io_handle );
+        file_list[i_file]->io_handle = NULL;
+
+        delete file_list[i_file];
+        file_list[i_file] = NULL;
     }
 
     for( i_file=0; i_file < edb_file_list.size(); i_file++ )
@@ -802,11 +805,11 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 
     for( i = 0; i < file_list.size(); i++ )
     {
-        if( file_list[i].filename == filename
-            && (!writable || file_list[i].writable) )
+        if( file_list[i]->filename == filename
+            && (!writable || file_list[i]->writable) )
         {
-            *io_handle_pp = &(file_list[i].io_handle);
-            *io_mutex_pp = &(file_list[i].io_mutex);
+            *io_handle_pp = &(file_list[i]->io_handle);
+            *io_mutex_pp = &(file_list[i]->io_mutex);
             return;
         }
     }
@@ -815,14 +818,14 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 /*      If not, we need to try and open the file.  Eventually we        */
 /*      will need better rules about read or update access.             */
 /* -------------------------------------------------------------------- */
-    ProtectedFile new_file;
+    ProtectedFile *new_file = new ProtectedFile;
     
     if( writable )
-        new_file.io_handle = interfaces.io->Open( filename, "r+" );
+        new_file->io_handle = interfaces.io->Open( filename, "r+" );
     else
-        new_file.io_handle = interfaces.io->Open( filename, "r" );
+        new_file->io_handle = interfaces.io->Open( filename, "r" );
         
-    if( new_file.io_handle == NULL )
+    if( new_file->io_handle == NULL )
         ThrowPCIDSKException( "Unable to open file '%s'.", 
                               filename.c_str() );
 
@@ -830,14 +833,14 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 /*      Push the new file into the list of files managed for this       */
 /*      PCIDSK file.                                                    */
 /* -------------------------------------------------------------------- */
-    new_file.io_mutex = interfaces.CreateMutex();
-    new_file.filename = filename;
-    new_file.writable = writable;
+    new_file->io_mutex = interfaces.CreateMutex();
+    new_file->filename = filename;
+    new_file->writable = writable;
 
     file_list.push_back( new_file );
 
-    *io_handle_pp = &(file_list[file_list.size()-1].io_handle);
-    *io_mutex_pp  = &(file_list[file_list.size()-1].io_mutex);
+    *io_handle_pp = &(file_list[file_list.size()-1]->io_handle);
+    *io_mutex_pp  = &(file_list[file_list.size()-1]->io_mutex);
 }
 
 /************************************************************************/

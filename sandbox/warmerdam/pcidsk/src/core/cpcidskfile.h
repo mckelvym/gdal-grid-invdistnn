@@ -149,7 +149,7 @@ namespace PCIDSK
         uint64       file_size; // in blocks.
 
     // register of open external raw files.
-        std::vector<ProtectedFile>  file_list;
+        std::vector<ProtectedFile*>  file_list;
 
     // register of open external databasefiles
         std::vector<ProtectedEDBFile> edb_file_list;
