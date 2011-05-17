@@ -43,6 +43,7 @@ class PCIDSKCreateTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testErrors );
     CPPUNIT_TEST( testFILE );
     CPPUNIT_TEST( testLongFILE );
+    CPPUNIT_TEST( testEDB );
     
     // Complex creation and opening support
     CPPUNIT_TEST(createComplex16U);
@@ -61,6 +62,7 @@ public:
     void testErrors();
     void testFILE();
     void testLongFILE();
+    void testEDB();
     void createComplex16U();
     void createComplex16S();
     void createComplex32R();
@@ -632,4 +634,57 @@ void PCIDSKCreateTest::testLongFILE()
 
     unlink( sFilename.c_str() );
     unlink( sLinkFilename.c_str() );
+}
+
+/************************************************************************/
+/*                              testEDB()                               */
+/************************************************************************/
+
+void PCIDSKCreateTest::testEDB()
+{
+    std::string sFilename = "test_edb.pix";
+    std::string sLinkFilename = "eltoro.pix";
+    
+    unlink( sFilename.c_str() );
+
+    std::string sOption = "FILELINK";
+    PCIDSK::eChanType panTypes[1];
+
+    panTypes[0] = PCIDSK::CHN_8U;
+
+    PCIDSK::PCIDSKFile *poFile = PCIDSK::Create(sFilename, 512, 512, 
+                                                1, panTypes, sOption, NULL);
+
+    PCIDSK::PCIDSKChannel* poChannel = poFile->GetChannel(1);
+
+    poChannel->SetEChanInfo( sLinkFilename, 1, 100, 200, 512, 512 );
+
+
+    int echannel, exoff, eyoff, exsize, eysize;
+    std::string fetched_filename;
+
+    poChannel->GetEChanInfo( fetched_filename, echannel,
+                             exoff, eyoff, exsize, eysize );
+
+    CPPUNIT_ASSERT( fetched_filename == sLinkFilename );
+    CPPUNIT_ASSERT( echannel == 1 );
+    CPPUNIT_ASSERT( exoff == 100 );
+    CPPUNIT_ASSERT( eyoff == 200 );
+    CPPUNIT_ASSERT( exsize == 512 );
+    CPPUNIT_ASSERT( eysize == 512 );
+
+    // Fetch one line of imagery and ensure it is as expected.
+
+    int nBufSize = 512;
+    unsigned char* pBuf = new unsigned char[nBufSize];
+
+    poChannel->ReadBlock( 2, pBuf );
+
+    CPPUNIT_ASSERT( pBuf[0] == 60 );
+    CPPUNIT_ASSERT( pBuf[511] == 36 );
+    
+    delete [] pBuf;
+    delete poFile;
+
+    unlink( sFilename.c_str() );
 }

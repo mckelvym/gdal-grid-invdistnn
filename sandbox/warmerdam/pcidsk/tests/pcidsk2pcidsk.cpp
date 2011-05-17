@@ -97,6 +97,11 @@ int main( int argc, char **argv)
         if( channel_types.size() > 0 && options == "FILE" ) // TILED?
         {
             PCIDSKChannel *src_chan = src_file->GetChannel(1);
+            std::string efilename;
+            int exoff, eyoff, exsize, eysize, echannel;
+
+            src_chan->GetEChanInfo( efilename, echannel,
+                                    exoff, eyoff, exsize, eysize );
 
             if( src_chan->GetBlockHeight() > 1 )
             {
@@ -105,8 +110,13 @@ int main( int argc, char **argv)
                 options = "TILED";
                 options += tile_size;
             }
+
+            else if( echannel != 0 )
+            {
+                options = "FILELINK";
+            }
         }
-    
+
         dst_file = Create( dst_filename, 
                            src_file->GetWidth(), src_file->GetHeight(),
                            channel_types.size(),
@@ -146,6 +156,25 @@ int main( int argc, char **argv)
             src_chan = src_file->GetChannel(chan_num);
             dst_chan = dst_file->GetChannel(chan_num);
 
+/* -------------------------------------------------------------------- */
+/*      If we are creating a linked database, setup the link now.       */
+/* -------------------------------------------------------------------- */
+            if( options == "FILELINK" )
+            {
+                std::string efilename;
+                int exoff, eyoff, exsize, eysize, echannel;
+                
+                src_chan->GetEChanInfo( efilename, echannel,
+                                        exoff, eyoff, exsize, eysize );
+                dst_chan->SetEChanInfo( efilename, echannel,
+                                        exoff, eyoff, exsize, eysize );
+
+                continue;
+            }
+
+/* -------------------------------------------------------------------- */
+/*      Otherwise setup for image transfer                              */
+/* -------------------------------------------------------------------- */
             if( src_chan->GetBlockWidth() != dst_chan->GetBlockWidth()
                 || src_chan->GetBlockHeight() != dst_chan->GetBlockHeight() )
                 ThrowPCIDSKException( "Output file block size does not match source." );

@@ -641,3 +641,144 @@ int CExternalChannel::WriteBlock( int block_index, void *buffer )
     return 1;
 }
 
+/************************************************************************/
+/*                            GetEChanInfo()                            */
+/************************************************************************/
+void CExternalChannel::GetEChanInfo( std::string &filename, int &echannel,
+                                     int &exoff, int &eyoff, 
+                                     int &exsize, int &eysize ) const
+
+{
+    echannel = this->echannel;
+    exoff = this->exoff;
+    eyoff = this->eyoff;
+    exsize = this->exsize;
+    eysize = this->eysize;
+    filename = this->filename;
+}
+
+/************************************************************************/
+/*                            SetEChanInfo()                            */
+/************************************************************************/
+
+void CExternalChannel::SetEChanInfo( std::string filename, int echannel,
+                                     int exoff, int eyoff, 
+                                     int exsize, int eysize )
+
+{
+    if( ih_offset == 0 )
+        ThrowPCIDSKException( "No Image Header available for this channel." );
+
+/* -------------------------------------------------------------------- */
+/*      Fetch the existing image header.                                */
+/* -------------------------------------------------------------------- */
+    PCIDSKBuffer ih(1024);
+
+    file->ReadFromFile( ih.buffer, ih_offset, 1024 );
+
+/* -------------------------------------------------------------------- */
+/*      If the linked filename is too long to fit in the 64             */
+/*      character IHi.2 field, then we need to use a link segment to    */
+/*      store the filename.                                             */
+/* -------------------------------------------------------------------- */
+    std::string IHi2_filename;
+    
+    if( filename.size() > 64 )
+    {
+        int link_segment;
+        
+        ih.Get( 64, 64, IHi2_filename );
+                
+        if( IHi2_filename.substr(0,3) == "LNK" )
+        {
+            link_segment = std::atoi( IHi2_filename.c_str() + 4 );
+        }
+        else
+        {
+            char link_filename[64];
+           
+            link_segment = 
+                file->CreateSegment( "Link    ", 
+                                     "Long external channel filename link.", 
+                                     SEG_SYS, 1 );
+
+            sprintf( link_filename, "LNK %4d", link_segment );
+            IHi2_filename = link_filename;
+        }
+
+        CLinkSegment *link = 
+            dynamic_cast<CLinkSegment*>( file->GetSegment( link_segment ) );
+        
+        if( link != NULL )
+        {
+            link->SetPath( filename );
+            link->Synchronize();
+        }
+    }
+    
+/* -------------------------------------------------------------------- */
+/*      If we used to have a link segment but no longer need it, we     */
+/*      need to delete the link segment.                                */
+/* -------------------------------------------------------------------- */
+    else
+    {
+        ih.Get( 64, 64, IHi2_filename );
+                
+        if( IHi2_filename.substr(0,3) == "LNK" )
+        {
+            int link_segment = std::atoi( IHi2_filename.c_str() + 4 );
+
+            file->DeleteSegment( link_segment );
+        }
+        
+        IHi2_filename = filename;
+    }
+        
+/* -------------------------------------------------------------------- */
+/*      Update the image header.                                        */
+/* -------------------------------------------------------------------- */
+    // IHi.2
+    ih.Put( IHi2_filename.c_str(), 64, 64 );
+
+    // IHi.6.1
+    ih.Put( "", 168, 16 );
+
+    // IHi.6.2
+    ih.Put( "", 184, 8 );
+
+    // IHi.6.3
+    ih.Put( "", 192, 8 );
+
+    // IHi.6.5
+    ih.Put( "", 201, 1 );
+
+    // IHi.6.7
+    ih.Put( exoff, 250, 8 );
+
+    // IHi.6.8
+    ih.Put( eyoff, 258, 8 );
+
+    // IHi.6.9
+    ih.Put( exsize, 266, 8 );
+
+    // IHi.6.10
+    ih.Put( eysize, 274, 8 );
+
+    // IHi.6.11
+    ih.Put( echannel, 282, 8 );
+
+    file->WriteToFile( ih.buffer, ih_offset, 1024 );
+
+/* -------------------------------------------------------------------- */
+/*      Update local configuration.                                     */
+/* -------------------------------------------------------------------- */
+    this->filename = MergeRelativePath( file->GetInterfaces()->io,
+                                        file->GetFilename(), 
+                                        filename );
+
+    this->exoff = exoff;
+    this->eyoff = eyoff;
+    this->exsize = exsize;
+    this->eysize = eysize;
+    this->echannel = echannel;
+}

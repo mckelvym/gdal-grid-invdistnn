@@ -464,6 +464,39 @@ int main( int argc, char **argv)
                         channel, 
                         PCIDSK::DataTypeName(chanobj->GetType()).c_str() );;
 
+                // RawLink 
+                std::string filename;
+                PCIDSK::uint64 image_offset, pixel_offset, line_offset;
+                bool little_endian;
+                
+                chanobj->GetChanInfo( filename, image_offset, pixel_offset,
+                                      line_offset, little_endian );
+                
+                if( filename != ""
+                    && (image_offset != 0 || pixel_offset != 0 || line_offset != 0) )
+                {
+                    printf( "  RawLink: %s\n"
+                            "     ImageOffset=%d, PixelOffset=%d, LineOffset=%d\n",
+                            filename.c_str(),
+                            (int) image_offset, (int) pixel_offset, 
+                            (int) line_offset );
+                }
+
+                // External Non-Raw File
+                int exoff, eyoff, exsize, eysize, echannel;
+                
+                chanobj->GetEChanInfo( filename, echannel,
+                                       exoff, eyoff, exsize, eysize );
+
+                if( echannel != 0 )
+                {
+                    printf( "  ExternalLink: %s\n"
+                            "     Chan=%d Window=%d,%d,%d,%d\n",
+                            filename.c_str(),
+                            echannel, exoff, eyoff, exsize, eysize );
+                }
+
+                // Metadata
                 keys = chanobj->GetMetadataKeys();  
 
                 if( keys.size() > 0 )
@@ -475,6 +508,7 @@ int main( int argc, char **argv)
                             chanobj->GetMetadataValue(keys[i_key].c_str()).c_str() );
                 }
 
+                // Overviews
                 if( chanobj->GetOverviewCount() > 0 )
                 {
                     int   io;
@@ -499,6 +533,7 @@ int main( int argc, char **argv)
                                 chanobj->GetOverviewResampling(io).c_str() );
                     }
                 }
+
             }
         }
 
