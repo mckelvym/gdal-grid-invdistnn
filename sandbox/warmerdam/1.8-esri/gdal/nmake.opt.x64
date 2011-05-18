@@ -247,10 +247,10 @@ TIFF_OPTS=	-DBIGTIFF_SUPPORT
 # Uncommment if you have Kakadu 4.0 or newer
 KAKDIR = C:\Kakadu
 !IFNDEF DEBUG
-KAKLIB = C:\ArcGIS\SharedArcGIS\DepFilesWin64\lib\Kakadu\kdu61.lib
+KAKLIB = C:\ArcGIS\SharedArcGIS\DepFilesWin64\lib\Kakadu\kdu_v64r.lib
 !ELSE
 # Uncomment for building JP2KAK driver using Kakadu debug dll
-KAKLIB = C:\ArcGIS\SharedArcGIS\DepFilesWin64\lib\Kakadu\kdu61d.lib
+KAKLIB = C:\ArcGIS\SharedArcGIS\DepFilesWin64\lib\Kakadu\kdu_v64d.lib
 !ENDIF
 
 # Uncomment the following and update to enable NCSA HDF Release 4 support.
