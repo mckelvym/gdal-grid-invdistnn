@@ -91,6 +91,10 @@ namespace PCIDSK
         int          growing_segment;
 
         std::vector<SysVirtualFile*> virtual_files;
+
+        int          buffer_offset;
+        int          buffer_used;
+        char         buffer[28*1000];
     };
 } // end namespace PCIDSK
 
