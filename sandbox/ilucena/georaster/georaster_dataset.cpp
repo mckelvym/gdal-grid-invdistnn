@@ -61,7 +61,6 @@ GeoRasterDataset::GeoRasterDataset()
     pasGCPList          = NULL;
     poMaskBand          = NULL;
     bApplyNoDataArray   = false;
-    poDriver            = (GDALDriver *) GDALGetDriverByName( "GEORASTER" );
 }
 
 //  ---------------------------------------------------------------------------
@@ -224,35 +223,6 @@ GDALDataset* GeoRasterDataset::Open( GDALOpenInfo* poOpenInfo )
     {
         poGRD->bApplyNoDataArray = true;
     }
-
-    //  -------------------------------------------------------------------
-    //  Check for maximum number of rows in a RDT query
-    //  -------------------------------------------------------------------
-
-    poGRW->nQueryLimit = GEOR_QUERY_LIMIT;
-
-    const char *pszGEOR_QUERY_LIMIT =
-        CPLGetConfigOption( "GEOR_QUERY_LIMIT", "-1" );
-
-    if( ! EQUAL(pszGEOR_QUERY_LIMIT, "-1") && OWIsNumeric(pszGEOR_QUERY_LIMIT) )
-    {
-        poGRW->nQueryLimit = atoi( pszGEOR_QUERY_LIMIT );
-    }
-
-    //  -------------------------------------------------------------------
-    //  Check for maximum number of columns/rows in a RDT query window
-    //  -------------------------------------------------------------------
-
-    poGRW->nQueryWindow = GEOR_QUERY_WINDOW;
-
-    const char *pszGEOR_QUERY_WINDOW =
-        CPLGetConfigOption( "GEOR_QUERY_WINDOW", "-1" );
-
-    if( ! EQUAL(pszGEOR_QUERY_WINDOW, "-1") && OWIsNumeric(pszGEOR_QUERY_WINDOW) )
-    {
-        poGRW->nQueryWindow = atoi( pszGEOR_QUERY_WINDOW );
-    }
-
     //  -------------------------------------------------------------------
     //  Create bands
     //  -------------------------------------------------------------------
@@ -498,8 +468,12 @@ GDALDataset *GeoRasterDataset::Create( const char *pszFilename,
 
     pszFetched = CSLFetchNameValue( papszOptions, "INTERLEAVE" );
 
+    bool bInterleve_ind = false;
+
     if( pszFetched )
     {
+        bInterleve_ind = true;
+
         if( EQUAL( pszFetched, "BAND" ) ||  EQUAL( pszFetched, "BSQ" ) )
         {
             poGRW->sInterleaving = "BSQ";
@@ -533,6 +507,36 @@ GDALDataset *GeoRasterDataset::Create( const char *pszFilename,
           ( nBands == 3 || nBands == 4 ) )
         {
             poGRW->nBandBlockSize = nBands;
+        }
+    }
+
+    if( bInterleve_ind == false && 
+      ( poGRW->nBandBlockSize == 3 || poGRW->nBandBlockSize == 4 ) ) 
+    {
+      poGRW->sInterleaving = "BIP";
+    }
+
+    pszFetched = CSLFetchNameValue( papszOptions, "BLOCKING" );
+
+    if( pszFetched )
+    {
+        if( EQUAL( pszFetched, "NO" ) )
+        {
+            poGRW->bBlocking = false;
+        }
+
+        if( EQUAL( pszFetched, "OPTIMUM" ) )
+        {
+            if( poGRW->poConnection->GetVersion() < 11 )
+            {
+                CPLError( CE_Warning, CPLE_IllegalArg, 
+                    "BLOCKING=OPTIMUM not supported on Oracle older than 11g" );
+            }
+            else
+            {
+                poGRW->bAutoBlocking = true;
+                poGRW->bBlocking = true;
+            }
         }
     }
 
@@ -596,21 +600,6 @@ GDALDataset *GeoRasterDataset::Create( const char *pszFilename,
                 "Option (COMPRESS=%s) requires BLOCKBSIZE to be 1 (for any "
                 "number of bands), 3 (for 3 bands RGB) and 4 (for 4 bands RGBA).",
                 poGRW->sCompressionType.c_str() );
-            delete poGRD;
-            return NULL;
-        }
-
-        /* To compress interleaved blocks all the bands in the same block.
-         */
-        if( poGRW->nBandBlockSize != 1 && 
-            EQUAL( poGRW->sInterleaving.c_str(), "BIP" ) == false )
-        {
-            CPLError( CE_Failure, CPLE_IllegalArg, 
-                "Option (COMPRESS=%s) and (INTERLEAVE=%s) requires BLOCKBSIZE "
-                "equal be 1 (BLOCKBSIZE=%d)",
-                poGRW->sCompressionType.c_str(),
-                poGRW->sInterleaving.c_str(),
-                poGRW->nBandBlockSize );
             delete poGRD;
             return NULL;
         }
@@ -713,11 +702,11 @@ GDALDataset *GeoRasterDataset::Create( const char *pszFilename,
     {
         if( EQUAL( pszFetched, "CENTER" ) )
         {
-            poGRD->poGeoRaster->eForceCoordLocation = MCL_CENTER;
+            poGRD->poGeoRaster->eModelCoordLocation = MCL_CENTER;
         }
         else if( EQUAL( pszFetched, "UPPERLEFT" ) )
         {
-            poGRD->poGeoRaster->eForceCoordLocation = MCL_UPPERLEFT;
+            poGRD->poGeoRaster->eModelCoordLocation = MCL_UPPERLEFT;
         }
         else 
         {
@@ -810,7 +799,7 @@ GDALDataset *GeoRasterDataset::CreateCopy( const char* pszFilename,
             poDstBand->SetColorTable( poColorTable );
         }
 
-        if( poDstBand->GetStatistics( false, false, &dfMin, &dfMax,
+        if( poSrcBand->GetStatistics( false, false, &dfMin, &dfMax,
             &dfStdDev, &dfMean ) == CE_None )
         {
             poDstBand->SetStatistics( dfMin, dfMax, dfStdDev, dfMean );
@@ -864,8 +853,6 @@ GDALDataset *GeoRasterDataset::CreateCopy( const char* pszFilename,
 
     int nPixelSize = GDALGetDataTypeSize( 
         poSrcDS->GetRasterBand(1)->GetRasterDataType() ) / 8;
-
-    poDstDS->poGeoRaster->SetRandonQuery( false );
 
     if( poDstDS->poGeoRaster->nBandBlockSize == 1)
     {
@@ -1020,9 +1007,6 @@ CPLErr GeoRasterDataset::IRasterIO( GDALRWFlag eRWFlag,
                                     int nPixelSpace, int nLineSpace, int nBandSpace )
 
 {
-    CPLDebug("GEOR","IRasterIO(X=%d,Y=%d,W=%d,H=%d)",
-            nXOff, nYOff, nXSize, nYSize);
-    
     if( poGeoRaster->nBandBlockSize > 1 )
     {
         return GDALDataset::BlockBasedRasterIO( eRWFlag,
@@ -1709,15 +1693,14 @@ CPLErr GeoRasterDataset::IBuildOverviews( const char* pszResampling,
               ( panOverviewList[i] != panOverviewList[i-1] * 2 ) )
             {
                 CPLError( CE_Failure, CPLE_AppDefined,
-                    "Invalid GeoRaster Pyramids levels." );
-                
+                    "Invalid GeoRaster Pyramids levels." );        
                 return CE_Failure;
             }
         }
     }
 
     //  -----------------------------------------------------------
-    //  Re-sampling method:
+    //  Re-sampling method: 
     //    NN, BILINEAR, AVERAGE4, AVERAGE16 and CUBIC
     //  -----------------------------------------------------------
 
@@ -1734,7 +1717,6 @@ CPLErr GeoRasterDataset::IBuildOverviews( const char* pszResampling,
     else
     {
         CPLError( CE_Failure, CPLE_AppDefined, "Invalid resampling method" );
-
         return CE_Failure;
     }
 
@@ -1742,14 +1724,10 @@ CPLErr GeoRasterDataset::IBuildOverviews( const char* pszResampling,
     //  Generate pyramids on poGeoRaster
     //  -----------------------------------------------------------
 
-    if( bInternal )
+    if( ! poGeoRaster->GeneratePyramid( nOverviews, szMethod, bInternal ) )
     {
-        if( ! poGeoRaster->GeneratePyramid( nOverviews, szMethod, bInternal ) )
-        {
-            CPLError( CE_Failure, CPLE_AppDefined, "Error generating pyramid" );
-
-            return CE_Failure;
-        }
+        CPLError( CE_Failure, CPLE_AppDefined, "Error generating pyramid" );
+        return CE_Failure;
     }
 
     //  -----------------------------------------------------------
@@ -1759,7 +1737,6 @@ CPLErr GeoRasterDataset::IBuildOverviews( const char* pszResampling,
     if( bInternal )
     {
         pfnProgress( 1 , NULL, pProgressData );
-        
         return CE_None;
     }
 
@@ -1773,11 +1750,7 @@ CPLErr GeoRasterDataset::IBuildOverviews( const char* pszResampling,
 
     for( i = 0; i < nBands; i++ )
     {
-        //  -------------------------------------------------------
-        //  Get GeoRaster's Band
-        //  -------------------------------------------------------
-
-        GeoRasterRasterBand* poBand = (GeoRasterRasterBand*) this->papoBands[i];
+        GeoRasterRasterBand* poBand = (GeoRasterRasterBand*) papoBands[i];
 
         //  -------------------------------------------------------
         //  Clean up previous overviews
@@ -1802,33 +1775,34 @@ CPLErr GeoRasterDataset::IBuildOverviews( const char* pszResampling,
         poBand->papoOverviews  = (GeoRasterRasterBand**) VSIMalloc(
                 sizeof(GeoRasterRasterBand*) * poBand->nOverviewCount );
 
-        for( j = 0; j < nOverviews; j++ )
+        for( j = 0; j < poBand->nOverviewCount; j++ )
         {
           poBand->papoOverviews[j] = new GeoRasterRasterBand(
                 (GeoRasterDataset*) this, ( i + 1 ), ( j + 1 ) );
         }
+    }
 
-        void *pScaledProgressData;
+    //  -----------------------------------------------------------
+    //  Load band's overviews
+    //  -----------------------------------------------------------
 
-        pScaledProgressData = GDALCreateScaledProgress( i / (double) nBands,
-            ( i + 1) / (double) nBands, pfnProgress, pProgressData );
+    for( i = 0; i < nBands; i++ )
+    {
+        GeoRasterRasterBand* poBand = (GeoRasterRasterBand*) papoBands[i];
 
-        //  -------------------------------------------------------
-        //  Load band's overviews
-        //  -------------------------------------------------------
+        void *pScaledProgressData = GDALCreateScaledProgress( 
+            i / (double) nBands, ( i + 1) / (double) nBands, 
+            pfnProgress, pProgressData );
 
-        for( j = 0; j < poBand->nOverviewCount; j++ )
-        {
-            eErr = GDALRegenerateOverviews(
-                (GDALRasterBandH) poBand,
-                poBand->nOverviewCount,
-                (GDALRasterBandH*) poBand->papoOverviews,
-                pszResampling,
-                GDALScaledProgress,
-                pScaledProgressData);
+        eErr = GDALRegenerateOverviews(
+            (GDALRasterBandH) poBand,
+            poBand->nOverviewCount,
+            (GDALRasterBandH*) poBand->papoOverviews,
+            pszResampling,
+            GDALScaledProgress,
+            pScaledProgressData );
 
-            GDALDestroyScaledProgress( pScaledProgressData );
-        }
+        GDALDestroyScaledProgress( pScaledProgressData );
     }
 
     return eErr;
@@ -1863,14 +1837,14 @@ CPLErr GeoRasterDataset::CreateMaskBand( int nFlags )
 
 void CPL_DLL GDALRegister_GEOR()
 {
-    GeoRasterDriver* poDriver;
+    GDALDriver* poDriver;
 
     if (! GDAL_CHECK_VERSION("GeoRaster driver"))
         return;
 
     if( GDALGetDriverByName( "GeoRaster" ) == NULL )
     {
-        poDriver = new GeoRasterDriver();
+        poDriver = new GDALDriver();
 
         poDriver->SetDescription(  "GeoRaster" );
         poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
@@ -1908,6 +1882,11 @@ void CPL_DLL GDALRegister_GEOR()
 "       <Value>JPEG-B</Value>"
 "       <Value>JPEG-F</Value>"
 "       <Value>DEFLATE</Value>"
+"  </Option>"
+"  <Option name='BLOCKING'    type='string-select' default='YES'>"
+"       <Value>YES</Value>"
+"       <Value>NO</Value>"
+"       <Value>OPTIMUM</Value>"
 "  </Option>"
 "  <Option name='COORDLOCATION'    type='string-select' default='CENTER'>"
 "       <Value>CENTER</Value>"

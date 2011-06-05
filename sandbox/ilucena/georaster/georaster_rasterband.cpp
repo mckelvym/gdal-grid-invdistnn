@@ -70,7 +70,7 @@ GeoRasterRasterBand::GeoRasterRasterBand( GeoRasterDataset *poGDS,
 
     if( nLevel == 0 && poGeoRaster->nPyramidMaxLevel > 0 )
     {
-        nOverviewCount      = poGeoRaster->nPyramidMaxLevel;
+        nOverviewCount  = poGeoRaster->nPyramidMaxLevel;
         papoOverviews   = (GeoRasterRasterBand**) VSIMalloc(
                 sizeof(GeoRasterRasterBand*) * nOverviewCount );
         for( int i = 0; i < nOverviewCount; i++ )
@@ -206,9 +206,6 @@ CPLErr GeoRasterRasterBand::IReadBlock( int nBlockXOff,
                                         int nBlockYOff,
                                         void *pImage )
 {
-//    CPLDebug("GEOR","Read(L=%d,B=%d,R=%d,C=%d)",
-//            nOverviewLevel, nBand, nBlockYOff, nBlockXOff );
-    
     if( poGeoRaster->GetDataBlock( nBand,
                                    nOverviewLevel,
                                    nBlockXOff,
@@ -240,9 +237,6 @@ CPLErr GeoRasterRasterBand::IWriteBlock( int nBlockXOff,
                                          int nBlockYOff,
                                          void *pImage )
 {
-//    CPLDebug("GEOR","Write(L=%d,B=%d,R=%d,C=%d)",
-//            nOverviewLevel, nBand, nBlockYOff, nBlockXOff );
-
     if( poGeoRaster->SetDataBlock( nBand,
                                    nOverviewLevel,
                                    nBlockXOff,

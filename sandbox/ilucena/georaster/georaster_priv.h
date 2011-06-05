@@ -52,8 +52,8 @@ CPL_C_START
 #include <jpeglib.h>
 CPL_C_END
 
-void jpeg_vsiio_src (j_decompress_ptr cinfo, FILE * infile);
-void jpeg_vsiio_dest (j_compress_ptr cinfo, FILE * outfile);
+void jpeg_vsiio_src (j_decompress_ptr cinfo, VSILFILE * infile);
+void jpeg_vsiio_dest (j_compress_ptr cinfo, VSILFILE * outfile);
 
 //  ---------------------------------------------------------------------------
 //  System constants
@@ -82,7 +82,20 @@ void jpeg_vsiio_dest (j_compress_ptr cinfo, FILE * outfile);
 #define MCL_UPPERLEFT   1
 #define MCL_DEFAULT     MCL_CENTER
 
-//  Default maximum query limit
+struct hLevelDetails {
+    int             nColumnBlockSize;
+    int             nRowBlockSize;
+    int             nTotalColumnBlocks;
+    int             nTotalRowBlocks;
+    unsigned long   nBlockCount;
+    unsigned long   nBlockBytes;
+    unsigned long   nGDALBlockBytes;
+    unsigned long   nOffset;
+};
+
+//  ---------------------------------------------------------------------------
+//  Query limits
+//  ---------------------------------------------------------------------------
 
 #define GEOR_QUERY_LIMIT 3000L
 #define GEOR_QUERY_WINDOW 1500L
@@ -93,17 +106,6 @@ struct hRDTFields {
     int             nBand;
     int             nRow;
     int             nColumn;
-};
-
-struct hLevelDetails {
-    int             nColumnBlockSize;
-    int             nRowBlockSize;
-    int             nTotalColumnBlocks;
-    int             nTotalRowBlocks;
-    long            nBlockCount;
-    unsigned long   nBlockBytes;
-    unsigned long   nGDALBlockBytes;
-    long            nOffset;
 };
 
 //  ---------------------------------------------------------------------------
@@ -122,34 +124,9 @@ struct hNoDataItem {
 
 #include "oci_wrapper.h"
 
-class GeoRasterDriver;
 class GeoRasterDataset;
 class GeoRasterRasterBand;
 class GeoRasterWrapper;
-
-//  ---------------------------------------------------------------------------
-//  GeoRasterDriver, extends GDALDriver to support GeoRaster Server Connections
-//  ---------------------------------------------------------------------------
-
-class GeoRasterDriver : public GDALDriver
-{
-    friend class GeoRasterDataset;
-
-public:
-                        GeoRasterDriver();
-    virtual            ~GeoRasterDriver();
-
-private:
-
-    OWConnection**      papoConnection;
-    int                 nRefCount;
-
-public:
-
-    OWConnection*       GetConnection( const char* pszUser,
-                            const char* pszPassword,
-                            const char* pszServer );
-};
 
 //  ---------------------------------------------------------------------------
 //  GeoRasterDataset, extends GDALDataset to support GeoRaster Datasets
@@ -311,7 +288,7 @@ public:
 private:
 
     OCILobLocator**     pahLocator;
-    long                nBlockCount;
+    unsigned long       nBlockCount;
     unsigned long       nBlockBytes;
     unsigned long       nGDALBlockBytes;
     GByte*              pabyBlockBuf;
@@ -319,13 +296,15 @@ private:
     OWStatement*        poBlockStmt;
     OWStatement*        poStmtWrite;
 
-    long                nCurrentBlock;
-    long                nCacheBlockIn;
-    long                nCacheBlockOut;
     int                 nCurrentLevel;
     long                nLevelOffset;
+
+    long                nCacheBlockId;
     bool                bFlushBlock;
+    unsigned long       nFlushBlockSize;
+
     bool                bWriteOnly;
+
     int                 nRandonQuery;
 
     hLevelDetails*      pahLevels;
@@ -427,7 +406,6 @@ public:
                                                 int nRowBlocks,
                                                 int nBandBlocks );
     void                SetWriteOnly( bool value ) { bWriteOnly = value; };
-    void                SetRandonQuery( bool value ) { nRandonQuery = value; };
 
 public:
 
@@ -458,6 +436,9 @@ public:
     CPLString           sInterleaving;
     bool                bIsReferenced;
 
+    bool                bBlocking;
+    bool                bAutoBlocking;
+
     double              dfXCoefficient[3];
     double              dfYCoefficient[3];
 
@@ -479,7 +460,6 @@ public:
     bool                bUniqueFound;
     
     int                 eModelCoordLocation;
-    int                 eForceCoordLocation;
     unsigned int        anULTCoordinate[3];
     long                nQueryLimit;
     long                nQueryWindow;
