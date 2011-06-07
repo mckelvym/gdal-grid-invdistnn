@@ -113,7 +113,7 @@ GeoRasterWrapper::~GeoRasterWrapper()
 
     if( pahLocator && nBlockCount )
     {
-        OWStatement::Free( pahLocator, nBlockCount );
+        OWStatement::Free( pahLocator, nBlocksOnQuery );
     }
 
     CPLFree( pahLocator );
@@ -2247,7 +2247,7 @@ bool GeoRasterWrapper::GetDataBlock( int nBand,
                                             pabyBlockBuf,
                                             nBlockBytes );
 
-        CPLDebug( "Load  ", "Block = %4ld Size = %7ld", nBlock, nBlockBytes );
+        CPLDebug( "Load  ", "Block = %4ld Size = %7ld", nBlock, nBytesRead );
 
         if( nBytesRead == 0 )
         {
