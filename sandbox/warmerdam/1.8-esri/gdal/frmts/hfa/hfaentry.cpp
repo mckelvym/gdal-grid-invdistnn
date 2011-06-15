@@ -541,6 +541,8 @@ GByte *HFAEntry::MakeData( int nSize )
             if (poParent != NULL) poParent->MarkDirty(); 
         }
     }
+    else
+        LoadData();
 
     return pabyData;
 }
