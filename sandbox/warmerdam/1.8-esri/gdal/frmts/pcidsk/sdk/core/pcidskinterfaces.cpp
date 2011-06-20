@@ -44,8 +44,10 @@ PCIDSKInterfaces::PCIDSKInterfaces()
 
 {
     io = GetDefaultIOInterfaces();
+//    io = GetBufferedIOInterfaces( io );
     OpenEDB = DefaultOpenEDB;
     CreateMutex = DefaultCreateMutex;
+    Debug = DefaultDebug;
 
 #if defined(HAVE_LIBJPEG)
     JPEGDecompressBlock = LibJPEG_DecompressBlock;
@@ -54,6 +56,7 @@ PCIDSKInterfaces::PCIDSKInterfaces()
     JPEGDecompressBlock = NULL;
     JPEGCompressBlock = NULL;
 #endif
+    
 }
 
 /**

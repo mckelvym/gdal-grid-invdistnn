@@ -48,7 +48,13 @@
 #include "segment/cpcidskgcp2segment.h"
 #include "segment/cpcidskbitmap.h"
 #include "segment/cpcidsk_tex.h"
+#include "segment/cpcidsk_array.h"
 #include "segment/cpcidskapmodel.h"
+#include "segment/cpcidskads40model.h"
+#include "segment/cpcidsktoutinmodel.h"
+#include "segment/cpcidskpolymodel.h"
+#include "segment/cpcidskbinarysegment.h"
+#include "core/clinksegment.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -132,11 +138,14 @@ CPCIDSKFile::~CPCIDSKFile()
 
     for( i_file=0; i_file < file_list.size(); i_file++ )
     {
-        delete file_list[i_file].io_mutex;
-        file_list[i_file].io_mutex = NULL;
+        delete file_list[i_file]->io_mutex;
+        file_list[i_file]->io_mutex = NULL;
 
-        interfaces.io->Close( file_list[i_file].io_handle );
-        file_list[i_file].io_handle = NULL;
+        interfaces.io->Close( file_list[i_file]->io_handle );
+        file_list[i_file]->io_handle = NULL;
+
+        delete file_list[i_file];
+        file_list[i_file] = NULL;
     }
 
     for( i_file=0; i_file < edb_file_list.size(); i_file++ )
@@ -218,7 +227,6 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
         return NULL;
 
     const char *segment_pointer = segment_pointers.buffer + (segment-1) * 32;
-
     if( segment_pointer[0] != 'A' && segment_pointer[0] != 'L' )
         return NULL;
 
@@ -261,6 +269,8 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
             segobj = new SysBlockMap( this, segment, segment_pointer );
         else if( strncmp(segment_pointer + 4, "METADATA",8) == 0 )
             segobj = new MetadataSegment( this, segment, segment_pointer );
+        else if (strncmp(segment_pointer + 4, "Link    ", 8) == 0)
+            segobj = new CLinkSegment(this, segment, segment_pointer);
         else
             segobj = new CPCIDSKSegment( this, segment, segment_pointer );
 
@@ -268,15 +278,50 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int segment )
         
       case SEG_GCP2:
         segobj = new CPCIDSKGCP2Segment(this, segment, segment_pointer);
+        break;
     
+      case SEG_ORB:
+        segobj = new CPCIDSKEphemerisSegment(this, segment, segment_pointer);
+        break;
+
+      case SEG_ARR:
+        segobj = new CPCIDSK_ARRAY(this, segment, segment_pointer);
+        break;
+
       case SEG_BIN:
         if (!strncmp(segment_pointer + 4, "RFMODEL ", 8))
+        {
             segobj = new CPCIDSKRPCModelSegment( this, segment, segment_pointer );
-        else if (!strncmp(segment_pointer + 4, "APMODEL ", 8)) {
+        }
+        else if (!strncmp(segment_pointer + 4, "APMODEL ", 8)) 
+        {
             segobj = new CPCIDSKAPModelSegment(this, segment, segment_pointer);
         }
+        else if (!strncmp(segment_pointer + 4, "ADSMODEL", 8)) 
+        {
+            segobj = new CPCIDSKADS40ModelSegment(this, segment, segment_pointer);
+        }
+        else if (!strncmp(segment_pointer + 4, "POLYMDL ", 8)) 
+        {
+            segobj = new CPCIDSKBinarySegment(this, segment, segment_pointer);
+        }
+        else if (!strncmp(segment_pointer + 4, "TPSMODEL", 8)) 
+        {
+            segobj = new CPCIDSKGCP2Segment(this, segment, segment_pointer);
+        }
+        else if (!strncmp(segment_pointer + 4, "MODEL   ", 8)) 
+        {
+            segobj = new CPCIDSKToutinModelSegment(this, segment, segment_pointer);
+        }
+        else if (!strncmp(segment_pointer + 4, "MMSPB   ", 8)) 
+        {
+            segobj = new CPCIDSKBinarySegment(this, segment, segment_pointer);
+        }
+        else if (!strncmp(segment_pointer + 4, "MMADS   ", 8)) 
+        {
+            segobj = new CPCIDSKBinarySegment(this, segment, segment_pointer);
+        }
         break;
-        
     }
     
     if (segobj == NULL)
@@ -302,7 +347,12 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int type, std::string name,
 
     name += "        "; // white space pad name.
 
-    sprintf( type_str, "%03d", type );
+    //we want the 3 less significant digit only in case type is too big
+    // Note : that happen with SEG_VEC_TABLE that is equal to 65652 in GDB.
+    //see function BuildChildrenLayer in jtfile.cpp, the call on GDBSegNext
+    //in the loop on gasTypeTable can create issue in PCIDSKSegNext 
+    //(in pcic/gdbfrtms/pcidskopen.cpp)
+    sprintf( type_str, "%03d", (type % 1000) );
 
     for( i = previous; i < segment_count; i++ )
     {
@@ -313,6 +363,9 @@ PCIDSK::PCIDSKSegment *CPCIDSKFile::GetSegment( int type, std::string name,
         if( name != "        " 
             && strncmp(segment_pointers.buffer+i*32+4,name.c_str(),8) != 0 )
             continue;
+
+        // Ignore deleted segments.
+        if (*(segment_pointers.buffer + i * 32 + 0) == 'D') continue;
 
         return GetSegment(i+1);
     }
@@ -695,7 +748,9 @@ bool CPCIDSKFile::GetEDBFileDetails( EDBFile** file_p,
         try {
             new_file.file = interfaces.OpenEDB( filename, "r+" );
             new_file.writable = true;
-        } catch( PCIDSK::PCIDSKException ex ) {}
+        } 
+        catch( PCIDSK::PCIDSKException ex ) {}
+        catch( std::exception ex ) {}
     }
 
     if( new_file.file == NULL )
@@ -726,7 +781,8 @@ bool CPCIDSKFile::GetEDBFileDetails( EDBFile** file_p,
 
 void CPCIDSKFile::GetIODetails( void ***io_handle_pp, 
                                 Mutex ***io_mutex_pp, 
-                                std::string filename )
+                                std::string filename,
+                                bool writable )
 
 {
     *io_handle_pp = NULL;
@@ -749,10 +805,11 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 
     for( i = 0; i < file_list.size(); i++ )
     {
-        if( file_list[i].filename == filename )
+        if( file_list[i]->filename == filename
+            && (!writable || file_list[i]->writable) )
         {
-            *io_handle_pp = &(file_list[i].io_handle);
-            *io_mutex_pp = &(file_list[i].io_mutex);
+            *io_handle_pp = &(file_list[i]->io_handle);
+            *io_mutex_pp = &(file_list[i]->io_mutex);
             return;
         }
     }
@@ -761,10 +818,14 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 /*      If not, we need to try and open the file.  Eventually we        */
 /*      will need better rules about read or update access.             */
 /* -------------------------------------------------------------------- */
-    ProtectedFile new_file;
+    ProtectedFile *new_file = new ProtectedFile;
     
-    new_file.io_handle = interfaces.io->Open( filename, "r" );
-    if( new_file.io_handle == NULL )
+    if( writable )
+        new_file->io_handle = interfaces.io->Open( filename, "r+" );
+    else
+        new_file->io_handle = interfaces.io->Open( filename, "r" );
+        
+    if( new_file->io_handle == NULL )
         ThrowPCIDSKException( "Unable to open file '%s'.", 
                               filename.c_str() );
 
@@ -772,13 +833,14 @@ void CPCIDSKFile::GetIODetails( void ***io_handle_pp,
 /*      Push the new file into the list of files managed for this       */
 /*      PCIDSK file.                                                    */
 /* -------------------------------------------------------------------- */
-    new_file.io_mutex = interfaces.CreateMutex();
-    new_file.filename = filename;
+    new_file->io_mutex = interfaces.CreateMutex();
+    new_file->filename = filename;
+    new_file->writable = writable;
 
     file_list.push_back( new_file );
 
-    *io_handle_pp = &(file_list[file_list.size()-1].io_handle);
-    *io_mutex_pp  = &(file_list[file_list.size()-1].io_mutex);
+    *io_handle_pp = &(file_list[file_list.size()-1]->io_handle);
+    *io_mutex_pp  = &(file_list[file_list.size()-1]->io_mutex);
 }
 
 /************************************************************************/

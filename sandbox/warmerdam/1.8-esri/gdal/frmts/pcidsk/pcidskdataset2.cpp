@@ -63,11 +63,14 @@ class PCIDSK2Dataset : public GDALPamDataset
 
     static int           Identify( GDALOpenInfo * );
     static GDALDataset  *Open( GDALOpenInfo * );
+    static GDALDataset  *LLOpen( const char *pszFilename, PCIDSK::PCIDSKFile *,
+                                 GDALAccess eAccess );
     static GDALDataset  *Create( const char * pszFilename,
                                  int nXSize, int nYSize, int nBands,
                                  GDALDataType eType,
                                  char **papszParmList );
 
+    char              **GetFileList(void);
     CPLErr              GetGeoTransform( double * padfTransform );
     CPLErr              SetGeoTransform( double * );
     const char         *GetProjectionRef();
@@ -106,6 +109,8 @@ class PCIDSK2Band : public GDALPamRasterBand
     bool        bCheckedForColorTable;
     int         nPCTSegNumber;
 
+    char      **papszCategoryNames;
+
     void        Initialize();
 
   public:
@@ -130,6 +135,7 @@ class PCIDSK2Band : public GDALPamRasterBand
     CPLErr              SetMetadataItem(const char*,const char*,const char*);
     const char         *GetMetadataItem( const char*, const char*);
 
+    virtual char      **GetCategoryNames();
 };
 
 /************************************************************************/
@@ -222,6 +228,8 @@ void PCIDSK2Band::Initialize()
     bCheckedForColorTable = false;
     poColorTable = NULL;
     nPCTSegNumber = -1;
+
+    papszCategoryNames = NULL;
 }
 
 /************************************************************************/
@@ -237,6 +245,7 @@ PCIDSK2Band::~PCIDSK2Band()
         apoOverviews.pop_back();
     }
     CSLDestroy( papszLastMDListValue );
+    CSLDestroy( papszCategoryNames );
 
     delete poColorTable;
 }
@@ -264,6 +273,78 @@ void PCIDSK2Band::SetDescription( const char *pszDescription )
 }
 
 /************************************************************************/
+/*                          GetCategoryNames()                          */
+/*                                                                      */
+/*      Offer category names from Class_*_ metadata.                    */
+/************************************************************************/
+
+char **PCIDSK2Band::GetCategoryNames()
+
+{
+    // already scanned?
+    if( papszCategoryNames != NULL )
+        return papszCategoryNames;
+
+    try 
+    {
+        std::vector<std::string> aosMDKeys = poChannel->GetMetadataKeys();
+        size_t i;
+        int nClassCount = 0;
+        static const int nMaxClasses = 10000;
+        papszCategoryNames = (char **) CPLCalloc(nMaxClasses+1, sizeof(char*));
+        
+        for( i=0; i < aosMDKeys.size(); i++ )
+        {
+            CPLString osKey = aosMDKeys[i];
+
+            // is this a "Class_n_name" keyword?
+
+            if( !EQUALN(osKey,"Class_",6) )
+                continue;
+
+            if( !EQUAL(osKey.c_str() + osKey.size() - 5, "_name") )
+                continue;
+
+            // Ignore unreasonable class values.
+            int iClass = atoi(osKey.c_str() + 6);
+
+            if( iClass < 0 || iClass > 10000 )
+                continue;
+
+            // Fetch the name.
+            CPLString osName  = poChannel->GetMetadataValue(osKey);
+            
+            // do we need to put in place dummy class names for missing values?
+            if( iClass >= nClassCount )
+            {
+                while( iClass >= nClassCount )
+                {
+                    papszCategoryNames[nClassCount++] = CPLStrdup("");
+                    papszCategoryNames[nClassCount] = NULL;
+                }
+            }
+
+            // Replace target category name.
+            CPLFree( papszCategoryNames[iClass] );
+            papszCategoryNames[iClass] = NULL;
+
+            papszCategoryNames[iClass] = CPLStrdup(osName);
+        }
+        
+        if( nClassCount == 0 )
+            return GDALPamRasterBand::GetCategoryNames();
+        else
+            return papszCategoryNames;
+    }
+    catch( PCIDSKException ex )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "%s", ex.what() );
+        return NULL;
+    }
+}
+
+/************************************************************************/
 /*                         CheckForColorTable()                         */
 /************************************************************************/
 
@@ -277,6 +358,9 @@ bool PCIDSK2Band::CheckForColorTable()
 
     try 
     {
+/* -------------------------------------------------------------------- */
+/*      Try to find an appropriate PCT segment to use.                  */
+/* -------------------------------------------------------------------- */
         std::string osDefaultPCT = poChannel->GetMetadataValue("DEFAULT_PCT_REF");
         PCIDSKSegment *poPCTSeg = NULL;
 
@@ -321,6 +405,59 @@ bool PCIDSK2Band::CheckForColorTable()
                 sEntry.c4 = 255;
                 poColorTable->SetColorEntry( i, &sEntry );
             }
+        }
+
+/* -------------------------------------------------------------------- */
+/*      If we did not find an appropriate PCT segment, check for        */
+/*      Class_n color data from which to construct a color table.       */
+/* -------------------------------------------------------------------- */
+        std::vector<std::string> aosMDKeys = poChannel->GetMetadataKeys();
+        size_t i;
+        
+        for( i=0; i < aosMDKeys.size(); i++ )
+        {
+            CPLString osKey = aosMDKeys[i];
+
+            // is this a "Class_n_name" keyword?
+
+            if( !EQUALN(osKey,"Class_",6) )
+                continue;
+
+            if( !EQUAL(osKey.c_str() + osKey.size() - 6, "_Color") )
+                continue;
+
+            // Ignore unreasonable class values.
+            int iClass = atoi(osKey.c_str() + 6);
+
+            if( iClass < 0 || iClass > 10000 )
+                continue;
+
+            // Fetch and parse the RGB value "(RGB:red green blue)"
+            CPLString osRGB  = poChannel->GetMetadataValue(osKey);
+            int nRed, nGreen, nBlue;
+
+            if( !EQUALN(osRGB,"(RGB:",5) )
+                continue;
+
+            if( sscanf( osRGB.c_str() + 5, "%d %d %d", 
+                        &nRed, &nGreen, &nBlue ) != 3 )
+                continue;
+
+            // we have an entry - apply to the color table.
+            GDALColorEntry sEntry;
+
+            sEntry.c1 = (short) nRed;
+            sEntry.c2 = (short) nGreen;
+            sEntry.c3 = (short) nBlue;
+            sEntry.c4 = 255;
+
+            if( poColorTable == NULL )
+            {
+                CPLDebug( "PCIDSK", "Using Class_n_Color metadata for color table." );
+                poColorTable = new GDALColorTable();
+            }
+
+            poColorTable->SetColorEntry( iClass, &sEntry );
         }
     }
     catch( PCIDSKException ex )
@@ -410,9 +547,9 @@ CPLErr PCIDSK2Band::SetColorTable( GDALColorTable *poCT )
             GDALColorEntry sEntry;
 
             poCT->GetColorEntryAsRGB( i, &sEntry );
-            abyPCT[256 * 0 + i] = sEntry.c1;
-            abyPCT[256 * 1 + i] = sEntry.c2;
-            abyPCT[256 * 2 + i] = sEntry.c3;
+            abyPCT[256 * 0 + i] = (unsigned char) sEntry.c1;
+            abyPCT[256 * 1 + i] = (unsigned char) sEntry.c2;
+            abyPCT[256 * 2 + i] = (unsigned char) sEntry.c3;
         }
 
         PCIDSK_PCT *poPCT = dynamic_cast<PCIDSK_PCT*>( 
@@ -764,6 +901,47 @@ PCIDSK2Dataset::~PCIDSK2Dataset()
     }
 
     CSLDestroy( papszLastMDListValue );
+}
+
+/************************************************************************/
+/*                            GetFileList()                             */
+/************************************************************************/
+
+char **PCIDSK2Dataset::GetFileList()
+
+{
+    char **papszFileList = GDALPamDataset::GetFileList();
+    CPLString osBaseDir = CPLGetPath( GetDescription() );
+
+    try 
+    {
+        for( int nChan = 1; nChan <= poFile->GetChannels(); nChan++ )
+        {
+            PCIDSKChannel *poChannel = poFile->GetChannel( nChan );
+            CPLString osChanFilename;
+            uint64 image_offset, pixel_offset, line_offset;
+            bool little_endian;
+
+            poChannel->GetChanInfo( osChanFilename, image_offset, 
+                                    pixel_offset, line_offset, little_endian );
+
+            if( osChanFilename != "" )
+            {
+                papszFileList = 
+                    CSLAddString( papszFileList, 
+                                  CPLProjectRelativeFilename( osBaseDir, 
+                                                              osChanFilename ) );
+            }
+        }
+    
+        return papszFileList;
+    }
+    catch( PCIDSKException ex )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "%s", ex.what() );
+        return papszFileList;
+    }
 }
 
 /************************************************************************/
@@ -1554,7 +1732,39 @@ GDALDataset *PCIDSK2Dataset::Open( GDALOpenInfo * poOpenInfo )
                       poOpenInfo->pszFilename );
             return NULL;
         }
-                               
+
+        return LLOpen( poOpenInfo->pszFilename, poFile, poOpenInfo->eAccess );
+    }
+/* -------------------------------------------------------------------- */
+/*      Trap exceptions.                                                */
+/* -------------------------------------------------------------------- */
+    catch( PCIDSKException ex )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "%s", ex.what() );
+        return NULL;
+    }
+    catch( ... )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "PCIDSK::Create() failed, unexpected exception." );
+        return NULL;
+    }
+}
+
+/************************************************************************/
+/*                               LLOpen()                               */
+/*                                                                      */
+/*      Low level variant of open that takes the preexisting            */
+/*      PCIDSKFile.                                                     */
+/************************************************************************/
+
+GDALDataset *PCIDSK2Dataset::LLOpen( const char *pszFilename, 
+                                     PCIDSK::PCIDSKFile *poFile,
+                                     GDALAccess eAccess )
+
+{
+    try {
 /* -------------------------------------------------------------------- */
 /*      Create a corresponding GDALDataset.                             */
 /* -------------------------------------------------------------------- */
@@ -1563,7 +1773,7 @@ GDALDataset *PCIDSK2Dataset::Open( GDALOpenInfo * poOpenInfo )
         poDS = new PCIDSK2Dataset();
 
         poDS->poFile = poFile;
-        poDS->eAccess = poOpenInfo->eAccess;
+        poDS->eAccess = eAccess;
         poDS->nRasterXSize = poFile->GetWidth();
         poDS->nRasterYSize = poFile->GetHeight();
 
@@ -1616,13 +1826,13 @@ GDALDataset *PCIDSK2Dataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Initialize any PAM information.                                 */
 /* -------------------------------------------------------------------- */
-        poDS->SetDescription( poOpenInfo->pszFilename );
+        poDS->SetDescription( pszFilename );
         poDS->TryLoadXML();
 
 /* -------------------------------------------------------------------- */
 /*      Open overviews.                                                 */
 /* -------------------------------------------------------------------- */
-        poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename );
+        poDS->oOvManager.Initialize( poDS, pszFilename );
         
         return( poDS );
     }
@@ -1727,11 +1937,7 @@ GDALDataset *PCIDSK2Dataset::Create( const char * pszFilename,
             }
         }
 
-        // TODO: should we ensure this driver gets used?
-
-        delete poFile;
-
-        return (GDALDataset *) GDALOpen( pszFilename, GA_Update );
+        return LLOpen( pszFilename, poFile, GA_Update );
     }
 /* -------------------------------------------------------------------- */
 /*      Trap exceptions.                                                */
