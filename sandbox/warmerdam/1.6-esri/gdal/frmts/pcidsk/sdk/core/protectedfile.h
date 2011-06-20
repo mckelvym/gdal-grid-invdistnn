@@ -36,6 +36,7 @@ namespace PCIDSK
     struct ProtectedFile
     {
         std::string     filename;
+        bool            writable;
         void           *io_handle;
         Mutex          *io_mutex;
     };
@@ -47,7 +48,7 @@ namespace PCIDSK
     {
         EDBFile        *file;
         std::string     filename;
-        int             writable;
+        bool            writable;
         Mutex          *io_mutex;
     };
 

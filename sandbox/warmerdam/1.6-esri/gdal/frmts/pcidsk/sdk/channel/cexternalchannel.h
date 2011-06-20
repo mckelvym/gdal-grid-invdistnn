@@ -51,7 +51,8 @@ namespace PCIDSK
     public:
         CExternalChannel( PCIDSKBuffer &image_header, 
             uint64 ih_offset,
-            PCIDSKBuffer &file_header, 
+            PCIDSKBuffer &file_header,
+            std::string filename,              
             int channelnum,
             CPCIDSKFile *file,
             eChanType pixel_type );
@@ -64,8 +65,14 @@ namespace PCIDSK
             int xsize=-1, int ysize=-1 );
         virtual int WriteBlock( int block_index, void *buffer );
 
+        virtual void GetEChanInfo( std::string &filename, int &echannel,
+                                   int &exoff, int &eyoff, 
+                                   int &exsize, int &eysize ) const;
+        virtual void SetEChanInfo( std::string filename, int echannel,
+                                   int exoff, int eyoff, 
+                                   int exsize, int eysize );
     private:
-        int	 exoff;
+        int      exoff;
         int      eyoff;
         int      exsize;
         int      eysize;
@@ -80,7 +87,7 @@ namespace PCIDSK
 
         void     AccessDB() const;
 
-        std::string filename;
+        mutable std::string filename;
     };
 } // end namespace PCIDSK
 

@@ -44,7 +44,7 @@ namespace PCIDSK
     /*                            CPCIDSKGeoref                             */
     /************************************************************************/
 
-    class CPCIDSKBitmap : public CPCIDSKSegment,
+    class CPCIDSKBitmap : virtual public CPCIDSKSegment,
                           public PCIDSKChannel
     {
     public:
@@ -84,6 +84,19 @@ namespace PCIDSK
         virtual void SetHistoryEntries( const std::vector<std::string> &entries );
         virtual void PushHistory(const std::string &app,
                                  const std::string &message);
+
+        virtual void GetChanInfo( std::string &filename, uint64 &image_offset, 
+                                  uint64 &pixel_offset, uint64 &line_offset, 
+                                  bool &little_endian ) const;
+        virtual void SetChanInfo( std::string filename, uint64 image_offset, 
+                                  uint64 pixel_offset, uint64 line_offset, 
+                                  bool little_endian );
+        virtual void GetEChanInfo( std::string &filename, int &echannel,
+                                   int &exoff, int &eyoff, 
+                                   int &exsize, int &eysize ) const;
+        virtual void SetEChanInfo( std::string filename, int echannel,
+                                   int exoff, int eyoff, 
+                                   int exsize, int eysize );
 
     private:
         bool      loaded;

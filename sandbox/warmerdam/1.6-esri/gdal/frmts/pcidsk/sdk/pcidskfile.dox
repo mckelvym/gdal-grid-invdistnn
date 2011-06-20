@@ -166,7 +166,7 @@ PCIDSK::PCIDSKSegment methods for reading segment data.
 
 ******************************************************************************
 
-\fn void PCIDSK::PCIDSKFile::GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp, std::string filename = "" );
+\fn void PCIDSK::PCIDSKFile::GetIODetails( void ***io_handle_pp, Mutex ***io_mutex_pp, std::string filename = "", bool writable = false );
 
 \brief Fetch details for IO to named file. 
 
@@ -181,6 +181,8 @@ file) are returned.
 
 @param filename the name of the file to access or an empty string for the PCIDSK
 file itself.
+
+@param writable true if a writable file handle is needed.
 
 ******************************************************************************
 

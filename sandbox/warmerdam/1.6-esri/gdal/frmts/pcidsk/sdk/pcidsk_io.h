@@ -55,6 +55,7 @@ namespace PCIDSK
     };
 
     const IOInterfaces PCIDSK_DLL *GetDefaultIOInterfaces();
+    const IOInterfaces PCIDSK_DLL *GetBufferedIOInterfaces(const IOInterfaces*);
 
 } // end namespace PCIDSK
 

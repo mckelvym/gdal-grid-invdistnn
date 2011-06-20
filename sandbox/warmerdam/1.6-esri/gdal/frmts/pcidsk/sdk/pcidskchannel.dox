@@ -287,5 +287,44 @@ index, used with the PCIDSK::PCIDSKChannel::GetOverview method.
 @note The overview levels may not be sorted when retrieved via this mechanism.
 
 @return a vector, where the index of the entry maps to the overview index.
+
+******************************************************************************
+\fn void GetChanInfo( std::string &filename, uint64 &image_offset, uint64 &pixel_offset, uint64 &line_offset, bool &little_endian ) const;
+
+\brief Fetch on disk raw data layout. 
+
+For raw FILE interleaved files, this will return the file containing this 
+channels imagery and the layout on disk.  For all other channel types it will 
+return by filename will be empty and the other values will all be zero.
+
+@param filename the name of the external file.
+
+@param image_offset offset in bytes to the first pixel of image data.
+
+@param pixel_offset the offset in bytes from the start of one pixel to the start of the next on the same scanline.
+
+@param line_offset the offset in bytes from the start of one scanline to the start of the next.
+
+@param little_endian true if the imagery is in little endian byte order on disk (not meaningful for 8U pixels).
+
+******************************************************************************
+\fn void SetChanInfo( std::string filename, uint64 image_offset, uint64 pixel_offset, uint64 line_offset, bool little_endian );
+
+\brief Used to set external raw file layout. 
+
+For FILE interleaved files this method is used to define the external file 
+containing the imagery and the layout of the imagery in that file.  For any 
+other channel type an exception will be raised.
+
+@param filename the name of the external file.
+
+@param image_offset offset in bytes to the first pixel of image data.
+
+@param pixel_offset the offset in bytes from the start of one pixel to the start of the next on the same scanline.
+
+@param line_offset the offset in bytes from the start of one scanline to the start of the next.
+
+@param little_endian true if the imagery is in little endian byte order on disk (not meaningful for 8U pixels).
+
 */
 

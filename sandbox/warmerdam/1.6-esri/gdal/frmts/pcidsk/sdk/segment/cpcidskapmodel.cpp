@@ -30,6 +30,8 @@
 
 #include <utility>
 #include <vector>
+#include <string>
+#include <sstream>
 #include <cassert>
 #include <cstring>
 
@@ -321,7 +323,7 @@ namespace {
         map_units.clear();
         utm_units.clear();
     /* -------------------------------------------------------------------- */
-    /*	Read the header block						*/
+    /*	Read the header block						    */
     /* -------------------------------------------------------------------- */
     
         if(strncmp(buf.buffer,"APMODEL ",8))
@@ -332,14 +334,14 @@ namespace {
         }
 
     /* -------------------------------------------------------------------- */
-    /*      Allocate the APModel.                                         	*/
+    /*      Allocate the APModel.                                           */
     /* -------------------------------------------------------------------- */
 
-        if (!strncmp(&buf.buffer[22],"DS",2))
-    	    downsample = buf.GetInt(22, 3);
+        downsample = buf.GetInt(24, 3);
+        if (0 >= downsample) downsample = 0;
 
     /* -------------------------------------------------------------------- */
-    /*      Read the values							*/
+    /*      Read the values					            */
     /* -------------------------------------------------------------------- */
         pixels = buf.GetInt(0 * 22 + 512, 22);
         lines = buf.GetInt(1 * 22 + 512, 22);
@@ -463,14 +465,32 @@ namespace {
     /* -------------------------------------------------------------------- */
         buf.Get(512 * 4, 16, map_units);
     
-        if (!strncmp(buf.Get(512 * 4 + 16, 3), "UTM", 3))
+        if (!std::strncmp(buf.Get(512 * 4 + 16, 3), "UTM", 3))
         {
             buf.Get(512 * 4, 3, utm_units);
         }
 
-        //ProjParms2Info(szTmp, APModel->sProjection);
         // Parse the Proj Params
-    
+        proj_parms.clear();
+
+        if (*buf.Get(512 * 4 + 256, 1) == '\0')
+        {
+            for (std::size_t i = 0; i < 18; i++)
+            {
+                proj_parms.push_back(0.0);
+            }
+        }
+        else
+        {
+            std::stringstream proj_stream(std::string(buf.Get(512 * 4 + 256, 256)));
+
+            for (std::size_t i = 0; i < 18; i++)
+            {
+                double parm;
+                proj_stream >> parm;
+                proj_parms.push_back(parm);
+            }
+        }
     }
 } // end anonymous namespace
 
@@ -486,7 +506,7 @@ void CPCIDSKAPModelSegment::UpdateFromDisk(void)
         ThrowPCIDSKException("APMODEL segment is smaller than expected. A "
             "segment of size %d was found", data_size);
     }
-    buf.SetSize(data_size - 1024);
+    buf.SetSize( (int) (data_size - 1024) );
     ReadFromFile(buf.buffer, 0, data_size - 1024);
     
     // Expand it using an analogue to a method pulled from GDB

@@ -157,6 +157,9 @@ uint64 StdioIOInterface::Read( void *buffer, uint64 size, uint64 nmemb,
 
     errno = 0;
 
+    printf( "StdioIOInterface::Read( %d, %d ) @ %d;\n", 
+            (int) size, (int) nmemb, (int) fi->offset );
+
 /* -------------------------------------------------------------------- */
 /*      If a fwrite() is followed by an fread(), the POSIX rules are    */
 /*      that some of the write may still be buffered and lost.  We      */

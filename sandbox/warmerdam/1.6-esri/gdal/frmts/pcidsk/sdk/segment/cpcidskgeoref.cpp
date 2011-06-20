@@ -155,6 +155,8 @@ void CPCIDSKGeoref::Load()
         ThrowPCIDSKException( "Unexpected GEO segment type: %s", 
                               seg_data.Get(0,16) );
     }
+
+    loaded = true;
 }
 
 /************************************************************************/
@@ -469,7 +471,9 @@ std::string CPCIDSKGeoref::ReformatGeosys( std::string const& geosys )
             zone = atoi(ptr);
             for( ; isdigit((unsigned char)*ptr) || *ptr == '-'; ptr++ ) {}
             for( ; isspace(*ptr); ptr++ ) {}
-            if( isalpha(*ptr) && !isdigit((unsigned char)*(ptr+1)) )
+            if( isalpha(*ptr) 
+                && !isdigit((unsigned char)*(ptr+1)) 
+                && ptr[1] != '-' )
                 zone_code = *(ptr++);
         }
         else
@@ -995,7 +999,8 @@ void CPCIDSKGeoref::PrepareGCTPFields()
 /* -------------------------------------------------------------------- */
 /*	Projection 0: Geographic (no projection)			*/
 /* -------------------------------------------------------------------- */
-    if( strncmp(geosys_clean.c_str(),"LONG ",5) == 0 )
+    if( strncmp(geosys_clean.c_str(),"LON",3) == 0 
+        || strncmp(geosys_clean.c_str(),"LAT",3) == 0 )
     {
         gsys = 0;
         UnitsCode = GCTP_UNIT_DEGREE;

@@ -1,5 +1,5 @@
 /******************************************************************************
- * $Id: pcidskdataset.cpp 17097 2009-05-21 19:59:35Z warmerdam $
+ * $Id: vsi_pcidsk_io.cpp 21680 2011-02-11 21:12:07Z warmerdam $
  *
  * Project:  PCIDSK Database File
  * Purpose:  PCIDSK SDK compatiable io interface built on VSI.
@@ -31,7 +31,7 @@
 #include "cpl_multiproc.h"
 #include "pcidsk.h"
 
-CPL_CVSID("$Id: pcidskdataset.cpp 17097 2009-05-21 19:59:35Z warmerdam $");
+CPL_CVSID("$Id: vsi_pcidsk_io.cpp 21680 2011-02-11 21:12:07Z warmerdam $");
 
 using namespace PCIDSK;
 
@@ -127,7 +127,7 @@ uint64 VSI_IOInterface::Read( void *buffer, uint64 size, uint64 nmemb,
 
     errno = 0;
 
-    uint64 result = VSIFReadL( buffer, size, nmemb, fp );
+    uint64 result = VSIFReadL( buffer, (size_t) size, (size_t) nmemb, fp );
 
     if( errno != 0 && result == 0 && nmemb != 0 )
         ThrowPCIDSKException( "Read(%d): %s", 
@@ -149,7 +149,7 @@ uint64 VSI_IOInterface::Write( const void *buffer, uint64 size, uint64 nmemb,
 
     errno = 0;
 
-    uint64 result = VSIFWriteL( buffer, size, nmemb, fp );
+    uint64 result = VSIFWriteL( buffer, (size_t) size, (size_t) nmemb, fp );
 
     if( errno != 0 && result == 0 && nmemb != 0 )
         ThrowPCIDSKException( "Write(%d): %s", 
@@ -242,6 +242,7 @@ CPLThreadMutex::CPLThreadMutex()
 
 {
     hMutex = CPLCreateMutex();
+    CPLReleaseMutex( hMutex ); // it is created acquired, but we want it free.
 }
 
 /************************************************************************/

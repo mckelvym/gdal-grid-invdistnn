@@ -39,6 +39,7 @@
 #define __INCLUDE_CORE_SYSVIRTUALFILE_H
 
 #include "pcidsk_buffer.h"
+#include "pcidsk_mutex.h"
 
 #include <vector>
 
@@ -56,8 +57,7 @@ namespace PCIDSK
     {
     public:
         SysVirtualFile( CPCIDSKFile *file, int start_block, uint64 image_length,
-                        PCIDSKBuffer &block_map_data, SysBlockMap *sysblockmap,
-                        int image_index );
+                        SysBlockMap *sysblockmap, int image_index );
         ~SysVirtualFile();
 
         void      Synchronize();
@@ -71,13 +71,19 @@ namespace PCIDSK
     
     private:
         CPCIDSKFile           *file;
+        void                 **io_handle;
+        Mutex                **io_mutex;
+
         SysBlockMap           *sysblockmap;
         int                    image_index;
 
         uint64                 file_length;
 
-        std::vector<int>       block_segment;
-        std::vector<int>       block_index;
+        bool                   regular_blocks;
+        int                    blocks_loaded;
+        std::vector<uint16>    xblock_segment;
+        std::vector<int>       xblock_index;
+        int                    next_bm_entry_to_load;
 
         int                    loaded_block;
         uint8                  block_data[SYSVIRTUALFILE_BLOCKSIZE];
@@ -85,13 +91,22 @@ namespace PCIDSK
 
         int                    last_bm_index;
 
+        uint16                 GetBlockSegment( int requested_block );
+        int                    GetBlockIndexInSegment( int requested_block );
+
+        void                   SetBlockInfo( int requested_block,
+                                             uint16 new_block_segment,
+                                             int new_block_index );
+
         void                   LoadBlock( int requested_block );
         void                   LoadBlocks( int requested_block_start,
-            int requested_block_count, void* const buffer);
+                                           int requested_block_count,
+                                           void* const buffer);
         void                   GrowVirtualFile(std::ptrdiff_t requested_block);
         void                   FlushDirtyBlock();
         void                   WriteBlocks(int first_block, int block_count,
-            void* const buffer);
+                                           void* const buffer);
+        void                   LoadBMEntrysTo( int block_index );
     };
 }
 

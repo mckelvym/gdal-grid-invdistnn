@@ -5,15 +5,7 @@ ifeq ($(JPEG_SETTING),internal)
 JPEG_INCLUDE	=	-I../jpeg/libjpeg
 endif
 
-PCIDSK_SETTING=internal
-
-ifeq ($(PCIDSK_SETTING),old)
-OBJ	=	pcidskdataset.o pcidsktiledrasterband.o
-CPPFLAGS	:=	$(GDAL_INCLUDE) -I../raw $(CPPFLAGS)
-$(O_OBJ):	../raw/rawdataset.h gdal_pcidsk.h
-else
 OBJ	=	pcidskdataset2.o vsi_pcidsk_io.o gdal_edb.o $(SDKOBJ)
-ifeq ($(PCIDSK_SETTING),internal)
 CPPFLAGS	:=	-DHAVE_LIBJPEG $(JPEG_INCLUDE) -DPCIDSK_INTERNAL \
 	-Isdk $(GDAL_INCLUDE) $(CPPFLAGS)
 
@@ -38,6 +30,9 @@ SDKOBJ 	=	\
 	cpcidskgeoref.o \
 	cpcidsksegment.o \
 	cpcidskvectorsegment.o \
+	cpcidskvectorsegment_consistencycheck.o \
+	vecsegheader.o \
+	vecsegdataindex.o \
 	metadatasegment_p.o \
 	sysblockmap.o \
 	cpcidskpct.o \
@@ -45,12 +40,14 @@ SDKOBJ 	=	\
 	cpcidskgcp2segment.o \
 	cpcidskbitmap.o \
 	cpcidsk_tex.o \
-	cpcidskapmodel.o
+	cpcidskapmodel.o \
+	clinksegment.o \
+	cpcidsktoutinmodel.o \
+	cpcidskbinarysegment.o \
+	cpcidsk_array.o \
+	cpcidskephemerissegment.o \
+	cpcidskads40model.o 
 
-else
-CPPFLAGS	:=	$(GDAL_INCLUDE) $(PCIDSK_INCLUDE) $(CPPFLAGS)
-endif
-endif
 
 default:	$(OBJ:.o=.$(OBJ_EXT))
 
@@ -85,13 +82,16 @@ clean:
 	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
 %.$(OBJ_EXT):	sdk/segment/%.cpp
-	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS ) $< -o $@
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
 install-obj:	$(O_OBJ:.o=.$(OBJ_EXT))
 
 import:
-	cp ~/pcidsk/src/*.{h,dox} sdk
-	cp ~/pcidsk/src/channel/*.{cpp,h} sdk/channel
-	cp ~/pcidsk/src/segment/*.{cpp,h} sdk/segment
-	cp ~/pcidsk/src/core/*.{cpp,h} sdk/core
+	cp ~/pcidsk/src/*.h sdk
+	cp ~/pcidsk/src/channel/*.cpp sdk/channel
+	cp ~/pcidsk/src/channel/*.h sdk/channel
+	cp ~/pcidsk/src/segment/*.cpp sdk/segment
+	cp ~/pcidsk/src/segment/*.h sdk/segment
+	cp ~/pcidsk/src/core/*.cpp sdk/core
+	cp ~/pcidsk/src/core/*.h sdk/core
 	cp ~/pcidsk/src/port/*.cpp sdk/port
