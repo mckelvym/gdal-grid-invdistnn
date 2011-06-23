@@ -1,4 +1,4 @@
-/* $Id: tif_dir.c,v 1.103 2010-04-02 19:26:22 fwarmerdam Exp $ */
+/* $Id: tif_dir.c,v 1.107 2011-02-18 20:53:04 fwarmerdam Exp $ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -69,6 +69,19 @@ void _TIFFsetFloatArray(float** fpp, float* fp, uint32 n)
     { setByteArray((void**) fpp, (void*) fp, n, sizeof (float)); }
 void _TIFFsetDoubleArray(double** dpp, double* dp, uint32 n)
     { setByteArray((void**) dpp, (void*) dp, n, sizeof (double)); }
+
+static void
+setDoubleArrayOneValue(double** vpp, double value, size_t nmemb)
+{
+	if (*vpp)
+		_TIFFfree(*vpp);
+	*vpp = _TIFFmalloc(nmemb*sizeof(double));
+	if (*vpp)
+	{
+		while (nmemb--)
+			((double*)*vpp)[nmemb] = value;
+	}
+}
 
 /*
  * Install extra samples information.
@@ -165,7 +178,9 @@ _TIFFVSetField(TIFF* tif, uint32 tag, va_list ap)
 		 * work in with its normal work.
 		 */
 		if (tif->tif_flags & TIFF_SWAB) {
-			if (td->td_bitspersample == 16)
+			if (td->td_bitspersample == 8)
+				tif->tif_postdecode = _TIFFNoPostDecode;
+			else if (td->td_bitspersample == 16)
 				tif->tif_postdecode = _TIFFSwab16BitData;
 			else if (td->td_bitspersample == 24)
 				tif->tif_postdecode = _TIFFSwab24BitData;
@@ -240,10 +255,16 @@ _TIFFVSetField(TIFF* tif, uint32 tag, va_list ap)
 		td->td_maxsamplevalue = (uint16) va_arg(ap, uint16_vap);
 		break;
 	case TIFFTAG_SMINSAMPLEVALUE:
-		td->td_sminsamplevalue = (double) va_arg(ap, double);
+		if (tif->tif_flags & TIFF_PERSAMPLE)
+			_TIFFsetDoubleArray(&td->td_sminsamplevalue, va_arg(ap, double*), td->td_samplesperpixel);
+		else
+			setDoubleArrayOneValue(&td->td_sminsamplevalue, va_arg(ap, double), td->td_samplesperpixel);
 		break;
 	case TIFFTAG_SMAXSAMPLEVALUE:
-		td->td_smaxsamplevalue = (double) va_arg(ap, double);
+		if (tif->tif_flags & TIFF_PERSAMPLE)
+			_TIFFsetDoubleArray(&td->td_smaxsamplevalue, va_arg(ap, double*), td->td_samplesperpixel);
+		else
+			setDoubleArrayOneValue(&td->td_smaxsamplevalue, va_arg(ap, double), td->td_samplesperpixel);
 		break;
 	case TIFFTAG_XRESOLUTION:
 		td->td_xresolution = (float) va_arg(ap, double);
@@ -378,6 +399,10 @@ _TIFFVSetField(TIFF* tif, uint32 tag, va_list ap)
 			_TIFFsetShortArray(&td->td_transferfunction[i],
 			    va_arg(ap, uint16*), 1L<<td->td_bitspersample);
 		break;
+	case TIFFTAG_REFERENCEBLACKWHITE:
+		/* XXX should check for null range */
+		_TIFFsetFloatArray(&td->td_refblackwhite, va_arg(ap, float*), 6);
+		break;
 	case TIFFTAG_INKNAMES:
 		v = (uint16) va_arg(ap, uint16_vap);
 		s = va_arg(ap, char*);
@@ -387,6 +412,13 @@ _TIFFVSetField(TIFF* tif, uint32 tag, va_list ap)
 			_TIFFsetNString(&td->td_inknames, s, v);
 			td->td_inknameslen = v;
 		}
+		break;
+	case TIFFTAG_PERSAMPLE:
+		v = (uint16) va_arg(ap, uint16_vap);
+		if( v == PERSAMPLE_MULTI )
+			tif->tif_flags |= TIFF_PERSAMPLE;
+		else
+			tif->tif_flags &= ~TIFF_PERSAMPLE;
 		break;
 	default: {
 		TIFFTagValue *tv;
@@ -485,7 +517,7 @@ _TIFFVSetField(TIFF* tif, uint32 tag, va_list ap)
 		}
 		else
 		{
-			if(fip->field_passcount) {
+			if (fip->field_passcount) {
 				if (fip->field_writecount == TIFF_VARIABLE2)
 					tv->count = (uint32) va_arg(ap, uint32);
 				else
@@ -498,9 +530,21 @@ _TIFFVSetField(TIFF* tif, uint32 tag, va_list ap)
 			else
 				tv->count = fip->field_writecount;
 
+			if (tv->count == 0) {
+				status = 0;
+				TIFFErrorExt(tif->tif_clientdata, module,
+					     "%s: Null count for \"%s\" (type "
+					     "%d, writecount %d, passcount %d)",
+					     tif->tif_name,
+					     fip->field_name,
+					     fip->field_type,
+					     fip->field_writecount,
+					     fip->field_passcount);
+				goto end;
+			}
 
-			tv->value = _TIFFCheckMalloc(tif, tv_size, tv->count,
-			    "Tag Value");
+			tv->value = _TIFFCheckMalloc(tif, tv->count, tv_size,
+			    "custom tag binary object");
 			if (!tv->value) {
 				status = 0;
 				goto end;
@@ -785,10 +829,32 @@ _TIFFVGetField(TIFF* tif, uint32 tag, va_list ap)
 			*va_arg(ap, uint16*) = td->td_maxsamplevalue;
 			break;
 		case TIFFTAG_SMINSAMPLEVALUE:
-			*va_arg(ap, double*) = td->td_sminsamplevalue;
+			if (tif->tif_flags & TIFF_PERSAMPLE)
+				*va_arg(ap, double**) = td->td_sminsamplevalue;
+			else
+			{
+				/* libtiff historially treats this as a single value. */
+				uint16 i;
+				double v = td->td_sminsamplevalue[0];
+				for (i=1; i < td->td_samplesperpixel; ++i)
+					if( td->td_sminsamplevalue[i] < v )
+						v = td->td_sminsamplevalue[i];
+				*va_arg(ap, double*) = v;
+			}
 			break;
 		case TIFFTAG_SMAXSAMPLEVALUE:
-			*va_arg(ap, double*) = td->td_smaxsamplevalue;
+			if (tif->tif_flags & TIFF_PERSAMPLE)
+				*va_arg(ap, double**) = td->td_smaxsamplevalue;
+			else
+			{
+				/* libtiff historially treats this as a single value. */
+				uint16 i;
+				double v = td->td_smaxsamplevalue[0];
+				for (i=1; i < td->td_samplesperpixel; ++i)
+					if( td->td_smaxsamplevalue[i] > v )
+						v = td->td_smaxsamplevalue[i];
+				*va_arg(ap, double*) = v;
+			}
 			break;
 		case TIFFTAG_XRESOLUTION:
 			*va_arg(ap, float*) = td->td_xresolution;
@@ -823,10 +889,12 @@ _TIFFVGetField(TIFF* tif, uint32 tag, va_list ap)
 			break;
 		case TIFFTAG_STRIPOFFSETS:
 		case TIFFTAG_TILEOFFSETS:
+			_TIFFFillStriles( tif );
 			*va_arg(ap, uint64**) = td->td_stripoffset;
 			break;
 		case TIFFTAG_STRIPBYTECOUNTS:
 		case TIFFTAG_TILEBYTECOUNTS:
+			_TIFFFillStriles( tif );
 			*va_arg(ap, uint64**) = td->td_stripbytecount;
 			break;
 		case TIFFTAG_MATTEING:
@@ -886,6 +954,9 @@ _TIFFVGetField(TIFF* tif, uint32 tag, va_list ap)
 				*va_arg(ap, uint16**) = td->td_transferfunction[1];
 				*va_arg(ap, uint16**) = td->td_transferfunction[2];
 			}
+			break;
+		case TIFFTAG_REFERENCEBLACKWHITE:
+			*va_arg(ap, float**) = td->td_refblackwhite;
 			break;
 		case TIFFTAG_INKNAMES:
 			*va_arg(ap, char**) = td->td_inknames;
@@ -1069,12 +1140,15 @@ TIFFFreeDirectory(TIFF* tif)
 	int            i;
 
 	_TIFFmemset(td->td_fieldsset, 0, FIELD_SETLONGS);
+	CleanupField(td_sminsamplevalue);
+	CleanupField(td_smaxsamplevalue);
 	CleanupField(td_colormap[0]);
 	CleanupField(td_colormap[1]);
 	CleanupField(td_colormap[2]);
 	CleanupField(td_sampleinfo);
 	CleanupField(td_subifd);
 	CleanupField(td_inknames);
+	CleanupField(td_refblackwhite);
 	CleanupField(td_transferfunction[0]);
 	CleanupField(td_transferfunction[1]);
 	CleanupField(td_transferfunction[2]);
@@ -1091,6 +1165,11 @@ TIFFFreeDirectory(TIFF* tif)
 
 	td->td_customValueCount = 0;
 	CleanupField(td_customValues);
+
+#if defined(DEFER_STRILE_LOAD)
+        _TIFFmemset( &(td->td_stripoffset_entry), 0, sizeof(TIFFDirEntry));
+        _TIFFmemset( &(td->td_stripbytecount_entry), 0, sizeof(TIFFDirEntry));
+#endif        
 }
 #undef CleanupField
 
@@ -1511,3 +1590,10 @@ TIFFUnlinkDirectory(TIFF* tif, uint16 dirn)
 }
 
 /* vim: set ts=8 sts=8 sw=8 noet: */
+/*
+ * Local Variables:
+ * mode: c
+ * c-basic-offset: 8
+ * fill-column: 78
+ * End:
+ */

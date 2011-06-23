@@ -1,4 +1,4 @@
-/* $Id: tiffio.h,v 1.84 2008-12-31 23:48:02 bfriesen Exp $ */
+/* $Id: tiffio.h,v 1.88 2011-05-17 00:21:17 fwarmerdam Exp $ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -502,7 +502,7 @@ extern uint32 LogLuv32fromXYZ(float*, int);
 #endif
 #endif /* LOGLUV_PUBLIC */
 
-extern int TIFFCIELabToRGBInit(TIFFCIELabToRGB*, TIFFDisplay *, float*);
+extern int TIFFCIELabToRGBInit(TIFFCIELabToRGB*, const TIFFDisplay *, float*);
 extern void TIFFCIELabToXYZ(TIFFCIELabToRGB *, uint32, int32, int32,
     float *, float *, float *);
 extern void TIFFXYZToRGB(TIFFCIELabToRGB *, float, float, float,
@@ -530,10 +530,7 @@ typedef	struct {
 } TIFFFieldInfo;
 
 extern int TIFFMergeFieldInfo(TIFF*, const TIFFFieldInfo[], uint32);
-extern const TIFFFieldInfo* TIFFFindFieldInfo(TIFF*, uint32, TIFFDataType);
-extern const TIFFFieldInfo* TIFFFindFieldInfoByName(TIFF* , const char *,
-						    TIFFDataType);
-
+        
 #if defined(c_plusplus) || defined(__cplusplus)
 }
 #endif
@@ -541,3 +538,10 @@ extern const TIFFFieldInfo* TIFFFindFieldInfoByName(TIFF* , const char *,
 #endif /* _TIFFIO_ */
 
 /* vim: set ts=8 sts=8 sw=8 noet: */
+/*
+ * Local Variables:
+ * mode: c
+ * c-basic-offset: 8
+ * fill-column: 78
+ * End:
+ */
