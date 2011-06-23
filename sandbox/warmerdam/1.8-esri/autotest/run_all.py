@@ -33,7 +33,7 @@ try:
 except:
    import gdal
 
-all_test_list = [ 'ogr', 'gcore', 'gdrivers', 'osr' , 'warp', 'alg', 'utilities', 'pyscripts' ]
+all_test_list = [ 'gcore', 'gdrivers', 'osr' , 'warp', 'alg', 'utilities' ]
 
 if len(sys.argv) == 2:
     if sys.argv[1] == '-l':
