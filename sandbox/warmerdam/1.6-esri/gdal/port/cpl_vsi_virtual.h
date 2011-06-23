@@ -109,4 +109,6 @@ public:
     static void RemoveHandler( const std::string& osPrefix );
 };
 
+VSIVirtualHandle* VSICreateCachedFile( VSIVirtualHandle* poBaseHandle );
+
 #endif /* ndef CPL_VSI_VIRTUAL_H_INCLUDED */
