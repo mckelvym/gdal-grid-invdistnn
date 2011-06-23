@@ -49,6 +49,7 @@ public:
     }
 
     int            bDirty;
+    size_t         iBlock;
 
     VSICacheChunk *poLRUPrev;
     VSICacheChunk *poLRUNext;
@@ -168,12 +169,6 @@ int VSICachedFile::Seek( vsi_l_offset nReqOffset, int nWhence )
         nReqOffset += nFileSize;
     }
 
-    if( nReqOffset > nFileSize )
-    {
-        errno = EINVAL;
-        return -1;
-    }
-
     nOffset = nReqOffset;
 
     return 0;
@@ -210,6 +205,8 @@ void VSICachedFile::FlushLRU()
         poBlock->poLRUNext->poLRUPrev = NULL;
 
     CPLAssert( !poBlock->bDirty );
+
+    apoCache[poBlock->iBlock] = NULL;
 
     delete poBlock;
 }
@@ -278,6 +275,7 @@ int VSICachedFile::LoadBlocks( size_t nStartBlock, size_t nBlockCount,
 
         VSICacheChunk *poBlock = apoCache[nStartBlock];
 
+        poBlock->iBlock = nStartBlock;
         poBlock->nDataFilled = poBase->Read( poBlock->abyData, 1, CHUNK_SIZE );
         nCacheUsed += poBlock->nDataFilled;
 
@@ -299,7 +297,7 @@ int VSICachedFile::LoadBlocks( size_t nStartBlock, size_t nBlockCount,
         if( !LoadBlocks( nStartBlock, 2, pBuffer, nBufferSize ) )
             return 0;
 
-        return LoadBlocks( nStartBlock, nBlockCount-2, pBuffer, nBufferSize );
+        return LoadBlocks( nStartBlock+2, nBlockCount-2, pBuffer, nBufferSize );
     }
 
 /* -------------------------------------------------------------------- */
@@ -324,6 +322,10 @@ int VSICachedFile::LoadBlocks( size_t nStartBlock, size_t nBlockCount,
     for( size_t i = 0; i < nBlockCount; i++ )
     {
         VSICacheChunk *poBlock = new VSICacheChunk();
+
+        poBlock->iBlock = nStartBlock + i;
+
+        CPLAssert( apoCache[i+nStartBlock] == NULL );
 
         apoCache[i + nStartBlock] = poBlock;
 
@@ -354,6 +356,9 @@ int VSICachedFile::LoadBlocks( size_t nStartBlock, size_t nBlockCount,
 size_t VSICachedFile::Read( void * pBuffer, size_t nSize, size_t nCount )
 
 {
+    if( nOffset >= nFileSize )
+        return 0;
+
 /* ==================================================================== */
 /*      Make sure the cache is loaded for the whole request region.     */
 /* ==================================================================== */
@@ -366,7 +371,8 @@ size_t VSICachedFile::Read( void * pBuffer, size_t nSize, size_t nCount )
         {
             size_t nBlocksToLoad = 1;
             while( iBlock + nBlocksToLoad <= nEndBlock
-                   && (apoCache.size() <= iBlock || apoCache[iBlock] == NULL) )
+                   && (apoCache.size() <= iBlock+nBlocksToLoad 
+                       || apoCache[iBlock+nBlocksToLoad] == NULL) )
                 nBlocksToLoad++;
 
             LoadBlocks( iBlock, nBlocksToLoad, pBuffer, nSize * nCount );
@@ -429,7 +435,7 @@ size_t VSICachedFile::Write( const void * pBuffer, size_t nSize, size_t nCount )
 int VSICachedFile::Eof()
 
 {
-    if( nOffset == nFileSize )
+    if( nOffset >= nFileSize )
         return 1;
     else
         return 0;
