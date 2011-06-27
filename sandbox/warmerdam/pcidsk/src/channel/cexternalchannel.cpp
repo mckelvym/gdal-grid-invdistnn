@@ -592,7 +592,7 @@ int CExternalChannel::WriteBlock( int block_index, void *buffer )
     }
     
 /* -------------------------------------------------------------------- */
-/*      read external block for bottom left corner of target block.     */
+/*      read external block for bottom right corner of target block.    */
 /* -------------------------------------------------------------------- */
     ttxoff = txoff + block1_xsize;
     ttyoff = tyoff + block1_ysize;

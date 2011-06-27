@@ -44,6 +44,7 @@ class PCIDSKCreateTest : public CppUnit::TestFixture
     CPPUNIT_TEST( testFILE );
     CPPUNIT_TEST( testLongFILE );
     CPPUNIT_TEST( testEDB );
+    CPPUNIT_TEST( testBugzilla678 );
     
     // Complex creation and opening support
     CPPUNIT_TEST(createComplex16U);
@@ -66,6 +67,7 @@ public:
     void createComplex16U();
     void createComplex16S();
     void createComplex32R();
+    void testBugzilla678();
 };
 
 // Registers the fixture into the 'registry'
@@ -687,4 +689,92 @@ void PCIDSKCreateTest::testEDB()
     delete poFile;
 
     unlink( sFilename.c_str() );
+}
+
+/************************************************************************/
+/*                          testBugzilla678()                           */
+/*                                                                      */
+/*      Checks a problems with complex data found at PCI.               */
+/************************************************************************/
+
+void        
+PCIDSKCreateTest::testBugzilla678()
+
+{
+    std::string oFilename = "Test16SComplexLib.pix";
+
+    PCIDSK::eChanType channel_types[4];
+
+    channel_types[0] = PCIDSK::CHN_C16S;
+    channel_types[1] = PCIDSK::CHN_C16S;
+    channel_types[2] = PCIDSK::CHN_C16S;
+    channel_types[3] = PCIDSK::CHN_C32R;
+
+    PCIDSK::PCIDSKFile* file =
+        PCIDSK::Create(oFilename, 120, 205, 4, channel_types, "PIXEL");
+
+    short* pnLine = new short[120*2];
+
+    PCIDSK::PCIDSKChannel* poChannel = file->GetChannel(1);
+
+    for(int y=0 ; y<205 ; y++)
+    {
+        for(int x=0 ; x < 120 ; x++)
+        {
+            pnLine[2*x] = (short)x;         
+            pnLine[2*x+1] = (short)y;
+        }
+
+        poChannel->WriteBlock(y,pnLine);
+    }
+
+    float *pafLine = new float[120*2];
+
+    poChannel = file->GetChannel(4);
+
+    for(int y=0 ; y<205 ; y++)
+    {
+        for(int x=0 ; x < 120 ; x++)
+        {
+            pafLine[2*x] = (short)(x+y);
+            pafLine[2*x+1] = (short)(x-y);
+        }
+
+        poChannel->WriteBlock(y,pafLine);
+    }
+
+    memset( pafLine, 0, sizeof(float) * 120*2 );
+    memset( pnLine, 0, sizeof(short) * 120*2 );
+
+    poChannel = file->GetChannel(1);
+
+    for(int y=0 ; y<205 ; y++)
+    {
+        poChannel->ReadBlock(y,pnLine);
+
+        for(int x=0 ; x < 120 ; x++)
+        {
+            CPPUNIT_ASSERT( pnLine[2*x] == (short) x );
+            CPPUNIT_ASSERT( pnLine[2*x+1] == (short) y );
+        }
+    }
+    
+    poChannel = file->GetChannel(4);
+
+    for(int y=0 ; y<205 ; y++)
+    {
+        poChannel->ReadBlock(y,pafLine);
+
+        for(int x=0 ; x < 120 ; x++)
+        {
+            CPPUNIT_ASSERT( (pafLine[2*x] - (x+y)) < 0.00001 );
+            CPPUNIT_ASSERT( (pafLine[2*x+1] - (x-y)) < 0.00001 );
+        }
+    }
+
+    delete file;
+    delete [] pnLine;
+    delete [] pafLine;
+
+    unlink( oFilename.c_str() );
 }
