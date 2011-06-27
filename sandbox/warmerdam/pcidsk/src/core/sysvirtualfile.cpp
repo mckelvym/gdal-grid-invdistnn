@@ -123,7 +123,10 @@ uint16 SysVirtualFile::GetBlockSegment( int requested_block )
         // regular blocks are all in one segment.
         return xblock_segment[0];
     else
+    {
+        assert( requested_block < (int) xblock_segment.size() );
         return xblock_segment[requested_block];
+    }
 }
 
 /************************************************************************/
@@ -144,7 +147,10 @@ int SysVirtualFile::GetBlockIndexInSegment( int requested_block )
         // regular blocks all follow the first block in order.
         return xblock_index[0] + requested_block;
     else
+    {
+        assert( requested_block < (int) xblock_index.size() );
         return xblock_index[requested_block];
+    }
 }
 
 
@@ -540,7 +546,7 @@ void SysVirtualFile::LoadBlocks(int requested_block_start,
         unsigned int cur_segment = GetBlockSegment(current_start); // segment of current
                 // first block
         unsigned int cur_block = current_start; // starting block ID
-        while (cur_block < (unsigned int)requested_block_count + requested_block_start &&
+        while (cur_block < (unsigned int)requested_block_count + requested_block_start - 1 &&
                GetBlockSegment(cur_block + 1) == cur_segment) {
             // this block is in the same segment as the previous one we
             // wanted to read.
@@ -553,23 +559,14 @@ void SysVirtualFile::LoadBlocks(int requested_block_start,
         uint64 read_start = GetBlockIndexInSegment(current_start);
         uint64 read_cur = read_start * block_size;
         unsigned int count_to_read = 1; // we'll read at least one block
-        while (read_cur + block_size ==
-               (uint64)GetBlockIndexInSegment(count_to_read + current_start) * block_size && // compare count of blocks * offset with stored offset
-            count_to_read < (cur_block - current_start) ) // make sure we don't try to read more blocks than we determined fell in
-                                                            // this segment
+
+        while( count_to_read < (cur_block - current_start)
+               && read_cur + block_size ==
+               (uint64)GetBlockIndexInSegment(count_to_read + current_start) * block_size )
         {
             read_cur += block_size;
             count_to_read++;
         }
-
-#if 0
-        // Check if we need to grow the virtual file for each of these blocks
-        for (unsigned int i = 0 ; i < count_to_read; i++) {
-            GrowVirtualFile(i + current_start);
-        }
-        
-        printf("Coalescing the read of %d blocks\n", count_to_read);
-#endif
 
         // Perform the actual read
         PCIDSKSegment *data_seg_obj =
