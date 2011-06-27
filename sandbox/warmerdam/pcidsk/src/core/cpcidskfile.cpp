@@ -460,13 +460,14 @@ void CPCIDSKFile::InitializeFromHeader()
     if( interleaving == "PIXEL" )
     {
         first_line_offset = image_offset;
-        pixel_group_size = count_8u + count_16s*2 + count_16u*2 + count_32r*4;
+        pixel_group_size = count_8u + count_16s*2 + count_16u*2 + count_32r*4
+            + count_c16u*4 + count_c16s*4 + count_c32r*8;
         
         block_size = pixel_group_size * width;
         if( block_size % 512 != 0 )
             block_size += 512 - (block_size % 512);
 
-        last_block_data = malloc((size_t) block_size);
+        last_block_data = calloc(1,(size_t) block_size);
         if( last_block_data == NULL )
             ThrowPCIDSKException( "Allocating %d bytes for scanline buffer failed.", 
                                        (int) block_size );
