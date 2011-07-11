@@ -68,6 +68,25 @@
 #define EPSGInitialLongitude     8830
 #define EPSGZoneWidth            8831
 
+int CSCodeMapping( int pcsCode );
+
+/* -------------------------------------------------------------------- */
+/*      Table relating new and old pcs code.               */
+/* -------------------------------------------------------------------- */
+static const int pcsCodeMappingTab[] =
+{
+  31466, 31462,
+  31467, 31463,
+  31468, 31464,
+  31469, 31465,
+  31492, 31466,
+  31493, 31467,
+  31494, 31468,
+  31495, 31469,  
+  0,    0
+};
+
+
 /************************************************************************/
 /*                           GTIFGetPCSInfo()                           */
 /************************************************************************/
@@ -1879,6 +1898,25 @@ static void GTIFFetchProjParms( GTIF * psGTIF, GTIFDefn * psDefn )
 }
 
 /************************************************************************/
+/*                          CSCodeMapping()                             */
+/* Map PCS code to find an alernative code when the existed one does    */
+/* not work.                     */
+/************************************************************************/
+int CSCodeMapping( int pcsCode )
+{
+  int         nPairs = sizeof(pcsCodeMappingTab) / (2*sizeof(int));
+  int         i;
+  
+  for( i = 0; i < nPairs; i++ )
+  {
+      if( pcsCodeMappingTab[i*2] == pcsCode )
+          return pcsCodeMappingTab[i*2+1];
+  }
+
+  return pcsCode;
+}
+
+/************************************************************************/
 /*                            GTIFGetDefn()                             */
 /************************************************************************/
 
@@ -2081,8 +2119,17 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
         /*
          * Translate this into useful information.
          */
-        GTIFGetPCSInfo( psDefn->PCS, NULL, &(psDefn->ProjCode),
+        if( !GTIFGetPCSInfo( psDefn->PCS, NULL, &(psDefn->ProjCode),
+                        &(psDefn->UOMLength), &(psDefn->GCS) ) || psDefn->ProjCode == KvUserDefined );
+        {
+          int newPCS = CSCodeMapping( psDefn->PCS );
+          if (newPCS != psDefn->PCS)
+          {
+            psDefn->PCS = newPCS;
+            GTIFGetPCSInfo( psDefn->PCS, NULL, &(psDefn->ProjCode),
                         &(psDefn->UOMLength), &(psDefn->GCS) );
+          }
+        }
     }
 
 /* -------------------------------------------------------------------- */
