@@ -562,6 +562,7 @@ GDALDataset *SAGADataset::Open( GDALOpenInfo * poOpenInfo )
 	
     poDS->SetBand( 1, poBand );
     poDS->SetDescription( poOpenInfo->pszFilename );
+    poDS->TryLoadXML();
 
 /* -------------------------------------------------------------------- */
 /*      Check for external overviews.                                   */
