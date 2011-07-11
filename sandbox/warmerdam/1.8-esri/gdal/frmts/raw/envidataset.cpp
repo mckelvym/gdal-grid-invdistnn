@@ -2036,17 +2036,27 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
 
         for( i = 0; i < nBands; i++ )
         {
-            CPLString osBandId, osBandName, osWavelength;
+            CPLString osBandId, osBandName, osWavelength, osWL;
 
+            GDALRasterBand* poBand = poDS->GetRasterBand(i + 1);
             /* First set up the wavelength names and units if available */
             if (papszWL && CSLCount(papszWL) > i) 
             {
                 osWavelength = papszWL[i];
+                osWL = papszWL[i];
                 if (pszWLUnits) 
                 {
                     osWavelength += " ";
                     osWavelength += pszWLUnits;
+
+                    /* convert into ninometers */
+                    if (EQUALN(pszWLUnits, "micro", 5))
+                      osWL = CPLSPrintf("%lg", CPLAtofM(papszWL[i]) * 1000);
+                    else if (EQUALN(pszWLUnits, "milli", 5))
+                      osWL = CPLSPrintf("%lg", CPLAtofM(papszWL[i]) * 1000000);
                 }
+
+                poBand->SetMetadataItem("Wavelength", osWL);
             }
 
             /* Build the final name for this band */
@@ -2064,7 +2074,7 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
                 osBandName = osWavelength;
 
             /* Description is for internal GDAL usage */
-            poDS->GetRasterBand(i + 1)->SetDescription( osBandName );
+            poBand->SetDescription( osBandName );
 
             /* Metadata field named Band_1, etc. needed for ArcGIS integration */
             osBandId = CPLSPrintf("Band_%i", i+1);
