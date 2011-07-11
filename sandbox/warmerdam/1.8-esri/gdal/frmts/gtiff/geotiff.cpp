@@ -6399,9 +6399,7 @@ void GTiffDataset::ScanDirectories()
         oGTiffMDMD.SetMetadata( papszSubdatasets, "SUBDATASETS" );
     }
     CSLDestroy( papszSubdatasets );
-    
 }
-
 
 static int GTiffGetLZMAPreset(char** papszOptions)
 {
@@ -8284,6 +8282,9 @@ void *GTiffDataset::GetInternalHandle( const char * /* pszHandleName */ )
 
 int GTiffDataset::FindRPBFile(char** papszSiblingFiles)
 {
+    if( !CSLTestBoolean( CPLGetConfigOption( "TIFF_RPC_ENABLED", "YES" ) ) )
+        return FALSE;
+
     CPLString osTarget = CPLResetExtension( osFilename, "RPB" );
 
     if( papszSiblingFiles == NULL )
@@ -8320,6 +8321,9 @@ int GTiffDataset::FindRPBFile(char** papszSiblingFiles)
 
 int GTiffDataset::FindRPCFile(char** papszSiblingFiles)
 {
+    if( !CSLTestBoolean( CPLGetConfigOption( "TIFF_RPC_ENABLED", "YES" ) ) )
+        return FALSE;
+
     CPLString osSrcPath = osFilename;
     CPLString soPt(".");
     size_t found = osSrcPath.rfind(soPt);
@@ -8372,6 +8376,9 @@ int GTiffDataset::FindRPCFile(char** papszSiblingFiles)
 
 int GTiffDataset::FindIMDFile(char** papszSiblingFiles)
 {
+    if( !CSLTestBoolean( CPLGetConfigOption( "TIFF_RPC_ENABLED", "YES" ) ) )
+        return FALSE;
+
     CPLString osTarget = CPLResetExtension( osFilename, "IMD" );
 
     if( papszSiblingFiles == NULL )
