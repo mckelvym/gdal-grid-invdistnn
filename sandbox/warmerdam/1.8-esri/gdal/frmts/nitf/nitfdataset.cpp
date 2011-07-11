@@ -72,13 +72,19 @@ static int NITFWriteJPEGImage( GDALDataset *, VSILFILE *, vsi_l_offset, char **,
                                void * pProgressData );
 #endif
 
-char   **ExtractEsriMD( char **papszMD );
+static char **ExtractEsriMD( char **papszMD );
 static std::string Base64Encode( unsigned char const *pBytesToEncode,
-                                 unsigned int         nDataLen );
+                                 size_t               nDataLen );
+static std::string Base64Decode( const char *const  pEncodedStr ,
+                                 size_t            &nDataLen );
+static bool IsBase64( unsigned char aChar );
 
 static char **NITFReadHeaderTreCSDIDA( NITFFile *psFile );
 
 static void SetBandMetadata( NITFImage *psImage, GDALRasterBand *poBand, int nBand );
+
+static const std::string BASE64_CHAR = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
 
 /************************************************************************/
 /* ==================================================================== */
@@ -469,6 +475,7 @@ class NITFDataset : public GDALPamDataset
 
     GDALMultiDomainMetadata oSpecialMD;
 
+    void         InitializeNITFDESMetadata();
     void         InitializeNITFDESs();
     void         InitializeNITFMetadata();
     void         InitializeNITFTREs();
@@ -3136,6 +3143,91 @@ CPLErr NITFDataset::SetProjection(const char* _pszProjection)
 
 
 /************************************************************************/
+/*                       InitializeNITFDESMetadata()                        */
+/************************************************************************/
+
+void NITFDataset::InitializeNITFDESMetadata()
+{
+  static const char   *pszDESMetadataDomain       = "NITF_DES_METADATA";
+  static const char   *pszDESsDomain              = "NITF_DES";
+  static const char   *pszMDXmlDataContentDESDATA = "NITF_DES_XML_DATA_CONTENT_DESDATA";
+  static const char   *pszXmlDataContent          = "XML_DATA_CONTENT";
+  static const size_t  idxXmlDataContentDESDATA   = 973;
+  static const size_t  sizeXmlDataContent         = strlen(pszXmlDataContent);
+
+	char **ppszDESMetadataList = oSpecialMD.GetMetadata( pszDESMetadataDomain );
+
+	if( ppszDESMetadataList != NULL ) return;
+
+	char **ppszDESsList = this->GetMetadata( pszDESsDomain );
+
+  if( ppszDESsList == NULL ) return;
+
+  bool          foundXmlDataContent = false;
+  bool          found               = false;
+  char        **papszMergedMD       = NULL;
+  char         *pachNITFDES         = NULL;
+  int           index               = 0;
+  size_t        dataLen             = 0;
+  size_t        encodedDataLen      = 0;
+  std::string   decodedData("");
+  
+  // Set metadata "NITF_DES_XML_DATA_CONTENT_DESDATA".
+  // NOTE: There should only be one instance of XML_DATA_CONTENT DES.
+
+  while( ((pachNITFDES = *ppszDESsList) != NULL) && (!foundXmlDataContent) )
+  {
+    // The data stream has been Base64 encoded, need to decode it.
+    // NOTE: The actual length of the DES data stream is appended at the beginning of the encoded
+    //       data and is separated by a space.
+
+    decodedData.clear();
+
+    dataLen        = 0;
+    encodedDataLen = strlen(pachNITFDES);
+    found          = false;
+    index          = 0;
+
+    for( size_t ii = 0; ((ii < encodedDataLen) && (!found)); ++ii )
+    {
+      if( pachNITFDES[index] == ' ' )
+      {
+        found = true;
+        break;
+      }
+
+      index += 1;
+    }
+    
+    if( found ) decodedData = ::Base64Decode( pachNITFDES+index+1, dataLen );
+
+    if ( decodedData.size() > sizeXmlDataContent )
+    {
+      // Check to see if this is a XML_DATA_CONTENT DES.
+
+      pachNITFDES = (const_cast<char*> (decodedData.c_str())) + 2;
+
+      if ( EQUALN(pachNITFDES, pszXmlDataContent, sizeXmlDataContent) )
+      {
+        foundXmlDataContent = true;
+
+        // Get the value of the DESDATA field and set metadata "NITF_DES_XML_DATA_CONTENT_DESDATA".
+
+        pachNITFDES += (-2+973); // Move the pointer to the beginning of the XML_DATA_CONTENT DES field DESDATA.
+
+        // Set the metadata.
+
+        oSpecialMD.SetMetadataItem( pszMDXmlDataContentDESDATA, pachNITFDES, pszDESMetadataDomain );
+      }
+    }
+
+    pachNITFDES   = NULL;
+    ppszDESsList += 1;
+  }
+}
+
+
+/************************************************************************/
 /*                       InitializeNITFDESs()                           */
 /************************************************************************/
 
@@ -3429,7 +3521,7 @@ void NITFDataset::InitializeNITFMetadata()
         return;
     }
 
-    std::string encodedHeader = Base64Encode((unsigned char const *) psFile->pachHeader, nHeaderLen);
+    std::string encodedHeader = Base64Encode((unsigned char const *) psFile->pachHeader, (size_t) nHeaderLen);
 
     if (encodedHeader.empty())
     {
@@ -3453,7 +3545,7 @@ void NITFDataset::InitializeNITFMetadata()
     
     for( int i = 0; i < psFile->nSegmentCount; ++i )
     {
-        if (strncmp(psFile->pasSegmentInfo[i].szSegmentType, "IM", 2) == 0)
+        if ((strncmp(psFile->pasSegmentInfo[i].szSegmentType, "IM", 2) == 0) && (i == psImage->iSegment))
         {
             nImageSubheaderLen = psFile->pasSegmentInfo[i].nSegmentHeaderSize;
             break;
@@ -3468,7 +3560,8 @@ void NITFDataset::InitializeNITFMetadata()
 
     if( nImageSubheaderLen > 0 )
     {
-        std::string encodedImageSubheader = Base64Encode((unsigned char const *) psImage->pachHeader, nImageSubheaderLen);
+        std::string encodedImageSubheader = Base64Encode( (unsigned char const *) psImage->pachHeader, 
+                                                          (size_t) nImageSubheaderLen);
     
         if( encodedImageSubheader.empty() )
         {
@@ -3829,28 +3922,45 @@ void NITFDataset::InitializeTREMetadata()
 /************************************************************************/
 
 char **NITFDataset::GetMetadata( const char * pszDomain )
-
 {
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_METADATA") )
     {
+        // InitializeNITFMetadata retrieves the NITF file header and all image segment file headers.
+
         InitializeNITFMetadata();
         return oSpecialMD.GetMetadata( pszDomain );
     }
 
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_DES") )
     {
+        // InitializeNITFDESs retrieves all the DES file headers (NOTE: The returned strings are base64-encoded).
+
         InitializeNITFDESs();
+        return oSpecialMD.GetMetadata( pszDomain );
+    }
+
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_DES_METADATA") )
+    {
+        // InitializeNITFDESs retrieves all the DES file headers (NOTE: The returned strings are base64-encoded).
+
+        InitializeNITFDESMetadata();
         return oSpecialMD.GetMetadata( pszDomain );
     }
 
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_FILE_HEADER_TRES") )
     {
+        // InitializeNITFTREs retrieves all the TREs that are resides in the NITF file header and all the
+        // TREs that are resides in the current image segment.
+
         InitializeNITFTREs();
         return oSpecialMD.GetMetadata( pszDomain );
     }
 
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_IMAGE_SEGMENT_TRES") )
     {
+        // InitializeNITFTREs retrieves all the TREs that are resides in the NITF file header and all the
+        // TREs that are resides in the current image segment.
+
         InitializeNITFTREs();
         return oSpecialMD.GetMetadata( pszDomain );
     }
@@ -3882,22 +3992,37 @@ char **NITFDataset::GetMetadata( const char * pszDomain )
 
 const char *NITFDataset::GetMetadataItem(const char * pszName,
                                          const char * pszDomain )
-
 {
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_METADATA") )
     {
+        // InitializeNITFMetadata retrieves the NITF file header and all image segment file headers.
+
         InitializeNITFMetadata();
+        return oSpecialMD.GetMetadataItem( pszName, pszDomain );
+    }
+
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_DES_METADATA") )
+    {
+        // InitializeNITFDESs retrieves all the DES file headers (NOTE: The returned strings are base64-encoded).
+
+        InitializeNITFDESMetadata();
         return oSpecialMD.GetMetadataItem( pszName, pszDomain );
     }
 
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_FILE_HEADER_TRES") )
     {
+        // InitializeNITFTREs retrieves all the TREs that are resides in the NITF file header and all the
+        // TREs that are resides in the current image segment.
+
         InitializeNITFTREs();
         return oSpecialMD.GetMetadataItem( pszName, pszDomain );
     }
 
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_IMAGE_SEGMENT_TRES") )
     {
+        // InitializeNITFTREs retrieves all the TREs that are resides in the NITF file header and all the
+        // TREs that are resides in the current image segment.
+
         InitializeNITFTREs();
         return oSpecialMD.GetMetadataItem( pszName, pszDomain );
     }
@@ -6607,7 +6732,6 @@ void DensifyGCPs( GDAL_GCP **psGCPs, int &nGCPCount )
     psDensifiedGCPs = NULL;
 }
 
-
 bool RPCTransform( NITFRPC00BInfo *psRPCInfo, 
                    double         *pGCPXCoord,
                    double         *pGCPYCoord,
@@ -6650,7 +6774,6 @@ bool RPCTransform( NITFRPC00BInfo *psRPCInfo,
 
     return (ok);
 }
-
 
 void UpdateGCPsWithRPC( NITFRPC00BInfo *psRPCInfo,
                         GDAL_GCP       *psGCPs,
@@ -6748,8 +6871,167 @@ void UpdateGCPsWithRPC( NITFRPC00BInfo *psRPCInfo,
  *
  *  René Nyffenegger rene.nyffenegger@adp-gmbh.ch
 */
+std::string Base64Decode( const char *const  pEncodedStr ,
+                          size_t            &nDataLen )
+{
+  size_t encodeStrLen = 0;
+
+  if ((pEncodedStr == NULL) || ((encodeStrLen = strlen(pEncodedStr)) <= 0)) return (false);
+  
+  nDataLen = 0;
+
+  bool          ok     = false;
+  int           count  = 1;
+  int           index1 = 0;
+  int           index2 = 0;
+  int           idx    = 0;
+  unsigned char charArray3[3];
+  unsigned char charArray4[4];
+  size_t        charCount = 0;
+  size_t        size      = encodeStrLen;
+  std::string   decodedStr("");
+
+  char *pBuffer = new char[encodeStrLen+1];
+  char *pTmpPtr = pBuffer;
+
+  try
+  {
+    while ((encodeStrLen--) && (pEncodedStr[idx] != '=') && (::IsBase64(pEncodedStr[idx])))
+    {
+      charArray4[index1++] = pEncodedStr[idx];
+      idx++;
+
+      if (index1 == 4)
+      {
+        for (index1 = 0; index1 < 4; ++index1)
+        {
+          charArray4[index1] = (unsigned char) ::BASE64_CHAR.find(charArray4[index1]);
+        }
+
+        charArray3[0] = (charArray4[0]         << 2) + ((charArray4[1] & 0x30) >> 4);
+        charArray3[1] = ((charArray4[1] & 0xf) << 4) + ((charArray4[2] & 0x3c) >> 2);
+        charArray3[2] = ((charArray4[2] & 0x3) << 6) + charArray4[3];
+
+        for (index1 = 0; (index1 < 3); ++index1)
+        {
+          if (charCount < size)
+          {
+            pTmpPtr[charCount] = charArray3[index1];
+          }
+          else
+          {
+            count += 1;
+
+            pBuffer = new char[(count*encodeStrLen)+1];
+            memcpy(static_cast<void*> (pBuffer), (const void*) pTmpPtr, (count-1) * encodeStrLen);
+
+            delete [] (pTmpPtr);
+            pTmpPtr            = pBuffer;
+            pTmpPtr[charCount] = charArray3[index1];
+            size               = count * encodeStrLen;
+          }
+
+          charCount += 1;
+        }
+
+        index1 = 0;
+      }
+    }
+
+    if (index1 != 0)
+    {
+      for (index2 = index1; index2 < 4; ++index2)
+      {
+        charArray4[index2] = 0;
+      }
+
+      for (index2 = 0; index2 < 4; ++index2)
+      {
+        charArray4[index2] = (unsigned char) ::BASE64_CHAR.find(charArray4[index2]);
+      }
+
+      charArray3[0] = (charArray4[0]         << 2) + ((charArray4[1] & 0x30) >> 4);
+      charArray3[1] = ((charArray4[1] & 0xf) << 4) + ((charArray4[2] & 0x3c) >> 2);
+      charArray3[2] = ((charArray4[2] & 0x3) << 6) + charArray4[3];
+
+      for (index2 = 0; (index2 < index1 - 1); ++index2)
+      {
+        if (charCount < size)
+        {
+          pTmpPtr[charCount] = charArray3[index2];
+        }
+        else
+        {
+            count += 1;
+
+            pBuffer = new char[(count*encodeStrLen)+1];
+            memcpy(static_cast<void*> (pBuffer), (const void*) pTmpPtr, (count-1) * encodeStrLen);
+
+            delete [] (pTmpPtr);
+            pTmpPtr            = pBuffer;
+            pTmpPtr[charCount] = charArray3[index2];
+            size               = count * encodeStrLen;
+        }
+
+        charCount += 1;
+      }
+    }
+
+    ok                 = true;
+    pTmpPtr[charCount] = '\0';
+  }
+  catch (...) {}
+
+  if (ok)
+  {
+    decodedStr.assign(pTmpPtr);
+    nDataLen = charCount;
+  }
+
+  if (pTmpPtr != NULL)
+  {
+    delete [] (pTmpPtr);
+    pTmpPtr = NULL;
+  }
+
+  pBuffer = NULL;
+
+  return (decodedStr);
+}
+
+/*
+ * This function was extracted from the base64 cpp utility published by René Nyffenegger.
+ * The code was modified cosmetically so that the coding style is inlined with this file.
+ * The original code can be found at http://www.adp-gmbh.ch/cpp/common/base64.html.
+ *
+ * The following is the original notice of this function.
+ *
+ * base64.cpp and base64.h
+ *
+ *  Copyright (C) 2004-2008 René Nyffenegger
+ *
+ *  This source code is provided 'as-is', without any express or implied
+ *  warranty. In no event will the author be held liable for any damages
+ *  arising from the use of this software.
+ *
+ *  Permission is granted to anyone to use this software for any purpose,
+ *  including commercial applications, and to alter it and redistribute it
+ *  freely, subject to the following restrictions:
+ *
+ *  1. The origin of this source code must not be misrepresented; you must not
+ *     claim that you wrote the original source code. If you use this source code
+ *     in a product, an acknowledgment in the product documentation would be
+ *     appreciated but is not required.
+ *
+ *  2. Altered source versions must be plainly marked as such, and must not be
+ *     misrepresented as being the original source code.
+ *
+ *  3. This notice may not be removed or altered from any source distribution.
+ *
+ *  René Nyffenegger rene.nyffenegger@adp-gmbh.ch
+*/
 std::string Base64Encode( unsigned char const *pBytesToEncode,
-                          unsigned int         nDataLen )
+                          size_t               nDataLen )
 {
   static const std::string base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -6801,6 +7083,11 @@ std::string Base64Encode( unsigned char const *pBytesToEncode,
   }
 
   return (result);
+}
+
+bool IsBase64( unsigned char aChar )
+{
+  return ((isalnum(aChar)) || (aChar == '+') || (aChar == '/'));
 }
 
 /*
@@ -6988,7 +7275,6 @@ char **NITFReadHeaderTreCSDIDA( NITFFile *psFile )
 
     return papszMD;
 }
-
 
 void SetBandMetadata( NITFImage *psImage, GDALRasterBand *poBand, int nBand )
 {
