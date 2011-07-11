@@ -166,7 +166,8 @@ void GDALDefaultOverviews::OverviewScan()
     if( pszInitName == NULL )
         pszInitName = CPLStrdup(poDS->GetDescription());
 
-    if( !EQUAL(pszInitName,":::VIRTUAL:::") )
+    if( !EQUAL(pszInitName,":::VIRTUAL:::") 
+    &&  CSLTestBoolean( CPLGetConfigOption( "GDAL_OVR_ENABLED", "YES") ) )
     {
         if( bInitNameIsOVR )
             osOvrFilename = pszInitName;
@@ -201,7 +202,9 @@ void GDALDefaultOverviews::OverviewScan()
 /*      We only use the .aux file for overviews if they already have    */
 /*      overviews existing, or if USE_RRD is set true.                  */
 /* -------------------------------------------------------------------- */
-    if( !poODS && !EQUAL(pszInitName,":::VIRTUAL:::") )
+    if( !poODS 
+    &&  !EQUAL(pszInitName,":::VIRTUAL:::") 
+    &&  CSLTestBoolean( CPLGetConfigOption( "GDAL_RRD_ENABLED", "YES") ) )
     {
         poODS = GDALFindAssociatedAuxFile( pszInitName, poDS->GetAccess(),
                                            poDS );
