@@ -40,6 +40,8 @@
 
 #include "ogr_spatialref.h"
 
+#include <time.h>
+
 CPL_CVSID("$Id$");
 
 CPL_C_START
@@ -90,7 +92,6 @@ public:
     GRIBRasterBand( GRIBDataset*, int, inventoryType* );
     virtual ~GRIBRasterBand();
     virtual CPLErr IReadBlock( int, int, void * );
-    virtual const char *GetDescription() const;
 
     void    FindPDSTemplate();
 
@@ -98,7 +99,6 @@ private:
     static void ReadGribData( DataSource &, sInt4, int, double**, grib_MetaData**);
     sInt4 start;
     int subgNum;
-    char *longFstLevel;
 
     double * m_Grib_Data;
     grib_MetaData* m_Grib_MetaData;
@@ -120,7 +120,14 @@ GRIBRasterBand::GRIBRasterBand( GRIBDataset *poDS, int nBand,
     this->nBand = nBand;
     this->start = psInv->start;
     this->subgNum = psInv->subgNum;
-    this->longFstLevel = CPLStrdup(psInv->longFstLevel);
+
+    time_t utc = (time_t)psInv->validTime;
+    if (utc > 0)
+    {
+      CPLString osDescription;
+      osDescription = CPLSPrintf("%s [%s]", psInv->shortFstLevel, asctime(gmtime(&utc))+4);
+      SetDescription(osDescription);
+    }
 
     eDataType = GDT_Float64; // let user do -ot Float32 if needed for saving space, GRIB contains Float64 (though not fully utilized most of the time)
 
@@ -130,6 +137,7 @@ GRIBRasterBand::GRIBRasterBand( GRIBDataset *poDS, int nBand,
     nGribDataXSize = poDS->nRasterXSize;
     nGribDataYSize = poDS->nRasterYSize;
 
+    SetMetadataItem( "GRIB_LONG_NAME", psInv->longFstLevel );
     SetMetadataItem( "GRIB_UNIT", psInv->unitName );
     SetMetadataItem( "GRIB_COMMENT", psInv->comment );
     SetMetadataItem( "GRIB_ELEMENT", psInv->element );
@@ -216,18 +224,6 @@ void GRIBRasterBand::FindPDSTemplate()
     }
 
     VSIFSeekL( poGDS->fp, nOffset, SEEK_SET );
-}
-
-/************************************************************************/
-/*                         GetDescription()                             */
-/************************************************************************/
-
-const char * GRIBRasterBand::GetDescription() const
-{
-    if( longFstLevel == NULL )
-        return GDALPamRasterBand::GetDescription();
-    else
-        return longFstLevel;
 }
  
 /************************************************************************/
@@ -347,7 +343,6 @@ void GRIBRasterBand::ReadGribData( DataSource & fp, sInt4 start, int subgNum, do
 
 GRIBRasterBand::~GRIBRasterBand()
 {
-    CPLFree(longFstLevel);
     if (m_Grib_Data)
         free (m_Grib_Data);
     if (m_Grib_MetaData)
