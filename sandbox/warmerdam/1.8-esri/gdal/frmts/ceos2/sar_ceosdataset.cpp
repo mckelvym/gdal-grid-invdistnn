@@ -1612,13 +1612,12 @@ GDALDataset *SAR_CEOSDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Try to read the current file as an imagery file.                */
 /* -------------------------------------------------------------------- */
+    
     psVolume->ImagryOptionsFile = TRUE;
-    if( ProcessData( fp, __CEOS_IMAGRY_OPT_FILE, psVolume, 4, -1) )
+    if( ProcessData( fp, __CEOS_IMAGRY_OPT_FILE, psVolume, 4, -1) != CE_None )
     {
         delete poDS;
-        CPLError( CE_Failure, CPLE_OpenFailed, 
-                  "Corrupted or unknown CEOS format:\n%s", 
-                  poOpenInfo->pszFilename );
+        VSIFCloseL(fp);
         return NULL;
     }
 
@@ -1678,9 +1677,14 @@ GDALDataset *SAR_CEOSDataset::Open( GDALOpenInfo * poOpenInfo )
             {
                 char szThisExtension[32];
 
-                sprintf( szThisExtension, "%s%s", 
-                         CeosExtension[e][iFile], 
-                         pszExtension+3 );
+                if( strlen(pszExtension) > 3 )
+                    sprintf( szThisExtension, "%s%s", 
+                             CeosExtension[e][iFile], 
+                             pszExtension+3 );
+                else
+                    sprintf( szThisExtension, "%s", 
+                             CeosExtension[e][iFile] );
+
                 pszFilename = CPLStrdup(
                     CPLFormFilename(pszPath,pszBasename,szThisExtension));
             }
@@ -1758,6 +1762,8 @@ GDALDataset *SAR_CEOSDataset::Open( GDALOpenInfo * poOpenInfo )
                   "Unable to extract CEOS image description\n"
                   "from %s.", 
                   poOpenInfo->pszFilename );
+
+        VSIFCloseL(fp);
 
         return NULL;
     }
@@ -1991,6 +1997,7 @@ ProcessData( VSILFILE *fp, int fileid, CeosSARVolume_t *sar, int max_records,
     int                CurrentSequence = 0;
     Link_t             *TheLink;
     CeosRecord_t       *record;
+    int                iThisRecord = 0;
 
     while(max_records != 0 && max_bytes != 0)
     {
@@ -1998,6 +2005,29 @@ ProcessData( VSILFILE *fp, int fileid, CeosSARVolume_t *sar, int max_records,
         VSIFSeekL( fp, start, SEEK_SET );
         VSIFReadL( temp_buffer, 1, __CEOS_HEADER_LENGTH, fp );
         record->Length = DetermineCeosRecordBodyLength( temp_buffer );
+        
+        iThisRecord++;
+        CeosToNative( &(record->Sequence), temp_buffer, 4, 4 );
+
+        if( iThisRecord != record->Sequence )
+        {
+            if( fileid == __CEOS_IMAGRY_OPT_FILE && iThisRecord == 2 )
+            {
+                CPLDebug( "SAR_CEOS", "Ignoring CEOS file with wrong second record sequence number - likely it has padded records." );
+                CPLFree(record);
+                CPLFree(temp_body);
+                return CE_Warning;
+            }
+            else
+            {
+                CPLError( CE_Failure, CPLE_AppDefined, 
+                          "Corrupt CEOS File - got record seq# %d instead of the expected %d.",
+                          record->Sequence, iThisRecord );
+                CPLFree(record);
+                CPLFree(temp_body);
+                return CE_Failure;
+            }
+        }
         
         if( record->Length > CurrentBodyLength )
         {
@@ -2048,7 +2078,7 @@ ProcessData( VSILFILE *fp, int fileid, CeosSARVolume_t *sar, int max_records,
 
     CPLFree(temp_body);
 
-    return 0;
+    return CE_None;
 }
 
 /************************************************************************/
