@@ -4946,6 +4946,12 @@ NITFDataset::NITFCreateCopy(
             }
             if( poJ2KDriver == NULL )
             {
+                /* Try with JP2KAK as an alternate driver */
+                poJ2KDriver = 
+                    GetGDALDriverManager()->GetDriverByName( "JP2KAK" );
+            }
+            if( poJ2KDriver == NULL )
+            {
                 CPLError( 
                     CE_Failure, CPLE_AppDefined, 
                     "Unable to write JPEG2000 compressed NITF file.\n"
@@ -5332,19 +5338,11 @@ NITFDataset::NITFCreateCopy(
         GUIntBig nImageOffset = psFile->pasSegmentInfo[0].nSegmentStart;
         CPLString osDSName;
 
-        if (EQUAL(poJ2KDriver->GetDescription(), "JP2ECW"))
-        {
-            osDSName.Printf( "J2K_SUBFILE:" CPL_FRMT_GUIB ",%d,%s", nImageOffset, -1,
-                             pszFilename );
-        }
-        else
-        {
-            /* Jasper case */
-            osDSName.Printf( "/vsisubfile/" CPL_FRMT_GUIB "_%d,%s", nImageOffset, -1,
-                             pszFilename );
-        }
-                             
         NITFClose( psFile );
+
+        osDSName.Printf( "/vsisubfile/" CPL_FRMT_GUIB "_%d,%s", 
+                         nImageOffset, -1,
+                         pszFilename );
 
         if (EQUAL(poJ2KDriver->GetDescription(), "JP2ECW"))
         {
