@@ -850,6 +850,15 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
             break;
         }
 
+        // Corrects false easting/northing in case that oSRS.SetXXX incorrectly sets alse easting/northing.
+        // To it here is not to break the oSRS.SetXXX for other cases.
+        double dfToMeter = oSRS.GetLinearUnits(NULL); 
+        if (EQUAL(pszLinearUnits,"BROKEN") && dfToMeter != 1.0 && bLinearUnitsMarkedCorrect && unitCode == KvUserDefined)
+        {
+          oSRS.SetProjParm( SRS_PP_FALSE_EASTING, adfParm[5] );
+          oSRS.SetProjParm( SRS_PP_FALSE_NORTHING, adfParm[6] );
+        }
+
 /* -------------------------------------------------------------------- */
 /*      Set projection units.                                           */
 /* -------------------------------------------------------------------- */
