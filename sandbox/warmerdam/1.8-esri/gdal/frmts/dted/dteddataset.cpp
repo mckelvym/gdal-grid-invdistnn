@@ -518,18 +518,18 @@ const char *DTEDDataset::GetProjectionRef()
 {
     // get xml and aux SR first
     const char* pszPrj = GDALPamDataset::GetProjectionRef();
-    if(pszPrj && strlen(pszPrj) > 0)
+    if (pszPrj && strlen(pszPrj) > 0)
         return pszPrj;
 
     if (pszProjection && strlen(pszProjection) > 0)
         return pszProjection;
 
     pszPrj = GetMetadataItem( "DTED_HorizontalDatum");
-    if (EQUAL(pszPrj, "WGS84"))
+    if (pszPrj && EQUAL(pszPrj, "WGS84"))
     {
         return( "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433],AUTHORITY[\"EPSG\",\"4326\"]]" );
     }
-    else if (EQUAL(pszPrj, "WGS72"))
+    else if (pszPrj && EQUAL(pszPrj, "WGS72"))
     {
         static int bWarned = FALSE;
         if (!bWarned)
