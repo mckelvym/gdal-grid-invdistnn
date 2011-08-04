@@ -3599,6 +3599,10 @@ GDALDataset *HFADataset::Open( GDALOpenInfo * poOpenInfo )
             CPLFree( pasPolyListForward );
             CPLFree( pasPolyListReverse );
         }
+        else
+        {
+            GDALReadWorldFile( poOpenInfo->pszFilename, ".igw", poDS->adfGeoTransform );
+        }
     }
 
 /* -------------------------------------------------------------------- */
