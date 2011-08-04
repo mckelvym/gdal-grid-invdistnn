@@ -629,19 +629,36 @@ GDALDefaultOverviews::BuildOverviews(
                                     nNewOverviews, panNewOverviewList, 
                                     pszResampling, pfnProgress, pProgressData );
         
-        // Probe for proxy overview filename. 
         if( eErr == CE_Failure )
         {
-            const char *pszProxyOvrFilename = 
-                poDS->GetMetadataItem("FILENAME","ProxyOverviewRequest");
-
-            if( pszProxyOvrFilename != NULL )
+            poODS = (GDALDataset *) GDALOpen( osOvrFilename, GA_Update );
+            if( poODS )
             {
-                osOvrFilename = pszProxyOvrFilename;
-                eErr = GTIFFBuildOverviews( osOvrFilename, nBands, pahBands, 
-                                            nNewOverviews, panNewOverviewList, 
-                                            pszResampling, 
-                                            pfnProgress, pProgressData );
+                // Clean up partial overviews
+                GDALDriver *poOvrDriver;
+                poOvrDriver = poODS->GetDriver();
+                GDALClose( poODS );
+                poODS = NULL;
+                if( poOvrDriver )
+                    poOvrDriver->Delete( osOvrFilename );
+
+                CPLError( CE_Failure, CPLE_AppDefined, 
+                          "GTIFFBuildOverviews() has failed." );
+            }
+            else
+            {
+                // Probe for proxy overview filename. 
+                const char *pszProxyOvrFilename = 
+                    poDS->GetMetadataItem("FILENAME","ProxyOverviewRequest");
+
+                if( pszProxyOvrFilename != NULL )
+                {
+                    osOvrFilename = pszProxyOvrFilename;
+                    eErr = GTIFFBuildOverviews( osOvrFilename, nBands, pahBands, 
+                                                nNewOverviews, panNewOverviewList, 
+                                                pszResampling, 
+                                                pfnProgress, pProgressData );
+                }
             }
         }
 
