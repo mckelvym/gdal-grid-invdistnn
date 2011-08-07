@@ -45,6 +45,10 @@ static const unsigned char msig_uuid[16] =
 { 0x96,0xA9,0xF1,0xF1,0xDC,0x98,0x40,0x2D,
   0xA7,0xAE,0xD6,0x8E,0x34,0x45,0x18,0x09 };
 
+static const unsigned char xmp_uuid[16] =
+{ 0xBE,0x7A,0xCF,0xCB,0x97,0xA9,0x42,0xE8,
+  0x9C,0x71,0x99,0x94,0x91,0xE3,0xAF,0xAC};
+
 /************************************************************************/
 /*                          GDALJP2Metadata()                           */
 /************************************************************************/
@@ -58,12 +62,15 @@ GDALJP2Metadata::GDALJP2Metadata()
     pasGCPList = NULL;
 
     papszGMLMetadata = NULL;
+    papszMetadata = NULL;
 
     nGeoTIFFSize = 0;
     pabyGeoTIFFData = NULL;
 
     nMSIGSize = 0;
     pabyMSIGData = NULL;
+
+    pszXMPMetadata = NULL;
 
     bHaveGeoTransform = FALSE;
     adfGeoTransform[0] = 0.0;
@@ -91,6 +98,8 @@ GDALJP2Metadata::~GDALJP2Metadata()
     CPLFree( pabyGeoTIFFData );
     CPLFree( pabyMSIGData );
     CSLDestroy( papszGMLMetadata );
+    CSLDestroy( papszMetadata );
+    CPLFree( pszXMPMetadata );
 }
 
 /************************************************************************/
@@ -234,6 +243,16 @@ int GDALJP2Metadata::ReadBoxes( VSILFILE *fpVSIL )
         }
 
 /* -------------------------------------------------------------------- */
+/*      Collect XMP box.                                                */
+/* -------------------------------------------------------------------- */
+        if( EQUAL(oBox.GetType(),"uuid")
+            && memcmp( oBox.GetUUID(), xmp_uuid, 16 ) == 0 &&
+            pszXMPMetadata == NULL )
+        {
+            pszXMPMetadata = (char*) oBox.ReadBoxData();
+        }
+
+/* -------------------------------------------------------------------- */
 /*      Process asoc box looking for Labelled GML data.                 */
 /* -------------------------------------------------------------------- */
         if( EQUAL(oBox.GetType(),"asoc") )
@@ -265,6 +284,65 @@ int GDALJP2Metadata::ReadBoxes( VSILFILE *fpVSIL )
             papszGMLMetadata = CSLSetNameValue( papszGMLMetadata, 
                                                 osBoxName, pszXML );
             CPLFree( pszXML );
+        }
+
+/* -------------------------------------------------------------------- */
+/*      Check for a resd box in jp2h.                                   */
+/* -------------------------------------------------------------------- */
+        if( EQUAL(oBox.GetType(),"jp2h") )
+        {
+            GDALJP2Box oSubBox( fpVSIL );
+
+            for( oSubBox.ReadFirstChild( &oBox );
+                 strlen(oSubBox.GetType()) > 0;
+                 oSubBox.ReadNextChild( &oBox ) )
+            {
+                if( EQUAL(oSubBox.GetType(),"res ") )
+                {
+                    GDALJP2Box oResBox( fpVSIL );
+
+                    oResBox.ReadFirstChild( &oSubBox );
+                    
+                    // we will use either the resd or resc box, which ever
+                    // happens to be first.  Should we prefer resd?
+                    if( oResBox.GetDataLength() == 10 )
+                    {
+                        unsigned char *pabyResData = oResBox.ReadBoxData();
+                        int nVertNum, nVertDen, nVertExp;
+                        int nHorzNum, nHorzDen, nHorzExp;
+                        
+                        nVertNum = pabyResData[0] * 256 + pabyResData[1];
+                        nVertDen = pabyResData[2] * 256 + pabyResData[3];
+                        nHorzNum = pabyResData[4] * 256 + pabyResData[5];
+                        nHorzDen = pabyResData[6] * 256 + pabyResData[7];
+                        nVertExp = pabyResData[8];
+                        nHorzExp = pabyResData[9];
+                        
+                        // compute in pixels/cm 
+                        double dfVertRes = 
+                            (nVertNum/(double)nVertDen) * pow(10.0,nVertExp)/100;
+                        double dfHorzRes = 
+                            (nHorzNum/(double)nHorzDen) * pow(10.0,nHorzExp)/100;
+                        CPLString osFormatter;
+
+                        papszMetadata = CSLSetNameValue( 
+                            papszMetadata, 
+                            "TIFFTAG_XRESOLUTION",
+                            osFormatter.Printf("%g",dfHorzRes) );
+                        
+                        papszMetadata = CSLSetNameValue( 
+                            papszMetadata, 
+                            "TIFFTAG_YRESOLUTION",
+                            osFormatter.Printf("%g",dfVertRes) );
+                        papszMetadata = CSLSetNameValue( 
+                            papszMetadata, 
+                            "TIFFTAG_RESOLUTIONUNIT", 
+                            "3 (pixels/cm)" );
+                        
+                        CPLFree( pabyResData );
+                    }
+                }
+            }
         }
 
         oBox.ReadNext();
@@ -927,7 +1005,7 @@ GDALJP2Box *GDALJP2Metadata::CreateGMLJP2( int nXSize, int nYSize )
 "<gml:FeatureCollection\n"
 "   xmlns:gml=\"http://www.opengis.net/gml\"\n"
 "   xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
-"   xsi:schemaLocation=\"http://www.opengeospatial.net/gml http://schemas.opengis.net/gml/3.1.1/profiles/gmlJP2Profile/1.0.0/gmlJP2Profile.xsd\">\n"
+"   xsi:schemaLocation=\"http://www.opengis.net/gml http://schemas.opengis.net/gml/3.1.1/profiles/gmlJP2Profile/1.0.0/gmlJP2Profile.xsd\">\n"
 "  <gml:boundedBy>\n"
 "    <gml:Null>withheld</gml:Null>\n"
 "  </gml:boundedBy>\n"

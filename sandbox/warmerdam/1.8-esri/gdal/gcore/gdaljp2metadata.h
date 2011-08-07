@@ -122,6 +122,9 @@ public:
     int         nGCPCount;
     GDAL_GCP    *pasGCPList;
 
+    char  **papszMetadata;
+    char   *pszXMPMetadata;
+
 public:
             GDALJP2Metadata();
             ~GDALJP2Metadata();

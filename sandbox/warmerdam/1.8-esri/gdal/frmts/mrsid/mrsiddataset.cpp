@@ -32,6 +32,7 @@
 #include "gdal_pam.h"
 #include "ogr_spatialref.h"
 #include "cpl_string.h"
+#include "gdaljp2metadata.h"
 #include <string>
 
 #include <geo_normalize.h>
@@ -210,7 +211,9 @@ class MrSIDDataset : public GDALPamDataset
 {
     friend class MrSIDRasterBand;
 
-    LTIVSIStream        oStream;
+    LTIOStreamInf       *poStream;
+    LTIOFileStream      oLTIStream;
+    LTIVSIStream        oVSIStream;
 
 #if defined(LTI_SDK_MAJOR) && LTI_SDK_MAJOR >= 7
     LTIImageFilter      *poImageReader;
@@ -259,6 +262,8 @@ class MrSIDDataset : public GDALPamDataset
     virtual CPLErr      IRasterIO( GDALRWFlag, int, int, int, int, void *,
                                    int, int, GDALDataType, int, int *,int,
                                    int, int );
+
+  protected:
 
   public:
                 MrSIDDataset(int bIsJPEG2000);
@@ -423,6 +428,7 @@ MrSIDRasterBand::MrSIDRasterBand( MrSIDDataset *poDS, int nBand )
                 eBandInterp = GCI_Undefined;
             break;
 
+#if defined(LTI_SDK_MAJOR) && LTI_SDK_MAJOR >= 8
         case LTI_COLORSPACE_RGBA:
         case LTI_COLORSPACE_RGBK:
             if( nBand == 1 )
@@ -436,6 +442,7 @@ MrSIDRasterBand::MrSIDRasterBand( MrSIDDataset *poDS, int nBand )
             else
                 eBandInterp = GCI_Undefined;
             break;
+#endif
 
         case LTI_COLORSPACE_CMYK:
             if( nBand == 1 )
@@ -724,6 +731,7 @@ GDALRasterBand *MrSIDRasterBand::GetOverview( int i )
 
 MrSIDDataset::MrSIDDataset(int bIsJPEG2000)
 {
+    poStream = NULL;
     poImageReader = NULL;
 #ifdef MRSID_ESDK
     poImageWriter = NULL;
@@ -787,6 +795,8 @@ MrSIDDataset::~MrSIDDataset()
 #else
         delete poImageReader;
 #endif
+    // points to another member, don't delete
+    poStream = NULL;
 
     if ( pszProjection )
         CPLFree( pszProjection );
@@ -797,6 +807,7 @@ MrSIDDataset::~MrSIDDataset()
         for( int i = 0; i < nOverviewCount; i++ )
             delete papoOverviewDS[i];
         CPLFree( papoOverviewDS );
+        papoOverviewDS = NULL;
     }
 }
 
@@ -1465,18 +1476,43 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo, int bIsJP2 )
     LT_STATUS       eStat;
 
     poDS = new MrSIDDataset(bIsJP2);
-    eStat = poDS->oStream.initialize( poOpenInfo->pszFilename, "rb" );
-    if ( !LT_SUCCESS(eStat) )
+
+    // try the LTIOFileStream first, since it uses filesystem caching
+    eStat = poDS->oLTIStream.initialize( poOpenInfo->pszFilename, "rb" );
+    if ( LT_SUCCESS(eStat) )
     {
-        CPLError( CE_Failure, CPLE_AppDefined,
-                  "MrSIDStream::initialize(): "
-                  "failed to open file \"%s\".\n%s",
-                  poOpenInfo->pszFilename, getLastStatusString( eStat ) );
-        delete poDS;
-        return NULL;
+        eStat = poDS->oLTIStream.open();
+        if ( LT_SUCCESS(eStat) )
+            poDS->poStream = &(poDS->oLTIStream);
     }
 
-    poDS->oStream.open();
+    // fall back on VSI for non-files
+    if ( !LT_SUCCESS(eStat) || !poDS->poStream )
+    {
+        eStat = poDS->oVSIStream.initialize( poOpenInfo->pszFilename, "rb" );
+	    if ( !LT_SUCCESS(eStat) )
+    	{
+        	CPLError( CE_Failure, CPLE_AppDefined,
+                      "LTIVSIStream::initialize(): "
+                      "failed to open file \"%s\".\n%s",
+                      poOpenInfo->pszFilename, getLastStatusString( eStat ) );
+            delete poDS;
+            return NULL;
+        }
+
+        eStat = poDS->oVSIStream.open();
+        if ( !LT_SUCCESS(eStat) )
+        {
+            CPLError( CE_Failure, CPLE_AppDefined,
+                      "LTIVSIStream::open(): "
+                  "failed to open file \"%s\".\n%s",
+                  poOpenInfo->pszFilename, getLastStatusString( eStat ) );
+        	delete poDS;
+        	return NULL;
+    	}
+
+        poDS->poStream = &(poDS->oVSIStream);
+    }
 
 #if defined(LTI_SDK_MAJOR) && LTI_SDK_MAJOR >= 7
 
@@ -1484,14 +1520,14 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo, int bIsJP2 )
     if ( bIsJP2 )
     {
         J2KImageReader  *reader = J2KImageReader::create();
-        eStat = reader->initialize( poDS->oStream );
+        eStat = reader->initialize( *(poDS->poStream) );
         poDS->poImageReader = reader;
     }
     else
 #endif /* MRSID_J2K */
     {
         MrSIDImageReader    *reader = MrSIDImageReader::create();
-	eStat = reader->initialize( &poDS->oStream, NULL );
+        eStat = reader->initialize( poDS->poStream, NULL );
         poDS->poImageReader = reader;           
     }
 
@@ -1501,14 +1537,14 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo, int bIsJP2 )
     if ( bIsJP2 )
     {
         poDS->poImageReader =
-            new LTIDLLReader<J2KImageReader>( poDS->oStream, true );
+            new LTIDLLReader<J2KImageReader>( *(poDS->poStream), true );
         eStat = poDS->poImageReader->initialize();
     }
     else
 #endif /* MRSID_J2K */
     {
         poDS->poImageReader =
-            new LTIDLLReader<MrSIDImageReader>( &poDS->oStream, NULL );
+            new LTIDLLReader<MrSIDImageReader>( poDS->poStream, NULL );
         eStat = poDS->poImageReader->initialize();
     }
 
@@ -1625,10 +1661,39 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo, int bIsJP2 )
     if( poDS->nBands > 1 )
         poDS->SetMetadataItem( "INTERLEAVE", "PIXEL", "IMAGE_STRUCTURE" );
 
+    if (bIsJP2)
+    {
+        GDALJP2Metadata oJP2Geo;
+        if ( oJP2Geo.ReadAndParse( poOpenInfo->pszFilename ) )
+        {
+            /*poDS->pszProjection = CPLStrdup(oJP2Geo.pszProjection);
+            poDS->bGeoTransformValid = oJP2Geo.bHaveGeoTransform;
+            memcpy( poDS->adfGeoTransform, oJP2Geo.adfGeoTransform,
+                    sizeof(double) * 6 );
+            poDS->nGCPCount = oJP2Geo.nGCPCount;
+            poDS->pasGCPList = oJP2Geo.pasGCPList;
+            oJP2Geo.pasGCPList = NULL;
+            oJP2Geo.nGCPCount = 0;*/
+        }
+
+        if (oJP2Geo.pszXMPMetadata)
+        {
+            char *apszMDList[2];
+            apszMDList[0] = (char *) oJP2Geo.pszXMPMetadata;
+            apszMDList[1] = NULL;
+            poDS->SetMetadata(apszMDList, "xml:XMP");
+        }
+    }
+
 /* -------------------------------------------------------------------- */
 /*      Initialize any PAM information.                                 */
 /* -------------------------------------------------------------------- */
     poDS->TryLoadXML();
+
+/* -------------------------------------------------------------------- */
+/*      Initialize the overview manager for mask band support.          */
+/* -------------------------------------------------------------------- */
+    poDS->oOvManager.Initialize( poDS, poOpenInfo->pszFilename );
 
     return( poDS );
 }
