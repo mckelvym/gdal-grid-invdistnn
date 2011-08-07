@@ -478,6 +478,7 @@ class NITFDataset : public GDALPamDataset
     void         InitializeNITFDESMetadata();
     void         InitializeNITFDESs();
     void         InitializeNITFMetadata();
+    void         InitializeNITFSYs();
     void         InitializeNITFTREs();
     void         InitializeCGMMetadata();
     void         InitializeTextMetadata();
@@ -3341,6 +3342,118 @@ void NITFDataset::InitializeNITFDESs()
 }
 
 /************************************************************************/
+/*                       InitializeNITFSYSegments()                     */
+/************************************************************************/
+
+void NITFDataset::InitializeNITFSYs()
+{
+
+/* ------------------------------------------------------------------------------------------------- */
+/*  This method extract all the SY segments (NITF 2.0: Symbol Segments, NITF 2.1: Graphic Segments). */
+/* ------------------------------------------------------------------------------------------------- */
+
+    static const char *pszSYsDomain = "NITF_SY";
+
+	  char **ppszSYsList = oSpecialMD.GetMetadata( pszSYsDomain );
+
+	  if( ppszSYsList != NULL ) return;
+
+/* ---------------------------------------------------------- */
+/*  Go through all the segments and process all SY segments.  */
+/* ---------------------------------------------------------- */
+	
+	  char               *pachSYData  = NULL;
+	  char               *pszLine     = NULL;
+    char                tmpSubheader[298];
+    NITFSegmentInfo    *psSegInfo    = NULL;
+	  size_t              nSYDataSize  = 0;
+	  std::string         encodedSYData("");
+	  std::vector<char*>  tmpKeyValStore;
+      
+	  tmpKeyValStore.clear();
+
+	  for( int iSegment = 0; iSegment < psFile->nSegmentCount; iSegment++ )
+	  {
+		    psSegInfo       = psFile->pasSegmentInfo + iSegment;
+        tmpSubheader[0] = '\0';
+
+        if( EQUAL(psSegInfo->szSegmentType,"SY") || EQUAL(psSegInfo->szSegmentType,"GR") )
+		    {
+            if( VSIFSeekL( psFile->fp, psSegInfo->nSegmentHeaderStart, 
+                           SEEK_SET ) != 0 
+                || VSIFReadL( tmpSubheader, 1, sizeof(tmpSubheader), 
+                              psFile->fp ) < 258 )
+            {
+                CPLError( CE_Warning, CPLE_FileIO, 
+                          "Failed to read graphic subheader at " CPL_FRMT_GUIB ".", 
+                          psSegInfo->nSegmentHeaderStart );
+                continue;
+            }   
+        
+			      if( (nSYDataSize = strlen(tmpSubheader)) <= 0 )
+            {
+                CPLError( CE_Warning, CPLE_FileIO, 
+                          "Failed to read graphic subheader at " CPL_FRMT_GUIB ".", 
+                          psSegInfo->nSegmentHeaderStart );
+                continue;
+            }
+	     
+/* -------------------------------------------------------------------- */
+/* Accumulate all the SY segments.                                      */
+/* -------------------------------------------------------------------- */
+
+		       encodedSYData = Base64Encode( (unsigned char const *) tmpSubheader, nSYDataSize );
+
+			     if( encodedSYData.empty() )
+			     {
+				       CPLError(CE_Failure, CPLE_AppDefined, "Failed to encode SY subheader data!");
+				       Cleanup( tmpKeyValStore );
+				       return;
+			     }
+
+			     // The length of the SY subheader data plus a space is append to the beginning of the encoded
+			     // string so that we can recover the actual length of the SY subheader when we decode it.
+  	      
+			     char buffer[20];
+
+			     sprintf(buffer, "%d", nSYDataSize);
+
+			     std::string sySubheaderStr(buffer);
+			     sySubheaderStr.append(" ");
+			     sySubheaderStr.append(encodedSYData);
+
+			     pszLine = (char *) CPLMalloc(sySubheaderStr.size()+1);
+           sprintf( pszLine, "%s", sySubheaderStr.c_str() );
+
+           tmpKeyValStore.push_back( pszLine );
+           pszLine = NULL;
+		    }
+     }
+
+     // create string list.
+	   size_t nNumSYs = tmpKeyValStore.size();
+
+	   if ( nNumSYs > 0 )
+	   {
+         char **papszNewList = (char **) CPLMalloc( (nNumSYs+1)*sizeof(char*) );
+         char **papszDst     = papszNewList;
+
+		     for( size_t ii = 0; ii < nNumSYs; ++ii )
+		     {
+             *papszDst             = tmpKeyValStore.at(ii);
+			       tmpKeyValStore.at(ii) = NULL;
+			       papszDst++;
+		     }
+
+         *papszDst = NULL;
+
+		     oSpecialMD.SetMetadata( papszNewList, pszSYsDomain );
+		     CSLDestroy( papszNewList );
+		     tmpKeyValStore.clear();
+    }
+}
+
+/************************************************************************/
 /*                       InitializeNITFTREs()                           */
 /************************************************************************/
 
@@ -3962,6 +4075,15 @@ char **NITFDataset::GetMetadata( const char * pszDomain )
         // TREs that are resides in the current image segment.
 
         InitializeNITFTREs();
+        return oSpecialMD.GetMetadata( pszDomain );
+    }
+
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_SY") )
+    {
+        // InitializeNITFSYs retrieves all the SY file headers (NITF 2.0: Symbol Segments, NITF 2.1: Graphic Segments)
+        // (NOTE: The returned strings are base64-encoded).
+
+        InitializeNITFSYs();
         return oSpecialMD.GetMetadata( pszDomain );
     }
 
