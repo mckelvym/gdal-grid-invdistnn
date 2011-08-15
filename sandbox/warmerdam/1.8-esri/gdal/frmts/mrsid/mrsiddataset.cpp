@@ -1676,13 +1676,13 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo, int bIsJP2 )
             oJP2Geo.nGCPCount = 0;*/
         }
 
-        if (oJP2Geo.pszXMPMetadata)
-        {
-            char *apszMDList[2];
-            apszMDList[0] = (char *) oJP2Geo.pszXMPMetadata;
-            apszMDList[1] = NULL;
-            poDS->SetMetadata(apszMDList, "xml:XMP");
-        }
+        //if (oJP2Geo.pszXMPMetadata)
+        //{
+        //    char *apszMDList[2];
+        //    apszMDList[0] = (char *) oJP2Geo.pszXMPMetadata;
+        //    apszMDList[1] = NULL;
+        //    poDS->SetMetadata(apszMDList, "xml:XMP");
+        //}
     }
 
 /* -------------------------------------------------------------------- */
