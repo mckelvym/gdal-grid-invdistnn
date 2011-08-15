@@ -1785,6 +1785,9 @@ GDALRegenerateOverviews( GDALRasterBandH hSrcBand,
          iOverview++ )
     {
         eErr = papoOvrBands[iOverview]->FlushCache();
+        GDALDataset* pDS = papoOvrBands[iOverview]->GetDataset();
+        if (pDS)
+          pDS->FlushCache();
     }
 
     if (eErr == CE_None)
@@ -2092,6 +2095,9 @@ GDALRegenerateOverviewsMultiBand(int nBands, GDALRasterBand** papoSrcBands,
         {
             CPLFree(papaChunk[iBand]);
             papapoOverviewBands[iBand][iOverview]->FlushCache();
+            GDALDataset* pDS = papapoOverviewBands[iBand][iOverview]->GetDataset();
+            if (pDS)
+              pDS->FlushCache();
         }
         CPLFree(papaChunk);
         CPLFree(pabyChunkNoDataMask);
