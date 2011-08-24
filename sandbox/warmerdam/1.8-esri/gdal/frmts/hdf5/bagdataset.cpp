@@ -561,6 +561,14 @@ void BAGDataset::LoadMetadata()
 
     CPLStripXMLNamespace( psRoot, NULL, TRUE );
 
+    CPLXMLNode *psDateTime = CPLSearchXMLNode( psRoot, "=dateTime" );
+    if( psDateTime != NULL )
+    {
+        const char *dateTimeValue = CPLGetXMLValue( psDateTime, NULL, "" );
+        if( dateTimeValue )
+            SetMetadataItem( "BAG_DATETIME", dateTimeValue );
+    }
+
     CPLXMLNode *psGeo = CPLSearchXMLNode( psRoot, "=MD_Georectified" );
 
     if( psGeo != NULL )
