@@ -2448,11 +2448,11 @@ int RemapLCCScaleFactor(OGRSpatialReference* pOgr)
   double dv2 = pOgr->GetProjParm( SRS_PP_STANDARD_PARALLEL_2, 1000.0 );
   for( int i = 0; apszRemapLCCScaleFactor[i] != NULL; i += 6 )
   {
-    if(!EQUAL(pszGCSName, apszRemapLCCScaleFactor[i]))
+    if( (pszGCSName == NULL) || (!EQUAL(pszGCSName, apszRemapLCCScaleFactor[i])) )
       continue;
-    if(!EQUAL(pszDatumName, apszRemapLCCScaleFactor[i+1]))
+    if( (pszDatumName == NULL) || (!EQUAL(pszDatumName, apszRemapLCCScaleFactor[i+1])) )
       continue;  
-    if(!EQUAL(pszSpheroidName, apszRemapLCCScaleFactor[i+2]))
+    if( (pszSpheroidName == NULL) || (!EQUAL(pszSpheroidName, apszRemapLCCScaleFactor[i+2])) )
       continue;
     if(dv1 == 1000.0)
       continue;
