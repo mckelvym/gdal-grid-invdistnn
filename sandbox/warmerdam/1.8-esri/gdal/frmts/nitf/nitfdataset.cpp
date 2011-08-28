@@ -477,6 +477,7 @@ class NITFDataset : public GDALPamDataset
 
     void         InitializeNITFDESMetadata();
     void         InitializeNITFDESs();
+    void         InitializeNITFLAs();
     void         InitializeNITFMetadata();
     void         InitializeNITFSYs();
     void         InitializeNITFTREs();
@@ -3342,7 +3343,128 @@ void NITFDataset::InitializeNITFDESs()
 }
 
 /************************************************************************/
-/*                       InitializeNITFSYSegments()                     */
+/*                       InitializeNITFLAs()                            */
+/************************************************************************/
+
+void NITFDataset::InitializeNITFLAs()
+{
+
+/* ---------------------------------------------------------------- */
+/*  This method extract all the Label subheaders (NITF 2.0 only).   */
+/* ---------------------------------------------------------------- */
+
+    static const char *pszLAsDomain = "NITF_LA";
+
+	  char **ppszLAsList = oSpecialMD.GetMetadata( pszLAsDomain );
+
+	  if( ppszLAsList != NULL ) return;
+
+/* ---------------------------------------------------------- */
+/*  Go through all the segments and process all LA segments.  */
+/* ---------------------------------------------------------- */
+	
+	  char               *pachLAData      = NULL;
+	  char               *pszLine         = NULL;
+    char               *pszTmpSubheader = NULL;
+    NITFSegmentInfo    *psSegInfo       = NULL;
+	  std::string         encodedLAData("");
+	  std::vector<char*>  tmpDataStore;
+      
+	  tmpDataStore.clear();
+
+	  for( int iSegment = 0; iSegment < psFile->nSegmentCount; iSegment++ )
+	  {
+		    psSegInfo = psFile->pasSegmentInfo + iSegment;
+         
+        if( (EQUAL(psSegInfo->szSegmentType,"LA")) && (psSegInfo->nSegmentHeaderSize > 0) )
+		    {
+            pszTmpSubheader = (char *) CPLMalloc(psSegInfo->nSegmentHeaderSize+1);
+
+            if ( pszTmpSubheader != NULL )
+            {
+                pszTmpSubheader[0] = '\0';
+
+                if( VSIFSeekL( psFile->fp, psSegInfo->nSegmentHeaderStart, 
+                               SEEK_SET ) != 0 
+                    || VSIFReadL( pszTmpSubheader, 1, psSegInfo->nSegmentHeaderSize, 
+                                  psFile->fp ) != psSegInfo->nSegmentHeaderSize )
+                {
+                    CPLError( CE_Warning, CPLE_FileIO, 
+                              "Failed to read label subheader at " CPL_FRMT_GUIB ".", 
+                              psSegInfo->nSegmentHeaderStart );
+                    continue;
+                }
+            }
+            else
+            {
+                CPLError( CE_Warning, CPLE_FileIO, 
+                          "Failed to allocate memory for reading label subheader at " CPL_FRMT_GUIB ".", 
+                          psSegInfo->nSegmentHeaderStart );
+
+                Cleanup( tmpDataStore );
+                return;
+            }
+
+/* -------------------------------------------------------------------- */
+/* Accumulate all the LA segments.                                      */
+/* -------------------------------------------------------------------- */
+
+		        encodedLAData = Base64Encode( (unsigned char const *) pszTmpSubheader, psSegInfo->nSegmentHeaderSize );
+
+            CPLFree( pszTmpSubheader );
+            pszTmpSubheader = NULL;
+
+			      if( encodedLAData.empty() )
+			      {
+				        CPLError(CE_Failure, CPLE_AppDefined, "Failed to encode LA subheader data!");
+				        Cleanup( tmpDataStore );
+				        return;
+			      }
+
+			      // The length of the LA subheader data plus a space is appended to the beginning of the encoded
+			      // string so that we can recover the actual length of the LA subheader when we decode it.
+  	      
+			      char buffer[20];
+
+			      sprintf(buffer, "%d", psSegInfo->nSegmentHeaderSize);
+
+			      std::string laSubheaderStr(buffer);
+			      laSubheaderStr.append(" ");
+			      laSubheaderStr.append(encodedLAData);
+
+			      pszLine = (char *) CPLMalloc(laSubheaderStr.size()+1);
+            sprintf( pszLine, "%s", laSubheaderStr.c_str() );
+ 
+            tmpDataStore.push_back( pszLine );
+            pszLine = NULL;
+		    }
+    }
+
+    // create string list.
+	  size_t nNumLAs = tmpDataStore.size();
+
+	  if ( nNumLAs > 0 )
+	  {
+        char **papszNewList = (char **) CPLMalloc( (nNumLAs+1)*sizeof(char*) );
+        char **papszDst     = papszNewList;
+
+		    for( size_t ii = 0; ii < nNumLAs; ++ii )
+		    {
+            *papszDst           = tmpDataStore.at(ii);
+			      tmpDataStore.at(ii) = NULL;
+			      papszDst++;
+		    }
+
+        *papszDst = NULL;
+
+		    oSpecialMD.SetMetadata( papszNewList, pszLAsDomain );
+		    CSLDestroy( papszNewList );
+		    tmpDataStore.clear();
+    }
+}
+
+/************************************************************************/
+/*                       InitializeNITFSYs()                            */
 /************************************************************************/
 
 void NITFDataset::InitializeNITFSYs()
@@ -3362,94 +3484,106 @@ void NITFDataset::InitializeNITFSYs()
 /*  Go through all the segments and process all SY segments.  */
 /* ---------------------------------------------------------- */
 	
-	  char               *pachSYData  = NULL;
-	  char               *pszLine     = NULL;
-    char                tmpSubheader[298];
-    NITFSegmentInfo    *psSegInfo    = NULL;
-	  size_t              nSYDataSize  = 0;
+	  char               *pachSYData      = NULL;
+	  char               *pszLine         = NULL;
+    char               *pszTmpSubheader = NULL;
+    NITFSegmentInfo    *psSegInfo       = NULL;
 	  std::string         encodedSYData("");
-	  std::vector<char*>  tmpKeyValStore;
+	  std::vector<char*>  tmpDataStore;
       
-	  tmpKeyValStore.clear();
+	  tmpDataStore.clear();
 
 	  for( int iSegment = 0; iSegment < psFile->nSegmentCount; iSegment++ )
 	  {
-		    psSegInfo       = psFile->pasSegmentInfo + iSegment;
-        tmpSubheader[0] = '\0';
+		    psSegInfo = psFile->pasSegmentInfo + iSegment;
 
-        if( EQUAL(psSegInfo->szSegmentType,"SY") || EQUAL(psSegInfo->szSegmentType,"GR") )
+        if( (EQUAL(psSegInfo->szSegmentType,"SY") || EQUAL(psSegInfo->szSegmentType,"GR")) &&
+            (psSegInfo->nSegmentHeaderSize > 0) )
 		    {
-            if( VSIFSeekL( psFile->fp, psSegInfo->nSegmentHeaderStart, 
-                           SEEK_SET ) != 0 
-                || VSIFReadL( tmpSubheader, 1, sizeof(tmpSubheader), 
-                              psFile->fp ) < 258 )
+            pszTmpSubheader = (char *) CPLMalloc(psSegInfo->nSegmentHeaderSize+1);
+            
+            if ( pszTmpSubheader != NULL )
+            {
+                pszTmpSubheader[0] = '\0';
+
+                if( VSIFSeekL( psFile->fp, psSegInfo->nSegmentHeaderStart, 
+                               SEEK_SET ) != 0 
+                    || VSIFReadL( pszTmpSubheader, 1, psSegInfo->nSegmentHeaderSize, 
+                                  psFile->fp ) != psSegInfo->nSegmentHeaderSize )
+                {
+                    CPLError( CE_Warning, CPLE_FileIO, 
+                              "Failed to read graphic subheader at " CPL_FRMT_GUIB ".", 
+                              psSegInfo->nSegmentHeaderStart );
+                    
+                    CPLFree( pszTmpSubheader );
+                    continue;
+                }   
+            }
+            else
             {
                 CPLError( CE_Warning, CPLE_FileIO, 
-                          "Failed to read graphic subheader at " CPL_FRMT_GUIB ".", 
+                          "Failed to allocate memory for reading graphic subheader at " CPL_FRMT_GUIB ".", 
                           psSegInfo->nSegmentHeaderStart );
-                continue;
-            }   
-        
-			      if( (nSYDataSize = strlen(tmpSubheader)) <= 0 )
-            {
-                CPLError( CE_Warning, CPLE_FileIO, 
-                          "Failed to read graphic subheader at " CPL_FRMT_GUIB ".", 
-                          psSegInfo->nSegmentHeaderStart );
-                continue;
+
+                Cleanup( tmpDataStore );
+                return;
             }
 	     
 /* -------------------------------------------------------------------- */
 /* Accumulate all the SY segments.                                      */
 /* -------------------------------------------------------------------- */
 
-		       encodedSYData = Base64Encode( (unsigned char const *) tmpSubheader, nSYDataSize );
+		        encodedSYData = Base64Encode( (unsigned char const *) pszTmpSubheader, psSegInfo->nSegmentHeaderSize );
 
-			     if( encodedSYData.empty() )
-			     {
-				       CPLError(CE_Failure, CPLE_AppDefined, "Failed to encode SY subheader data!");
-				       Cleanup( tmpKeyValStore );
-				       return;
-			     }
+            CPLFree( pszTmpSubheader );
+            pszTmpSubheader = NULL;
 
-			     // The length of the SY subheader data plus a space is append to the beginning of the encoded
-			     // string so that we can recover the actual length of the SY subheader when we decode it.
+			      if( encodedSYData.empty() )
+			      {
+				        CPLError(CE_Failure, CPLE_AppDefined, "Failed to encode SY subheader data!");
+				        Cleanup( tmpDataStore );
+				        return;
+			      }
+
+			      // The length of the SY subheader data plus a space is appended to the beginning of the encoded
+			      // string so that we can recover the actual length of the SY subheader when we decode it.
   	      
-			     char buffer[20];
+			      char buffer[20];
 
-			     sprintf(buffer, "%d", nSYDataSize);
+			      sprintf(buffer, "%d", psSegInfo->nSegmentHeaderSize);
 
-			     std::string sySubheaderStr(buffer);
-			     sySubheaderStr.append(" ");
-			     sySubheaderStr.append(encodedSYData);
+			      std::string sySubheaderStr(buffer);
+			      sySubheaderStr.append(" ");
+			      sySubheaderStr.append(encodedSYData);
 
-			     pszLine = (char *) CPLMalloc(sySubheaderStr.size()+1);
-           sprintf( pszLine, "%s", sySubheaderStr.c_str() );
+			      pszLine = (char *) CPLMalloc(sySubheaderStr.size()+1);
+            sprintf( pszLine, "%s", sySubheaderStr.c_str() );
 
-           tmpKeyValStore.push_back( pszLine );
-           pszLine = NULL;
+            tmpDataStore.push_back( pszLine );
+            pszLine = NULL;
 		    }
-     }
+    }
 
-     // create string list.
-	   size_t nNumSYs = tmpKeyValStore.size();
+    // create string list.
+	  size_t nNumSYs = tmpDataStore.size();
 
-	   if ( nNumSYs > 0 )
-	   {
-         char **papszNewList = (char **) CPLMalloc( (nNumSYs+1)*sizeof(char*) );
-         char **papszDst     = papszNewList;
+	  if ( nNumSYs > 0 )
+	  {
+        char **papszNewList = (char **) CPLMalloc( (nNumSYs+1)*sizeof(char*) );
+        char **papszDst     = papszNewList;
 
-		     for( size_t ii = 0; ii < nNumSYs; ++ii )
-		     {
-             *papszDst             = tmpKeyValStore.at(ii);
-			       tmpKeyValStore.at(ii) = NULL;
-			       papszDst++;
-		     }
+		    for( size_t ii = 0; ii < nNumSYs; ++ii )
+		    {
+            *papszDst           = tmpDataStore.at(ii);
+			      tmpDataStore.at(ii) = NULL;
+			      papszDst++;
+		    }
 
-         *papszDst = NULL;
+        *papszDst = NULL;
 
-		     oSpecialMD.SetMetadata( papszNewList, pszSYsDomain );
-		     CSLDestroy( papszNewList );
-		     tmpKeyValStore.clear();
+		    oSpecialMD.SetMetadata( papszNewList, pszSYsDomain );
+		    CSLDestroy( papszNewList );
+		    tmpDataStore.clear();
     }
 }
 
@@ -4069,6 +4203,15 @@ char **NITFDataset::GetMetadata( const char * pszDomain )
         return oSpecialMD.GetMetadata( pszDomain );
     }
 
+    if( pszDomain != NULL && EQUAL(pszDomain,"NITF_LA") )
+    {
+        // InitializeNITFLAs retrieves all the Label subheaders (NITF 2.0 only)
+        // (NOTE: The returned strings are base64-encoded).
+
+        InitializeNITFLAs();
+        return oSpecialMD.GetMetadata( pszDomain );
+    }
+
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_IMAGE_SEGMENT_TRES") )
     {
         // InitializeNITFTREs retrieves all the TREs that are resides in the NITF file header and all the
@@ -4080,7 +4223,7 @@ char **NITFDataset::GetMetadata( const char * pszDomain )
 
     if( pszDomain != NULL && EQUAL(pszDomain,"NITF_SY") )
     {
-        // InitializeNITFSYs retrieves all the SY file headers (NITF 2.0: Symbol Segments, NITF 2.1: Graphic Segments)
+        // InitializeNITFSYs retrieves all the Graphic/Symbol subheaders (NITF 2.0: Symbol Segments, NITF 2.1: Graphic Segments)
         // (NOTE: The returned strings are base64-encoded).
 
         InitializeNITFSYs();
@@ -6768,7 +6911,7 @@ static void Cleanup( std::vector<char*> &charDataContainer )
 	{
 		if( charDataContainer.at(ii) != NULL )
 		{
-            CPLFree( charDataContainer.at(ii) );
+      CPLFree( charDataContainer.at(ii) );
 			charDataContainer.at(ii) = NULL;
 		}
 	}
@@ -7252,7 +7395,7 @@ char **ExtractEsriMD( char **papszMD )
       if ((strlen(szField) == 2) && (EQUALN(szField, "CC", 2))) ccSegment.assign("true");
     }
    
-    const char *pAcquisitionDate   = CSLFetchNameValue( papszMD, "NITF_FDT" );
+    const char *pAcquisitionDate   = CSLFetchNameValue( papszMD, "NITF_IDATIM" );
     const char *pAngleToNorth      = CSLFetchNameValue( papszMD, "NITF_CSEXRA_ANGLE_TO_NORTH" );
     const char *pCircularError     = CSLFetchNameValue( papszMD, "NITF_CSEXRA_CIRCL_ERR" );      // Unit in feet.
     const char *pLinearError       = CSLFetchNameValue( papszMD, "NITF_CSEXRA_LINEAR_ERR" );     // Unit in feet.
