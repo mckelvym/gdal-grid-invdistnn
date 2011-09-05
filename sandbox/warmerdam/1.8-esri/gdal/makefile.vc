@@ -99,7 +99,7 @@ clean:
 	if exist $(GDAL_DLL).manifest del $(GDAL_DLL).manifest
 	if exist gdal_i$(TARGET).lib del gdal_i$(TARGET).*
 	-del *.ilk
-	-del *.pdb
+	-del gdal$(TARGET).pdb
 
 port_dir:
 	cd port
