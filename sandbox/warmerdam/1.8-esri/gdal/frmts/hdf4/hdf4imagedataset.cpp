@@ -220,6 +220,12 @@ HDF4ImageRasterBand::HDF4ImageRasterBand( HDF4ImageDataset *poDS, int nBand,
         nBlockYSize = 1;
     }
 
+    /* Disable tile reading for now as there seems to be a problem when the request size */
+    /* is greater than the tile size, the whole request size is not read, but only the */
+    /* data in the tile size is read using the GDreadtile API in IReadBlock */
+    if( poDS->iDatasetType == HDF4_EOS )
+        poDS->bReadTile = FALSE;
+
     /* HDF4_EOS:EOS_GRID case. We ensure that the block size matches */
     /* the raster width, as the IReadBlock() code can only handle multiple */
     /* blocks per row */
