@@ -30,6 +30,7 @@
 #include "gdal_pam.h"
 #include "northwood.h"
 
+/* ESRI build has a copy of mitab functions in northwood.cpp
 #ifdef OGR_ENABLED
 #ifdef MSVC
 #include "..\..\ogr\ogrsf_frmts\mitab\mitab.h"
@@ -37,7 +38,7 @@
 #include "../../ogr/ogrsf_frmts/mitab/mitab.h"
 #endif
 #endif
-
+*/
 
 CPL_C_START void GDALRegister_NWT_GRC( void );
 CPL_C_END
@@ -348,7 +349,7 @@ CPLErr NWT_GRCDataset::GetGeoTransform( double *padfTransform )
 /************************************************************************/
 const char *NWT_GRCDataset::GetProjectionRef()
 {
-#ifdef OGR_ENABLED
+#if defined( OGR_ENABLED ) || defined( ESRI_BUILD )
     if (pszProjection == NULL)
     {
         OGRSpatialReference *poSpatialRef;

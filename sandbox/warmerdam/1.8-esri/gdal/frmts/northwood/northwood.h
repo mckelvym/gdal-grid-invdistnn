@@ -148,3 +148,11 @@ void linearColor( NWT_RGB * pRGB, NWT_INFLECTION * pIPLow, NWT_INFLECTION * pIPH
 
 HLS RGBtoHLS (NWT_RGB rgb);
 NWT_RGB HLStoRGB (HLS hls);
+
+// ESRI specific change to allow spatial referencing without pulling
+// in OGR. This function is copied from mitab OGR driver.
+#if defined( ESRI_BUILD )
+#include "ogr_spatialref.h"
+
+OGRSpatialReference *MITABCoordSys2SpatialRef( const char * pszCoordSys );
+#endif
