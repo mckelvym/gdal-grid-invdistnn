@@ -888,6 +888,7 @@ GDALDataset *HDF4Dataset::Open( GDALOpenInfo * poOpenInfo )
         hHDF4 = GDopen( poOpenInfo->pszFilename, DFACC_READ );
         if( hHDF4 < 0)
         {
+            delete poDS;
             CPLError( CE_Failure, CPLE_OpenFailed, "Failed to open HDF4 `%s'.\n", poOpenInfo->pszFilename );
             return NULL;
         }
