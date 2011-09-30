@@ -331,13 +331,19 @@ const char *NWT_GRDDataset::GetProjectionRef()
 #if defined( OGR_ENABLED ) || defined( ESRI_BUILD )
     if (pszProjection == NULL)
     {
-        OGRSpatialReference *poSpatialRef;
-        poSpatialRef = MITABCoordSys2SpatialRef( pGrd->cMICoordSys );
-        if (poSpatialRef)
+        const char *pszPamSRS = GDALPamDataset::GetProjectionRef();
+        if( pszPamSRS != NULL && strlen(pszPamSRS) > 0 )
+            pszProjection = CPLStrdup( pszPamSRS );
+        else
         {
-            poSpatialRef->exportToWkt( &pszProjection );
-            poSpatialRef->Release();
-        }
+          OGRSpatialReference *poSpatialRef;
+          poSpatialRef = MITABCoordSys2SpatialRef( pGrd->cMICoordSys );
+          if (poSpatialRef)
+          {
+              poSpatialRef->exportToWkt( &pszProjection );
+              poSpatialRef->Release();
+          }
+       }
     }
 #endif
     return( (const char *)pszProjection );
