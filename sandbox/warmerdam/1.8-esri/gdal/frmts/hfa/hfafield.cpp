@@ -487,7 +487,7 @@ HFAField::SetInstValue( const char * pszField, int nIndexValue,
     if( chReqType == 's' )
     {
         nIntValue = atoi((char *) pValue);
-        dfDoubleValue = atof((char *) pValue);
+        dfDoubleValue = CPLAtofM((char *) pValue);
     }
     else if( chReqType == 'd' )
     {

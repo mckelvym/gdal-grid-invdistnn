@@ -1463,8 +1463,8 @@ HFARasterBand::GetDefaultHistogram( double *pdfMin, double *pdfMax,
         const char *pszBinValues = 
             GetMetadataItem( "STATISTICS_HISTOBINVALUES" );
 
-        *pdfMin = atof(GetMetadataItem("STATISTICS_HISTOMIN"));
-        *pdfMax = atof(GetMetadataItem("STATISTICS_HISTOMAX"));
+        *pdfMin = CPLAtofM(GetMetadataItem("STATISTICS_HISTOMIN"));
+        *pdfMax = CPLAtofM(GetMetadataItem("STATISTICS_HISTOMAX"));
 
         *pnBuckets = 0;
         for( i = 0; pszBinValues[i] != '\0'; i++ )
@@ -2531,10 +2531,10 @@ CPLErr HFADataset::WriteProjection()
 
         for( iUnit = 0; apszUnitMap[iUnit] != NULL; iUnit += 2 )
         {
-            if( fabs(atof(apszUnitMap[iUnit+1]) - dfActualSize) < dfClosestDiff )
+            if( fabs(CPLAtofM(apszUnitMap[iUnit+1]) - dfActualSize) < dfClosestDiff )
             {
                 iClosest = iUnit;
-                dfClosestDiff = fabs(atof(apszUnitMap[iUnit+1])-dfActualSize);
+                dfClosestDiff = fabs(CPLAtofM(apszUnitMap[iUnit+1])-dfActualSize);
             }
         }
         
@@ -2845,7 +2845,7 @@ HFAPCSStructToWKT( const Eprj_Datum *psDatum,
                 iUnitIndex = 0;
             
             oSRS.SetLinearUnits( pszUnits, 
-                                 atof(apszUnitMap[iUnitIndex+1]) );
+                                 CPLAtofM(apszUnitMap[iUnitIndex+1]) );
         }
         else
             oSRS.SetLinearUnits( SRS_UL_METER, 1.0 );

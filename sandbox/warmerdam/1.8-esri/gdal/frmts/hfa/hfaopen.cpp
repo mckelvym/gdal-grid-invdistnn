@@ -2749,7 +2749,7 @@ CPLErr HFASetMetadata( HFAHandle hHFA, int nBand, char **papszMD )
             {
               case 'd':
               {
-                  double dfValue = atof( pszValue );
+                  double dfValue = CPLAtofM( pszValue );
                   poEntry->SetDoubleField( pszFieldName, dfValue );
               }
               break;
