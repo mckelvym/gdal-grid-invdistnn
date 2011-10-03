@@ -59,9 +59,6 @@ SysBlockMap::SysBlockMap( PCIDSKFile *file, int segment,
     full_loaded = false;
     dirty = false;
     growing_segment = 0;
-
-    buffer_offset = 0;
-    buffer_used = 0;
 }
 
 /************************************************************************/
@@ -178,8 +175,6 @@ void SysBlockMap::FullLoad()
 //    fflush( stdout );
 
     // TODO: this should likely be protected by a mutex. 
-
-    buffer_used = 0;
 
 /* -------------------------------------------------------------------- */
 /*      Load the segment contents into a buffer.                        */
@@ -534,28 +529,9 @@ int SysBlockMap::GetNextBlockMapEntry( int bm_index,
     {
         memcpy( bm_entry, blockmap_data.buffer + bm_index * 28, 28 );
     }
-    else if( bm_index * 28 + 512 >= buffer_offset
-             && bm_index * 28 + 512 + 28 <= buffer_offset + buffer_used )
-    {
-        // satisfy from loaded buffered chunk of blockmap data.
-        memcpy( bm_entry, buffer + bm_index * 28 + 512 - buffer_offset, 28 );
-    }
     else
     {
-//        ReadFromFile( bm_entry, bm_index * 28 + 512, 28 );
-
-        int to_load = sizeof(buffer) / 28;
-
-        if( to_load + bm_index > block_count )
-            to_load = block_count - bm_index;
-
-        buffer_offset = bm_index * 28 + 512;
-        buffer_used = 0;
-        
-        ReadFromFile( buffer, buffer_offset, to_load * 28 );
-        buffer_used = to_load * 28;
-
-        memcpy( bm_entry, buffer + bm_index * 28 + 512 - buffer_offset, 28 );
+        ReadFromFile( bm_entry, bm_index * 28 + 512, 28 );
     }
     
 /* -------------------------------------------------------------------- */

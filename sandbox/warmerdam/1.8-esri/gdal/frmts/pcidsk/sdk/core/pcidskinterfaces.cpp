@@ -44,7 +44,6 @@ PCIDSKInterfaces::PCIDSKInterfaces()
 
 {
     io = GetDefaultIOInterfaces();
-//    io = GetBufferedIOInterfaces( io );
     OpenEDB = DefaultOpenEDB;
     CreateMutex = DefaultCreateMutex;
     Debug = DefaultDebug;

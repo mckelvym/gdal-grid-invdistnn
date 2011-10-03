@@ -46,7 +46,6 @@
 #include "segment/sysblockmap.h"
 #include <cassert>
 #include <cstring>
-#include <cstdlib>
 #if 0
 #include <cstdio>
 #endif
@@ -267,81 +266,43 @@ SysVirtualFile::WriteToFile( const void *buffer, uint64 offset, uint64 size )
 void SysVirtualFile::ReadFromFile( void *buffer, uint64 offset, uint64 size )
 
 {
-/* -------------------------------------------------------------------- */
-/*      Capture the IO lock.                                            */
-/* -------------------------------------------------------------------- */
     if(io_handle == NULL || io_mutex == NULL)
         file->GetIODetails( &io_handle, &io_mutex );
 
     MutexHolder oMutex(*io_mutex);
 
-/* -------------------------------------------------------------------- */
-/*      If the whole request fits in one block then we want to          */
-/*      force-load that block.                                          */
-/* -------------------------------------------------------------------- */
     uint64 buffer_offset = 0;
-    int request_block = (int) (offset / block_size);
-    int offset_in_block = (int) (offset % block_size);
-
-    if( offset_in_block + size < (int) block_size )
-        LoadBlock( request_block );
-
-/* -------------------------------------------------------------------- */
-/*      Satisfy as much of the request as we can from the loaded        */
-/*      block.                                                          */
-/* -------------------------------------------------------------------- */
-    if( loaded_block == request_block )
+#if 0
+    printf("Requesting region at %llu of size %llu\n", offset, size);
+#endif
+    while( buffer_offset < size )
     {
+        int request_block = (int) ((offset + buffer_offset) / block_size);
+        int offset_in_block = (int) ((offset + buffer_offset) % block_size);
         int amount_to_copy = block_size - offset_in_block;
-
-        if( amount_to_copy > (int) size )
-            amount_to_copy = size;
         
-        memcpy( ((uint8 *) buffer), block_data + offset_in_block, amount_to_copy );
+
+
+        if (offset_in_block != 0 || (size - buffer_offset) < (uint64)block_size) {
+            // Deal with the case where we need to load a partial block. Hopefully
+            // this doesn't happen often
+            LoadBlock( request_block );
+            if( amount_to_copy > (int) (size - buffer_offset) )
+                amount_to_copy = (int) (size - buffer_offset);
+            memcpy( ((uint8 *) buffer) + buffer_offset,
+                    block_data + offset_in_block, amount_to_copy );
+        } else {
+            // Use the bulk loading of blocks. First, compute the range
+            // of full blocks we need to load
+            int num_full_blocks = (int) ((size - buffer_offset)/block_size);
+            
+            LoadBlocks(request_block, num_full_blocks, ((uint8*)buffer) + buffer_offset);
+            amount_to_copy = num_full_blocks * block_size;
+        }
+
+
         buffer_offset += amount_to_copy;
-
-        if( buffer_offset == size )
-            return;
     }
-
-/* -------------------------------------------------------------------- */
-/*      Create a temporary buffer to whole all the remaining            */
-/*      required blocks and load it.                                    */
-/* -------------------------------------------------------------------- */
-    int num_full_blocks, last_request_block;
-    uint8 *work_buffer;
-
-    request_block = (int) ((offset + buffer_offset) / block_size);
-    offset_in_block = (int) ((offset + buffer_offset) % block_size);
-
-    last_request_block = (int) ((offset + size - 1) / block_size);
-                                
-    num_full_blocks = last_request_block - request_block + 1;
-    
-    work_buffer = (uint8 *) malloc(num_full_blocks * block_size);
-    if( work_buffer == NULL )
-            ThrowPCIDSKException( "Out of memory allocating %d bytes in SysVirtualFile::ReadFromFile()", 
-                                  (int) num_full_blocks * block_size );
-
-    LoadBlocks( request_block, num_full_blocks, work_buffer );
-
-/* -------------------------------------------------------------------- */
-/*      Copy what we need into the applications call buffer.            */
-/* -------------------------------------------------------------------- */
-    memcpy( ((uint8*) buffer) + buffer_offset, 
-            work_buffer + offset_in_block, 
-            size - buffer_offset );
-    
-/* -------------------------------------------------------------------- */
-/*      Populate the "loaded block" from the tail of the work buffer.   */
-/* -------------------------------------------------------------------- */
-    FlushDirtyBlock();
-
-    loaded_block = last_request_block;
-    memcpy( block_data, work_buffer + (num_full_blocks-1)*block_size, 
-            block_size );
-
-    free( work_buffer );
 }
 
 /************************************************************************/
