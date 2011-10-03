@@ -1786,10 +1786,13 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
 
     if (pszInterleave == NULL)
     {
-      if ( EQUALN(CPLGetExtension(poOpenInfo->pszFilename), "bsq", 3) ||
-           EQUALN(CPLGetExtension(poOpenInfo->pszFilename), "bip", 3) ||
-           EQUALN(CPLGetExtension(poOpenInfo->pszFilename), "bil", 3) )
-        pszInterleave = CPLGetExtension(poOpenInfo->pszFilename);
+        const char* pszExtension = CPLGetExtension(poOpenInfo->pszFilename);
+        if ( EQUAL(pszExtension, "BSQ") ||
+             EQUAL(pszExtension, "BIP") ||
+             EQUAL(pszExtension, "BIL") )
+        {
+            pszInterleave = pszExtension;
+        }
     }
 
     if (!GDALCheckDatasetDimensions(nSamples, nLines) || !GDALCheckBandCount(nBands, FALSE) ||
