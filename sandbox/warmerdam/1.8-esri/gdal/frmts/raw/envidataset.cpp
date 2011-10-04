@@ -225,7 +225,6 @@ static int ITTVISToUSGSZone( int nITTVISZone )
 class ENVIDataset : public RawDataset
 {
     VSILFILE	*fpImage;	// image data file.
-    VSILFILE	*fp;		// header file
     char	*pszHDRFilename;
 
     int		bFoundMapinfo;
@@ -247,7 +246,7 @@ class ENVIDataset : public RawDataset
     double      byteSwapDouble(double);
     void        SetENVIDatum( OGRSpatialReference *, const char * );
     void        SetENVIEllipse( OGRSpatialReference *, char ** );
-    void        WriteProjectionInfo();
+    void        WriteProjectionInfo(VSILFILE *fp);
     
     char        **SplitList( const char * );
 
@@ -278,7 +277,6 @@ class ENVIDataset : public RawDataset
 ENVIDataset::ENVIDataset()
 {
     fpImage = NULL;
-    fp = NULL;
     pszHDRFilename = NULL;
     pszProjection = CPLStrdup("");
 
@@ -306,8 +304,6 @@ ENVIDataset::~ENVIDataset()
     FlushCache();
     if( fpImage )
         VSIFCloseL( fpImage );
-    if( fp )
-        VSIFCloseL( fp );
     CPLFree( pszProjection );
     CSLDestroy( papszHeader );
     CPLFree(pszHDRFilename);
@@ -325,12 +321,17 @@ void ENVIDataset::FlushCache()
     if ( !bHeaderDirty)
         return;
 
+    // we just write over the header that was created in ENVIDataset::Create
+    VSILFILE *fp = VSIFOpenL( pszHDRFilename, "wt" );
+    if( fp == NULL )
+    {
+        CPLError( CE_Failure, CPLE_OpenFailed, 
+                  "Attempt to create file `%s' failed.\n", pszHDRFilename);
+        return;
+    }
+
     CPLLocaleC  oLocaleEnforcer;
 
-    VSIFSeekL( fp, 0, SEEK_SET );
-/* -------------------------------------------------------------------- */
-/*      Rewrite out the header.                                           */
-/* -------------------------------------------------------------------- */
     int		iBigEndian;
 
     const char	*pszInterleaving;
@@ -431,7 +432,7 @@ void ENVIDataset::FlushCache()
 /* -------------------------------------------------------------------- */
 /*      Write the rest of header.                                       */
 /* -------------------------------------------------------------------- */
-    WriteProjectionInfo();
+    WriteProjectionInfo(fp);
 
 
     VSIFPrintfL( fp, "band names = {\n" );
@@ -446,6 +447,9 @@ void ENVIDataset::FlushCache()
             VSIFPrintfL( fp, ",\n" );
     }
     VSIFPrintfL( fp, "}\n" );
+
+    // we are done writing the hdr so we close it
+    VSIFCloseL( fp );
 }
 
 /************************************************************************/
@@ -551,7 +555,7 @@ static int ENVIGetEPSGGeogCS( OGRSpatialReference *poThis )
 /*                        WriteProjectionInfo()                         */
 /************************************************************************/
 
-void ENVIDataset::WriteProjectionInfo()
+void ENVIDataset::WriteProjectionInfo(VSILFILE *fp)
 
 {
 /* -------------------------------------------------------------------- */
@@ -1724,17 +1728,19 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
 
     poDS = new ENVIDataset();
     poDS->pszHDRFilename = CPLStrdup(osHdrFilename);
-    poDS->fp = fpHeader;
 
 /* -------------------------------------------------------------------- */
 /*      Read the header.                                                */
 /* -------------------------------------------------------------------- */
     if( !poDS->ReadHeader( fpHeader ) )
     {
+		VSIFCloseL( fpHeader );
         delete poDS;
         return NULL;
     }
 
+    // we have read in the hdr so we close it.
+    VSIFCloseL( fpHeader );
 /* -------------------------------------------------------------------- */
 /*      Has the user selected the .hdr file to open?                    */
 /* -------------------------------------------------------------------- */
