@@ -74,7 +74,8 @@
 #define PROJ_Y_ORIGIN          "projection_y_coordinate_origin"
 #define EARTH_SHAPE            "GRIB_earth_shape"
 #define EARTH_SHAPE_CODE       "GRIB_earth_shape_code"
-#define SCALE_FACTOR           "scale_factor_at_central_meridian"
+#define SCALE_FACTOR           "scale_factor_at_central_meridian" //this has to go
+#define SCALE_FACTOR_MERIDIAN  "scale_factor_at_central_meridian"
 #define FALSE_EASTING          "false_easting"
 #define FALSE_NORTHING         "false_northing"
 #define EARTH_RADIUS           "earth_radius"
@@ -102,6 +103,15 @@
 #define NCDF_FILETYPE_HDF5            5   
 #define NCDF_FILETYPE_UNKNOWN         10  /* Filetype not determined (yet) */
 
+/* new defs */
+#define NCDF_DIMNAME_X "x"
+#define NCDF_DIMNAME_Y "y"
+#define NCDF_DIMNAME_LON "lon"
+#define NCDF_DIMNAME_LAT "lat"
+#define NCDF_CONVENTIONS "CF-1.2"
+#define NCDF_GDAL GDALVersionInfo("--version")
+
+#define NCDF_
 typedef struct {
     const char *netCDFSRS;
     const char *SRS; }
@@ -124,11 +134,14 @@ static const oNetcdfSRS poNetcdfSRS[] = {
     {"hotine_oblique_mercator_2P", 
      SRS_PT_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_NATURAL_ORIGIN},
     {"laborde_oblique_mercator", SRS_PT_LABORDE_OBLIQUE_MERCATOR },
-    {"lambert_conformal_conic1", SRS_PT_LAMBERT_CONFORMAL_CONIC_1SP },
+    /* {"lambert_conformal_conic1", SRS_PT_LAMBERT_CONFORMAL_CONIC_1SP }, */
+    {"lambert_conformal_conic", SRS_PT_LAMBERT_CONFORMAL_CONIC_1SP },
     {"lambert_conformal_conic", SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP },
     {"lambert_azimuthal_equal_area", SRS_PT_LAMBERT_AZIMUTHAL_EQUAL_AREA },
-    {"mercator_1sp", SRS_PT_MERCATOR_1SP },
-    {"mercator_2sp", SRS_PT_MERCATOR_2SP },
+    /* {"mercator_1sp", SRS_PT_MERCATOR_1SP }, */
+    /* {"mercator_2sp", SRS_PT_MERCATOR_2SP }, */
+    {"mercator", SRS_PT_MERCATOR_1SP },
+    {"mercator", SRS_PT_MERCATOR_2SP },
     {"miller_cylindrical", SRS_PT_MILLER_CYLINDRICAL },
     {"mollweide", SRS_PT_MOLLWEIDE },
     {"new_zealand_map_grid", SRS_PT_NEW_ZEALAND_MAP_GRID },
