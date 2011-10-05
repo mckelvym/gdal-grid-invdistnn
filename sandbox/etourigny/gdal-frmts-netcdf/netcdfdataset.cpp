@@ -31,6 +31,7 @@
 #include "cpl_error.h"
 CPL_CVSID("$Id$");
 
+void NCDFAddHistory(int fpImage, const char *pszAddHist, const char *pszOldHist);
 
 /************************************************************************/
 /* ==================================================================== */
@@ -2438,6 +2439,7 @@ void CopyMetadata( void  *poDS, int fpImage, int CDFVarID ) {
     char       szMetaName[ MAX_STR_LEN ];
     char       szMetaValue[ MAX_STR_LEN ];
     char       szTemp[ MAX_STR_LEN ];
+    // char       szHistString[ MAX_STR_LEN ];
     int        nDataLength;
     int        nItems;
     int        bCopyItem;
@@ -2483,8 +2485,9 @@ void CopyMetadata( void  *poDS, int fpImage, int CDFVarID ) {
                 else if( strncmp( szMetaName, "depth#", 6 ) == 0 ) {
                     szMetaName[5] = '-';
                 }
+                
                 /* Only copy data without # (previously all data was copied)  */
-                if (  strstr( szMetaName, "#" ) != NULL ) {   
+                if ( strstr( szMetaName, "#" ) != NULL ) {   
                     bCopyItem = FALSE;
                 }
                 /* netCDF attributes do not like the '#' character. */
@@ -2508,24 +2511,6 @@ void CopyMetadata( void  *poDS, int fpImage, int CDFVarID ) {
 	    
         }
         CSLDestroy( papszFieldData );
-    }
-
-    /* Add Conventions and GDAL info at the end */
-    if( CDFVarID == NC_GLOBAL ) {
-
-        papszMetadata = GDALGetMetadata( (GDALDataset *) poDS,"");
-
-        nc_put_att_text( fpImage, 
-                         NC_GLOBAL, 
-                         "Conventions", 
-                         strlen(NCDF_CONVENTIONS),
-                         NCDF_CONVENTIONS ); 
-
-        nc_put_att_text( fpImage, 
-                         NC_GLOBAL, 
-                         "GDAL", 
-                         strlen(NCDF_GDAL),
-                         NCDF_GDAL ); 
     }
 
 }
@@ -3621,8 +3606,23 @@ NCDFCreateCopy2( const char * pszFilename, GDALDataset *poSrcDS,
 
     }
 
-    //    poDstDS->SetGeoTransform( adfGeoTransform );
-
+    /* Add Conventions, GDAL info and history at the end */
+    nc_put_att_text( fpImage, 
+                     NC_GLOBAL, 
+                     "Conventions", 
+                     strlen(NCDF_CONVENTIONS),
+                     NCDF_CONVENTIONS ); 
+    
+    nc_put_att_text( fpImage, 
+                     NC_GLOBAL, 
+                     "GDAL", 
+                     strlen(NCDF_GDAL),
+                     NCDF_GDAL ); 
+    
+    sprintf( szTemp, "GDAL NCDFCreateCopy( %s, ... )",pszFilename );
+    NCDFAddHistory( fpImage, 
+                    szTemp, 
+                    poSrcDS->GetMetadataItem("NC_GLOBAL#history","") );
 
 /* -------------------------------------------------------------------- */
 /*      Cleanup and close.                                              */
@@ -3642,6 +3642,53 @@ CPLFree(pszProj4Defn );
     return poDS;
 }
 
+/* code taken from cdo and libcdi, used for writing the history attribute */
+//void cdoDefHistory(int fileID, char *histstring)
+void NCDFAddHistory(int fpImage, const char *pszAddHist, const char *pszOldHist)
+{
+    printf("NCDFAddHistory %s [%s]\n",pszAddHist,pszOldHist);
+    char strtime[32];
+    time_t tp;
+    struct tm *ltime;
+
+    char *pszNewHist = NULL;
+    // char *pszOldHist = NULL;
+    // char pszOldHist[NC_MAX_NAME];
+    size_t nNewHistSize = 0;
+    int disableHistory = FALSE;
+
+    tp = time(NULL);
+    if ( tp != -1 )
+    {
+        ltime = localtime(&tp);
+        (void) strftime(strtime, sizeof(strtime), "%a %b %d %H:%M:%S %Y: ", ltime);
+    }
+
+    printf("strtime: [%s]\n",strtime);
+
+    // status = nc_get_att_text( fpImage, NC_GLOBAL, 
+    //                           "history", pszOldHist );
+    // printf("status: %d pszOldHist: [%s]\n",status,pszOldHist);
+    
+    nNewHistSize = strlen(pszOldHist)+strlen(strtime)+strlen(pszAddHist)+2;
+    pszNewHist = (char *) CPLMalloc(nNewHistSize * sizeof(char));
+    
+    strcpy(pszNewHist, strtime);
+    strcat(pszNewHist, pszAddHist);
+
+    if ( disableHistory == FALSE && pszNewHist )
+    {
+        strcat(pszNewHist, "\n");
+        strcat(pszNewHist, pszOldHist);
+    }
+
+    nc_put_att_text( fpImage, NC_GLOBAL, 
+                     "history", nNewHistSize,
+                     pszNewHist ); 
+  
+    CPLFree(pszNewHist);
+    // CPLFree(pszOldHist);
+}
 
 
 /************************************************************************/
