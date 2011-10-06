@@ -3897,10 +3897,14 @@ void NCDFAddHistory(int fpImage, const char *pszAddHist, const char *pszOldHist)
     struct tm *ltime;
 
     char *pszNewHist = NULL;
-    // char *pszOldHist = NULL;
-    // char pszOldHist[NC_MAX_NAME];
     size_t nNewHistSize = 0;
     int disableHistory = FALSE;
+
+    /* Check pszOldHist - as if there was no previous history, it will be
+       a null pointer - if so set as empty. */
+    if (NULL == pszOldHist) {
+        pszOldHist = "";
+    }
 
     tp = time(NULL);
     if ( tp != -1 )
@@ -3932,7 +3936,6 @@ void NCDFAddHistory(int fpImage, const char *pszAddHist, const char *pszOldHist)
                      pszNewHist ); 
   
     CPLFree(pszNewHist);
-    // CPLFree(pszOldHist);
 }
 
 
