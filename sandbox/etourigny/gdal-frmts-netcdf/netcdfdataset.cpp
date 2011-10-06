@@ -3889,7 +3889,7 @@ void GDALRegister_netCDF()
 
 /* code taken from cdo and libcdi, used for writing the history attribute */
 //void cdoDefHistory(int fileID, char *histstring)
-+void NCDFAddHistory(int fpImage, const char *pszAddHist, const char *pszOldHist)
+void NCDFAddHistory(int fpImage, const char *pszAddHist, const char *pszOldHist)
 {
     printf("NCDFAddHistory %s [%s]\n",pszAddHist,pszOldHist);
     char strtime[32];
