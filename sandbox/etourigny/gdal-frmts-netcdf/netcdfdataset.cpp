@@ -39,7 +39,7 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
                             const int fpImage, const int NCDFVarID);
 
 void NCDFWriteProjAttribsFromMappings(const OGR_SRSNode *poPROJCS,
-                                        const oNetcdfSRS mappings[],
+                                        const oNetcdfSRS_PP mappings[],
                                         const int fpImage, const int NCDFVarID);
 
 const char* GetProjParamVal(const OGR_SRSNode *poPROJCS, 
@@ -1124,7 +1124,7 @@ void netCDFDataset::SetProjection( int var )
                     //TODO: upgrade this func to handle STD_PARALLEL
                     //Special cases
                     val = poDS->FetchCopyParm( szGridMappingValue, 
-                                         mappings[iMap].netCDFSRS,
+                                         mappings[iMap].NCDF_ATT,
                                          mappings[iMap].defVal );
                     res[iMap] = val
                     oSRS.SetACEA( res[0], res[1], res[2], res[3], res[4],
@@ -2462,10 +2462,6 @@ GDALDataset *netCDFDataset::Open( GDALOpenInfo * poOpenInfo )
 
 void CopyMetadata( void  *poDS, int fpImage, int CDFVarID ) {
 
-/* -------------------------------------------------------------------- */
-/*      Add CF-1.x Conventions Global attribute                         */
-/*      grid_mapping_name = "latitude_longitude" introduced in 1.2      */ 
-/* -------------------------------------------------------------------- */
     char       **papszMetadata;
     char       **papszFieldData;
     const char *pszField;
@@ -2568,7 +2564,7 @@ Processing steps:
 7 write pam 
 */
 
-#include "netcdf-tmp.h"
+//#include "netcdf-tmp.h"
 
 static GDALDataset*
 NCDFCreateCopy2( const char * pszFilename, GDALDataset *poSrcDS, 
@@ -2700,7 +2696,30 @@ NCDFCreateCopy2( const char * pszFilename, GDALDataset *poSrcDS,
     CPLDebug( "GDAL_netCDF", "nXSize = %d\n", nXSize );
     CPLDebug( "GDAL_netCDF", "nYSize = %d\n", nYSize );
     
+    //    poDstDS->SetGeoTransform( adfGeoTransform );
+
+/* -------------------------------------------------------------------- */
+/*      Copy global metadata                                            */
+/*      Add Conventions, GDAL info and history                          */
+/* -------------------------------------------------------------------- */
     CopyMetadata((void *) poSrcDS, fpImage, NC_GLOBAL );
+
+    nc_put_att_text( fpImage, 
+                     NC_GLOBAL, 
+                     "Conventions", 
+                     strlen(NCDF_CONVENTIONS),
+                     NCDF_CONVENTIONS ); 
+    
+    nc_put_att_text( fpImage, 
+                     NC_GLOBAL, 
+                     "GDAL", 
+                     strlen(NCDF_GDAL),
+                     NCDF_GDAL ); 
+    
+    sprintf( szTemp, "GDAL NCDFCreateCopy( %s, ... )",pszFilename );
+    NCDFAddHistory( fpImage, 
+                    szTemp, 
+                    poSrcDS->GetMetadataItem("NC_GLOBAL#history","") );
 
     /* Variables needed for both projected and geographic */
     int NCDFVarID=0;
@@ -3567,24 +3586,7 @@ NCDFCreateCopy2( const char * pszFilename, GDALDataset *poSrcDS,
 
     }
 
-    //    poDstDS->SetGeoTransform( adfGeoTransform );
-    /* Add Conventions, GDAL info and history at the end */
-    nc_put_att_text( fpImage, 
-                     NC_GLOBAL, 
-                     "Conventions", 
-                     strlen(NCDF_CONVENTIONS),
-                     NCDF_CONVENTIONS ); 
-    
-    nc_put_att_text( fpImage, 
-                     NC_GLOBAL, 
-                     "GDAL", 
-                     strlen(NCDF_GDAL),
-                     NCDF_GDAL ); 
-    
-    sprintf( szTemp, "GDAL NCDFCreateCopy( %s, ... )",pszFilename );
-    NCDFAddHistory( fpImage, 
-                    szTemp, 
-                    poSrcDS->GetMetadataItem("NC_GLOBAL#history","") );
+
 
 
 /* -------------------------------------------------------------------- */
@@ -3673,7 +3675,7 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
         //  Or in this case, is "std_parallel" in CF-1 really the same as
         //   LAT_OF_ORIGIN in WKT, and we fill in LAT_OF_ORIGIN with +90 or 
         //   -90? (LAT_PROJ_ORIGIN set to 90 if STD_PARALLEL > 0, else -90)
-        const oNetcdfSRS mappings[] = {
+        const oNetcdfSRS_PP mappings[] = {
             {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
             {VERT_LONG_FROM_POLE, SRS_PP_CENTRAL_MERIDIAN},
             {SCALE_FACTOR_ORIGIN, SRS_PP_SCALE_FACTOR},  
@@ -3777,7 +3779,7 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
 }
 
 void NCDFWriteProjAttribsFromMappings(const OGR_SRSNode *poPROJCS,
-                                        const oNetcdfSRS mappings[],
+                                        const oNetcdfSRS_PP mappings[],
                                         const int fpImage, const int NCDFVarID) 
 {                            
     double dfStdP[2];
@@ -3785,16 +3787,16 @@ void NCDFWriteProjAttribsFromMappings(const OGR_SRSNode *poPROJCS,
     double dfTemp=0.0;
     const char *pszParamVal;
 
-    for (int iMap = 0; mappings[iMap].SRS != NULL; iMap++ ) {
-        pszParamVal = GetProjParamVal(poPROJCS, mappings[iMap].SRS);
+    for (int iMap = 0; mappings[iMap].GDAL_ATT != NULL; iMap++ ) {
+        pszParamVal = GetProjParamVal(poPROJCS, mappings[iMap].GDAL_ATT);
         //Write param to NetCDF
         // include handling of std_parallel special case: this gets 
         // written at very end
-        if( EQUAL(mappings[iMap].SRS, SRS_PP_STANDARD_PARALLEL_1 ) ) {
+        if( EQUAL(mappings[iMap].GDAL_ATT, SRS_PP_STANDARD_PARALLEL_1 ) ) {
             bFoundStdP1 = TRUE;
             sscanf( pszParamVal, "%lg", &dfStdP[0] );
         }
-        else if( EQUAL(mappings[iMap].SRS, SRS_PP_STANDARD_PARALLEL_2 ) ) { 
+        else if( EQUAL(mappings[iMap].GDAL_ATT, SRS_PP_STANDARD_PARALLEL_2 ) ) { 
             bFoundStdP2 = TRUE;
             sscanf( pszParamVal, "%lg", &dfStdP[1] );
         } 
@@ -3802,7 +3804,7 @@ void NCDFWriteProjAttribsFromMappings(const OGR_SRSNode *poPROJCS,
             dfTemp = atof( pszParamVal );
             nc_put_att_double( fpImage, 
                                NCDFVarID, 
-                               mappings[iMap].netCDFSRS,
+                               mappings[iMap].NCDF_ATT,
                                NC_FLOAT,
                                1,
                                &dfTemp );

@@ -186,8 +186,17 @@ static const oNetcdfSRS poNetcdfSRS[] = {
  * See: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/apf.html
  */
 
+/* A struct allowing us to map from GDAL projection attributes (OGC WKT),
+   and NetCDF ones (CF-1) */
+typedef struct {
+    const char *NCDF_ATT;
+    const char *GDAL_ATT; 
+    // TODO: mappings may need default values, like scale factor?
+    //double defval;
+} oNetcdfSRS_PP;
+
 //Albers equal area 
-static const oNetcdfSRS poAEAMappings[] = {
+static const oNetcdfSRS_PP poAEAMappings[] = {
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2},
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER},
@@ -198,7 +207,7 @@ static const oNetcdfSRS poAEAMappings[] = {
  };
 
 // Azimuthal equidistant
-static const oNetcdfSRS poAZEQMappings[] = {
+static const oNetcdfSRS_PP poAZEQMappings[] = {
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER},
     {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_CENTER},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
@@ -207,7 +216,7 @@ static const oNetcdfSRS poAZEQMappings[] = {
  };
 
 // Lambert azimuthal equal area
-static const oNetcdfSRS poLAZEQMappings[] = {
+static const oNetcdfSRS_PP poLAZEQMappings[] = {
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER},
     {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_CENTER},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
@@ -216,7 +225,7 @@ static const oNetcdfSRS poLAZEQMappings[] = {
  };
 
 // Lambert conformal conic - 1SP
-static const oNetcdfSRS poLC_1SPMappings[] = {
+static const oNetcdfSRS_PP poLC_1SPMappings[] = {
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
     {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
@@ -226,7 +235,7 @@ static const oNetcdfSRS poLC_1SPMappings[] = {
  };
 
 // Lambert conformal conic - 2SP
-static const oNetcdfSRS poLC_2SPMappings[] = {
+static const oNetcdfSRS_PP poLC_2SPMappings[] = {
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2},
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
@@ -239,7 +248,7 @@ static const oNetcdfSRS poLC_2SPMappings[] = {
 // Lambert cylindrical equal area
 // Also a "scale_factor_at_projection' CF-1 alternative to std_parallel
 //  ... but not in OGC WKT. Perhaps need translation formula on import?
-static const oNetcdfSRS poLCEAMappings[] = {
+static const oNetcdfSRS_PP poLCEAMappings[] = {
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
@@ -248,7 +257,7 @@ static const oNetcdfSRS poLCEAMappings[] = {
  };
 
 // Mercator 1 Standard Parallel
-static const oNetcdfSRS poM_1SPMappings[] = {
+static const oNetcdfSRS_PP poM_1SPMappings[] = {
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {SCALE_FACTOR_ORIGIN, SRS_PP_SCALE_FACTOR},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
@@ -257,7 +266,7 @@ static const oNetcdfSRS poM_1SPMappings[] = {
  };
 
 // Mercator 2 Standard Parallel
-static const oNetcdfSRS poM_2SPMappings[] = {
+static const oNetcdfSRS_PP poM_2SPMappings[] = {
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     // ? Not entirely sure about the std_parallel_2, needs testing ...
@@ -268,7 +277,7 @@ static const oNetcdfSRS poM_2SPMappings[] = {
  };
 
 // Orthographic
-static const oNetcdfSRS poM_OrthoMappings[] = {
+static const oNetcdfSRS_PP poM_OrthoMappings[] = {
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
@@ -290,7 +299,7 @@ static const oNetcdfSRS poM_OrthoMappings[] = {
 // (GDAL seems to create Oblique_stereographic when you request stereographic
 //   using Proj4, not entirely sure they're different projections)
 //  Haven't been able to create a GDAL regular Stereographic to test yet.
-static const oNetcdfSRS poM_StMappings[] = {
+static const oNetcdfSRS_PP poM_StMappings[] = {
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {SCALE_FACTOR_ORIGIN, SRS_PP_SCALE_FACTOR},  
@@ -300,7 +309,7 @@ static const oNetcdfSRS poM_StMappings[] = {
   };
 
 // Transverse Mercator
-static const oNetcdfSRS poM_TMMappings[] = {
+static const oNetcdfSRS_PP poM_TMMappings[] = {
     {SCALE_FACTOR_MERIDIAN, SRS_PP_SCALE_FACTOR},  
     {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
