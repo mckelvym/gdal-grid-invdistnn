@@ -277,7 +277,7 @@ static const oNetcdfSRS_PP poM_2SPMappings[] = {
  };
 
 // Orthographic
-static const oNetcdfSRS_PP poM_OrthoMappings[] = {
+static const oNetcdfSRS_PP poOrthoMappings[] = {
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
@@ -299,7 +299,7 @@ static const oNetcdfSRS_PP poM_OrthoMappings[] = {
 // (GDAL seems to create Oblique_stereographic when you request stereographic
 //   using Proj4, not entirely sure they're different projections)
 //  Haven't been able to create a GDAL regular Stereographic to test yet.
-static const oNetcdfSRS_PP poM_StMappings[] = {
+static const oNetcdfSRS_PP poStMappings[] = {
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {SCALE_FACTOR_ORIGIN, SRS_PP_SCALE_FACTOR},  
@@ -309,7 +309,7 @@ static const oNetcdfSRS_PP poM_StMappings[] = {
   };
 
 // Transverse Mercator
-static const oNetcdfSRS_PP poM_TMMappings[] = {
+static const oNetcdfSRS_PP poTMMappings[] = {
     {SCALE_FACTOR_MERIDIAN, SRS_PP_SCALE_FACTOR},  
     {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},

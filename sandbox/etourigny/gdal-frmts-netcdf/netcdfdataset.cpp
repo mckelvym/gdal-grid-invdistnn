@@ -3664,7 +3664,7 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
             NCDFVarID);
     }
     else if( EQUAL(pszProjection, SRS_PT_ORTHOGRAPHIC) ) {
-        NCDFWriteProjAttribsFromMappings(poPROJCS, poM_OrthoMappings, fpImage,
+        NCDFWriteProjAttribsFromMappings(poPROJCS, poOrthoMappings, fpImage,
             NCDFVarID);
     }
     else if( EQUAL(pszProjection, SRS_PT_POLAR_STEREOGRAPHIC) ) {
@@ -3691,15 +3691,15 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
     // Rotated Pole: not implemented yet, unsure GDAL supports
     // Currently map Oblique steregraphic to stereographic
     else if( EQUAL(pszProjection, SRS_PT_OBLIQUE_STEREOGRAPHIC) ) {
-        NCDFWriteProjAttribsFromMappings(poPROJCS, poM_StMappings, fpImage,
+        NCDFWriteProjAttribsFromMappings(poPROJCS, poStMappings, fpImage,
             NCDFVarID);
     }
     else if( EQUAL(pszProjection, SRS_PT_STEREOGRAPHIC) ) {
-        NCDFWriteProjAttribsFromMappings(poPROJCS, poM_StMappings, fpImage,
+        NCDFWriteProjAttribsFromMappings(poPROJCS, poStMappings, fpImage,
             NCDFVarID);
     }
     else if( EQUAL(pszProjection, SRS_PT_TRANSVERSE_MERCATOR ) ) {
-        NCDFWriteProjAttribsFromMappings(poPROJCS, poM_TMMappings, fpImage,
+        NCDFWriteProjAttribsFromMappings(poPROJCS, poTMMappings, fpImage,
             NCDFVarID);
     }
     else {
