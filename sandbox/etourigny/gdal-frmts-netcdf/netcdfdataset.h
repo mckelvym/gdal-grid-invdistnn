@@ -272,7 +272,9 @@ static const oNetcdfSRS_PP poM_1SPMappings[] = {
 static const oNetcdfSRS_PP poM_2SPMappings[] = {
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
-    {STD_PARALLEL_2, SRS_PP_LATITUDE_OF_ORIGIN},
+    //From best understanding of this projection, only 
+    // actually specify one SP - it is the same N/S of equator.
+    //{STD_PARALLEL_2, SRS_PP_LATITUDE_OF_ORIGIN},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
     {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
     {NULL, NULL}
