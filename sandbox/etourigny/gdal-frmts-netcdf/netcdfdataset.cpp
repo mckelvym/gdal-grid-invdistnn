@@ -3835,7 +3835,7 @@ void NCDFWriteProjAttribsFromMappings(const OGR_SRSNode *poPROJCS,
 
 // PDS
 /* Helper function to get the value of a parameter of a projection in
- * a GDAL poPROJCS structure */
+ * a GDAL OGR_SRSNode structure */
 const char* GetProjParamVal(const OGR_SRSNode *poPROJCS, 
                             const char* findParamStr)
 {
