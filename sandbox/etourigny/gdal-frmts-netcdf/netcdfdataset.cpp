@@ -3690,11 +3690,6 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
             NCDFVarID);
     }      
     // Rotated Pole: not implemented yet, unsure GDAL supports
-    // Currently map Oblique steregraphic to stereographic
-    else if( EQUAL(pszProjection, SRS_PT_OBLIQUE_STEREOGRAPHIC) ) {
-        NCDFWriteProjAttribsFromMappings(poPROJCS, poStMappings, fpImage,
-            NCDFVarID);
-    }
     else if( EQUAL(pszProjection, SRS_PT_STEREOGRAPHIC) ) {
         NCDFWriteProjAttribsFromMappings(poPROJCS, poStMappings, fpImage,
             NCDFVarID);
