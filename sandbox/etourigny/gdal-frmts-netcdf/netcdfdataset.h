@@ -148,9 +148,7 @@ static const oNetcdfSRS poNetcdfSRS[] = {
     {"miller_cylindrical", SRS_PT_MILLER_CYLINDRICAL },
     {"mollweide", SRS_PT_MOLLWEIDE },
     {"new_zealand_map_grid", SRS_PT_NEW_ZEALAND_MAP_GRID },
-    //PDS: GDAL seems to currently treat oblique_stereographic same as stereographic
-    //{"oblique_stereographic", SRS_PT_OBLIQUE_STEREOGRAPHIC }, 
-    {STEREO, SRS_PT_OBLIQUE_STEREOGRAPHIC }, 
+    {"oblique_stereographic", SRS_PT_OBLIQUE_STEREOGRAPHIC }, 
     {"orthographic", SRS_PT_ORTHOGRAPHIC },
     {POLAR_STEREO, SRS_PT_POLAR_STEREOGRAPHIC },
     {"polyconic", SRS_PT_POLYCONIC },
@@ -274,7 +272,6 @@ static const oNetcdfSRS_PP poM_1SPMappings[] = {
 static const oNetcdfSRS_PP poM_2SPMappings[] = {
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
-    // ? Not entirely sure about the std_parallel_2, needs testing ...
     {STD_PARALLEL_2, SRS_PP_LATITUDE_OF_ORIGIN},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
     {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
