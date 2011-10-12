@@ -1336,6 +1336,7 @@ void netCDFDataset::SetProjection( int var )
 /*      Mercator                                                        */
 /* -------------------------------------------------------------------- */
 		  
+            // TODO: handle 1SP vs 2SP case
             else if ( EQUAL ( pszValue, MERCATOR ) ) {
                 dfCenterLon = 
                     poDS->FetchCopyParm( szGridMappingValue, 
