@@ -54,7 +54,9 @@ General TODOs
 
  * GDAL Followups
    
-   * (O) Mercator - 1SP (Sent to mailing list ... )
+   * (D) Mercator - 2SP (Sent to mailing list ... )
+     (Turns out it's due to GeoTiff not supporting Mercator_2SP - and so
+      the driver just silently writes mercator_1SP.
    * (O) Stereographic and Ortho_Stereographic (Reported as GDAL:#4267)
 
  * Note: Frank W says in the trunk he's just updated to latest EPSG 
