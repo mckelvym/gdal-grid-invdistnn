@@ -158,22 +158,8 @@ static const oNetcdfSRS poNetcdfSRS[] = {
     {"swiss_oblique_cylindrical", SRS_PT_SWISS_OBLIQUE_CYLINDRICAL},
     {"transverse_mercator", SRS_PT_TRANSVERSE_MERCATOR },
     {"TM_south_oriented", SRS_PT_TRANSVERSE_MERCATOR_SOUTH_ORIENTED },
-
-    {SCALE_FACTOR, SRS_PP_SCALE_FACTOR },   
-    {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1 },
-    {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2 },
-    {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN },
-    //Another test to get "Longitude origin" to override "Longitude_center"
-    {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_CENTER }, 
-    //{LONG_CENTRAL_MERIDIAN, SRS_PP_LONGITUDE_OF_CENTER },
-    {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_ORIGIN }, 
-    //PDS Test change: adding extra lat_of_proj_origin mapping to NetCDF
-    //2nd of these is what's needed for AEA and several others ...
-    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN }, 
-    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER }, 
-    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
-    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },       
-    {NULL, NULL },
+    // Projection params previously here now defined per-mapping
+    {NULL, NULL }
  };
 
 /* Following are a series of mappings from CF-1 convention parameters
@@ -190,6 +176,28 @@ typedef struct {
     // TODO: mappings may need default values, like scale factor?
     //double defval;
 } oNetcdfSRS_PP;
+
+/* There 'generic' mappings are based on what was previously in the 
+   poNetCDFSRS struct. They will be used as a fallback in case none
+   of the others match (ie you are exporting a projection that has
+   no CF-1 equivalent).
+   They are not used for known CF-1 projections since there is not a
+   unique 2-way projection-independent
+   mapping between OGC WKT params and CF-1 ones: it varies per-projection. */
+static const oNetcdfSRS_PP poGenericMappings[] = {
+    {SCALE_FACTOR, SRS_PP_SCALE_FACTOR },   
+    {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1 },
+    {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2 },
+    {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN },
+    {LONG_CENTRAL_MERIDIAN, SRS_PP_LONGITUDE_OF_CENTER },
+    {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_ORIGIN }, 
+    //Multiple mappings to LAT_PROJ_ORIGIN
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN }, 
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER }, 
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },       
+    {NULL, NULL }
+};
 
 //Albers equal area 
 // ESPG:9822

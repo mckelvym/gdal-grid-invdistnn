@@ -42,6 +42,9 @@ void NCDFWriteProjAttribsFromMappings(const OGR_SRSNode *poPROJCS,
                                         const oNetcdfSRS_PP mappings[],
                                         const int fpImage, const int NCDFVarID);
 
+void NCDFWriteProjAttribs_NonCFCompliantProj(const OGR_SRSNode *poPROJCS,
+                                             const int fpImage, const int NCDFVarID);
+
 const char* GetProjParamVal(const OGR_SRSNode *poPROJCS, 
                             const char* findParamStr);
 
@@ -3627,11 +3630,6 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
                             const char* pszProjection,
                             const int fpImage, const int NCDFVarID) 
 {
-    const char *pszParamStr, *pszParamVal;
-    double dfStdP[2];
-    int bFoundStdP1=FALSE,bFoundStdP2=FALSE;
-    double dfTemp=0.0;
-
     if( EQUAL(pszProjection, SRS_PT_ALBERS_CONIC_EQUAL_AREA) ) {
         NCDFWriteProjAttribsFromMappings(poPROJCS, poAEAMappings, fpImage,
             NCDFVarID);
@@ -3690,7 +3688,6 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
             {NULL, NULL}
             };
             
-            
         NCDFWriteProjAttribsFromMappings(poPROJCS, mappings, fpImage,
             NCDFVarID);
         // Now write a special 'latitude_of_projection_origin'
@@ -3720,78 +3717,7 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
             NCDFVarID);
     }
     else {
-        //PDS: PREVIOUS DEFAULT BEHAVIOUR
-        for( int iChild = 0; iChild < poPROJCS->GetChildCount(); iChild++ )
-        {
-            const OGR_SRSNode *poNode;
-            
-            poNode = poPROJCS->GetChild( iChild );
-            if( !EQUAL(poNode->GetValue(),"PARAMETER") 
-                || poNode->GetChildCount() != 2 )
-                continue;
-
-            pszParamStr = poNode->GetChild(0)->GetValue();
-            pszParamVal = poNode->GetChild(1)->GetValue();
-        
-            // pszNetCDFSRS = NULL;
-            /* Find a better way to store and search these values */
-            for(int i=0; poNetcdfSRS[i].netCDFSRS != NULL; i++ ) {
-                if( EQUAL( poNetcdfSRS[i].SRS, pszParamStr ) ) {
-                    CPLDebug( "GDAL_netCDF", "%s = %s", 
-                              poNetcdfSRS[i].netCDFSRS, 
-                              pszParamVal );
-                    // pszNetCDFSRS = poNetcdfSRS[i].netCDFSRS;
-                    // sscanf( pszParamVal, "%f", &dfValue );
-                    // nc_put_att_float( fpImage, 
-                    //                   NCDFVarID, 
-                    //                   poNetcdfSRS[i].netCDFSRS,
-                    //                   NC_FLOAT,
-                    //                   1,
-                    //                   &fValue );
-
-                    /* Read STD_PARALLEL attribute */
-                    if( EQUAL( poNetcdfSRS[i].SRS, SRS_PP_STANDARD_PARALLEL_1 ) )  {
-                        bFoundStdP1 = TRUE;
-                        sscanf( pszParamVal, "%lg", &dfStdP[0] );
-                    }
-                    else if( EQUAL( poNetcdfSRS[i].SRS, SRS_PP_STANDARD_PARALLEL_2 ) )   {
-                        bFoundStdP2 = TRUE;
-                        sscanf( pszParamVal, "%lg", &dfStdP[1] );
-                    } 
-                    /* Write attribute */ 
-                    else {
-                        dfTemp = atof( pszParamVal );
-                        nc_put_att_double( fpImage, 
-                                           NCDFVarID, 
-                                           poNetcdfSRS[i].netCDFSRS,
-                                           NC_DOUBLE,
-                                           1,
-                                           &dfTemp );
-                    }
-                    break;
-                }
-            }
-        }
-    }
-    /* Write STD_PARALLEL attribute: special case */
-    if ( bFoundStdP1 )  { 
-        /* one value or equal values */
-        if ( !bFoundStdP2 || dfStdP[0] ==  dfStdP[1] ) {
-            nc_put_att_double( fpImage, 
-                               NCDFVarID, 
-                               STD_PARALLEL, 
-                               NC_DOUBLE,
-                               1,
-                               &dfStdP[0] );
-        }
-        else { /* two values */
-            nc_put_att_double( fpImage, 
-                               NCDFVarID, 
-                               STD_PARALLEL, 
-                               NC_DOUBLE,
-                               2,
-                               dfStdP );
-        }
+        NCDFWriteProjAttribs_NonCFCompliantProj(poPROJCS, fpImage, NCDFVarID);
     }
 }
 
@@ -3825,6 +3751,93 @@ void NCDFWriteProjAttribsFromMappings(const OGR_SRSNode *poPROJCS,
                                NC_FLOAT,
                                1,
                                &dfTemp );
+        }
+    }
+    /* Now handle the STD_PARALLEL attrib special case */
+    if ( bFoundStdP1 ) { 
+        /* one value or equal values */
+        if ( !bFoundStdP2 || dfStdP[0] ==  dfStdP[1] ) {
+            nc_put_att_double( fpImage, 
+                               NCDFVarID, 
+                               STD_PARALLEL, 
+                               NC_DOUBLE,
+                               1,
+                               &dfStdP[0] );
+        }
+        else { /* two values */
+            nc_put_att_double( fpImage, 
+                               NCDFVarID, 
+                               STD_PARALLEL, 
+                               NC_DOUBLE,
+                               2,
+                               dfStdP );
+        }
+    }
+}
+
+/* This was the previous default attrib-writing behaviour.
+ * For non-CF compliant projections, want to loop through _all_ projection
+ * attribs in the WKT, and then if possible remap to a CF-1 equivalent.
+ * TODO: does this mean we need to change the conventions label?
+ * Should we just write out all WKT params directly in this case?
+ */
+void NCDFWriteProjAttribs_NonCFCompliantProj(const OGR_SRSNode *poPROJCS,
+                                             const int fpImage, const int NCDFVarID) 
+{
+    double dfStdP[2];
+    int bFoundStdP1=FALSE,bFoundStdP2=FALSE;
+    double dfTemp=0.0;
+    const char *pszParamStr, *pszParamVal;
+
+    for( int iChild = 0; iChild < poPROJCS->GetChildCount(); iChild++ )
+    {
+        const OGR_SRSNode *poNode;
+        
+        poNode = poPROJCS->GetChild( iChild );
+        if( !EQUAL(poNode->GetValue(),"PARAMETER") 
+            || poNode->GetChildCount() != 2 )
+            continue;
+
+        pszParamStr = poNode->GetChild(0)->GetValue();
+        pszParamVal = poNode->GetChild(1)->GetValue();
+    
+        // pszNetCDFSRS = NULL;
+        /* Find a better way to store and search these values */
+        for(int i=0; poGenericMappings[i].NCDF_ATT != NULL; i++ ) {
+            if( EQUAL( poGenericMappings[i].GDAL_ATT, pszParamStr ) ) {
+                CPLDebug( "GDAL_netCDF", "%s = %s", 
+                          poGenericMappings[i].NCDF_ATT, 
+                          pszParamVal );
+                // pszNetCDFSRS = poGenericMappings[i].NCDF_ATT;
+                // sscanf( pszParamVal, "%f", &dfValue );
+                // nc_put_att_float( fpImage, 
+                //                   NCDFVarID, 
+                //                   poGenericMappings[i].NCDF_ATT,
+                //                   NC_FLOAT,
+                //                   1,
+                //                   &fValue );
+
+                /* Read STD_PARALLEL attribute */
+                if( EQUAL( poGenericMappings[i].GDAL_ATT, SRS_PP_STANDARD_PARALLEL_1 ) )  {
+                    bFoundStdP1 = TRUE;
+                    sscanf( pszParamVal, "%lg", &dfStdP[0] );
+                }
+                else if( EQUAL( poGenericMappings[i].GDAL_ATT, SRS_PP_STANDARD_PARALLEL_2 ) )   {
+                    bFoundStdP2 = TRUE;
+                    sscanf( pszParamVal, "%lg", &dfStdP[1] );
+                } 
+                /* Write NetCDF equivalent attribute */ 
+                else {
+                    dfTemp = atof( pszParamVal );
+                    nc_put_att_double( fpImage, 
+                                       NCDFVarID, 
+                                       poGenericMappings[i].NCDF_ATT,
+                                       NC_DOUBLE,
+                                       1,
+                                       &dfTemp );
+                }
+                break;
+            }
         }
     }
     /* Now handle the STD_PARALLEL attrib special case */
