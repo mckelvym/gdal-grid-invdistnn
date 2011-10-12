@@ -194,6 +194,8 @@ typedef struct {
 } oNetcdfSRS_PP;
 
 //Albers equal area 
+// ESPG:9822
+// NB: CF-1 claims there may be '1 or 2 values' for Std_parallel
 static const oNetcdfSRS_PP poAEAMappings[] = {
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2},
@@ -223,6 +225,7 @@ static const oNetcdfSRS_PP poLAZEQMappings[] = {
  };
 
 // Lambert conformal conic - 1SP
+// See http://www.remotesensing.org/geotiff/proj_list/lambert_conic_conformal_1sp.html
 static const oNetcdfSRS_PP poLC_1SPMappings[] = {
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
@@ -233,6 +236,7 @@ static const oNetcdfSRS_PP poLC_1SPMappings[] = {
  };
 
 // Lambert conformal conic - 2SP
+// See http://www.remotesensing.org/geotiff/proj_list/lambert_conic_conformal_2sp.html
 static const oNetcdfSRS_PP poLC_2SPMappings[] = {
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2},
@@ -244,8 +248,10 @@ static const oNetcdfSRS_PP poLC_2SPMappings[] = {
  };
 
 // Lambert cylindrical equal area
-// Also a "scale_factor_at_projection' CF-1 alternative to std_parallel
-//  ... but not in OGC WKT. Perhaps need translation formula on import?
+// EPSG:9834 (Spherical) and EPSG:9835
+// NB: CF-1 specifies a 'scale_factor_at_projection' alternative 
+//  to std_parallel ... but no reference to this in EPSG/remotesensing.org
+//  ignore for now.
 static const oNetcdfSRS_PP poLCEAMappings[] = {
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
     {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
@@ -254,16 +260,17 @@ static const oNetcdfSRS_PP poLCEAMappings[] = {
     {NULL, NULL}
  };
 
-// Mercator 1 Standard Parallel
+// Mercator 1 Standard Parallel (EPSG:9804)
 static const oNetcdfSRS_PP poM_1SPMappings[] = {
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
+    //LAT_PROJ_ORIGIN is always equator (0) in CF-1
     {SCALE_FACTOR_ORIGIN, SRS_PP_SCALE_FACTOR},
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
     {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
     {NULL, NULL}
  };
 
-// Mercator 2 Standard Parallel
+// Mercator 2 Standard Parallel (EPSG:9805)
 static const oNetcdfSRS_PP poM_2SPMappings[] = {
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
@@ -293,10 +300,6 @@ static const oNetcdfSRS_PP poOrthoMappings[] = {
 //  seems to rule out.
 
 // Stereographic
-// TODO: Issues of how GDAL handles STEREOGRAPHIC vs OBLIQUE_STEREOGRAPHIC
-// (GDAL seems to create Oblique_stereographic when you request stereographic
-//   using Proj4, not entirely sure they're different projections)
-//  Haven't been able to create a GDAL regular Stereographic to test yet.
 static const oNetcdfSRS_PP poStMappings[] = {
     {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
     {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
