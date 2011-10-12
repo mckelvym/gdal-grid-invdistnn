@@ -143,8 +143,6 @@ static const oNetcdfSRS poNetcdfSRS[] = {
     {"lambert_conformal_conic", SRS_PT_LAMBERT_CONFORMAL_CONIC_1SP },
     {"lambert_conformal_conic", SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP },
     {"lambert_azimuthal_equal_area", SRS_PT_LAMBERT_AZIMUTHAL_EQUAL_AREA },
-    /* {"mercator_1sp", SRS_PT_MERCATOR_1SP }, */
-    /* {"mercator_2sp", SRS_PT_MERCATOR_2SP }, */
     {"mercator", SRS_PT_MERCATOR_1SP },
     {"mercator", SRS_PT_MERCATOR_2SP },
     {"miller_cylindrical", SRS_PT_MILLER_CYLINDRICAL },
