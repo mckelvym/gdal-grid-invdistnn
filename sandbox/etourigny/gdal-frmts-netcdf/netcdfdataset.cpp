@@ -3669,6 +3669,9 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
             NCDFVarID);
     }
     else if( EQUAL(pszProjection, SRS_PT_POLAR_STEREOGRAPHIC) ) {
+        double dfLatNatOrigin = 0.0;
+        double dfLatPole = 0.0;
+        const char *pszParamVal;
         // TODO: CF-1 says 'standard_parallel' may replace scale factor
         // TODO: In CF-1, LAT_PROJ_ORIGIN is either +90 or -90. Not sure
         //   how this maps to OGC stuff?
@@ -3677,18 +3680,36 @@ void NCDFWriteProjAttribs(const OGR_SRSNode *poPROJCS,
         //   LAT_OF_ORIGIN in WKT, and we fill in LAT_OF_ORIGIN with +90 or 
         //   -90? (LAT_PROJ_ORIGIN set to 90 if STD_PARALLEL > 0, else -90)
         const oNetcdfSRS_PP mappings[] = {
-            {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
-            {VERT_LONG_FROM_POLE, SRS_PP_CENTRAL_MERIDIAN},
+            //CF-1 says 'either' of the following attribs can be used to
+            //define the projection, for now read and set both
+            {STD_PARALLEL_1, SRS_PP_LATITUDE_OF_ORIGIN},
             {SCALE_FACTOR_ORIGIN, SRS_PP_SCALE_FACTOR},  
-            // STD_PARALLEL_1 ?
+            {VERT_LONG_FROM_POLE, SRS_PP_CENTRAL_MERIDIAN},
             {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
             {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
             {NULL, NULL}
             };
             
+            
         NCDFWriteProjAttribsFromMappings(poPROJCS, mappings, fpImage,
             NCDFVarID);
-    }      
+        // Now write a special 'latitude_of_projection_origin'
+        // That as per CF-1 is set to either north or south pole.
+        pszParamVal = GetProjParamVal(poPROJCS, SRS_PP_LATITUDE_OF_ORIGIN);
+        dfLatNatOrigin = atof( pszParamVal );
+        if (dfLatNatOrigin > 0.0) {
+            dfLatPole = 90.0;
+        }    
+        else {    
+            dfLatPole = -90.0;
+        }    
+        nc_put_att_double( fpImage, 
+                           NCDFVarID, 
+                           LAT_PROJ_ORIGIN,
+                           NC_FLOAT,
+                           1,
+                           &dfLatPole );
+    }
     // Rotated Pole: not implemented yet, unsure GDAL supports
     else if( EQUAL(pszProjection, SRS_PT_STEREOGRAPHIC) ) {
         NCDFWriteProjAttribsFromMappings(poPROJCS, poStMappings, fpImage,
