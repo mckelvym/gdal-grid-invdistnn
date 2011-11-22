@@ -112,12 +112,7 @@ CPLErr GDALWMSMiniDriver_WMS::Initialize(CPLXMLNode *config) {
         m_styles = CPLGetXMLValue(config, "Styles", "");
         m_transparent = CPLGetXMLValue(config, "Transparent","");
         // the transparent flag needs to be "TRUE" or "FALSE" in upper case according to the WMS spec so force upper case
-        int i=0; 
-        while (m_transparent[i] != '\0')
-        {
-            m_transparent[i] = toupper(m_transparent[i]);
-            i ++;
-        }
+		m_transparent.toupper();        
     }
 
     if (ret == CE_None) {
