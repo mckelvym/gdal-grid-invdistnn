@@ -3422,7 +3422,7 @@ TIFFReadDirectory(TIFF* tif)
 	uint16 dircount;
 	TIFFDirEntry* dp;
 	uint16 di;
-	const TIFFField* fip;
+	const TIFFField* fip = NULL;
 	uint32 fii=FAILED_FII;
         toff_t nextdiroff;
 	tif->tif_diroff=tif->tif_nextdiroff;
@@ -3688,7 +3688,8 @@ TIFFReadDirectory(TIFF* tif)
 						err=TIFFReadDirEntryPersampleShort(tif,dp,&value);
 					if (err!=TIFFReadDirEntryErrOk)
 					{
-						TIFFReadDirEntryOutputErr(tif,err,module,TIFFFieldWithTag(tif,dp->tdir_tag)->field_name,0);
+            fip = TIFFFieldWithTag(tif,dp->tdir_tag);
+            TIFFReadDirEntryOutputErr(tif,err,module,fip ? fip->field_name : NULL,0);
 						goto bad;
 					}
 					if (!TIFFSetField(tif,dp->tdir_tag,value))
@@ -3709,7 +3710,8 @@ TIFFReadDirectory(TIFF* tif)
 						err = TIFFReadDirEntryDoubleArray(tif, dp, &data);
 					if (err!=TIFFReadDirEntryErrOk)
 					{
-						TIFFReadDirEntryOutputErr(tif,err,module,TIFFFieldWithTag(tif,dp->tdir_tag)->field_name,0);
+            fip = TIFFFieldWithTag(tif,dp->tdir_tag);
+            TIFFReadDirEntryOutputErr(tif,err,module,fip ? fip->field_name : NULL,0);
 						goto bad;
 					}
 					saved_flags = tif->tif_flags;
@@ -4145,7 +4147,7 @@ TIFFReadCustomDirectory(TIFF* tif, toff_t diroff,
 	uint16 dircount;
 	TIFFDirEntry* dp;
 	uint16 di;
-	const TIFFField* fip;
+	const TIFFField* fip = NULL;
 	uint32 fii;
 	_TIFFSetupFields(tif, infoarray);
 	dircount=TIFFFetchDirectory(tif,diroff,&dir,NULL);
@@ -4678,7 +4680,7 @@ TIFFFetchNormalTag(TIFF* tif, TIFFDirEntry* dp, int recover)
 	static const char module[] = "TIFFFetchNormalTag";
 	enum TIFFReadDirEntryErr err;
 	uint32 fii;
-	const TIFFField* fip;
+	const TIFFField* fip = NULL;
 	TIFFReadDirectoryFindFieldInfo(tif,dp->tdir_tag,&fii);
         if( fii == FAILED_FII )
         {
@@ -5327,7 +5329,7 @@ TIFFFetchNormalTag(TIFF* tif, TIFFDirEntry* dp, int recover)
 	}
 	if (err!=TIFFReadDirEntryErrOk)
 	{
-		TIFFReadDirEntryOutputErr(tif,err,module,fip->field_name,recover);
+    TIFFReadDirEntryOutputErr(tif,err,module,fip ? fip->field_name : NULL,recover);
 		return(0);
 	}
 	return(1);
@@ -5343,10 +5345,12 @@ TIFFFetchStripThing(TIFF* tif, TIFFDirEntry* dir, uint32 nstrips, uint64** lpp)
 	static const char module[] = "TIFFFetchStripThing";
 	enum TIFFReadDirEntryErr err;
 	uint64* data;
+	TIFFField *field = NULL;
 	err=TIFFReadDirEntryLong8Array(tif,dir,&data);
 	if (err!=TIFFReadDirEntryErrOk)
 	{
-		TIFFReadDirEntryOutputErr(tif,err,module,TIFFFieldWithTag(tif,dir->tdir_tag)->field_name,0);
+		field = TIFFFieldWithTag(tif,dir->tdir_tag);
+		TIFFReadDirEntryOutputErr(tif,err,module,field ? field->field_name : NULL,0);
 		return(0);
 	}
 	if (dir->tdir_count!=(uint64)nstrips)
