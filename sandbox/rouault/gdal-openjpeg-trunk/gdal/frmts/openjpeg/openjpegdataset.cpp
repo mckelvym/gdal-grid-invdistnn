@@ -587,7 +587,11 @@ JP2OpenJPEGDataset::~JP2OpenJPEGDataset()
 
 int JP2OpenJPEGDataset::CloseDependentDatasets()
 {
+#if GDAL_VERSION_NUM >= 1900
     int bRet = GDALPamDataset::CloseDependentDatasets();
+#else
+    int bRet = TRUE;
+#endif
 
     if ( papoOverviewDS )
     {
@@ -975,6 +979,7 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
             GDALDuplicateGCPs( oJP2Geo.nGCPCount, oJP2Geo.pasGCPList );
     }
 
+#if GDAL_VERSION_NUM >= 1900
     if (oJP2Geo.pszXMPMetadata)
     {
         char *apszMDList[2];
@@ -982,6 +987,8 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
         apszMDList[1] = NULL;
         poDS->SetMetadata(apszMDList, "xml:XMP");
     }
+#endif
+
 /* -------------------------------------------------------------------- */
 /*      Initialize any PAM information.                                 */
 /* -------------------------------------------------------------------- */
