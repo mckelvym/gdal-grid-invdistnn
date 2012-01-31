@@ -904,17 +904,18 @@ GDALDataset *ERSDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Adjust if we have a registration cell.                          */
 /* -------------------------------------------------------------------- */
-    int iCellX = atoi(poHeader->Find("RasterInfo.RegistrationCellX", "1"));
-    int iCellY = atoi(poHeader->Find("RasterInfo.RegistrationCellY", "1"));
+/* ESRI specific: We assume 0,0 for consistency with other software     */
+    int iCellX = atoi(poHeader->Find("RasterInfo.RegistrationCellX", "0"));
+    int iCellY = atoi(poHeader->Find("RasterInfo.RegistrationCellY", "0"));
 
     if( poDS->bGotTransform )
     {
         poDS->adfGeoTransform[0] -=
-            (iCellX-1) * poDS->adfGeoTransform[1]
-            + (iCellY-1) * poDS->adfGeoTransform[2];
+            iCellX * poDS->adfGeoTransform[1]
+            + iCellY * poDS->adfGeoTransform[2];
         poDS->adfGeoTransform[3] -= 
-            (iCellX-1) * poDS->adfGeoTransform[4]
-            + (iCellY-1) * poDS->adfGeoTransform[5];
+            iCellX * poDS->adfGeoTransform[4]
+            + iCellY * poDS->adfGeoTransform[5];
     }
 
 /* -------------------------------------------------------------------- */
@@ -1016,6 +1017,20 @@ GDALDataset *ERSDataset::Open( GDALOpenInfo * poOpenInfo )
             }
 
             GDALClose( poAuxDS );
+        }
+    }
+
+    if( poDS->poDepFile )
+    {
+        GDALDriver* poDepDriver = poDS->poDepFile->GetDriver();
+        const char* pszDriverName = poDepDriver->GetDescription();
+        if( EQUAL( pszDriverName, "ECW" ) )
+        {
+            poDS->SetMetadataItem( "COMPRESSION", "ECW", "IMAGE_STRUCTURE" );
+        } 
+        else if( EQUAL( pszDriverName, "JP2KAK" ) )
+        {
+            poDS->SetMetadataItem( "COMPRESSION", "JPEG2000", "IMAGE_STRUCTURE" );
         }
     }
 /* -------------------------------------------------------------------- */
