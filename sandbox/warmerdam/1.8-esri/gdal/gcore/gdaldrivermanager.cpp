@@ -120,6 +120,12 @@ GDALDriverManager::GDALDriverManager()
         CPLPushFinderLocation( INST_DATA );
 #endif
     }
+#if defined( _MSC_VER ) && !defined( MAINWIN )
+    int nMaxHandles = _getmaxstdio();
+    if ( nMaxHandles < 2048 ) {
+      int nResult = _setmaxstdio(2048);
+    }
+#endif
 }
 
 /************************************************************************/
