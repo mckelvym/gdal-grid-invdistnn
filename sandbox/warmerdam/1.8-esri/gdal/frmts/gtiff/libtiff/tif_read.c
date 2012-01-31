@@ -374,21 +374,24 @@ TIFFReadRawStrip1(TIFF* tif, uint32 strip, void* buf, tmsize_t size,
 		}
 		cc = TIFFReadFile(tif, buf, size);
 		if (cc != size) {
+      tmsize_t rsize = (td->td_imagelength % td->td_rowsperstrip) * TIFFScanlineSize(tif);
+      if ((strip != td->td_nstrips - 1) || (cc < rsize)) {
 #if defined(__WIN32__) && (defined(_MSC_VER) || defined(__MINGW32__))
-			TIFFErrorExt(tif->tif_clientdata, module,
-		"Read error at scanline %lu; got %I64u bytes, expected %I64u",
-				     (unsigned long) tif->tif_row,
-				     (unsigned __int64) cc,
-				     (unsigned __int64) size);
+        TIFFErrorExt(tif->tif_clientdata, module,
+          "Read error at scanline %lu; got %I64u bytes, expected %I64u",
+          (unsigned long) tif->tif_row,
+          (unsigned __int64) cc,
+          (unsigned __int64) size);
 #else
-			TIFFErrorExt(tif->tif_clientdata, module,
-		"Read error at scanline %lu; got %llu bytes, expected %llu",
-				     (unsigned long) tif->tif_row,
-				     (unsigned long long) cc,
-				     (unsigned long long) size);
+        TIFFErrorExt(tif->tif_clientdata, module,
+          "Read error at scanline %lu; got %llu bytes, expected %llu",
+          (unsigned long) tif->tif_row,
+          (unsigned long long) cc,
+          (unsigned long long) size);
 #endif
-			return ((tmsize_t)(-1));
-		}
+        return ((tmsize_t)(-1));
+      }
+    }
 	} else {
 		tmsize_t ma,mb;
 		tmsize_t n;
@@ -401,22 +404,25 @@ TIFFReadRawStrip1(TIFF* tif, uint32 strip, void* buf, tmsize_t size,
 		else
 			n=size;
 		if (n!=size) {
+      tmsize_t rsize = (td->td_imagelength % td->td_rowsperstrip) * TIFFScanlineSize(tif);
+      if ((strip != td->td_nstrips - 1) || (n < rsize)) {
 #if defined(__WIN32__) && (defined(_MSC_VER) || defined(__MINGW32__))
-			TIFFErrorExt(tif->tif_clientdata, module,
-	"Read error at scanline %lu, strip %lu; got %I64u bytes, expected %I64u",
-				     (unsigned long) tif->tif_row,
-				     (unsigned long) strip,
-				     (unsigned __int64) n,
-				     (unsigned __int64) size);
+        TIFFErrorExt(tif->tif_clientdata, module,
+          "Read error at scanline %lu, strip %lu; got %I64u bytes, expected %I64u",
+          (unsigned long) tif->tif_row,
+          (unsigned long) strip,
+          (unsigned __int64) n,
+          (unsigned __int64) size);
 #else
-			TIFFErrorExt(tif->tif_clientdata, module,
-	"Read error at scanline %lu, strip %lu; got %llu bytes, expected %llu",
-				     (unsigned long) tif->tif_row,
-				     (unsigned long) strip,
-				     (unsigned long long) n,
-				     (unsigned long long) size);
+        TIFFErrorExt(tif->tif_clientdata, module,
+          "Read error at scanline %lu, strip %lu; got %llu bytes, expected %llu",
+          (unsigned long) tif->tif_row,
+          (unsigned long) strip,
+          (unsigned long long) n,
+          (unsigned long long) size);
 #endif
-			return ((tmsize_t)(-1));
+        return ((tmsize_t)(-1));
+      }
 		}
 		_TIFFmemcpy(buf, tif->tif_base + ma,
 			    size);
