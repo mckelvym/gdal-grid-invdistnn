@@ -247,6 +247,9 @@ class ENVIDataset : public RawDataset
     void        SetENVIDatum( OGRSpatialReference *, const char * );
     void        SetENVIEllipse( OGRSpatialReference *, char ** );
     void        WriteProjectionInfo(VSILFILE *fp);
+    int         ParseRpcCoeffsMetaDataString(char *psName, char *psVal[], int idx, char **ppArr);
+    int         WriteRpcInfo(VSILFILE *fp);
+    int         WritePseudoGcpInfo(VSILFILE *fp);
     
     char        **SplitList( const char * );
 
@@ -432,7 +435,18 @@ void ENVIDataset::FlushCache()
 /* -------------------------------------------------------------------- */
 /*      Write the rest of header.                                       */
 /* -------------------------------------------------------------------- */
-    WriteProjectionInfo(fp);
+    
+    // only one map info type should be set
+    //     - rpc
+    //     - pseudo/gcp 
+    //     - standard
+    if (WriteRpcInfo(fp) == 0) // are rpcs in the metadata
+    {
+      if (WritePseudoGcpInfo(fp) == 0) // are gcps in the metadata
+      {
+        WriteProjectionInfo(fp); // standard - affine xform/coord sys str
+      }
+    }
 
 
     VSIFPrintfL( fp, "band names = {\n" );
@@ -853,6 +867,164 @@ void ENVIDataset::WriteProjectionInfo(VSILFILE *fp)
     }
 }
 
+/************************************************************************/
+/*                ParseRpcCoeffsMetaDataString()                        */
+/************************************************************************/
+
+int ENVIDataset::ParseRpcCoeffsMetaDataString(char *psName, char *psVal[], int idx, char **ppArr)
+{
+    // separate one string with 20 coefficients into an array of 20 strings.
+    // the caller is responsible for destroying ppArr that is created in this routine.
+
+    char *ps20Vals = (char*)GetMetadataItem(psName, "RPC");
+    if (!ps20Vals)
+      return 0;
+
+    ppArr = CSLTokenizeString2(ps20Vals, " ", 0);
+    if (!ppArr)
+      return 0;
+
+    int x = 0;
+    while ((ppArr[x] != NULL) && (x < 20))
+    {
+      psVal[idx++] = ppArr[x];
+      x++;
+    }
+
+    if (x<20)
+    {
+      CSLDestroy(ppArr);
+      return 0 ;
+    }
+
+    return 1;
+}
+
+/************************************************************************/
+/*                        WriteRpcInfo()                         */
+/************************************************************************/
+
+int ENVIDataset::WriteRpcInfo(VSILFILE *fp)
+{
+    // write out 90 rpc coeffs into the envi header plus 3 envi specific rpc values
+    // returns 0 if the coeffs are not present or not valid
+
+    int idx, x;
+    char* psVal[93];
+
+    int i = 0;
+    psVal[i++] = (char*)GetMetadataItem("LINE_OFF", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("SAMP_OFF", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("LAT_OFF", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("LONG_OFF", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("HEIGHT_OFF", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("LINE_SCALE", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("SAMP_SCALE", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("LAT_SCALE", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("LONG_SCALE", "RPC");
+    psVal[i++] = (char*)GetMetadataItem("HEIGHT_SCALE", "RPC");
+
+    for (x=0; x<10; x++) // if we do not have 10 values we return 0
+    {
+      if (!psVal[x])
+        return 0;
+    }
+
+    idx = 10;
+    char **ppLNC = 0; // cleanup below
+    if (ParseRpcCoeffsMetaDataString("LINE_NUM_COEFF", psVal, idx, ppLNC) == 0)
+      return 0;
+
+    idx = 30;
+    char **ppLDC = 0; // cleanup below
+    if (ParseRpcCoeffsMetaDataString("LINE_DEN_COEFF", psVal, idx, ppLDC) == 0)
+      return 0;
+
+    idx = 50;
+    char **ppSNC = 0; // cleanup below
+    if (ParseRpcCoeffsMetaDataString("SAMP_NUM_COEFF", psVal, idx, ppSNC) == 0)
+      return 0;
+
+    idx = 70;
+    char **ppSDC = 0; // cleanup below
+    if (ParseRpcCoeffsMetaDataString("SAMP_DEN_COEFF", psVal, idx, ppSDC) == 0)
+      return 0;
+
+    psVal[90] = (char*)GetMetadataItem("TILE_ROW_OFFSET", "RPC");
+    psVal[91] = (char*)GetMetadataItem("TILE_COL_OFFSET", "RPC");
+    psVal[92] = (char*)GetMetadataItem("ENVI_RPC_EMULATION", "RPC"); 
+    for (x=90; x<93; x++)
+    {
+      if (!psVal[x])
+        return 0;
+    }
+
+    // ok all the needed 93 values are present so write the rpcs into the envi header
+    x = 1;
+    VSIFPrintfL(fp, "rpc info = {\n");
+    for (int iR=0; iR<93; iR++)
+    {
+      if (psVal[iR][0] == '-')
+        VSIFPrintfL(fp, " %s", psVal[iR]); 
+      else
+        VSIFPrintfL(fp, "  %s", psVal[iR]); 
+      
+      if (iR<92)
+        VSIFPrintfL(fp, ",");
+
+      if ((x % 4) == 0)
+          VSIFPrintfL(fp, "\n");
+     
+      x++;
+      if (x > 4) 
+        x = 1;
+    }
+
+    VSIFPrintfL(fp, "}\n" );
+
+    // cleanup the four arrays each contiaining 20 strings
+    CSLDestroy(ppLNC);
+    CSLDestroy(ppLDC);
+    CSLDestroy(ppSNC);
+    CSLDestroy(ppSDC);
+
+    return 1;
+}
+
+/************************************************************************/
+/*                        WritePseudoGcpInfo()                         */
+/************************************************************************/
+
+int ENVIDataset::WritePseudoGcpInfo(VSILFILE *fp)
+{
+    // write out gcps into the envi header
+    // returns 0 if the gcps are not present
+
+    int iNum = GetGCPCount();
+    if (iNum == 0)
+      return 0;
+
+    const GDAL_GCP *pGcpStructs = GetGCPs();
+
+    //    double      dfGCPPixel; /** Pixel (x) location of GCP on raster */
+    //    double      dfGCPLine;  /** Line (y) location of GCP on raster */
+    //    double      dfGCPX;     /** X position of GCP in georeferenced space */
+    //    double      dfGCPY;     /** Y position of GCP in georeferenced space */
+
+    int x = 1;
+    VSIFPrintfL(fp, "geo points = {\n");
+    for (int iR=0; iR<iNum; iR++)
+    {
+      VSIFPrintfL(fp, " %#0.4f, %#0.4f, %#0.8f, %#0.8f", pGcpStructs[iR].dfGCPPixel, pGcpStructs[iR].dfGCPLine, 
+                                                         pGcpStructs[iR].dfGCPY, pGcpStructs[iR].dfGCPX);       
+      if (iR<iNum-1)
+        VSIFPrintfL(fp, ",\n");
+    }
+
+    VSIFPrintfL(fp, "}\n" );
+
+    return 1;
+}
 
 /************************************************************************/
 /*                          GetProjectionRef()                          */
@@ -1801,13 +1973,12 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
         }
     }
 
-    if (!GDALCheckDatasetDimensions(nSamples, nLines) || !GDALCheckBandCount(nBands, FALSE) ||
-        pszInterleave == NULL )
+    if (!GDALCheckDatasetDimensions(nSamples, nLines) || !GDALCheckBandCount(nBands, FALSE))
     {
         delete poDS;
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "The file appears to have an associated ENVI header, but\n"
-                  "one or more of the samples, lines, bands and interleave\n"
+                  "one or more of the samples, lines, bands \n"
                   "keywords appears to be missing or invalid." );
         return NULL;
     }
@@ -2009,11 +2180,13 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
     }
     else
     {
-        delete poDS;
-        CPLError( CE_Failure, CPLE_AppDefined, 
-                  "The interleaving type of the file (%s) is not supported.",
-                  pszInterleave );
-        return NULL;
+        // default to bsq if the interleave is unknown or not set
+        poDS->interleave = BSQ;
+        poDS->SetMetadataItem( "INTERLEAVE", "BAND", "IMAGE_STRUCTURE" );
+        if (nSamples > INT_MAX / nDataSize) bIntOverflow = TRUE;
+        nLineOffset = nDataSize * nSamples;
+        nPixelOffset = nDataSize;
+        nBandOffset = (vsi_l_offset)nLineOffset * nLines;
     }
 
     if (bIntOverflow)
