@@ -639,10 +639,24 @@ JP2KAKRasterBand::IRasterIO( GDALRWFlag eRWFlag,
             pData, nBufXSize, nBufYSize, eBufType, 
             nPixelSpace, nLineSpace );
     else
+    {
+        int nOverviewDiscard = nDiscardLevels;
+
+        // Adjust request for overview level.
+        while( nOverviewDiscard > 0 )
+        {
+            nXOff  = nXOff * 2;
+            nYOff  = nYOff * 2;
+            nXSize = nXSize * 2;
+            nYSize = nYSize * 2;
+            nOverviewDiscard--;
+        }
+
         return poBaseDS->DirectRasterIO( 
             eRWFlag, nXOff, nYOff, nXSize, nYSize,
             pData, nBufXSize, nBufYSize, eBufType, 
             1, &nBand, nPixelSpace, nLineSpace, 0 );
+    }
 }
 
 /************************************************************************/
@@ -1018,6 +1032,9 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
     if( !Identify( poOpenInfo ) )
         return NULL;
 
+    int bResilient = CSLTestBoolean(
+        CPLGetConfigOption( "JP2KAK_RESILIENT", "NO" ) );
+
 /* -------------------------------------------------------------------- */
 /*      Handle setting up datasource for JPIP.                          */
 /* -------------------------------------------------------------------- */
@@ -1040,7 +1057,7 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
             try
             {
                 poRawInput = new subfile_source;
-                poRawInput->open( poOpenInfo->pszFilename );
+                poRawInput->open( poOpenInfo->pszFilename, bResilient );
                 poRawInput->seek( 0 );
 
                 poRawInput->read( abySubfileHeader, 16 );
@@ -1064,17 +1081,18 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
     }
 
 /* -------------------------------------------------------------------- */
-/*      If we think this should be access via vsil, then open it        */
-/*      accordingly.                                                    */
+/*      If we think this should be access via vsil, then open it using  */
+/*      subfile_source.  We do this if it does not seem to open normally*/
+/*      or if we want to operate in resilient (sequential) mode.        */
 /* -------------------------------------------------------------------- */
-    if( poOpenInfo->fp == NULL
-        && poRawInput == NULL
-        && !bIsJPIP )
+    if( poRawInput == NULL
+        && !bIsJPIP
+        && (bResilient || poOpenInfo->fp == NULL) )
     {
         try
         {
             poRawInput = new subfile_source;
-            poRawInput->open( poOpenInfo->pszFilename );
+            poRawInput->open( poOpenInfo->pszFilename, bResilient );
             poRawInput->seek( 0 );
         }
         catch( ... )
@@ -1219,8 +1237,7 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
         poDS->oCodeStream.create( poInput );
         poDS->oCodeStream.set_persistent();
 
-        poDS->bResilient = CSLTestBoolean(
-            CPLGetConfigOption( "JP2KAK_RESILIENT", "NO" ) );
+        poDS->bResilient = bResilient;
         poDS->bFussy = CSLTestBoolean(
             CPLGetConfigOption( "JP2KAK_FUSSY", "NO" ) );
 
@@ -1416,6 +1433,41 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
 
                 CPLFree( pszName );
             }
+
+/* -------------------------------------------------------------------- */
+/*      Do we have other misc metadata?                                 */
+/* -------------------------------------------------------------------- */
+            if( CSLFetchNameValue( oJP2Geo.papszGMLMetadata,
+                                   "TIFFTAG_XRESOLUTION" ) != NULL )
+            {
+                char **papszMD = poDS->GDALPamDataset::GetMetadata();
+                const char *pszItem;
+
+                pszItem = CSLFetchNameValue( oJP2Geo.papszGMLMetadata,
+                                             "TIFFTAG_XRESOLUTION" );
+                if( pszItem )
+                    papszMD = 
+                        CSLSetNameValue( papszMD, "TIFFTAG_XRESOLUTION", 
+                                         pszItem );
+                                         
+                pszItem = CSLFetchNameValue( oJP2Geo.papszGMLMetadata,
+                                             "TIFFTAG_YRESOLUTION" );
+                if( pszItem )
+                    papszMD = 
+                        CSLSetNameValue( papszMD, "TIFFTAG_YRESOLUTION", 
+                                         pszItem );
+                                         
+                pszItem = CSLFetchNameValue( oJP2Geo.papszGMLMetadata,
+                                             "TIFFTAG_RESOLUTIONUNIT" );
+                if( pszItem )
+                    papszMD = 
+                        CSLSetNameValue( papszMD, "TIFFTAG_RESOLUTIONUNIT", 
+                                         pszItem );
+                                         
+                poDS->GDALPamDataset::SetMetadata( papszMD );
+
+                CSLDestroy( papszMD );
+            }
         }
 
 /* -------------------------------------------------------------------- */
@@ -1550,7 +1602,7 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
 
     if( bPreferNPReads )
     {
-        subfile_src.open( GetDescription() );
+        subfile_src.open( GetDescription(), bResilient );
         
         if( family != NULL )
         {
@@ -1934,7 +1986,7 @@ static void JP2KAKWriteBox( jp2_target *jp2_out, GDALJP2Box *poBox )
     jp2_out->open_next( nBoxType );
 
     jp2_out->write( (kdu_byte *) poBox->GetWritableData(), 
-                    poBox->GetDataLength() );
+                    (int) poBox->GetDataLength() );
 
     jp2_out->close();
 
@@ -1949,7 +2001,7 @@ static int
 JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
                             kdu_roi_image *poROIImage, 
                             int nXOff, int nYOff, int nXSize, int nYSize,
-                            int bReversible, int nBits, GDALDataType eType,
+                            bool bReversible, int nBits, GDALDataType eType,
                             kdu_codestream &oCodeStream, int bFlushEnabled,
                             kdu_long *layer_bytes, int layer_count,
                             GDALProgressFunc pfnProgress, void * pProgressData,
@@ -2054,7 +2106,7 @@ JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
                     kdu_sample32 *dest = lines[c].get_buf32();
                     kdu_byte *sp = pabyBuffer;
                     int nOffset = 1 << (nBits-1);
-                    float fScale = 1.0 / (1 << nBits);
+                    float fScale = (float) (1.0 / (1 << nBits));
                 
                     for (int n=nXSize; n > 0; n--, dest++, sp++)
                         dest->fval = (float) 
@@ -2064,7 +2116,7 @@ JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
                 {
                     kdu_sample32 *dest = lines[c].get_buf32();
                     GInt16  *sp = (GInt16 *) pabyBuffer;
-                    float fScale = 1.0 / (1 << nBits);
+                    float fScale = (float) (1.0 / (1 << nBits));
                 
                     for (int n=nXSize; n > 0; n--, dest++, sp++)
                         dest->fval = (float) 
@@ -2075,7 +2127,7 @@ JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
                     kdu_sample32 *dest = lines[c].get_buf32();
                     GUInt16  *sp = (GUInt16 *) pabyBuffer;
                     int nOffset = 1 << (nBits-1);
-                    float fScale = 1.0 / (1 << nBits);
+                    float fScale = (float) (1.0 / (1 << nBits));
                 
                     for (int n=nXSize; n > 0; n--, dest++, sp++)
                         dest->fval = (float) 
@@ -2301,7 +2353,10 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 /* -------------------------------------------------------------------- */
     bool bComseg;
 
-    bComseg = (bool) CSLFetchBoolean( papszOptions, "COMSEG", TRUE );
+    if( CSLFetchBoolean( papszOptions, "COMSEG", TRUE ) )
+        bComseg = true;
+    else
+        bComseg = false;
 
 /* -------------------------------------------------------------------- */
 /*      Work out the precision.                                         */
@@ -2358,6 +2413,13 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
     kdu_codestream         oCodeStream;
 
     vsil_target            oVSILTarget;
+
+    // Support "FORMAT" option like JPEG2000 driver does so we can 
+    // force JPC output when embedded in NITF, etc. (do not depend 
+    // on file extension alone).
+    const char *pszFormatName = CSLFetchNameValue( papszOptions, "FORMAT" );
+    if( pszFormatName && EQUALN( pszFormatName, "JPC", 3 ) )
+      bIsJPX = bIsJP2 = FALSE;
 
     if( !pfnProgress( 0.0, NULL, pProgressData ) )
         return NULL;
@@ -2516,6 +2578,38 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         }
         else
             colour.init( JP2_sLUM_SPACE );
+
+        // Resolution
+        if( poSrcDS->GetMetadataItem("TIFFTAG_XRESOLUTION") != NULL
+            && poSrcDS->GetMetadataItem("TIFFTAG_YRESOLUTION") != NULL
+            && poSrcDS->GetMetadataItem("TIFFTAG_RESOLUTIONUNIT") != NULL )
+        {
+            jp2_resolution res = jp2_out.access_resolution();
+            double dfXRes = 
+                CPLAtof(poSrcDS->GetMetadataItem("TIFFTAG_XRESOLUTION"));
+            double dfYRes = 
+                CPLAtof(poSrcDS->GetMetadataItem("TIFFTAG_XRESOLUTION"));
+
+            if( atoi(poSrcDS->GetMetadataItem("TIFFTAG_RESOLUTIONUNIT")) == 2 )
+            {
+                // convert pixels per inch to pixels per cm. 
+                dfXRes = dfXRes * 39.37 / 100.0;
+                dfYRes = dfYRes * 39.37 / 100.0;
+            }
+            
+            // convert to pixels per meter.
+            dfXRes *= 100.0;
+            dfYRes *= 100.0;
+
+            if( dfXRes != 0.0 && dfYRes != 0.0 )
+            {
+                if( fabs(dfXRes/dfYRes - 1.0) > 0.00001 )
+                    res.init( dfYRes/dfXRes );
+                else
+                    res.init( 1.0 );
+                res.set_resolution( dfXRes, true );
+            }
+        }
     }
 
 /* -------------------------------------------------------------------- */
@@ -2774,6 +2868,7 @@ void GDALRegister_JP2KAK()
 "   <Option name='Rshift' type='string'/>"
 "   <Option name='Rlevels' type='string'/>"
 "   <Option name='Rweight' type='string'/>"
+"   <Option name='FORMAT' type='string'/>"
 "</CreationOptionList>" );
 
         poDriver->pfnOpen = JP2KAKDataset::Open;
