@@ -265,7 +265,6 @@ char **DIMAPDataset::GetFileList()
 /************************************************************************/
 
 int DIMAPDataset::Identify( GDALOpenInfo * poOpenInfo )
-
 {
     if( poOpenInfo->nHeaderBytes >= 100 )
     {
@@ -283,7 +282,18 @@ int DIMAPDataset::Identify( GDALOpenInfo * poOpenInfo )
             CPLFormCIFilename( poOpenInfo->pszFilename, "METADATA.DIM", NULL );
         
         if( VSIStatL( osMDFilename, &sStat ) == 0 )
-            return TRUE;
+        {
+            /* Make sure this is really a Dimap format */
+            GDALOpenInfo  oOpenInfo( osMDFilename, GA_ReadOnly, NULL );
+            if( oOpenInfo.nHeaderBytes >= 100 )
+            {
+                if( strstr((const char *) oOpenInfo.pabyHeader, 
+                           "<Dimap_Document" ) == NULL )
+                    return FALSE;
+                else
+                    return TRUE;
+            }
+        }
         else
             return FALSE;
     }
