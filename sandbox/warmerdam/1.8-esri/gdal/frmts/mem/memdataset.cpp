@@ -54,7 +54,7 @@ GDALRasterBandH MEMCreateRasterBand( GDALDataset *poDS, int nBand,
 MEMRasterBand::MEMRasterBand( GDALDataset *poDS, int nBand,
                               GByte *pabyDataIn, GDALDataType eTypeIn, 
                               int nPixelOffsetIn, int nLineOffsetIn,
-                              int bAssumeOwnership, const char * pszPixelType)
+                              int bAssumeOwnership, char ** papszOptions)
 
 {
     //CPLDebug( "MEM", "MEMRasterBand(%p)", this );
@@ -92,10 +92,11 @@ MEMRasterBand::MEMRasterBand( GDALDataset *poDS, int nBand,
     dfScale = 1.0;
     pszUnitType = NULL;
     psSavedHistograms = NULL;
-
+  
+    const char *pszPixelType = CSLFetchNameValue( papszOptions, "PIXELTYPE" );
+  
     if( pszPixelType && EQUAL(pszPixelType,"SIGNEDBYTE") )
          this->SetMetadataItem( "PIXELTYPE", "SIGNEDBYTE", "IMAGE_STRUCTURE" );
-
 }
 
 /************************************************************************/
@@ -180,7 +181,9 @@ CPLErr MEMRasterBand::IWriteBlock( int nBlockXOff, int nBlockYOff,
                     nWordSize );
         }
     }
-
+    
+    MEMDataset *poDS = (MEMDataset *)(this->poDS);
+    poDS->SetEmptyDataset(false);
     return CE_None;
 }
 
@@ -204,9 +207,27 @@ double MEMRasterBand::GetNoDataValue( int *pbSuccess )
 /************************************************************************/
 CPLErr MEMRasterBand::SetNoDataValue( double dfNewValue )
 {
-    dfNoData = dfNewValue;
-    bNoDataSet = TRUE;
+    dfNoData    = dfNewValue;
+    bNoDataSet  = TRUE;
+    nMaskFlags |= GMF_NODATA;  
 
+    MEMDataset *poDS = (MEMDataset *)(this->poDS);
+    if (poDS->IsEmptyDataset())
+    {
+        
+      int nWords = poDS->GetRasterXSize() * poDS->GetRasterYSize();
+        
+      if (eDataType == GDT_Byte)
+         memset(pabyData, dfNewValue, nWords);
+      else
+      {
+        int nChunkSize = MAX(1,GDALGetDataTypeSize(eDataType)/8);
+
+        /* Will convert nodata value to the right type and copy efficiently */
+        GDALCopyWords( &dfNoData, GDT_Float64, 0,
+                       pabyData, eDataType, nChunkSize, nWords);
+      }
+    }
     return CE_None;
 }
 
@@ -472,6 +493,7 @@ MEMDataset::MEMDataset()
 
     nGCPCount = 0;
     pasGCPs = NULL;
+    isEmpty = false;
 }
 
 /************************************************************************/
@@ -656,7 +678,7 @@ CPLErr MEMDataset::AddBand( GDALDataType eType, char **papszOptions )
 
         SetBand( nBandId,
                  new MEMRasterBand( this, nBandId, pData, eType, nPixelSize, 
-                                    nPixelSize * GetRasterXSize(), TRUE ) );
+                                    nPixelSize * GetRasterXSize(), TRUE, papszOptions ) );
 
         return CE_None;
     }
@@ -686,7 +708,7 @@ CPLErr MEMDataset::AddBand( GDALDataType eType, char **papszOptions )
 
     SetBand( nBandId,
              new MEMRasterBand( this, nBandId, pData, eType, 
-                                nPixelOffset, nLineOffset, FALSE ) );
+                                nPixelOffset, nLineOffset, FALSE, papszOptions ) );
 
     return CE_None;
 }
@@ -828,7 +850,7 @@ GDALDataset *MEMDataset::Open( GDALOpenInfo * poOpenInfo )
                        new MEMRasterBand( poDS, iBand+1, 
                                           pabyData + iBand * nBandOffset,
                                           eType, nPixelOffset, nLineOffset, 
-                                          FALSE ) );
+                                          FALSE, papszOptions ) );
     }
 
 /* -------------------------------------------------------------------- */
@@ -937,14 +959,15 @@ GDALDataset *MEMDataset::Create( const char * pszFilename,
         if( bPixelInterleaved )
             poNewBand = new MEMRasterBand( poDS, iBand+1, apbyBandData[iBand],
                                            eType, nWordSize * nBands, 0, 
-                                           iBand == 0 );
+                                           iBand == 0, papszOptions );
         else
             poNewBand = new MEMRasterBand( poDS, iBand+1, apbyBandData[iBand],
-                                           eType, 0, 0, TRUE );
+                                           eType, 0, 0, TRUE, papszOptions );
 
         poDS->SetBand( iBand+1, poNewBand );
     }
 
+    poDS->SetEmptyDataset(true);
 /* -------------------------------------------------------------------- */
 /*      Try to return a regular handle on the file.                     */
 /* -------------------------------------------------------------------- */

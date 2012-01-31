@@ -56,6 +56,7 @@ class CPL_DLL MEMDataset : public GDALDataset
     GDAL_GCP    *pasGCPs;
     CPLString    osGCPProjection;
 
+    bool         isEmpty;
   public:
                  MEMDataset();
     virtual      ~MEMDataset();
@@ -81,6 +82,8 @@ class CPL_DLL MEMDataset : public GDALDataset
     static GDALDataset *Create( const char * pszFilename,
                                 int nXSize, int nYSize, int nBands,
                                 GDALDataType eType, char ** papszParmList );
+    bool IsEmptyDataset() {return isEmpty;}
+    void SetEmptyDataset(bool b) {isEmpty = b;}
 };
 
 /************************************************************************/
@@ -114,7 +117,7 @@ class CPL_DLL MEMRasterBand : public GDALPamRasterBand
                    MEMRasterBand( GDALDataset *poDS, int nBand,
                                   GByte *pabyData, GDALDataType eType,
                                   int nPixelOffset, int nLineOffset,
-                                  int bAssumeOwnership,  const char * pszPixelType = NULL);
+                                  int bAssumeOwnership, char ** papszParmList = NULL);
     virtual        ~MEMRasterBand();
 
     // should override RasterIO eventually.
