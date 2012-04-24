@@ -924,10 +924,6 @@ GDALDataset *PNGDataset::Open( GDALOpenInfo * poOpenInfo )
                     trans_values->green, 
                     trans_values->blue );
             poDS->SetMetadataItem( "NODATA_VALUES", oNDValue.c_str() );
-
-            poDS->GetRasterBand(1)->SetNoDataValue(trans_values->red);
-            poDS->GetRasterBand(2)->SetNoDataValue(trans_values->green);
-            poDS->GetRasterBand(3)->SetNoDataValue(trans_values->blue);
         }
     }
 
