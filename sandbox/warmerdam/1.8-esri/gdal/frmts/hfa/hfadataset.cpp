@@ -1341,6 +1341,10 @@ CPLErr HFARasterBand::CleanOverviews()
         VSIUnlink( osFilename );
     }
 
+    /* Cleanup HFABand overview structures, we might attempt to recreate */
+    /* overviews                                                         */
+    poBand->CleanOverviews();
+
     return CE_None;
 }
 
@@ -3477,6 +3481,23 @@ CPLErr HFADataset::IBuildOverviews( const char *pszResampling,
                                              nOverviews, panOverviewList, 
                                              nListBands, panBandList, 
                                              pfnProgress, pProgressData );
+
+    // Force bands to load their overviews.
+    for( i = 0; i < nListBands; i++ )
+    {
+        GDALRasterBand *poBand = GetRasterBand( panBandList[0] );
+        poBand->GetOverviewCount();
+    }
+
+    // If we are building new overviews, delete existing ones first.
+    if( nOverviews )
+    {
+        for( i = 0; i < nListBands; i++ )
+        {
+            HFARasterBand *poBand = (HFARasterBand*)GetRasterBand( panBandList[i] );
+            poBand->CleanOverviews();
+        }
+    }
 
     for( i = 0; i < nListBands; i++ )
     {

@@ -134,6 +134,27 @@ HFABand::~HFABand()
 }
 
 /************************************************************************/
+/*                           CleanOverviews()                           */
+/************************************************************************/
+
+CPLErr HFABand::CleanOverviews()
+{
+    /* Clean up structures only, called from HFARasterBand::CleanOverviews() */
+    for( int iOverview = 0; iOverview < nOverviews; iOverview++ )
+        delete papoOverviews[iOverview];
+
+    if( nOverviews > 0 )
+        CPLFree( papoOverviews );
+
+    nOverviews = 0;
+    papoOverviews = NULL;
+
+    bOverviewsPending = FALSE;
+
+    return CE_None;
+}
+
+/************************************************************************/
 /*                           LoadOverviews()                            */
 /************************************************************************/
 
