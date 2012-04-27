@@ -644,9 +644,12 @@ void GDALDriverManager::AutoLoadDrivers()
                 continue;
 
             pszFuncName = (char *) CPLCalloc(strlen(papszFiles[iFile])+20,1);
-            sprintf( pszFuncName, "GDALRegister_%s", 
-                     CPLGetBasename(papszFiles[iFile]) + 5 );
-            
+#if ( defined( _WIN32 ) && ( defined(DEBUG) || defined(_DEBUG) ) )
+            CPLString sName = CPLGetBasename(papszFiles[iFile]) + 11;
+#else
+            CPLString sName = CPLGetBasename(papszFiles[iFile]) + 5 );
+#endif
+            sprintf( pszFuncName, "GDALRegister_%s", sName.c_str() );
             pszFilename = 
                 CPLFormFilename( papszSearchPath[iDir], 
                                  papszFiles[iFile], NULL );
@@ -654,8 +657,14 @@ void GDALDriverManager::AutoLoadDrivers()
             pRegister = CPLGetSymbol( pszFilename, pszFuncName );
             if( pRegister == NULL )
             {
-                strcpy( pszFuncName, "GDALRegisterMe" );
+                sName.toupper();
+                sprintf( pszFuncName, "GDALRegister_%s", sName.c_str() );
                 pRegister = CPLGetSymbol( pszFilename, pszFuncName );
+                if( pRegister == NULL )
+                {
+                    strcpy( pszFuncName, "GDALRegisterMe" );
+                    pRegister = CPLGetSymbol( pszFilename, pszFuncName );
+                }
             }
             
             if( pRegister != NULL )
