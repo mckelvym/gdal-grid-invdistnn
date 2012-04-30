@@ -647,7 +647,7 @@ void GDALDriverManager::AutoLoadDrivers()
 #if ( defined( _WIN32 ) && ( defined(DEBUG) || defined(_DEBUG) ) )
             CPLString sName = CPLGetBasename(papszFiles[iFile]) + 11;
 #else
-            CPLString sName = CPLGetBasename(papszFiles[iFile]) + 5 );
+            CPLString sName = CPLGetBasename(papszFiles[iFile]) + 5;
 #endif
             sprintf( pszFuncName, "GDALRegister_%s", sName.c_str() );
             pszFilename = 
