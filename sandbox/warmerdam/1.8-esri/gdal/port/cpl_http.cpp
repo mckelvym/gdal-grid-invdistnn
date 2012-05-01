@@ -205,7 +205,8 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
     /* Support control over HTTPAUTH */
     const char *pszHttpAuth = CSLFetchNameValue( papszOptions, "HTTPAUTH" );
     if( pszHttpAuth == NULL )
-        /* do nothing */;
+      curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_NTLM );
+
 
     /* CURLOPT_HTTPAUTH is defined in curl 7.11.0 or newer */
 #if LIBCURL_VERSION_NUM >= 0x70B00
@@ -235,6 +236,8 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
     const char *pszUserPwd = CSLFetchNameValue( papszOptions, "USERPWD" );
     if( pszUserPwd != NULL )
         curl_easy_setopt(http_handle, CURLOPT_USERPWD, pszUserPwd );
+    else
+        curl_easy_setopt(http_handle, CURLOPT_USERPWD, ":" );
 
     /* Set Proxy parameters */
     const char* pszProxy = CSLFetchNameValue( papszOptions, "PROXY" );
