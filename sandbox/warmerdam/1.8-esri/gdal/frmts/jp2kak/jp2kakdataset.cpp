@@ -571,14 +571,14 @@ CPLErr JP2KAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         int nBandStart = 0;
         for( iBand = 0; iBand < (int) anBands.size(); iBand++ )
         {
-            if( iBand+1 == nBand )
+            if( anBands[iBand] == nBand )
             {
                 memcpy( pImage, pabyWrkBuffer + nBandStart, 
                         nWordSize * nBlockXSize * nBlockYSize );
             }
             else
             {
-                GDALRasterBand *poBaseBand = poBaseDS->GetRasterBand(iBand+1);
+                GDALRasterBand *poBaseBand = poBaseDS->GetRasterBand(anBands[iBand]);
                 JP2KAKRasterBand *poBand = NULL;
 
                 if( nDiscardLevels == 0 )

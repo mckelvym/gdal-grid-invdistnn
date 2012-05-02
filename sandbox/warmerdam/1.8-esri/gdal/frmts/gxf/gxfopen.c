@@ -418,7 +418,7 @@ static int GXFReadRawScanlineFrom( GXFInfo_t * psGXF, long iOffset,
                 }
                 else
                 {
-                    padfLineBuf[nValuesRead++] = atof(pszLine);
+                    padfLineBuf[nValuesRead++] = CPLAtof(pszLine);
                 }
 
                 /* skip further whitespace */
