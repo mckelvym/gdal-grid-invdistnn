@@ -294,6 +294,10 @@ JP2KAKRasterBand::JP2KAKRasterBand( int nBand, int nDiscardLevels,
 
     this->nRasterXSize = band_dims.size.x;
     this->nRasterYSize = band_dims.size.y;
+
+/* -------------------------------------------------------------------- */
+/*      Capture some useful metadata.                                   */
+/* -------------------------------------------------------------------- */
     if( oCodeStream.get_bit_depth(nBand-1) % 8 != 0 )
     {
         
@@ -811,6 +815,18 @@ JP2KAKDataset::~JP2KAKDataset()
         CPLFree( pasGCPList );
     }
 
+    if( poThreadEnv != NULL )
+    {
+        if ( poThreadEnv->exists() )
+        {
+            if ( poInput != NULL )
+                poThreadEnv->cs_terminate(oCodeStream);
+            if ( poThreadEnv->exists() )
+                poThreadEnv->destroy();
+            delete poThreadEnv;        
+        }
+    }
+
     if( poInput != NULL )
     {
         oCodeStream.destroy();
@@ -830,13 +846,6 @@ JP2KAKDataset::~JP2KAKDataset()
             delete jpip_client;
         }
 #endif
-    }
-
-    if( poThreadEnv != NULL )
-    {
-        poThreadEnv->terminate(NULL,true);
-        poThreadEnv->destroy();
-        delete poThreadEnv;
     }
 }
 
@@ -1321,8 +1330,8 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
         siz_params *siz = poDS->oCodeStream.access_siz();
         kdu_params *cod = siz->access_cluster(COD_params);
-        bool use_precincts; 
-        
+        bool use_precincts;
+
         cod->get(Cuse_precincts,0,0,use_precincts);
 
         const char *pszPersist = CPLGetConfigOption( "JP2KAK_PERSIST", "AUTO");
@@ -1333,7 +1342,7 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
                 > 100000000.0 )
                 poDS->bPreferNPReads = true;
         }
-        else 
+        else
             poDS->bPreferNPReads = !CSLTestBoolean(pszPersist);
 
         CPLDebug( "JP2KAK", "Cuse_precincts=%d, PreferNonPersistentReads=%d", 
@@ -1347,17 +1356,34 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
         cod->get(Corder,0,0,order);
         
         if( order == Corder_LRCP )
+        {
             CPLDebug( "JP2KAK", "order=LRCP" );
+            poDS->SetMetadataItem("Corder","LRCP");
+        }
         else if( order == Corder_RLCP )
+        {
             CPLDebug( "JP2KAK", "order=RLCP" );
+            poDS->SetMetadataItem("Corder","RLCP");
+        }
         else if( order == Corder_RPCL )
+        {
             CPLDebug( "JP2KAK", "order=RPCL" );
+            poDS->SetMetadataItem("Corder","RPCL");
+        }
         else if( order == Corder_PCRL )
+        {
             CPLDebug( "JP2KAK", "order=PCRL" );
+            poDS->SetMetadataItem("Corder","PCRL");
+        }
         else if( order == Corder_CPRL )
+        {
             CPLDebug( "JP2KAK", "order=CPRL" );
+            poDS->SetMetadataItem("Corder","CPRL");
+        }
         else
+        {
             CPLDebug( "JP2KAK", "order=%d, not recognized.", order );
+        }
 
         poDS->bUseYCC = false;
         cod->get(Cycc,0,0,poDS->bUseYCC);
@@ -1608,7 +1634,7 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
     if( bPreferNPReads )
     {
         subfile_src.open( GetDescription(), bResilient );
-        
+
         if( family != NULL )
         {
             wrk_family.open( &subfile_src );
@@ -2034,7 +2060,7 @@ JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
             roi_node = poROIImage->acquire_node(c,dims);
         }
 
-        lines[c].pre_create(&allocator,nXSize,bReversible,bReversible);
+        lines[c].pre_create(&allocator,nXSize,bReversible,bReversible,0,0);
         engines[c] = kdu_analysis(res,&allocator,bReversible,1.0F,roi_node);
     }
 
@@ -2147,7 +2173,7 @@ JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
                         dest->fval = *sp;  /* scale it? */
                 }
 
-                engines[c].push(lines[c],true);
+                engines[c].push(lines[c]);
 
                 iLinesWritten++;
 
@@ -2593,7 +2619,7 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
             double dfXRes = 
                 CPLAtof(poSrcDS->GetMetadataItem("TIFFTAG_XRESOLUTION"));
             double dfYRes = 
-                CPLAtof(poSrcDS->GetMetadataItem("TIFFTAG_XRESOLUTION"));
+                CPLAtof(poSrcDS->GetMetadataItem("TIFFTAG_YRESOLUTION"));
 
             if( atoi(poSrcDS->GetMetadataItem("TIFFTAG_RESOLUTIONUNIT")) == 2 )
             {
