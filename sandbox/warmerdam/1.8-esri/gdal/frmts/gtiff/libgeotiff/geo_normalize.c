@@ -2095,6 +2095,10 @@ int GTIFGetDefn( GTIF * psGTIF, GTIFDefn * psDefn )
         if( nKeyCount == 0 )
         {
             psDefn->DefnSet = 0;
+
+            setlocale( LC_NUMERIC, pszOldLocale );
+            CPLFree( pszOldLocale );
+
             return FALSE;
         }
     }
