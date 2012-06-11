@@ -71,7 +71,7 @@ CSF_ATTR_ID CsfGetAttribute(
 		*nmemb /= elSize;
 		POSTCOND( (*nmemb) > 0);
 		pos =	b.attrs[i].attrOffset;
-		(void)fseek(m->fp, (long)pos, SEEK_SET); 
+		(void)VSIFSeekL(m->fp, (long)pos, SEEK_SET); 
 		m->read(attr,elSize, (size_t)(*nmemb),m->fp);
 		return(id);
 	}

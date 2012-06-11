@@ -127,7 +127,7 @@ MAP *Rcreate(
 	newMap->fileAccessMode = M_READ_WRITE;
 	(void)strcpy(newMap->fileName, fileName);
 
-	newMap->fp = fopen (fileName, S_CREATE);
+	newMap->fp = VSIFOpenL(fileName, S_CREATE);
 	if(newMap->fp == NULL)
 	{	
 	   /* we should analyse the errno parameter
@@ -137,7 +137,7 @@ MAP *Rcreate(
 		goto error_notOpen;
 	}
 	/*
-	   fflush(newMap->fp); WHY? 
+	   VSIFFlushL(newMap->fp); WHY? 
 	 */
 
 	(void)memset(&(newMap->main),0, sizeof(CSF_MAIN_HEADER));
@@ -160,8 +160,8 @@ MAP *Rcreate(
 	newMap->read  = (CSF_READ_FUNC)CsfReadPlain;
 	newMap->write = (CSF_READ_FUNC)CsfWritePlain;
 #else
-	newMap->read  = (CSF_READ_FUNC)fread;
-	newMap->write = (CSF_READ_FUNC)fwrite;
+	newMap->read  = (CSF_READ_FUNC)VSIFReadL;
+	newMap->write = (CSF_READ_FUNC)VSIFWriteL;
 #endif
 
 	newMap->raster.valueScale = dataType;
@@ -193,14 +193,14 @@ MAP *Rcreate(
 	/* enlarge the file to the length needed by seeking and writing
 	one byte of crap */
 
-	if ( fseek(newMap->fp, (long)(fileSize-1),SEEK_SET) || /* fsetpos() is better */
+	if ( VSIFSeekL(newMap->fp, (long)(fileSize-1),SEEK_SET) || /* fsetpos() is better */
 	    newMap->write(&crap, (size_t)1, (size_t)1, newMap->fp) != 1 )
 	{
 		M_ERROR(NOSPACE);
 		goto error_open;
 	}
-	(void)fflush(newMap->fp);
-	if ( ftell(newMap->fp) != (long)fileSize)
+	VSIFFlushL(newMap->fp);
+	if ( VSIFTellL(newMap->fp) != (long)fileSize)
 	{
 		M_ERROR(NOSPACE);
 		goto error_open;
@@ -212,7 +212,7 @@ MAP *Rcreate(
 
 	return(newMap);
 error_open: 
-	(void)fclose(newMap->fp);
+	(void)VSIFCloseL(newMap->fp);
 error_notOpen: 
 	CSF_FREE(newMap->fileName);
 errorNameAlloc:

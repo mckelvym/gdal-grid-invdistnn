@@ -42,7 +42,7 @@ void CsfReadAttrBlock(
 	ATTR_CNTRL_BLOCK *b) /* write-only. attribute control block read */
 {
 	int i;
-	fseek(m->fp, (long)pos, SEEK_SET);
+	VSIFSeekL(m->fp, (long)pos, SEEK_SET);
 	for(i=0; i < NR_ATTR_IN_BLOCK; i++)
 	{
 	 m->read((void *)&(b->attrs[i].attrId), sizeof(UINT2),(size_t)1,m->fp);

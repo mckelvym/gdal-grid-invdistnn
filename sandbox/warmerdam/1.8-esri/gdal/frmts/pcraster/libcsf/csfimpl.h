@@ -202,10 +202,10 @@ int   CsfWriteAttrBlock(MAP *m, CSF_FADDR pos, ATTR_CNTRL_BLOCK *b);
 int   CsfGetAttrIndex(CSF_ATTR_ID id, const ATTR_CNTRL_BLOCK *b);
 CSF_FADDR CsfGetAttrBlock(MAP *m, CSF_ATTR_ID id, ATTR_CNTRL_BLOCK *b);
 CSF_FADDR CsfGetAttrPosSize(MAP *m, CSF_ATTR_ID id, size_t *size);
-size_t CsfWriteSwapped(void *buf, size_t size, size_t n, FILE  *f);
-size_t CsfReadSwapped(void *buf, size_t size, size_t n, FILE  *f);
-size_t CsfWritePlain(void *buf, size_t size, size_t n, FILE  *f);
-size_t CsfReadPlain(void *buf, size_t size, size_t n, FILE  *f);
+size_t CsfWriteSwapped(void *buf, size_t size, size_t n, VSILFILE  *f);
+size_t CsfReadSwapped(void *buf, size_t size, size_t n, VSILFILE  *f);
+size_t CsfWritePlain(void *buf, size_t size, size_t n, VSILFILE  *f);
+size_t CsfReadPlain(void *buf, size_t size, size_t n, VSILFILE  *f);
 void   CsfSwap(void *buf, size_t size, size_t n);
 char *CsfStringPad(char *s, size_t reqSize);
 

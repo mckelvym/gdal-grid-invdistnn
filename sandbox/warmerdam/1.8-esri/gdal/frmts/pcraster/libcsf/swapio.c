@@ -39,15 +39,15 @@ int CsfValidSize(size_t size)
 }
 
 #ifdef DEBUG
- size_t CsfWritePlain(void *buf, size_t size, size_t n, FILE  *f)
+ size_t CsfWritePlain(void *buf, size_t size, size_t n, VSILFILE  *f)
  {
   PRECOND(CsfValidSize(size));
-  return fwrite(buf, size, n, f);
+  return VSIFWriteL(buf, size, n, f);
  }
- size_t CsfReadPlain(void *buf, size_t size, size_t n, FILE  *f)
+ size_t CsfReadPlain(void *buf, size_t size, size_t n, VSILFILE  *f)
  {
   PRECOND(CsfValidSize(size));
-  return fread(buf, size, n, f);
+  return VSIFReadL(buf, size, n, f);
  }
 #endif
 
@@ -107,15 +107,15 @@ void CsfSwap(void *buf, size_t size, size_t n)
 	l[size]((unsigned char *)buf,n);
 }
 
-size_t CsfWriteSwapped(void *buf, size_t size, size_t n, FILE  *f)
+size_t CsfWriteSwapped(void *buf, size_t size, size_t n, VSILFILE  *f)
 {
 	CsfSwap(buf,size, n);
-	return fwrite(buf, size, n,f);
+	return VSIFWriteL(buf, size, n,f);
 }
 
-size_t CsfReadSwapped(void *buf, size_t size, size_t n, FILE  *f)
+size_t CsfReadSwapped(void *buf, size_t size, size_t n, VSILFILE  *f)
 {
-	size_t r = fread(buf, size, n,f);
+	size_t r = VSIFReadL(buf, size, n,f);
 	CsfSwap(buf,size, r);
 	return r;
 }

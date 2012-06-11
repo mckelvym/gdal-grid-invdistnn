@@ -44,7 +44,7 @@ int Mclose(
      CsfSwap((void*)&(m->raster.maxVal), CELLSIZE(m->raster.cellRepr),(size_t)1);
     }
 
-    fseek(m->fp,(long)ADDR_MAIN_HEADER,SEEK_SET);
+    VSIFSeekL(m->fp,(long)ADDR_MAIN_HEADER,SEEK_SET);
     if(m->write((void*)&(m->main.signature),sizeof(char), CSF_SIG_SPACE,m->fp)
                                                        != CSF_SIG_SPACE ||
        m->write((void*)&(m->main.version),sizeof(UINT2),(size_t)1,m->fp)!=1 ||
@@ -52,19 +52,19 @@ int Mclose(
        m->write((void*)&(m->main.projection),sizeof(UINT2),(size_t)1,m->fp)!=1 ||
        m->write((void*)&(m->main.attrTable),sizeof(UINT4),(size_t)1,m->fp)!=1 ||
        m->write((void*)&(m->main.mapType),sizeof(UINT2),(size_t)1,m->fp)!=1 ||
-         fwrite((void*)&(m->main.byteOrder),sizeof(UINT4),(size_t)1,m->fp)!=1 ||
+       m->write((void*)&(m->main.byteOrder),sizeof(UINT4),(size_t)1,m->fp)!=1 ||
        m->write((void*)filler, sizeof(char), MAIN_HEADER_FILL_SIZE ,m->fp)
                                                           != MAIN_HEADER_FILL_SIZE )
     {  
       M_ERROR(WRITE_ERROR);
       goto error;
     }
-    fseek(m->fp,ADDR_SECOND_HEADER, SEEK_SET);
+    VSIFSeekL(m->fp,ADDR_SECOND_HEADER, SEEK_SET);
 
     if (    m->write((void*)&(m->raster.valueScale),sizeof(UINT2),(size_t)1,m->fp) !=1 ||
       m->write((void*)&(m->raster.cellRepr), sizeof(UINT2),(size_t)1,m->fp) !=1 ||
-        fwrite((void*)&(m->raster.minVal), sizeof(CSF_VAR_TYPE),(size_t)1,m->fp) !=1 ||
-        fwrite((void*)&(m->raster.maxVal), sizeof(CSF_VAR_TYPE),(size_t)1,m->fp) !=1 ||
+      m->write((void*)&(m->raster.minVal), sizeof(CSF_VAR_TYPE),(size_t)1,m->fp) !=1 ||
+      m->write((void*)&(m->raster.maxVal), sizeof(CSF_VAR_TYPE),(size_t)1,m->fp) !=1 ||
       m->write((void*)&(m->raster.xUL), sizeof(REAL8),(size_t)1,m->fp) !=1 ||
       m->write((void*)&(m->raster.yUL), sizeof(REAL8),(size_t)1,m->fp) !=1 ||
       m->write((void*)&(m->raster.nrRows), sizeof(UINT4),(size_t)1,m->fp) !=1 ||
@@ -80,7 +80,7 @@ int Mclose(
     }
   }
 
-  (void)fclose(m->fp);
+  (void)VSIFCloseL(m->fp);
   CsfUnloadMap(m);
 
   /* clear the space, to avoid typical errors such as

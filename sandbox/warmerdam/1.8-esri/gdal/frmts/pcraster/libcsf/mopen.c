@@ -79,7 +79,7 @@ MAP  *Mopen(
  
  
  /*  check if file can be opened or exists */
- m->fp = fopen(fileName, openModes[mode-1]);
+ m->fp = VSIFOpenL(fileName, openModes[mode-1]);
  if (m->fp == NULL)
  {
  	M_ERROR(OPENFAILED);
@@ -92,15 +92,15 @@ MAP  *Mopen(
   *  fail
   */
  
- (void)fseek(m->fp,0L, SEEK_END);
- if (ftell(m->fp) < (long)ADDR_DATA)
+ (void)VSIFSeekL(m->fp,0L, SEEK_END);
+ if (VSIFTellL(m->fp) < (long)ADDR_DATA)
  {
  	M_ERROR(NOT_CSF);
  	goto error_open;
  }
 
- (void)fseek(m->fp, 14+CSF_SIG_SPACE, SEEK_SET);
- (void)fread((void *)&s, sizeof(UINT4),(size_t)1,m->fp);
+ (void)VSIFSeekL(m->fp, 14+CSF_SIG_SPACE, SEEK_SET);
+ (void)VSIFReadL((void *)&s, sizeof(UINT4),(size_t)1,m->fp);
  if (s != ORD_OK) {
 	m->write = CsfWriteSwapped;
 	m->read  = CsfReadSwapped;
@@ -110,12 +110,12 @@ MAP  *Mopen(
 	m->read  = (CSF_READ_FUNC)CsfReadPlain;
 	m->write = (CSF_READ_FUNC)CsfWritePlain;
 #else
-	m->read  = (CSF_READ_FUNC)fread;
-	m->write = (CSF_READ_FUNC)fwrite;
+	m->read  = (CSF_READ_FUNC)VSIFReadL;
+	m->write = (CSF_READ_FUNC)VSIFWriteL;
 #endif
  }
  
- (void)fseek(m->fp, ADDR_MAIN_HEADER, SEEK_SET);
+ (void)VSIFSeekL(m->fp, ADDR_MAIN_HEADER, SEEK_SET);
  m->read((void *)&(m->main.signature), sizeof(char), CSF_SIG_SPACE,m->fp);
  m->read((void *)&(m->main.version),   sizeof(UINT2),(size_t)1,m->fp);
  m->read((void *)&(m->main.gisFileId), sizeof(UINT4),(size_t)1,m->fp);
@@ -126,12 +126,12 @@ MAP  *Mopen(
  /*                                             14+CSF_SIG_SPACE
   */
  
- (void)fseek(m->fp, ADDR_SECOND_HEADER, SEEK_SET);
+ (void)VSIFSeekL(m->fp, ADDR_SECOND_HEADER, SEEK_SET);
  m->read((void *)&(m->raster.valueScale), sizeof(UINT2),(size_t)1,m->fp);
  m->read((void *)&(m->raster.cellRepr), sizeof(UINT2),(size_t)1,m->fp);
 
- (void)fread((void *)&(m->raster.minVal), sizeof(CSF_VAR_TYPE),(size_t)1,m->fp);
- (void)fread((void *)&(m->raster.maxVal), sizeof(CSF_VAR_TYPE),(size_t)1,m->fp);
+ m->read((void *)&(m->raster.minVal), sizeof(CSF_VAR_TYPE),(size_t)1,m->fp);
+ m->read((void *)&(m->raster.maxVal), sizeof(CSF_VAR_TYPE),(size_t)1,m->fp);
  if (s != ORD_OK) {
   CsfSwap((void *)&(m->raster.minVal), CELLSIZE(m->raster.cellRepr),(size_t)1);
   CsfSwap((void *)&(m->raster.maxVal), CELLSIZE(m->raster.cellRepr),(size_t)1);
@@ -192,7 +192,7 @@ MAP  *Mopen(
  
  error_open:
  PRECOND(m->fp != NULL);
- (void)fclose(m->fp);
+ (void)VSIFCloseL(m->fp);
  error_notOpen: 
  CSF_FREE(m->fileName);
  error_fnameMalloc: 

@@ -17,6 +17,7 @@
 
 
 #include <stdio.h>
+#include "cpl_vsi.h"
 #include "csfattr.h"
 
 
@@ -184,8 +185,8 @@ typedef void (*CSF_CONV_FUNC)(size_t, void *);
 /* conversion function for reading
  * and writing
  */
-typedef size_t (*CSF_WRITE_FUNC)(void *buf, size_t size, size_t n, FILE  *f);
-typedef size_t (*CSF_READ_FUNC)(void *buf, size_t size, size_t n, FILE *f);
+typedef size_t (*CSF_WRITE_FUNC)(void *buf, size_t size, size_t n, VSILFILE  *f);
+typedef size_t (*CSF_READ_FUNC)(void *buf, size_t size, size_t n, VSILFILE *f);
 
 typedef struct MAP
 {
@@ -195,7 +196,7 @@ typedef struct MAP
   CSF_MAIN_HEADER main;
   CSF_RASTER_HEADER raster;
   char *fileName;
-  FILE *fp;
+  VSILFILE *fp;
   int fileAccessMode;
   int mapListId;
   UINT2 minMaxStatus;

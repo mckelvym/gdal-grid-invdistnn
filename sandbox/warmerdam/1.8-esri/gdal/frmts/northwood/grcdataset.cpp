@@ -54,7 +54,7 @@ class NWT_GRCDataset : public GDALPamDataset
   friend class NWT_GRCRasterBand;
 
   private:
-    FILE * fp;
+    VSILFILE * fp;
     GByte abyHeader[1024];
     NWT_GRID *pGrd;
     char **papszCategories;
@@ -235,8 +235,8 @@ CPLErr NWT_GRCRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
     if( nBand == 1 )
     {                            //grc's are just one band of indices
-        VSIFSeek( poGDS->fp, 1024 + nRecordSize * nBlockYOff, SEEK_SET );
-        VSIFRead( pImage, 1, nRecordSize, poGDS->fp );
+        VSIFSeekL( poGDS->fp, 1024 + nRecordSize * nBlockYOff, SEEK_SET );
+        VSIFReadL( pImage, 1, nRecordSize, poGDS->fp );
     }
     else
     {
@@ -318,7 +318,7 @@ NWT_GRCDataset::~NWT_GRCDataset()
     nwtCloseGrid( pGrd );
 
     if( fp != NULL )
-        VSIFClose( fp );
+        VSIFCloseL( fp );
 
     if( pszProjection != NULL )
     {
@@ -396,14 +396,18 @@ GDALDataset *NWT_GRCDataset::Open( GDALOpenInfo * poOpenInfo )
 
     poDS = new NWT_GRCDataset();
 
-    poDS->fp = poOpenInfo->fp;
-    poOpenInfo->fp = NULL;
+    poDS->fp = VSIFOpenL( poOpenInfo->pszFilename, "rb" );
+    if (poDS->fp == NULL)
+    {
+        delete poDS;
+        return NULL;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Read the header.                                                */
 /* -------------------------------------------------------------------- */
-    VSIFSeek( poDS->fp, 0, SEEK_SET );
-    VSIFRead( poDS->abyHeader, 1, 1024, poDS->fp );
+    VSIFSeekL( poDS->fp, 0, SEEK_SET );
+    VSIFReadL( poDS->abyHeader, 1, 1024, poDS->fp );
     poDS->pGrd = (NWT_GRID *) malloc( sizeof (NWT_GRID) );
 
     poDS->pGrd->fp = poDS->fp;

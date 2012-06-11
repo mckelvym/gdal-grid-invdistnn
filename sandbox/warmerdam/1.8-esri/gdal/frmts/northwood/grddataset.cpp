@@ -53,7 +53,7 @@ class NWT_GRDDataset:public GDALPamDataset
 {
   friend class NWT_GRDRasterBand;
 
-    FILE *fp;
+    VSILFILE *fp;
     GByte abyHeader[1024];
     NWT_GRID *pGrd;
     NWT_RGB ColorMap[4096];
@@ -168,10 +168,10 @@ CPLErr NWT_GRDRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff, void *pIma
     int i;
     unsigned short raw1;
 
-    VSIFSeek( poGDS->fp, 1024 + nRecordSize * nBlockYOff, SEEK_SET );
+    VSIFSeekL( poGDS->fp, 1024 + nRecordSize * nBlockYOff, SEEK_SET );
 
     pszRecord = (char *) CPLMalloc( nRecordSize );
-    VSIFRead( pszRecord, 1, nRecordSize, poGDS->fp );
+    VSIFReadL( pszRecord, 1, nRecordSize, poGDS->fp );
 
     if( nBand == 4 )                //Z values
     {
@@ -297,7 +297,7 @@ NWT_GRDDataset::~NWT_GRDDataset()
     nwtCloseGrid( pGrd );
 
     if( fp != NULL )
-        VSIFClose( fp );
+        VSIFCloseL( fp );
 
     if( pszProjection != NULL )
     {
@@ -373,14 +373,18 @@ GDALDataset *NWT_GRDDataset::Open( GDALOpenInfo * poOpenInfo )
 
     poDS = new NWT_GRDDataset();
 
-    poDS->fp = poOpenInfo->fp;
-    poOpenInfo->fp = NULL;
+    poDS->fp = VSIFOpenL( poOpenInfo->pszFilename, "rb" );
+    if (poDS->fp == NULL)
+    {
+        delete poDS;
+        return NULL;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Read the header.                                                */
 /* -------------------------------------------------------------------- */
-    VSIFSeek( poDS->fp, 0, SEEK_SET );
-    VSIFRead( poDS->abyHeader, 1, 1024, poDS->fp );
+    VSIFSeekL( poDS->fp, 0, SEEK_SET );
+    VSIFReadL( poDS->abyHeader, 1, 1024, poDS->fp );
     poDS->pGrd = (NWT_GRID *) malloc(sizeof(NWT_GRID));
     if (!nwt_ParseHeader( poDS->pGrd, (char *) poDS->abyHeader ) ||
         !GDALCheckDatasetDimensions(poDS->pGrd->nXSide, poDS->pGrd->nYSide) )

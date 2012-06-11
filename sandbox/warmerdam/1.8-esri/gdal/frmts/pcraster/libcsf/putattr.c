@@ -209,6 +209,6 @@ CSF_FADDR CsfSeekAttrSpace(
 		M_ERROR(WRITE_ERROR);
 		resultPos = 0;
 	}
-	fseek(m->fp, (long)resultPos, SEEK_SET); /* fsetpos() is better */
+	VSIFSeekL(m->fp, (long)resultPos, SEEK_SET); /* fsetpos() is better */
 error:	return resultPos;
 } /* CsfSeekAttrSpace */
