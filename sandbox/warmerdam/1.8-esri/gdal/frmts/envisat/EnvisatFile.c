@@ -154,7 +154,7 @@ static int EnvisatFile_SetupLevel0( EnvisatFile *self )
      */
 
     VSIFSeekL( self->fp, 0, SEEK_END );
-    file_length = (int) ftell( self->fp );
+    file_length = (int) VSIFTellL( self->fp );
     
     /* 
      * Read the first record header, and verify the well known values.
@@ -468,7 +468,7 @@ int EnvisatFile_Create( EnvisatFile **self_ptr,
     }
 
     VSIFSeekL( fp, 0, SEEK_END );
-    template_size = (int) ftell( fp );
+    template_size = (int) VSIFTellL( fp );
 
     template_data = (char *) malloc(template_size);
     
