@@ -194,6 +194,7 @@ void GetGeogCSFromCitation(char* szGCSName, int nGCSName,
                           char	**ppszSpheroidName,
                           char	**ppszAngularUnits);
 void CheckUTM( GTIFDefn * psDefn, char * pszCtString );
+OGRBoolean NeedFalsEastingNothingConversion(GTIFDefn *psDefn, OGRSpatialReference *poSRS, int unitCode);
 
 
 /************************************************************************/
@@ -492,7 +493,8 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
     {
         char        szCTString[512];
         strcpy( szCTString, "unnamed" );
-        if( psDefn->PCS != KvUserDefined )
+        if(hGTIF && GTIFKeyGet( hGTIF, PCSCitationGeoKey, szCTString, 0, 
+                                sizeof(szCTString)) )
         {
             char    *pszPCSName = NULL;
 
@@ -504,8 +506,7 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
 
             oSRS.SetAuthority( "PROJCS", "EPSG", psDefn->PCS );
         }
-        else if(hGTIF && GTIFKeyGet( hGTIF, PCSCitationGeoKey, szCTString, 0, 
-                       sizeof(szCTString)) )  
+        else if( psDefn->PCS != KvUserDefined )  
         {
             if (!SetCitationToSRS(hGTIF, szCTString, sizeof(szCTString),
                              PCSCitationGeoKey, &oSRS, &linearUnitIsSet))
@@ -688,10 +689,10 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
         }
         int unitCode = 0;
         GTIFKeyGet(hGTIF, ProjLinearUnitsGeoKey, &unitCode, 0, 1  );
-        if(unitCode != KvUserDefined)
+        if(unitCode != KvUserDefined && NeedFalsEastingNothingConversion(psDefn, &oSRS, unitCode))
         {
-          adfParm[5] /= psDefn->UOMLengthInMeters;
-          adfParm[6] /= psDefn->UOMLengthInMeters;
+            adfParm[5] /= psDefn->UOMLengthInMeters;
+            adfParm[6] /= psDefn->UOMLengthInMeters;
         }
         
 /* -------------------------------------------------------------------- */
@@ -2569,6 +2570,8 @@ OGRBoolean CheckCitationKeyForStatePlaneUTM(GTIF* hGTIF, GTIFDefn* psDefn, OGRSp
       strcpy(units, "international_feet");
     else if(strstr(tempStr, "meter"))
       strcpy(units, "meters");
+    else if (strstr(tempStr, "units = feet"))
+     strcpy(units, "us_survey_feet");
 
     if (strlen(units) > 0)
       hasUnits = TRUE;
@@ -2968,4 +2971,55 @@ void CheckUTM( GTIFDefn * psDefn, char * pszCtString )
     }
   }
   return;
+}
+
+/****************************************************************************************/
+/*                               NeedFalsEastingNothingConversion()                             */
+/*																																																									*/
+/*   For some cases, in order to avoid doing False Easting/Northing over           */
+/*   conversion, this function is called.																																*/
+/***************************************************************************************/
+OGRBoolean NeedFalsEastingNothingConversion(GTIFDefn *psDefn, OGRSpatialReference *poSRS, int unitCode)
+{
+	OGRBoolean retV = TRUE;
+ 
+	if (!poSRS || !psDefn)
+		return retV;
+
+	if (unitCode == KvUserDefined || unitCode == 9001)
+		return FALSE;
+
+	double dfToMeter = poSRS->GetLinearUnits(NULL);
+	if (dfToMeter == 1.0 && psDefn->ProjCode != KvUserDefined && unitCode > 9000 && unitCode < 9100 && psDefn->UOMLengthInMeters != 1.0)
+		return retV;
+	if ( (psDefn->ProjCode >= Proj_UTM_zone_1N && psDefn->ProjCode <= Proj_UTM_zone_60N) ||
+        (psDefn->ProjCode >= Proj_UTM_zone_1S && psDefn->ProjCode <= Proj_UTM_zone_60S) || 
+        psDefn->ProjCode != KvUserDefined && unitCode > 9000 && unitCode < 9100 && psDefn->UOMLengthInMeters != 1.0)
+		return FALSE;
+
+  OGR_SRSNode *poProjCS          = NULL;
+  OGR_SRSNode *poProjCSNodeChild = NULL;
+	const char *pszProjCSName      = NULL;
+
+	// For case of UTM, LinearUnitIs != 1.0 (meter) and TransverseMercator,  No conversion is needed.
+	char    *pszPCSName = NULL;
+	GTIFGetPCSInfo( psDefn->PCS, &pszPCSName, NULL, NULL, NULL );
+
+  if( (poProjCS = poSRS->GetAttrNode( "PROJCS" )) )
+    poProjCSNodeChild = poProjCS->GetChild(0);
+  if( !poProjCSNodeChild )
+    return retV;
+  pszProjCSName = poProjCSNodeChild->GetValue();
+  if(!pszProjCSName )
+    return retV;
+	if (strstr (pszProjCSName, "UTM") || strstr (pszProjCSName, "utm"))
+	{
+		if (psDefn->CTProjection != CT_TransverseMercator && psDefn->CTProjection != CT_TransvMercator_SouthOriented)
+			return retV;
+		retV = FALSE;
+	}
+
+	// Add other cases below if needed.
+
+	return retV;
 }

@@ -1874,6 +1874,21 @@ void RemapProjCSName( OGRSpatialReference* pOgr, char *pszUTMPrefix )
       const char* lUnitName = pOgr->GetAttrValue( "UNIT", 0 );
       RemapNamesBasedOnTwo( pOgr, pszProjCSName, lUnitName, (char**)apszProjCSNameMappingBasedOnUnit, 3, (char**)keyNamesProjCS, 1 );
     }
+    if( !done && EQUALN( pszProjCSName, "WGS_84", 6 ) )
+    {
+      char* newName = (char *) CPLMalloc(256);
+      newName[0] ='\0';
+      strcpy( newName, "WGS_1984" );
+      const char* pStr = strstr( pszProjCSName, "WGS_84" );
+      strcat( newName, pStr+6 );
+      OGR_SRSNode *poNode = pOgr->GetAttrNode( "PROJCS" );
+      OGR_SRSNode *poNodeChild = NULL;
+      if(poNode)
+        poNodeChild = poNode->GetChild(0);
+      if( poNodeChild && strlen(poNodeChild->GetValue()) > 0 )
+          poNodeChild->SetValue(newName);
+      CPLFree(newName);
+    }
   }
   return;
 }
@@ -2245,22 +2260,9 @@ void ReMapUnitName( OGRSpatialReference* pOgr )
                               (char **)apszUnitMapping, 2 );
 
 /* -------------------------------------------------------------------- */
-/*      reset constants for decimal degrees to the exact string ESRI    */
-/*      expects when encountered to ensure a matchup.                   */
-/* -------------------------------------------------------------------- */
-  OGR_SRSNode *poUnit = pOgr->GetAttrNode( "GEOGCS|UNIT" );
-    
-  if( poUnit != NULL && poUnit->GetChildCount() >= 2 
-      && ABS(pOgr->GetAngularUnits()-0.0174532925199433) < 0.00000000001 )
-  {
-    poUnit->GetChild(0)->SetValue("Degree");
-    poUnit->GetChild(1)->SetValue("0.017453292519943295");
-  }
-
-/* -------------------------------------------------------------------- */
 /*      Make sure we reproduce US Feet exactly too.                     */
 /* -------------------------------------------------------------------- */
-  poUnit = pOgr->GetAttrNode( "PROJCS|UNIT" );
+  OGR_SRSNode *poUnit = pOgr->GetAttrNode( "PROJCS|UNIT" );
     
   if( poUnit != NULL && poUnit->GetChildCount() >= 2 
       && ABS(pOgr->GetLinearUnits()- 0.30480060960121924) < 0.000000000000001)
