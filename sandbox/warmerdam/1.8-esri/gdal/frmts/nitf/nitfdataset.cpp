@@ -3841,9 +3841,10 @@ void NITFDataset::InitializeCGMMetadata()
     if( oSpecialMD.GetMetadataItem( "SEGMENT_COUNT", "CGM" ) != NULL )
         return;
 
-    int iSegment;
+    char        **papszCGMMetadata = NULL;
+    int           iSegment         = 0;
     int iCGM = 0;
-    char **papszCGMMetadata = NULL;
+    std::string   base64EncodedCGMData("");
 
     papszCGMMetadata = 
         CSLSetNameValue( papszCGMMetadata, "SEGMENT_COUNT", "0" );
@@ -3889,7 +3890,7 @@ void NITFDataset::InitializeCGMMetadata()
 /* -------------------------------------------------------------------- */
 /*      Load the raw CGM data itself.                                   */
 /* -------------------------------------------------------------------- */
-        char *pabyCGMData, *pszEscapedCGMData;
+        char *pabyCGMData;
 
         pabyCGMData = (char *) VSICalloc(1,(size_t)psSegment->nSegmentSize);
         if (pabyCGMData == NULL)
@@ -3898,6 +3899,7 @@ void NITFDataset::InitializeCGMMetadata()
             CSLDestroy( papszCGMMetadata );
             return;
         }
+
         if( VSIFSeekL( psFile->fp, psSegment->nSegmentStart, 
                        SEEK_SET ) != 0 
             || VSIFReadL( pabyCGMData, 1, (size_t)psSegment->nSegmentSize, 
@@ -3912,12 +3914,12 @@ void NITFDataset::InitializeCGMMetadata()
             return;
         }
 
-        pszEscapedCGMData = CPLEscapeString( pabyCGMData, 
-                                             (int)psSegment->nSegmentSize, 
-                                             CPLES_BackslashQuotable );
-        if (pszEscapedCGMData == NULL)
+        base64EncodedCGMData = Base64Encode((unsigned char const*) pabyCGMData, 
+                                            (size_t) psSegment->nSegmentSize);
+
+        if (base64EncodedCGMData.empty())
         {
-            CPLError( CE_Failure, CPLE_OutOfMemory, "Out of memory");
+            CPLError( CE_Failure, CPLE_AssertionFailed, "Empty Base64-encoded CGM data string.");
             CPLFree(pabyCGMData);
             CSLDestroy( papszCGMMetadata );
             return;
@@ -3926,8 +3928,7 @@ void NITFDataset::InitializeCGMMetadata()
         papszCGMMetadata = 
             CSLSetNameValue( papszCGMMetadata, 
                              CPLString().Printf("SEGMENT_%d_DATA", iCGM), 
-                             pszEscapedCGMData );
-        CPLFree( pszEscapedCGMData );
+                             base64EncodedCGMData.c_str() );
         CPLFree( pabyCGMData );
 
         iCGM++;
