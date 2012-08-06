@@ -456,6 +456,7 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
     GTIFKeyGet(hGTIF, (geokey_t) ProjLinearUnitsInterpCorrectGeoKey, 
                &bLinearUnitsMarkedCorrect, 0, 1);
 
+    OGRBoolean linearUnitConverted = FALSE;
     if( EQUAL(pszLinearUnits,"BROKEN") 
         && psDefn->Projection == KvUserDefined 
         && !bLinearUnitsMarkedCorrect )
@@ -474,6 +475,7 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
                     && psDefn->UOMLengthInMeters != 1.0 )
                 {
                     psDefn->ProjParm[iParm] /= psDefn->UOMLengthInMeters;
+                    linearUnitConverted = TRUE;
                     CPLDebug( "GTIFF", "converting geokey to accomodate old broken file due to GTIFF_LINEAR_UNITS=BROKEN setting." );
                 }
                 break;
@@ -689,7 +691,7 @@ char *GTIFGetOGISDefn( GTIF *hGTIF, GTIFDefn * psDefn )
         }
         int unitCode = 0;
         GTIFKeyGet(hGTIF, ProjLinearUnitsGeoKey, &unitCode, 0, 1  );
-        if(unitCode != KvUserDefined && NeedFalsEastingNothingConversion(psDefn, &oSRS, unitCode))
+        if(unitCode != KvUserDefined && !linearUnitConverted && NeedFalsEastingNothingConversion(psDefn, &oSRS, unitCode))
         {
             adfParm[5] /= psDefn->UOMLengthInMeters;
             adfParm[6] /= psDefn->UOMLengthInMeters;
