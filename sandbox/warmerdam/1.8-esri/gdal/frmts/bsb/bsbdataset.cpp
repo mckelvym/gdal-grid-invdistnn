@@ -526,16 +526,26 @@ void BSBDataset::ScanForGCPs( bool isNos, const char *pszFilename )
             delete poCT;
         }
         else
+        {
+            // if we cannot instantiate the transformer, then we
+            // will at least attempt to record what we believe the
+            // natural coordinate system of the image is.
             CPLErrorReset();
+
+            SetMetadataItem( "GCPPROJECTIONX", osUnderlyingSRS, "IMAGE_STRUCTURE" );
+        }
     }
 
 /* -------------------------------------------------------------------- */
 /*      Attempt to prepare a geotransform from the GCPs.                */
 /* -------------------------------------------------------------------- */
-    if( GDALGCPsToGeoTransform( nGCPCount, pasGCPList, adfGeoTransform, 
-                                FALSE ) )
+    if( osUnderlyingSRS.length() == 0 )
     {
-        bGeoTransformSet = TRUE;
+        if( GDALGCPsToGeoTransform( nGCPCount, pasGCPList, adfGeoTransform, 
+                                    FALSE ) )
+        {
+            bGeoTransformSet = TRUE;
+        }
     }
 }
 
