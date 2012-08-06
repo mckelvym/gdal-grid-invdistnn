@@ -201,10 +201,16 @@ int GDALJP2Metadata::ReadBoxes( VSILFILE *fpVSIL )
     GDALJP2Box oBox( fpVSIL );
     int iBox = 0;
 
-    oBox.ReadFirst(); 
+    if (!oBox.ReadFirst())
+        return FALSE;
 
     while( strlen(oBox.GetType()) > 0 )
     {
+#ifdef DEBUG
+        if (CSLTestBoolean(CPLGetConfigOption("DUMP_JP2_BOXES", "NO")))
+            oBox.DumpReadable(stderr);
+#endif
+
 /* -------------------------------------------------------------------- */
 /*      Collect geotiff box.                                            */
 /* -------------------------------------------------------------------- */
@@ -213,6 +219,11 @@ int GDALJP2Metadata::ReadBoxes( VSILFILE *fpVSIL )
         {
 	    nGeoTIFFSize = (int) oBox.GetDataLength();
             pabyGeoTIFFData = oBox.ReadBoxData();
+            if (pabyGeoTIFFData == NULL)
+            {
+                CPLDebug("GDALJP2", "Cannot read data for UUID GeoTIFF box");
+                nGeoTIFFSize = 0;
+            }
         }
 
 /* -------------------------------------------------------------------- */
@@ -225,6 +236,7 @@ int GDALJP2Metadata::ReadBoxes( VSILFILE *fpVSIL )
             pabyMSIGData = oBox.ReadBoxData();
 
             if( nMSIGSize < 70 
+                || pabyMSIGData == NULL
                 || memcmp( pabyMSIGData, "MSIG/", 5 ) != 0 )
             {
                 CPLFree( pabyMSIGData );
@@ -244,7 +256,7 @@ int GDALJP2Metadata::ReadBoxes( VSILFILE *fpVSIL )
             if( EQUAL(oSubBox.GetType(),"lbl ") )
             {
                 char *pszLabel = (char *) oSubBox.ReadBoxData();
-                if( EQUAL(pszLabel,"gml.data") )
+                if( pszLabel != NULL && EQUAL(pszLabel,"gml.data") )
                 {
                     CollectGMLData( &oBox );
                 }
@@ -286,9 +298,10 @@ int GDALJP2Metadata::ReadBoxes( VSILFILE *fpVSIL )
                     
                     // we will use either the resd or resc box, which ever
                     // happens to be first.  Should we prefer resd?
-                    if( oResBox.GetDataLength() == 10 )
+                    unsigned char *pabyResData = NULL;
+                    if( oResBox.GetDataLength() == 10 &&
+                        (pabyResData = oResBox.ReadBoxData()) != NULL )
                     {
-                        unsigned char *pabyResData = oResBox.ReadBoxData();
                         int nVertNum, nVertDen, nVertExp;
                         int nHorzNum, nHorzDen, nHorzExp;
                         
@@ -326,7 +339,8 @@ int GDALJP2Metadata::ReadBoxes( VSILFILE *fpVSIL )
             }
         }
 
-        oBox.ReadNext();
+        if (!oBox.ReadNext())
+            break;
     }
     
     return TRUE;
@@ -762,13 +776,25 @@ int GDALJP2Metadata::ParseGMLCoverageDesc()
         adfGeoTransform[0] = adfGeoTransform[3];
         adfGeoTransform[3] = dfTemp;
 
+        int swapWith1Index = 4;
+        int swapWith2Index = 5;
+
+        if( CSLTestBoolean( CPLGetConfigOption( "GDAL_JP2K_ALT_OFFSETVECTOR_ORDER",
+                                                "FALSE" ) ) )
+        {
+            swapWith1Index = 5;
+            swapWith2Index = 4;
+            CPLDebug( "GMLJP2", "Choosing alternate GML \"<offsetVector>\" order based on "
+                "GDAL_JP2K_ALT_OFFSETVECTOR_ORDER." );
+        }
+
         dfTemp = adfGeoTransform[1];
-        adfGeoTransform[1] = adfGeoTransform[4];
-        adfGeoTransform[4] = dfTemp;
+        adfGeoTransform[1] = adfGeoTransform[swapWith1Index];
+        adfGeoTransform[swapWith1Index] = dfTemp;
 
         dfTemp = adfGeoTransform[2];
-        adfGeoTransform[2] = adfGeoTransform[5];
-        adfGeoTransform[5] = dfTemp;
+        adfGeoTransform[2] = adfGeoTransform[swapWith2Index];
+        adfGeoTransform[swapWith2Index] = dfTemp;
     }
 
     return pszProjection != NULL && bSuccess;
@@ -968,6 +994,23 @@ GDALJP2Box *GDALJP2Metadata::CreateGMLJP2( int nXSize, int nYSize )
         adfOrigin[0] = adfOrigin[1];
         adfOrigin[1] = dfTemp;
 
+        if( CSLTestBoolean( CPLGetConfigOption( "GDAL_JP2K_ALT_OFFSETVECTOR_ORDER",
+                                                "FALSE" ) ) )
+        {
+            CPLDebug( "GMLJP2", "Choosing alternate GML \"<offsetVector>\" order based on "
+                "GDAL_JP2K_ALT_OFFSETVECTOR_ORDER." );
+
+            /* In this case the swapping is done in an "X" pattern */
+            dfTemp = adfXVector[0];
+            adfXVector[0] = adfYVector[1];
+            adfYVector[1] = dfTemp;
+
+            dfTemp = adfYVector[0];
+            adfYVector[0] = adfXVector[1];
+            adfXVector[1] = dfTemp;
+        }
+        else
+        {
         dfTemp = adfXVector[0];
         adfXVector[0] = adfXVector[1];
         adfXVector[1] = dfTemp;
@@ -975,6 +1018,7 @@ GDALJP2Box *GDALJP2Metadata::CreateGMLJP2( int nXSize, int nYSize )
         dfTemp = adfYVector[0];
         adfYVector[0] = adfYVector[1];
         adfYVector[1] = dfTemp;
+        }
     }
 
 /* -------------------------------------------------------------------- */
@@ -986,7 +1030,7 @@ GDALJP2Box *GDALJP2Metadata::CreateGMLJP2( int nXSize, int nYSize )
 "<gml:FeatureCollection\n"
 "   xmlns:gml=\"http://www.opengis.net/gml\"\n"
 "   xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
-"   xsi:schemaLocation=\"http://www.opengeospatial.net/gml http://schemas.opengis.net/gml/3.1.1/profiles/gmlJP2Profile/1.0.0/gmlJP2Profile.xsd\">\n"
+"   xsi:schemaLocation=\"http://www.opengis.net/gml http://schemas.opengis.net/gml/3.1.1/profiles/gmlJP2Profile/1.0.0/gmlJP2Profile.xsd\">\n"
 "  <gml:boundedBy>\n"
 "    <gml:Null>withheld</gml:Null>\n"
 "  </gml:boundedBy>\n"

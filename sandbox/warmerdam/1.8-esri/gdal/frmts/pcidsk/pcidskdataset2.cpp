@@ -1591,10 +1591,13 @@ CPLErr PCIDSK2Dataset::IBuildOverviews( const char *pszResampling,
         {
             CPLError( CE_Failure, CPLE_AppDefined,
                       "%s", ex.what() );
+            CPLFree( panNewOverviewList );
             return CE_Failure;
         }
     }
 
+    CPLFree( panNewOverviewList );
+    panNewOverviewList = NULL;
 
     int iBand;
     for( iBand = 0; iBand < nListBands; iBand++ )
@@ -1656,6 +1659,8 @@ CPLErr PCIDSK2Dataset::IBuildOverviews( const char *pszResampling,
                                                         true );
         }
     }
+
+    CPLFree(papoOverviewBands);
 
     return eErr;
 }
@@ -1735,6 +1740,14 @@ GDALDataset *PCIDSK2Dataset::Open( GDALOpenInfo * poOpenInfo )
             return NULL;
         }
 
+        /* Check if this is a vector-only PCIDSK file */
+        if( poFile->GetChannels() == 0 &&
+            poFile->GetSegment( PCIDSK::SEG_VEC, "" ) != NULL )
+        {
+            delete poFile;
+            return NULL;
+        }
+
         return LLOpen( poOpenInfo->pszFilename, poFile, poOpenInfo->eAccess );
     }
 /* -------------------------------------------------------------------- */
@@ -1799,6 +1812,14 @@ GDALDataset *PCIDSK2Dataset::LLOpen( const char *pszFilename,
 
         for( iBand = 0; iBand < poFile->GetChannels(); iBand++ )
         {
+            PCIDSKChannel* poChannel = poFile->GetChannel( iBand + 1 );
+            if (poChannel->GetBlockWidth() <= 0 ||
+                poChannel->GetBlockHeight() <= 0)
+            {
+                delete poDS;
+                return NULL;
+            }
+
             poDS->SetBand( iBand+1, new PCIDSK2Band( poDS, poFile, iBand+1 ));
         }
 
@@ -1813,6 +1834,12 @@ GDALDataset *PCIDSK2Dataset::LLOpen( const char *pszFilename,
         {
             PCIDSKChannel *poChannel = 
                 dynamic_cast<PCIDSKChannel*>( poBitSeg );
+            if (poChannel->GetBlockWidth() <= 0 ||
+                poChannel->GetBlockHeight() <= 0)
+            {
+                delete poDS;
+                return NULL;
+            }
 
             poDS->SetBand( poDS->GetRasterCount()+1, 
                            new PCIDSK2Band( poChannel ) );

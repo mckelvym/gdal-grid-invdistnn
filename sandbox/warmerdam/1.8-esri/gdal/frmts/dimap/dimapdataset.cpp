@@ -66,6 +66,7 @@ class DIMAPDataset : public GDALPamDataset
 
     CPLString     osMDFilename;
     CPLString     osImageDSFilename;
+    CPLString     osDIMAPFilename;
     int           nProductVersion;
     
     char          **papszXMLDimapMetadata;
@@ -363,7 +364,7 @@ GDALDataset *DIMAPDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
 /*      Get the metadata filename.                                      */
 /* -------------------------------------------------------------------- */
-    CPLString osMDFilename, osImageDSFilename;;
+    CPLString osMDFilename, osImageDSFilename, osDIMAPFilename;
 
     if( poOpenInfo->bIsDirectory )
     {
@@ -428,7 +429,6 @@ GDALDataset *DIMAPDataset::Open( GDALOpenInfo * poOpenInfo )
             return NULL;
         }
 
-        CPLString osDIMAPFilename;
         CPLXMLNode *psDatasetComponent = psDatasetComponents->psChild;
 
         for( ; psDatasetComponent != NULL; psDatasetComponent = psDatasetComponent->psNext ) 
@@ -520,6 +520,7 @@ GDALDataset *DIMAPDataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->nProductVersion = nProductVersion;
     poDS->osMDFilename = osMDFilename;
     poDS->osImageDSFilename = osImageDSFilename;
+    poDS->osDIMAPFilename = osDIMAPFilename;    
 
     int res = TRUE;
     if( nProductVersion == 2 )
@@ -813,7 +814,7 @@ int DIMAPDataset::ReadImageInformation2()
             psDoc, "Raster_Data.Data_Access.Data_Files.Data_File.DATA_FILE_PATH.href", "" );
         if( strlen(pszHref) > 0 )
         {
-            CPLString osPath = CPLGetPath(osMDFilename);
+	    CPLString osPath = CPLGetPath( osDIMAPFilename );
             osImageDSFilename = 
                 CPLFormFilename( osPath, pszHref, NULL );
         }
