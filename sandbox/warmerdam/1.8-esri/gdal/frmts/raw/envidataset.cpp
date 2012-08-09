@@ -1843,6 +1843,19 @@ GDALDataset *ENVIDataset::Open( GDALOpenInfo * poOpenInfo )
             fpHeader = VSIFOpenL( osHdrFilename, pszMode );
         }
 
+        if( fpHeader == NULL )
+        {
+            osHdrFilename = poOpenInfo->pszFilename;
+            osHdrFilename += ".hdr";
+            fpHeader = VSIFOpenL( osHdrFilename, pszMode );
+        }
+
+        if( fpHeader == NULL && VSIIsCaseSensitiveFS(osHdrFilename) )
+        {
+            osHdrFilename = poOpenInfo->pszFilename;
+            osHdrFilename += ".HDR";
+            fpHeader = VSIFOpenL( osHdrFilename, pszMode );
+        }
     }
     else
     {
