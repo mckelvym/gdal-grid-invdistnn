@@ -70,12 +70,12 @@ static void JP2OpenJPEGDataset_InfoCallback(const char *pszMsg, void *unused)
 /*                      JP2OpenJPEGDataset_Read()                       */
 /************************************************************************/
 
-static OPJ_UINT32 JP2OpenJPEGDataset_Read(void* pBuffer, OPJ_UINT32 nBytes,
+static OPJ_SIZE_T JP2OpenJPEGDataset_Read(void* pBuffer, OPJ_SIZE_T nBytes,
                                        void *pUserData)
 {
     int nRet = VSIFReadL(pBuffer, 1, nBytes, (VSILFILE*)pUserData);
 #ifdef DEBUG
-    CPLDebug("OPENJPEG", "JP2OpenJPEGDataset_Read(%d) = %d", nBytes, nRet);
+    CPLDebug("OPENJPEG", "JP2OpenJPEGDataset_Read(%d) = %d", (int)nBytes, nRet);
 #endif
     if (nRet == 0)
         nRet = -1;
@@ -86,12 +86,12 @@ static OPJ_UINT32 JP2OpenJPEGDataset_Read(void* pBuffer, OPJ_UINT32 nBytes,
 /*                      JP2OpenJPEGDataset_Write()                      */
 /************************************************************************/
 
-static OPJ_UINT32 JP2OpenJPEGDataset_Write(void* pBuffer, OPJ_UINT32 nBytes,
+static OPJ_SIZE_T JP2OpenJPEGDataset_Write(void* pBuffer, OPJ_SIZE_T nBytes,
                                        void *pUserData)
 {
     int nRet = VSIFWriteL(pBuffer, 1, nBytes, (VSILFILE*)pUserData);
 #ifdef DEBUG
-    CPLDebug("OPENJPEG", "JP2OpenJPEGDataset_Write(%d) = %d", nBytes, nRet);
+    CPLDebug("OPENJPEG", "JP2OpenJPEGDataset_Write(%d) = %d", (int)nBytes, nRet);
 #endif
     return nRet;
 }
@@ -100,25 +100,25 @@ static OPJ_UINT32 JP2OpenJPEGDataset_Write(void* pBuffer, OPJ_UINT32 nBytes,
 /*                       JP2OpenJPEGDataset_Seek()                      */
 /************************************************************************/
 
-static opj_bool JP2OpenJPEGDataset_Seek(OPJ_SIZE_T nBytes, void * pUserData)
+static opj_bool JP2OpenJPEGDataset_Seek(OPJ_OFF_T nBytes, void * pUserData)
 {
 #ifdef DEBUG
-    CPLDebug("OPENJPEG", "JP2OpenJPEGDataset_Seek(%d)", nBytes);
+    CPLDebug("OPENJPEG", "JP2OpenJPEGDataset_Seek(%d)", (int)nBytes);
 #endif
-    return VSIFSeekL((VSILFILE*)pUserData, nBytes, SEEK_SET);
+    return VSIFSeekL((VSILFILE*)pUserData, nBytes, SEEK_SET) == 0;
 }
 
 /************************************************************************/
 /*                     JP2OpenJPEGDataset_Skip()                        */
 /************************************************************************/
 
-static OPJ_SIZE_T JP2OpenJPEGDataset_Skip(OPJ_SIZE_T nBytes, void * pUserData)
+static OPJ_OFF_T JP2OpenJPEGDataset_Skip(OPJ_OFF_T nBytes, void * pUserData)
 {
     vsi_l_offset nOffset = VSIFTellL((VSILFILE*)pUserData);
     nOffset += nBytes;
 #ifdef DEBUG
-    CPLDebug("OPENJPEG", "JP2OpenJPEGDataset_Skip(%u -> " CPL_FRMT_GUIB ")",
-             nBytes, (GUIntBig)nOffset);
+    CPLDebug("OPENJPEG", "JP2OpenJPEGDataset_Skip(%d -> " CPL_FRMT_GUIB ")",
+             (int)nBytes, (GUIntBig)nOffset);
 #endif
     VSIFSeekL((VSILFILE*)pUserData, nOffset, SEEK_SET);
     return nBytes;
@@ -155,7 +155,6 @@ class JP2OpenJPEGDataset : public GDALPamDataset
     int         bUseSetDecodeArea;
 
     opj_codec_t*    pCodec;
-    opj_event_mgr_t sEventMgr;
     opj_stream_t *  pStream;
     opj_image_t *   psImage;
     int             nPreviousTileNumber;
@@ -303,6 +302,7 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
     int nTileNumber = nBlockXOff + nBlockYOff * nBlocksPerRow;
 
+#ifdef DOES_NOT_SEEM_TO_BE_NEEDED_ANYMORE
     /* Reading out of order cause crashes in openjpeg */
     if ((poGDS->bUseSetDecodeArea || nTileNumber <= poGDS->nPreviousTileNumber) &&
         poGDS->pCodec != NULL)
@@ -315,21 +315,22 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         poGDS->pStream = NULL;
         poGDS->psImage = NULL;
     }
+#endif
 
     poGDS->nPreviousTileNumber = nTileNumber;
 
     if (poGDS->pCodec == NULL)
     {
-        poGDS->pCodec = opj_create_decompress_v2(poGDS->eCodecFormat);
-        poGDS->sEventMgr.info_handler = JP2OpenJPEGDataset_InfoCallback;
-        poGDS->sEventMgr.warning_handler = JP2OpenJPEGDataset_WarningCallback;
-        poGDS->sEventMgr.error_handler = JP2OpenJPEGDataset_ErrorCallback;
-        poGDS->sEventMgr.client_data = NULL;
+        poGDS->pCodec = opj_create_decompress(poGDS->eCodecFormat);
+
+        opj_set_info_handler(poGDS->pCodec, JP2OpenJPEGDataset_InfoCallback,NULL);
+        opj_set_warning_handler(poGDS->pCodec, JP2OpenJPEGDataset_WarningCallback, NULL);
+        opj_set_error_handler(poGDS->pCodec, JP2OpenJPEGDataset_ErrorCallback,NULL);
 
         opj_dparameters_t parameters;
         opj_set_default_decoder_parameters(&parameters);
 
-        if (! opj_setup_decoder_v2(poGDS->pCodec,&parameters,&poGDS->sEventMgr))
+        if (! opj_setup_decoder(poGDS->pCodec,&parameters))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "opj_setup_decoder() failed");
             return CE_Failure;
@@ -368,7 +369,7 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
             poGDS->nPreviousTileNumber = INT_MAX;
             return CE_Failure;
         }
-        if (!opj_decode_v2(poGDS->pCodec,poGDS->pStream, poGDS->psImage))
+        if (!opj_decode(poGDS->pCodec,poGDS->pStream, poGDS->psImage))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "opj_decode_v2() failed");
             poGDS->nPreviousTileNumber = INT_MAX;
@@ -441,6 +442,7 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
             poBlock->DropLock();
     }
 
+#ifdef DOES_NOT_SEEM_TO_BE_NEEDED_ANYMORE
     if (poGDS->bUseSetDecodeArea)
     {
         opj_end_decompress(poGDS->pCodec,poGDS->pStream);
@@ -451,6 +453,7 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         poGDS->pStream = NULL;
         poGDS->psImage = NULL;
     }
+#endif
 
     return CE_None;
 }
@@ -719,17 +722,16 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
 
     opj_codec_t* pCodec;
 
-    pCodec = opj_create_decompress_v2(eCodecFormat);
-    opj_event_mgr_t sEventMgr;
-    sEventMgr.info_handler = JP2OpenJPEGDataset_InfoCallback;
-    sEventMgr.warning_handler = JP2OpenJPEGDataset_WarningCallback;
-    sEventMgr.error_handler = JP2OpenJPEGDataset_ErrorCallback;
-    sEventMgr.client_data = NULL;
+    pCodec = opj_create_decompress(eCodecFormat);
+
+    opj_set_info_handler(pCodec, JP2OpenJPEGDataset_InfoCallback,NULL);
+    opj_set_warning_handler(pCodec, JP2OpenJPEGDataset_WarningCallback, NULL);
+    opj_set_error_handler(pCodec, JP2OpenJPEGDataset_ErrorCallback,NULL);
 
     opj_dparameters_t parameters;
     opj_set_default_decoder_parameters(&parameters);
 
-    if (! opj_setup_decoder_v2(pCodec,&parameters,&sEventMgr))
+    if (! opj_setup_decoder(pCodec,&parameters))
     {
         VSIFCloseL(fp);
         return NULL;
@@ -763,7 +765,7 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
     nTilesX = pCodeStreamInfo->tw;
     nTilesY = pCodeStreamInfo->th;
     int numResolutions = pCodeStreamInfo->m_default_tile_info.tccp_info[0].numresolutions;
-    opj_destroy_cstr_info_v2(&pCodeStreamInfo);
+    opj_destroy_cstr_info(&pCodeStreamInfo);
 
     if (psImage == NULL)
     {
