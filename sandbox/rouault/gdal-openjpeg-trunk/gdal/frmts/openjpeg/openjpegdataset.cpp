@@ -54,7 +54,8 @@ static void JP2OpenJPEGDataset_ErrorCallback(const char *pszMsg, void *unused)
 
 static void JP2OpenJPEGDataset_WarningCallback(const char *pszMsg, void *unused)
 {
-    CPLError(CE_Warning, CPLE_AppDefined, "%s", pszMsg);
+    if( strcmp(pszMsg, "JP2 box which are after the codestream will not be read by this function.\n") != 0 )
+        CPLError(CE_Warning, CPLE_AppDefined, "%s", pszMsg);
 }
 
 /************************************************************************/
@@ -147,7 +148,6 @@ class JP2OpenJPEGDataset : public GDALPamDataset
 
     int         bLoadingOtherBands;
     int         bIs420;
-    OPJ_BYTE *  pFullBuffer;
 
     int         iLevel;
     int         nOverviewCount;
@@ -157,7 +157,6 @@ class JP2OpenJPEGDataset : public GDALPamDataset
     opj_codec_t*    pCodec;
     opj_stream_t *  pStream;
     opj_image_t *   psImage;
-    int             nPreviousTileNumber;
 
   protected:
     virtual int         CloseDependentDatasets();
@@ -233,7 +232,6 @@ JP2OpenJPEGRasterBand::~JP2OpenJPEGRasterBand()
 /*                            CopySrcToDst()                            */
 /************************************************************************/
 
-#if 0
 static CPL_INLINE GByte CLAMP_0_255(int val)
 {
     if (val < 0)
@@ -243,44 +241,6 @@ static CPL_INLINE GByte CLAMP_0_255(int val)
     else
         return (GByte)val;
 }
-
-static void CopySrcToDst(int nWidthToRead, int nHeightToRead,
-                         GByte* pTempBuffer,
-                         int nBlockXSize, int nBlockYSize, int nDataTypeSize,
-                         void* pImage, int nBand, int bIs420)
-{
-    int i, j;
-    if (bIs420)
-    {
-        GByte* pSrc = (GByte*)pTempBuffer;
-        GByte* pDst = (GByte*)pImage;
-        for(j=0;j<nHeightToRead;j++)
-        {
-            for(i=0;i<nWidthToRead;i++)
-            {
-                int Y = pSrc[j * nWidthToRead + i];
-                int Cb = pSrc[nHeightToRead * nWidthToRead + ((j/2) * (nWidthToRead/2) + i/2) ];
-                int Cr = pSrc[5 * nHeightToRead * nWidthToRead / 4 + ((j/2) * (nWidthToRead/2) + i/2) ];
-                if (nBand == 1)
-                    pDst[j * nBlockXSize + i] = CLAMP_0_255((int)(Y + 1.402 * (Cr - 128)));
-                else if (nBand == 2)
-                    pDst[j * nBlockXSize + i] = CLAMP_0_255((int)(Y - 0.34414 * (Cb - 128) - 0.71414 * (Cr - 128)));
-                else
-                    pDst[j * nBlockXSize + i] = CLAMP_0_255((int)(Y + 1.772 * (Cb - 128)));
-            }
-        }
-    }
-    else
-    {
-        for(j=0;j<nHeightToRead;j++)
-        {
-            memcpy(((GByte*)pImage) + j*nBlockXSize * nDataTypeSize,
-                    pTempBuffer + (j*nWidthToRead + (nBand-1) * nHeightToRead * nWidthToRead) * nDataTypeSize,
-                    nWidthToRead * nDataTypeSize);
-        }
-    }
-}
-#endif
 
 /************************************************************************/
 /*                             IReadBlock()                             */
@@ -293,31 +253,7 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
     int nDataTypeSize = (GDALGetDataTypeSize(eDataType) / 8);
 
-    if (poGDS->bIs420)
-    {
-        CPLError(CE_Failure, CPLE_NotSupported,
-                 "Should be done by openjpeg rather ??");
-        return CE_Failure;
-    }
-
     int nTileNumber = nBlockXOff + nBlockYOff * nBlocksPerRow;
-
-#ifdef DOES_NOT_SEEM_TO_BE_NEEDED_ANYMORE
-    /* Reading out of order cause crashes in openjpeg */
-    if ((poGDS->bUseSetDecodeArea || nTileNumber <= poGDS->nPreviousTileNumber) &&
-        poGDS->pCodec != NULL)
-    {
-        opj_end_decompress(poGDS->pCodec,poGDS->pStream);
-        opj_stream_destroy(poGDS->pStream);
-        opj_destroy_codec(poGDS->pCodec);
-        opj_image_destroy(poGDS->psImage);
-        poGDS->pCodec = NULL;
-        poGDS->pStream = NULL;
-        poGDS->psImage = NULL;
-    }
-#endif
-
-    poGDS->nPreviousTileNumber = nTileNumber;
 
     if (poGDS->pCodec == NULL)
     {
@@ -355,7 +291,6 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     if (!opj_set_decoded_resolution_factor( poGDS->pCodec, poGDS->iLevel ))
     {
         CPLError(CE_Failure, CPLE_AppDefined, "opj_set_decoded_resolution_factor() failed");
-        poGDS->nPreviousTileNumber = INT_MAX;
         return CE_Failure;
     }
 
@@ -366,13 +301,11 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                                 (nBlockXOff+1)*nBlockXSize,(nBlockYOff+1)*nBlockYSize))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "opj_set_decode_area() failed");
-            poGDS->nPreviousTileNumber = INT_MAX;
             return CE_Failure;
         }
         if (!opj_decode(poGDS->pCodec,poGDS->pStream, poGDS->psImage))
         {
-            CPLError(CE_Failure, CPLE_AppDefined, "opj_decode_v2() failed");
-            poGDS->nPreviousTileNumber = INT_MAX;
+            CPLError(CE_Failure, CPLE_AppDefined, "opj_decode() failed");
             return CE_Failure;
         }
     }
@@ -381,7 +314,6 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         if (!opj_get_decoded_tile( poGDS->pCodec, poGDS->pStream, poGDS->psImage, nTileNumber ))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "opj_get_decoded_tile() failed");
-            poGDS->nPreviousTileNumber = INT_MAX;
             return CE_Failure;
         }
     }
@@ -396,8 +328,12 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 
         if (iBand == nBand)
             pDstBuffer = pImage;
+        else if( poGDS->bLoadingOtherBands )
+            continue;
         else
         {
+            poGDS->bLoadingOtherBands = TRUE;
+
             poBlock = ((JP2OpenJPEGRasterBand*)poGDS->GetRasterBand(iBand))->
                 TryGetLockedBlockRef(nBlockXOff,nBlockYOff);
             if (poBlock != NULL)
@@ -417,43 +353,64 @@ CPLErr JP2OpenJPEGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                 poBlock->DropLock();
                 continue;
             }
+
+            poGDS->bLoadingOtherBands = FALSE;
         }
 
-        CPLAssert((int)poGDS->psImage->comps[iBand-1].w >= nWidthToRead);
-        CPLAssert((int)poGDS->psImage->comps[iBand-1].h >= nHeightToRead);
-
-        if ((int)poGDS->psImage->comps[iBand-1].w == nBlockXSize &&
-            (int)poGDS->psImage->comps[iBand-1].h == nBlockYSize)
+        if (poGDS->bIs420)
         {
-            GDALCopyWords(poGDS->psImage->comps[iBand-1].data, GDT_Int32, 4,
-                          pDstBuffer, eDataType, nDataTypeSize, nBlockXSize * nBlockYSize);
+            CPLAssert((int)poGDS->psImage->comps[0].w >= nWidthToRead);
+            CPLAssert((int)poGDS->psImage->comps[0].h >= nHeightToRead);
+            CPLAssert(poGDS->psImage->comps[1].w == (poGDS->psImage->comps[0].w + 1) / 2);
+            CPLAssert(poGDS->psImage->comps[1].h == (poGDS->psImage->comps[0].h + 1) / 2);
+            CPLAssert(poGDS->psImage->comps[2].w == (poGDS->psImage->comps[0].w + 1) / 2);
+            CPLAssert(poGDS->psImage->comps[2].h == (poGDS->psImage->comps[0].h + 1) / 2);
+
+            OPJ_INT32* pSrcY = poGDS->psImage->comps[0].data;
+            OPJ_INT32* pSrcCb = poGDS->psImage->comps[1].data;
+            OPJ_INT32* pSrcCr = poGDS->psImage->comps[2].data;
+            GByte* pDst = (GByte*)pDstBuffer;
+            for(int j=0;j<nHeightToRead;j++)
+            {
+                for(int i=0;i<nWidthToRead;i++)
+                {
+                    int Y = pSrcY[j * poGDS->psImage->comps[0].w + i];
+                    int Cb = pSrcCb[(j/2) * poGDS->psImage->comps[1].w + (i/2)];
+                    int Cr = pSrcCr[(j/2) * poGDS->psImage->comps[2].w + (i/2)];
+                    if (iBand == 1)
+                        pDst[j * nBlockXSize + i] = CLAMP_0_255((int)(Y + 1.402 * (Cr - 128)));
+                    else if (iBand == 2)
+                        pDst[j * nBlockXSize + i] = CLAMP_0_255((int)(Y - 0.34414 * (Cb - 128) - 0.71414 * (Cr - 128)));
+                    else
+                        pDst[j * nBlockXSize + i] = CLAMP_0_255((int)(Y + 1.772 * (Cb - 128)));
+                }
+            }
         }
         else
         {
-            for(int j=0;j<nHeightToRead;j++)
+            CPLAssert((int)poGDS->psImage->comps[iBand-1].w >= nWidthToRead);
+            CPLAssert((int)poGDS->psImage->comps[iBand-1].h >= nHeightToRead);
+
+            if ((int)poGDS->psImage->comps[iBand-1].w == nBlockXSize &&
+                (int)poGDS->psImage->comps[iBand-1].h == nBlockYSize)
             {
-                GDALCopyWords(poGDS->psImage->comps[iBand-1].data + j * poGDS->psImage->comps[iBand-1].w, GDT_Int32, 4,
-                            (GByte*)pDstBuffer + j * nBlockXSize * nDataTypeSize, eDataType, nDataTypeSize,
-                            nWidthToRead);
+                GDALCopyWords(poGDS->psImage->comps[iBand-1].data, GDT_Int32, 4,
+                            pDstBuffer, eDataType, nDataTypeSize, nBlockXSize * nBlockYSize);
+            }
+            else
+            {
+                for(int j=0;j<nHeightToRead;j++)
+                {
+                    GDALCopyWords(poGDS->psImage->comps[iBand-1].data + j * poGDS->psImage->comps[iBand-1].w, GDT_Int32, 4,
+                                (GByte*)pDstBuffer + j * nBlockXSize * nDataTypeSize, eDataType, nDataTypeSize,
+                                nWidthToRead);
+                }
             }
         }
 
         if (poBlock != NULL)
             poBlock->DropLock();
     }
-
-#ifdef DOES_NOT_SEEM_TO_BE_NEEDED_ANYMORE
-    if (poGDS->bUseSetDecodeArea)
-    {
-        opj_end_decompress(poGDS->pCodec,poGDS->pStream);
-        opj_stream_destroy(poGDS->pStream);
-        opj_destroy_codec(poGDS->pCodec);
-        opj_image_destroy(poGDS->psImage);
-        poGDS->pCodec = NULL;
-        poGDS->pStream = NULL;
-        poGDS->psImage = NULL;
-    }
-#endif
 
     return CE_None;
 }
@@ -540,7 +497,6 @@ JP2OpenJPEGDataset::JP2OpenJPEGDataset()
     eCodecFormat = CODEC_UNKNOWN;
     eColorSpace = CLRSPC_UNKNOWN;
     bIs420 = FALSE;
-    pFullBuffer = NULL;
     iLevel = 0;
     nOverviewCount = 0;
     papoOverviewDS = NULL;
@@ -549,7 +505,6 @@ JP2OpenJPEGDataset::JP2OpenJPEGDataset()
     pCodec = NULL;
     pStream = NULL;
     psImage = NULL;
-    nPreviousTileNumber = -1;
 }
 
 /************************************************************************/
@@ -578,8 +533,6 @@ JP2OpenJPEGDataset::~JP2OpenJPEGDataset()
     }
     if( fp != NULL )
         VSIFCloseL( fp );
-
-    VSIFree(pFullBuffer);
 
     CloseDependentDatasets();
 }
@@ -810,6 +763,7 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
         psImage->comps[0].w != psImage->x1 - psImage->x0 ||
         psImage->comps[0].h != psImage->y1 - psImage->y0)
     {
+        CPLDebug("OPENJPEG", "Unable to handle that image (1)");
         opj_destroy_codec(pCodec);
         opj_stream_destroy(pStream);
         opj_image_destroy(psImage);
@@ -855,6 +809,7 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
                 !(psImage->comps[iBand-1].prec == psImage->comps[0].prec ||
                  (psImage->comps[0].prec == 8 && psImage->comps[iBand-1].prec < 8)))
             {
+                CPLDebug("OPENJPEG", "Unable to handle that image (2)");
                 opj_destroy_codec(pCodec);
                 opj_stream_destroy(pStream);
                 opj_image_destroy(psImage);
@@ -880,12 +835,16 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
     poDS->fp = fp;
     poDS->bIs420 = bIs420;
 
-    opj_end_decompress(pCodec,pStream);
-    opj_stream_destroy(pStream);
-    opj_destroy_codec(pCodec);
-    opj_image_destroy(psImage);
+    poDS->pCodec = pCodec;
+    poDS->pStream = pStream;
+    poDS->psImage = psImage;
 
-    poDS->bUseSetDecodeArea = (poDS->nRasterXSize == (int)nTileW && poDS->nRasterYSize == (int)nTileH);
+    poDS->bUseSetDecodeArea =
+        (poDS->nRasterXSize == (int)nTileW &&
+         poDS->nRasterYSize == (int)nTileH &&
+         poDS->nRasterXSize > 1024 &&
+         poDS->nRasterYSize > 1024);
+
     if (poDS->bUseSetDecodeArea)
     {
         if (nTileW > 1024) nTileW = 1024;
@@ -930,7 +889,7 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
         }
         else
         {
-            if (nW < nTileW || nH < nTileH)
+            if (nW < (int)nTileW || nH < (int)nTileH)
             {
                 nTileW = nW;
                 nTileH = nH;
@@ -1005,7 +964,6 @@ GDALDataset *JP2OpenJPEGDataset::Open( GDALOpenInfo * poOpenInfo )
     return( poDS );
 }
 
-#if 0
 /************************************************************************/
 /*                          CreateCopy()                                */
 /************************************************************************/
@@ -1203,36 +1161,17 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
         pasBandParams[iBand].prec = 8 * nDataTypeSize;
     }
 
-#ifdef OPENJPEG_V2_BRANCH
     opj_codec_t* pCodec = opj_create_compress(eCodecFormat);
-    if (pCodec == NULL)
-    {
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "opj_create_compress() failed");
-        CPLFree(pasBandParams);
-        return NULL;
-    }
 
     opj_set_info_handler(pCodec, JP2OpenJPEGDataset_InfoCallback,NULL);
     opj_set_warning_handler(pCodec, JP2OpenJPEGDataset_WarningCallback,NULL);
     opj_set_error_handler(pCodec, JP2OpenJPEGDataset_ErrorCallback,NULL);
-#else
-    opj_cinfo_t* pCInfo = opj_create_compress(eCodecFormat);
-    opj_event_mgr_t sEventMgr;
-    sEventMgr.info_handler = JP2OpenJPEGDataset_InfoCallback;
-    sEventMgr.warning_handler = JP2OpenJPEGDataset_WarningCallback;
-    sEventMgr.error_handler = JP2OpenJPEGDataset_ErrorCallback;
-    sEventMgr.client_data = NULL;
-#endif
 
     OPJ_COLOR_SPACE eColorSpace = (bResample) ? CLRSPC_SYCC : (nBands == 3) ? CLRSPC_SRGB : CLRSPC_GRAY;
-#ifdef OPENJPEG_V2_BRANCH
+
     opj_image_t* psImage = opj_image_tile_create(nBands,pasBandParams,
                                                  eColorSpace);
-#else
-    opj_image_t* psImage = opj_image_create(nBands,pasBandParams,
-                                                 eColorSpace);
-#endif
+
 
     CPLFree(pasBandParams);
     pasBandParams = NULL;
@@ -1240,11 +1179,7 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "opj_image_tile_create() failed");
-#ifdef OPENJPEG_V2_BRANCH
         opj_destroy_codec(pCodec);
-#else
-        opj_destroy_compress(pCInfo);
-#endif
         return NULL;
     }
 
@@ -1255,21 +1190,12 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
     psImage->color_space = eColorSpace;
     psImage->numcomps = nBands;
 
-#ifdef OPENJPEG_V2_BRANCH
     if (!opj_setup_encoder(pCodec,&parameters,psImage))
-#else
-    opj_setup_encoder(pCInfo,&parameters,psImage);
-    if (FALSE)
-#endif
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "opj_setup_encoder() failed");
         opj_image_destroy(psImage);
-#ifdef OPENJPEG_V2_BRANCH
         opj_destroy_codec(pCodec);
-#else
-        opj_destroy_compress(pCInfo);
-#endif
         return NULL;
     }
 
@@ -1283,11 +1209,7 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Cannot create file");
         opj_image_destroy(psImage);
-#ifdef OPENJPEG_V2_BRANCH
         opj_destroy_codec(pCodec);
-#else
-        opj_destroy_compress(pCInfo);
-#endif
         return NULL;
     }
 
@@ -1304,11 +1226,7 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
                  "opj_start_compress() failed");
         opj_stream_destroy(pStream);
         opj_image_destroy(psImage);
-#ifdef OPENJPEG_V2_BRANCH
         opj_destroy_codec(pCodec);
-#else
-        opj_destroy_compress(pCInfo);
-#endif
         VSIFCloseL(fp);
         return NULL;
     }
@@ -1322,11 +1240,7 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
     {
         opj_stream_destroy(pStream);
         opj_image_destroy(psImage);
-#ifdef OPENJPEG_V2_BRANCH
         opj_destroy_codec(pCodec);
-#else
-        opj_destroy_compress(pCInfo);
-#endif
         VSIFCloseL(fp);
         return NULL;
     }
@@ -1339,11 +1253,7 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
         {
             opj_stream_destroy(pStream);
             opj_image_destroy(psImage);
-    #ifdef OPENJPEG_V2_BRANCH
             opj_destroy_codec(pCodec);
-    #else
-            opj_destroy_compress(pCInfo);
-    #endif
             CPLFree(pTempBuffer);
             VSIFCloseL(fp);
             return NULL;
@@ -1433,11 +1343,7 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
     {
         opj_stream_destroy(pStream);
         opj_image_destroy(psImage);
-#ifdef OPENJPEG_V2_BRANCH
         opj_destroy_codec(pCodec);
-#else
-        opj_destroy_compress(pCInfo);
-#endif
         VSIFCloseL(fp);
         return NULL;
     }
@@ -1448,22 +1354,14 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
                  "opj_end_compress() failed");
         opj_stream_destroy(pStream);
         opj_image_destroy(psImage);
-#ifdef OPENJPEG_V2_BRANCH
         opj_destroy_codec(pCodec);
-#else
-        opj_destroy_compress(pCInfo);
-#endif
         VSIFCloseL(fp);
         return NULL;
     }
 
     opj_stream_destroy(pStream);
     opj_image_destroy(psImage);
-#ifdef OPENJPEG_V2_BRANCH
     opj_destroy_codec(pCodec);
-#else
-    opj_destroy_compress(pCInfo);
-#endif
     VSIFCloseL(fp);
 
 /* -------------------------------------------------------------------- */
@@ -1477,7 +1375,6 @@ GDALDataset * JP2OpenJPEGDataset::CreateCopy( const char * pszFilename,
 
     return poDS;
 }
-#endif
 
 /************************************************************************/
 /*                      GDALRegister_JP2OpenJPEG()                      */
@@ -1532,9 +1429,7 @@ void GDALRegister_JP2OpenJPEG()
 
         poDriver->pfnIdentify = JP2OpenJPEGDataset::Identify;
         poDriver->pfnOpen = JP2OpenJPEGDataset::Open;
-#ifdef OPENJPEG_V2_BRANCH
         poDriver->pfnCreateCopy = JP2OpenJPEGDataset::CreateCopy;
-#endif
 
         GetGDALDriverManager()->RegisterDriver( poDriver );
     }
