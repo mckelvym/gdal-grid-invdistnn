@@ -116,6 +116,7 @@ MEMRasterBand::~MEMRasterBand()
     if( poColorTable != NULL )
         delete poColorTable;
 
+    CPLDestroyXMLNode( psSavedHistograms );
     CPLFree( pszUnitType );
     CSLDestroy( papszCategoryNames );
 }

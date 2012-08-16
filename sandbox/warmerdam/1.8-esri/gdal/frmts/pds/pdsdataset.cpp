@@ -163,7 +163,7 @@ char **PDSDataset::GetFileList()
 
     if( !osExternalCube.empty() )
     {
-        CSLAddString( papszFileList, osExternalCube );
+        papszFileList = CSLAddString( papszFileList, osExternalCube );
     }
 
     return papszFileList;
