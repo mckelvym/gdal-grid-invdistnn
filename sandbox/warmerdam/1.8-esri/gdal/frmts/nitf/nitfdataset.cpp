@@ -47,16 +47,6 @@ static double Apply( double *C, double P, double L, double H );
 
 static void Cleanup( std::vector<char*> &charDataContainer );
 
-static void DensifyGCPs( GDAL_GCP **psGCPs, int &nGCPCount );
-
-static bool RPCTransform( NITFRPC00BInfo *psRPCInfo,
-                          double         *pXCoord,
-                          double         *pYCoord,
-                          int             nGCPCount );
-
-static void UpdateGCPsWithRPC( NITFRPC00BInfo *psRPCInfo,
-                               GDAL_GCP       *psGCPs,
-                               int            &nGCPCount );
 static void NITFPatchImageLength( const char *pszFilename,
                                   GUIntBig nImageOffset, 
                                   GIntBig nPixelCount, const char *pszIC );
@@ -2102,137 +2092,135 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
         }
     }
 
-
-    /* Do we have RPC00 information? */
-    int            bHasRPC00 = FALSE;
     NITFRPC00BInfo sRPCInfo;
 
-    if( psImage && NITFReadRPC00B( psImage, &sRPCInfo ) && sRPCInfo.SUCCESS )
-        bHasRPC00 = TRUE;
-        
-/* -------------------------------------------------------------------- */
-/*      Do we have IGEOLO data that can be treated as a                 */
-/*      geotransform?  Our approach should support images in an         */
-/*      affine rotated frame of reference.                              */
-/* -------------------------------------------------------------------- */
-    int nGCPCount = 0;
-    GDAL_GCP    *psGCPs = NULL;
+    /* Do we have RPC00 information? */
 
-    if( psImage && !poDS->bGotGeoTransform && psImage->chICORDS != ' ' )
+    int bHasRPC00 = ((psImage) && (NITFReadRPC00B(psImage, &sRPCInfo)) && (sRPCInfo.SUCCESS)) ? TRUE : FALSE;
+
+    if( (bHasRPC00 == FALSE) || ((bHasRPC00 == TRUE) &&
+      (psImage->chICORDS != 'C') && (psImage->chICORDS != 'D') && (psImage->chICORDS != 'G')) )
     {
-        nGCPCount = 4;
+        /* -------------------------------------------------------------------- */
+        /*      Do we have IGEOLO data that can be treated as a                 */
+        /*      geotransform?  Our approach should support images in an         */
+        /*      affine rotated frame of reference.                              */
+        /* -------------------------------------------------------------------- */
 
-        psGCPs = (GDAL_GCP *) CPLMalloc(sizeof(GDAL_GCP) * nGCPCount);
-        GDALInitGCPs( nGCPCount, psGCPs );
+        int nGCPCount = 0;
+        GDAL_GCP    *psGCPs = NULL;
 
-        if( psImage->bIsBoxCenterOfPixel ) 
+        if( psImage && !poDS->bGotGeoTransform && psImage->chICORDS != ' ' )
         {
-            psGCPs[0].dfGCPPixel	= 0.5;
-            psGCPs[0].dfGCPLine		= 0.5;
-            psGCPs[1].dfGCPPixel = poDS->nRasterXSize-0.5;
-            psGCPs[1].dfGCPLine = 0.5;
-            psGCPs[2].dfGCPPixel = poDS->nRasterXSize-0.5;
-            psGCPs[2].dfGCPLine = poDS->nRasterYSize-0.5;
-            psGCPs[3].dfGCPPixel = 0.5;
-            psGCPs[3].dfGCPLine = poDS->nRasterYSize-0.5;
+            nGCPCount = 4;
+
+            psGCPs = (GDAL_GCP *) CPLMalloc(sizeof(GDAL_GCP) * nGCPCount);
+            GDALInitGCPs( nGCPCount, psGCPs );
+
+            if( psImage->bIsBoxCenterOfPixel ) 
+            {
+                psGCPs[0].dfGCPPixel	= 0.5;
+                psGCPs[0].dfGCPLine		= 0.5;
+                psGCPs[1].dfGCPPixel = poDS->nRasterXSize-0.5;
+                psGCPs[1].dfGCPLine = 0.5;
+                psGCPs[2].dfGCPPixel = poDS->nRasterXSize-0.5;
+                psGCPs[2].dfGCPLine = poDS->nRasterYSize-0.5;
+                psGCPs[3].dfGCPPixel = 0.5;
+                psGCPs[3].dfGCPLine = poDS->nRasterYSize-0.5;
+            }
+            else
+            {
+                psGCPs[0].dfGCPPixel	= 0.0;
+                psGCPs[0].dfGCPLine		= 0.0;
+                psGCPs[1].dfGCPPixel = poDS->nRasterXSize;
+                psGCPs[1].dfGCPLine = 0.0;
+                psGCPs[2].dfGCPPixel = poDS->nRasterXSize;
+                psGCPs[2].dfGCPLine = poDS->nRasterYSize;
+                psGCPs[3].dfGCPPixel = 0.0;
+                psGCPs[3].dfGCPLine = poDS->nRasterYSize;
+            }
+
+            psGCPs[0].dfGCPX = psImage->dfULX;
+            psGCPs[0].dfGCPY = psImage->dfULY;
+
+            psGCPs[1].dfGCPX = psImage->dfURX;
+            psGCPs[1].dfGCPY = psImage->dfURY;
+
+            psGCPs[2].dfGCPX = psImage->dfLRX;
+            psGCPs[2].dfGCPY = psImage->dfLRY;
+
+            psGCPs[3].dfGCPX = psImage->dfLLX;
+            psGCPs[3].dfGCPY = psImage->dfLLY;
         }
-        else
+
+        /* -------------------------------------------------------------------- */
+        /*      Convert the GCPs into a geotransform definition, if possible.   */
+        /* -------------------------------------------------------------------- */
+
+        if( !psImage )
         {
-            psGCPs[0].dfGCPPixel	= 0.0;
-            psGCPs[0].dfGCPLine		= 0.0;
-            psGCPs[1].dfGCPPixel = poDS->nRasterXSize;
-            psGCPs[1].dfGCPLine = 0.0;
-            psGCPs[2].dfGCPPixel = poDS->nRasterXSize;
-            psGCPs[2].dfGCPLine = poDS->nRasterYSize;
-            psGCPs[3].dfGCPPixel = 0.0;
-            psGCPs[3].dfGCPLine = poDS->nRasterYSize;
+            /* nothing */
         }
+        else if( poDS->bGotGeoTransform == FALSE 
+                 && nGCPCount > 0 
+                 && GDALGCPsToGeoTransform( nGCPCount, psGCPs, 
+                                            poDS->adfGeoTransform, FALSE ) )
+        {	
+            poDS->bGotGeoTransform = TRUE;
+        } 
 
-        psGCPs[0].dfGCPX		= psImage->dfULX;
-        psGCPs[0].dfGCPY		= psImage->dfULY;
+        /* -------------------------------------------------------------------- */
+        /*      If we have IGEOLO that isn't north up, return it as GCPs.       */
+        /* -------------------------------------------------------------------- */
 
-        psGCPs[1].dfGCPX		= psImage->dfURX;
-        psGCPs[1].dfGCPY		= psImage->dfURY;
-
-        psGCPs[2].dfGCPX		= psImage->dfLRX;
-        psGCPs[2].dfGCPY		= psImage->dfLRY;
-
-        psGCPs[3].dfGCPX		= psImage->dfLLX;
-        psGCPs[3].dfGCPY		= psImage->dfLLY;
-
-        if( (bHasRPC00) &&  ( (psImage->chICORDS == 'G') || (psImage->chICORDS == 'C') ) )
+        else if( (psImage->dfULX != 0 || psImage->dfURX != 0 
+                  || psImage->dfLRX != 0 || psImage->dfLLX != 0)
+                 && psImage->chICORDS != ' ' && 
+                 ( poDS->bGotGeoTransform == FALSE ) &&
+                 nGCPCount >= 4 )
         {
-            if( nGCPCount == 4 )
-                DensifyGCPs( &psGCPs, nGCPCount );
+            CPLDebug( "GDAL", 
+                      "NITFDataset::Open() wasn't able to derive a first order\n"
+                      "geotransform.  It will be returned as GCPs.");
 
-            UpdateGCPsWithRPC( &sRPCInfo, psGCPs, nGCPCount );
+            poDS->nGCPCount = nGCPCount;
+            poDS->pasGCPList = psGCPs;
+
+            psGCPs = NULL;
+            nGCPCount = 0;
+
+            CPLFree( poDS->pasGCPList[0].pszId );
+            poDS->pasGCPList[0].pszId = CPLStrdup( "UpperLeft" );
+
+            CPLFree( poDS->pasGCPList[1].pszId );
+            poDS->pasGCPList[1].pszId = CPLStrdup( "UpperRight" );
+
+            CPLFree( poDS->pasGCPList[2].pszId );
+            poDS->pasGCPList[2].pszId = CPLStrdup( "LowerRight" );
+
+            CPLFree( poDS->pasGCPList[3].pszId );
+            poDS->pasGCPList[3].pszId = CPLStrdup( "LowerLeft" );
+
+            poDS->pszGCPProjection = CPLStrdup( poDS->pszProjection );
         }
+
+        // This cleans up the original copy of the GCPs used to test if 
+        // this IGEOLO could be used for a geotransform if we did not
+        // steal the to use as primary gcps.
+
+        if( nGCPCount > 0 )
+        {
+            GDALDeinitGCPs( nGCPCount, psGCPs );
+            CPLFree( psGCPs );
+        }
+
+        /* -------------------------------------------------------------------- */
+        /*      Do we have PRJPSB and MAPLOB TREs to get better                 */
+        /*      georeferencing from?                                            */
+        /* -------------------------------------------------------------------- */
+
+        if (psImage) poDS->CheckGeoSDEInfo();
     }
-
-/* -------------------------------------------------------------------- */
-/*      Convert the GCPs into a geotransform definition, if possible.   */
-/* -------------------------------------------------------------------- */
-    if( !psImage )
-    {
-        /* nothing */
-    }
-    else if( poDS->bGotGeoTransform == FALSE 
-             && nGCPCount > 0 
-             && GDALGCPsToGeoTransform( nGCPCount, psGCPs, 
-                                        poDS->adfGeoTransform, FALSE ) )
-    {	
-        poDS->bGotGeoTransform = TRUE;
-    } 
-
-/* -------------------------------------------------------------------- */
-/*      If we have IGEOLO that isn't north up, return it as GCPs.       */
-/* -------------------------------------------------------------------- */
-    else if( (psImage->dfULX != 0 || psImage->dfURX != 0 
-              || psImage->dfLRX != 0 || psImage->dfLLX != 0)
-             && psImage->chICORDS != ' ' && 
-             ( poDS->bGotGeoTransform == FALSE ) &&
-             nGCPCount >= 4 )
-    {
-        CPLDebug( "GDAL", 
-                  "NITFDataset::Open() wasn't able to derive a first order\n"
-                  "geotransform.  It will be returned as GCPs.");
-
-        poDS->nGCPCount = nGCPCount;
-        poDS->pasGCPList = psGCPs;
-
-        psGCPs = NULL;
-        nGCPCount = 0;
-
-        CPLFree( poDS->pasGCPList[0].pszId );
-        poDS->pasGCPList[0].pszId = CPLStrdup( "UpperLeft" );
-
-        CPLFree( poDS->pasGCPList[1].pszId );
-        poDS->pasGCPList[1].pszId = CPLStrdup( "UpperRight" );
-
-        CPLFree( poDS->pasGCPList[2].pszId );
-        poDS->pasGCPList[2].pszId = CPLStrdup( "LowerRight" );
-
-        CPLFree( poDS->pasGCPList[3].pszId );
-        poDS->pasGCPList[3].pszId = CPLStrdup( "LowerLeft" );
-
-        poDS->pszGCPProjection = CPLStrdup( poDS->pszProjection );
-    }
-
-    // This cleans up the original copy of the GCPs used to test if 
-    // this IGEOLO could be used for a geotransform if we did not
-    // steal the to use as primary gcps.
-    if( nGCPCount > 0 )
-    {
-        GDALDeinitGCPs( nGCPCount, psGCPs );
-        CPLFree( psGCPs );
-    }
-
-/* -------------------------------------------------------------------- */
-/*      Do we have PRJPSB and MAPLOB TREs to get better                 */
-/*      georeferencing from?                                            */
-/* -------------------------------------------------------------------- */
-    if (psImage)
-        poDS->CheckGeoSDEInfo();
 
 /* -------------------------------------------------------------------- */
 /*      Do we have metadata.                                            */
@@ -2455,20 +2443,37 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
                      sRPCInfo.SAMP_DEN_COEFF[i] );
         poDS->SetMetadataItem( "SAMP_DEN_COEFF", szValue, "RPC" );
 
-        sprintf( szValue, "%.16g", 
-                 sRPCInfo.LONG_OFF - ( sRPCInfo.LONG_SCALE / 2.0 ) );
+        double maxLat  = poDS->psImage->dfULY;
+        double maxLong = poDS->psImage->dfULX;
+        double minLat  = poDS->psImage->dfULY;
+        double minLong = poDS->psImage->dfULX;
+        
+        if (poDS->psImage->dfURY > maxLat) maxLat = poDS->psImage->dfURY;
+        if (poDS->psImage->dfLRY > maxLat) maxLat = poDS->psImage->dfLRY;
+        if (poDS->psImage->dfLLY > maxLat) maxLat = poDS->psImage->dfLLY;
+
+        if (poDS->psImage->dfURX > maxLong) maxLong = poDS->psImage->dfURX;
+        if (poDS->psImage->dfLRX > maxLong) maxLong = poDS->psImage->dfLRX;
+        if (poDS->psImage->dfLLX > maxLong) maxLong = poDS->psImage->dfLLX;
+
+        if (poDS->psImage->dfURY < minLat) minLat = poDS->psImage->dfURY;
+        if (poDS->psImage->dfLRY < minLat) minLat = poDS->psImage->dfLRY;
+        if (poDS->psImage->dfLLY < minLat) minLat = poDS->psImage->dfLLY;
+
+        if (poDS->psImage->dfURX < minLong) minLong = poDS->psImage->dfURX;
+        if (poDS->psImage->dfLRX < minLong) minLong = poDS->psImage->dfLRX;
+        if (poDS->psImage->dfLLX < minLong) minLong = poDS->psImage->dfLLX;
+
+        sprintf( szValue, "%.18g", minLong);
         poDS->SetMetadataItem( "MIN_LONG", szValue, "RPC" );
 
-        sprintf( szValue, "%.16g",
-                 sRPCInfo.LONG_OFF + ( sRPCInfo.LONG_SCALE / 2.0 ) );
+        sprintf( szValue, "%.18g", maxLong);
         poDS->SetMetadataItem( "MAX_LONG", szValue, "RPC" );
 
-        sprintf( szValue, "%.16g", 
-                 sRPCInfo.LAT_OFF - ( sRPCInfo.LAT_SCALE / 2.0 ) );
+        sprintf( szValue, "%.18g", minLat);
         poDS->SetMetadataItem( "MIN_LAT", szValue, "RPC" );
 
-        sprintf( szValue, "%.16g", 
-                 sRPCInfo.LAT_OFF + ( sRPCInfo.LAT_SCALE / 2.0 ) );
+        sprintf( szValue, "%.18g", maxLat);
         poDS->SetMetadataItem( "MAX_LAT", szValue, "RPC" );
     }
 
@@ -3841,9 +3846,10 @@ void NITFDataset::InitializeCGMMetadata()
     if( oSpecialMD.GetMetadataItem( "SEGMENT_COUNT", "CGM" ) != NULL )
         return;
 
+
     char        **papszCGMMetadata = NULL;
     int           iSegment         = 0;
-    int iCGM = 0;
+    int           iCGM             = 0;
     std::string   base64EncodedCGMData("");
 
     papszCGMMetadata = 
@@ -3893,6 +3899,7 @@ void NITFDataset::InitializeCGMMetadata()
         char *pabyCGMData;
 
         pabyCGMData = (char *) VSICalloc(1,(size_t)psSegment->nSegmentSize);
+
         if (pabyCGMData == NULL)
         {
             CPLError( CE_Failure, CPLE_OutOfMemory, "Out of memory");
@@ -3914,8 +3921,7 @@ void NITFDataset::InitializeCGMMetadata()
             return;
         }
 
-        base64EncodedCGMData = Base64Encode((unsigned char const*) pabyCGMData, 
-                                            (size_t) psSegment->nSegmentSize);
+        base64EncodedCGMData = Base64Encode((unsigned char const*) pabyCGMData, (size_t) psSegment->nSegmentSize);
 
         if (base64EncodedCGMData.empty())
         {
@@ -6920,189 +6926,6 @@ static void Cleanup( std::vector<char*> &charDataContainer )
     charDataContainer.clear();
 }
 
-
-void DensifyGCPs( GDAL_GCP **psGCPs, int &nGCPCount )
-{
-    // Given the four corner points of an extent (UL, UR, LR, LL), this method
-    // will add three points to each line segment and return a total of 16 points
-    // including the four original corner points.
-
-    if ( (nGCPCount != 4) || (psGCPs == NULL) ) return;
-
-    const int  nDensifiedGCPs  = 16;
-    GDAL_GCP  *psDensifiedGCPs = (GDAL_GCP*) CPLMalloc(sizeof(GDAL_GCP)*nDensifiedGCPs);
-
-    GDALInitGCPs( nDensifiedGCPs, psDensifiedGCPs );
-
-    bool   ok          = true;
-    double xLeftPt     = 0.0;
-    double xMidPt      = 0.0;
-    double xRightPt    = 0.0;
-    double yLeftPt     = 0.0;
-    double yMidPt      = 0.0;
-    double yRightPt    = 0.0;
-    int    count       = 0;
-    int    idx         = 0;
-    int    nGCPCountM1 = nGCPCount - 1;
-
-    for( int ii = 0; ( (ii < nGCPCount) && (ok) ) ; ++ii )
-    {
-      idx = ( ii != 3 ) ? ii+1 : 0;
-
-      try
-      {
-          psDensifiedGCPs[count].dfGCPX = (*psGCPs)[ii].dfGCPX;
-          psDensifiedGCPs[count].dfGCPY = (*psGCPs)[ii].dfGCPY;
-
-          xMidPt = ((*psGCPs)[ii].dfGCPX+(*psGCPs)[idx].dfGCPX) * 0.5;
-          yMidPt = ((*psGCPs)[ii].dfGCPY+(*psGCPs)[idx].dfGCPY) * 0.5;
-
-          xLeftPt = ((*psGCPs)[ii].dfGCPX+xMidPt) * 0.5;
-          yLeftPt = ((*psGCPs)[ii].dfGCPY+yMidPt) * 0.5;
-
-          xRightPt = (xMidPt+(*psGCPs)[idx].dfGCPX) * 0.5;
-          yRightPt = (yMidPt+(*psGCPs)[idx].dfGCPY) * 0.5;
-
-          psDensifiedGCPs[count+1].dfGCPX = xLeftPt;
-          psDensifiedGCPs[count+1].dfGCPY = yLeftPt;
-          psDensifiedGCPs[count+2].dfGCPX = xMidPt;
-          psDensifiedGCPs[count+2].dfGCPY = yMidPt;
-          psDensifiedGCPs[count+3].dfGCPX = xRightPt;
-          psDensifiedGCPs[count+3].dfGCPY = yRightPt;
-
-          count += nGCPCount;
-
-      }
-      catch (...)
-      {
-          ok = false;
-      }
-    }
-
-    if( !ok )
-    {
-        GDALDeinitGCPs( nDensifiedGCPs, psDensifiedGCPs );
-        CPLFree( psDensifiedGCPs );
-        psDensifiedGCPs = NULL;
-
-        return;
-    }
-
-    GDALDeinitGCPs( nGCPCount, *psGCPs );
-    CPLFree( *psGCPs );
-
-    *psGCPs         = psDensifiedGCPs;
-    nGCPCount       = nDensifiedGCPs;
-    psDensifiedGCPs = NULL;
-}
-
-bool RPCTransform( NITFRPC00BInfo *psRPCInfo, 
-                   double         *pGCPXCoord,
-                   double         *pGCPYCoord,
-                   int             nGCPCount )
-{
-    if( (psRPCInfo == NULL) || (pGCPXCoord == NULL) ||
-      (pGCPYCoord == NULL) || (nGCPCount <= 0) ) return (false);
-
-    bool   ok = true;
-    double H  = 0.0;
-    double L  = 0.0;
-    double P  = 0.0;
-    double u  = 0.0;
-    double v  = 0.0;
-    double z  = psRPCInfo->HEIGHT_OFF;
-
-    double heightScaleInv = 1.0/psRPCInfo->HEIGHT_SCALE;
-    double latScaleInv    = 1.0/psRPCInfo->LAT_SCALE;
-    double longScaleInv   = 1.0/psRPCInfo->LONG_SCALE;
-
-    for( int ii = 0; ( (ii < nGCPCount) && (ok) ); ++ii )
-    {
-        try
-        {
-            P = ( pGCPYCoord[ii] - psRPCInfo->LAT_OFF )    * latScaleInv;
-            L = ( pGCPXCoord[ii] - psRPCInfo->LONG_OFF)    * longScaleInv;
-            H = ( z              - psRPCInfo->HEIGHT_OFF ) * heightScaleInv;
-
-            u = Apply( psRPCInfo->SAMP_NUM_COEFF, P, L, H )/Apply( psRPCInfo->SAMP_DEN_COEFF, P, L, H );
-            v = Apply( psRPCInfo->LINE_NUM_COEFF, P, L, H )/Apply( psRPCInfo->LINE_DEN_COEFF, P, L, H );
-
-            pGCPXCoord[ii] = u*psRPCInfo->SAMP_SCALE + psRPCInfo->SAMP_OFF;
-            pGCPYCoord[ii] = v*psRPCInfo->LINE_SCALE + psRPCInfo->LINE_OFF;
-        }
-        catch (...)
-        {
-            ok = false;
-        }
-    }
-
-    return (ok);
-}
-
-void UpdateGCPsWithRPC( NITFRPC00BInfo *psRPCInfo,
-                        GDAL_GCP       *psGCPs,
-                        int            &nGCPCount )
-{
-    if( (psRPCInfo == NULL) || (!psRPCInfo->SUCCESS) ||
-      (psGCPs == NULL) || (nGCPCount < 4) ) return;
-
-    double *pGCPXCoord = NULL;
-    double *pGCPYCoord = NULL;
-
-    try
-    {
-        pGCPXCoord = new double[nGCPCount];
-        pGCPYCoord = new double[nGCPCount];
-    }
-    catch (...)
-    {
-        if( pGCPXCoord != NULL )
-        {
-            delete [] (pGCPXCoord);
-            pGCPXCoord = NULL;
-        }
-
-        if( pGCPYCoord != NULL )
-        {
-            delete [] (pGCPYCoord);
-            pGCPYCoord = NULL;
-        }
-    }
-
-    if( (pGCPXCoord == NULL) || (pGCPYCoord == NULL) ) return;
-
-    bool ok = true;
-
-    for( int ii = 0; ( (ii < nGCPCount) && (ok) ); ++ii )
-    {
-        try
-        {
-            pGCPXCoord[ii] = psGCPs[ii].dfGCPX;
-            pGCPYCoord[ii] = psGCPs[ii].dfGCPY;
-        }
-        catch (...)
-        {
-            ok = false;
-        }
-    }
-
-    if( (ok) && (RPCTransform( psRPCInfo, pGCPXCoord, pGCPYCoord, nGCPCount )) )
-    {
-        // Replace the image coordinates of the input GCPs.
-
-        for( int jj = 0; jj < nGCPCount; ++jj )
-        {
-            psGCPs[jj].dfGCPPixel = pGCPXCoord[jj];
-            psGCPs[jj].dfGCPLine  = pGCPYCoord[jj];
-        }
-    }
-
-    delete [] (pGCPXCoord);
-    delete [] (pGCPYCoord);
-
-    pGCPXCoord = NULL;
-    pGCPYCoord = NULL;
-}
 
 /*
  * This function was extracted from the base64 cpp utility published by René Nyffenegger.
