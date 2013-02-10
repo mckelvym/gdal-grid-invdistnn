@@ -7,7 +7,7 @@
  ******************************************************************************
  * Copyright (c) 2012, Brian Case
  *
- * Permission is hereby granted, CPLFree of charge, to any person obtaining a
+ * Permission is hereby granted, Free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
  * to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
@@ -25,7 +25,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
- 
 #ifndef _ETVS_H
 #define _ETVS_H
 
