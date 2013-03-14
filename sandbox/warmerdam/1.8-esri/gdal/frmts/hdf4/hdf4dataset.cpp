@@ -916,6 +916,7 @@ GDALDataset *HDF4Dataset::Open( GDALOpenInfo * poOpenInfo )
             if ( nSubDatasets != CSLCount(papszGrids) )
             {
                 CSLDestroy( papszGrids );
+				        GDclose( hHDF4 );
                 delete poDS;
                 CPLDebug( "HDF4", "Can not parse list of HDF-EOS grids." );
                 return NULL;
@@ -992,7 +993,6 @@ GDALDataset *HDF4Dataset::Open( GDALOpenInfo * poOpenInfo )
             }
 
             CSLDestroy( papszGrids );
-            GDclose( hHDF4 );
         }
         GDclose( hHDF4 );
 
@@ -1060,7 +1060,10 @@ GDALDataset *HDF4Dataset::Open( GDALOpenInfo * poOpenInfo )
     if ( poDS->hGR != -1 )
     {
         if ( GRfileinfo( poDS->hGR, &poDS->nImages, &nAttrs ) == -1 )
+		    {
+			      Hclose( hHDF4 );
             return NULL;
+		    }
         
         for ( i = 0; i < poDS->nImages; i++ )
         {
@@ -1071,7 +1074,11 @@ GDALDataset *HDF4Dataset::Open( GDALOpenInfo * poOpenInfo )
             // of samples per pixel. aiDimSizes has only two dimensions.
             if ( GRgetiminfo( iGR, szName, &iRank, &iNumType, &iInterlaceMode,
                               aiDimSizes, &nAttrs ) != 0 )
+			      {
+				        Hclose( hHDF4 );
                 return NULL;
+			      }
+
             nCount = CSLCount( poDS->papszSubDatasets ) / 2;
             sprintf( szTemp, "SUBDATASET_%d_NAME", nCount + 1 );
             poDS->papszSubDatasets = CSLSetNameValue(poDS->papszSubDatasets,
