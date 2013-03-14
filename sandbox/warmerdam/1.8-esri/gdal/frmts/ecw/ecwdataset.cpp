@@ -54,6 +54,7 @@ static int    bNCSInitialized = FALSE;
 void ECWInitialize( void );
 
 GDALDataset* ECWDatasetOpenJPEG2000(GDALOpenInfo* poOpenInfo);
+wchar_t* UTF8ToWideString( const char* pszSrc );
 
 /************************************************************************/
 /* ==================================================================== */
@@ -1286,8 +1287,20 @@ try_again:
 /* -------------------------------------------------------------------- */
     if( poFileView == NULL )
     {
+        wchar_t *pszFilename = UTF8ToWideString( poOpenInfo->pszFilename );
+        if ( !pszFilename )
+        {
+              CPLError( CE_Failure, CPLE_OpenFailed, 
+	                      "Error converting filename from UTF8 to UTF16.\n" );
+              return NULL;
+        }
         poFileView = new CNCSFile();
-        oErr = poFileView->Open( (char *) poOpenInfo->pszFilename, FALSE );
+        oErr = poFileView->Open( pszFilename, FALSE );
+        if ( pszFilename )
+        {
+               delete [] pszFilename;
+               pszFilename = NULL;
+        }
         eErr = oErr.GetErrorNumber();
         CPLDebug( "ECW", "NCScbmOpenFileView(%s): eErr = %d", 
                   poOpenInfo->pszFilename, (int) eErr );
@@ -1920,6 +1933,28 @@ void GDALRegister_JP2ECW()
 #endif /* def FRMT_ecw */
 }
 
+wchar_t* UTF8ToWideString( const char* pszSrc )
+{
+    wchar_t* pszResult = NULL;
+    int iLength = 0;
 
+    if ( !pszSrc )
+        return NULL;
 
+    iLength = MultiByteToWideChar(CP_UTF8, 0, pszSrc, -1, 0, 0);
+    if (iLength <= 0)
+        return NULL;
 
+    pszResult = new wchar_t[iLength];
+    if (!pszResult)
+        return NULL;
+
+    iLength = MultiByteToWideChar(CP_UTF8, 0, pszSrc, -1, pszResult, iLength);
+    if (!iLength)
+    {
+        delete [] pszResult;
+        return NULL;
+    }
+
+    return pszResult;
+}

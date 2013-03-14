@@ -53,8 +53,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,8,0,2710
- PRODUCTVERSION 1,8,0,2710
+ FILEVERSION 1,8,0,3226
+ PRODUCTVERSION 1,8,0,3226
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -72,10 +72,10 @@ BEGIN
             VALUE "Comments", "Modified GDAL ECW Driver"
             VALUE "CompanyName", "Frank Warmerdam"
             VALUE "FileDescription", "grf_ecw DLL"
-            VALUE "FileVersion", "1.8.0.2710"
+            VALUE "FileVersion", "1.8.0.3226"
             VALUE "InternalName", "grf_ecw"
             VALUE "OriginalFilename", "grf_ecw.dll"
-            VALUE "ProductVersion", "1.8.0.2710"
+            VALUE "ProductVersion", "1.8.0.3226"
         END
     END
     BLOCK "VarFileInfo"
