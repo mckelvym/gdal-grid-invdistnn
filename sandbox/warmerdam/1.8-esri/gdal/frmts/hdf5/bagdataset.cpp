@@ -189,6 +189,27 @@ bool BAGRasterBand::Initialize( hid_t hDatasetID, const char *pszName )
             nBlockXSize  = (int) panChunkDims[nDimSize-1];
             nBlockYSize  = (int) panChunkDims[nDimSize-2];
         }
+
+        int nfilters = H5Pget_nfilters( listid );
+
+        H5Z_filter_t filter;
+        char         name[120];
+        size_t       cd_nelmts = 20;
+        unsigned int cd_values[20];
+        unsigned int flags;
+        for (int i = 0; i < nfilters; i++) 
+        {
+          filter = H5Pget_filter(listid, i, &flags, (size_t *)&cd_nelmts, cd_values, 120, name);
+          if (filter == H5Z_FILTER_DEFLATE)
+            poDS->SetMetadataItem( "COMPRESSION", "DEFLATE", "IMAGE_STRUCTURE" );
+          else if (filter == H5Z_FILTER_NBIT)
+            poDS->SetMetadataItem( "COMPRESSION", "NBIT", "IMAGE_STRUCTURE" );
+          else if (filter == H5Z_FILTER_SCALEOFFSET)
+            poDS->SetMetadataItem( "COMPRESSION", "SCALEOFFSET", "IMAGE_STRUCTURE" );
+          else if (filter == H5Z_FILTER_SZIP)
+            poDS->SetMetadataItem( "COMPRESSION", "SZIP", "IMAGE_STRUCTURE" );
+        }
+
         H5Pclose(listid);
     }
 
@@ -279,14 +300,31 @@ CPLErr BAGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     herr_t      status;
     hsize_t     count[3];
     H5OFFSET_TYPE offset[3];
+    int         nSizeOfData;
     hid_t       memspace;
     hsize_t     col_dims[3];
-    hsize_t     rank = 2;
+    hsize_t     rank;
 
-    offset[0] = nRasterYSize - nBlockYOff*nBlockYSize - 1;
+    rank=2;
+
+    offset[0] = MAX(0,nRasterYSize - (nBlockYOff+1)*nBlockYSize);
     offset[1] = nBlockXOff*nBlockXSize;
     count[0]  = nBlockYSize;
     count[1]  = nBlockXSize;
+
+    nSizeOfData = H5Tget_size( native );
+    memset( pImage,0,nBlockXSize*nBlockYSize*nSizeOfData );
+
+/* -------------------------------------------------------------------- */
+/*  blocksize may not be a multiple of imagesize */
+/* -------------------------------------------------------------------- */
+    count[0]  = MIN( size_t(nBlockYSize), GetYSize() - offset[0]);
+    count[1]  = MIN( size_t(nBlockXSize), GetXSize() - offset[1]);
+
+    if( nRasterYSize - (nBlockYOff+1)*nBlockYSize < 0 )
+    {
+        count[0] += (nRasterYSize - (nBlockYOff+1)*nBlockYSize);
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Select block from file space                                    */
@@ -315,7 +353,40 @@ CPLErr BAGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                        H5P_DEFAULT, 
                        pImage );
 
-    H5Sclose(memspace);
+    H5Sclose( memspace );
+
+/* -------------------------------------------------------------------- */
+/*      Y flip the data.                                                */
+/* -------------------------------------------------------------------- */
+    int nLinesToFlip = count[0];
+    int nLineSize = nSizeOfData * nBlockXSize;
+    GByte *pabyTemp = (GByte *) CPLMalloc(nLineSize);
+
+    for( int iY = 0; iY < nLinesToFlip/2; iY++ )
+    {
+        memcpy( pabyTemp, 
+                ((GByte *)pImage) + iY * nLineSize,
+                nLineSize );
+        memcpy( ((GByte *)pImage) + iY * nLineSize,
+                ((GByte *)pImage) + (nLinesToFlip-iY-1) * nLineSize,
+                nLineSize );
+        memcpy( ((GByte *)pImage) + (nLinesToFlip-iY-1) * nLineSize,
+                pabyTemp,
+                nLineSize );
+    }
+
+    CPLFree( pabyTemp );
+
+/* -------------------------------------------------------------------- */
+/*      Return success or failure.                                      */
+/* -------------------------------------------------------------------- */
+    if( status < 0 )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                  "H5Dread() failed for block." );
+        return CE_Failure;
+    }
+
     return CE_None;
 }
 
@@ -563,14 +634,6 @@ void BAGDataset::LoadMetadata()
 
     CPLStripXMLNamespace( psRoot, NULL, TRUE );
 
-    CPLXMLNode *psDateTime = CPLSearchXMLNode( psRoot, "=dateTime" );
-    if( psDateTime != NULL )
-    {
-        const char *dateTimeValue = CPLGetXMLValue( psDateTime, NULL, "" );
-        if( dateTimeValue )
-            SetMetadataItem( "BAG_DATETIME", dateTimeValue );
-    }
-
     CPLXMLNode *psGeo = CPLSearchXMLNode( psRoot, "=MD_Georectified" );
 
     if( psGeo != NULL )
@@ -598,8 +661,6 @@ void BAGDataset::LoadMetadata()
         CSLDestroy( papszCornerTokens );
     }
 
-    CPLDestroyXMLNode( psRoot );
-
 /* -------------------------------------------------------------------- */
 /*      Try to get the coordinate system.                               */
 /* -------------------------------------------------------------------- */
@@ -614,6 +675,19 @@ void BAGDataset::LoadMetadata()
     {
         ParseWKTFromXML( pszXMLMetadata );
     }
+
+/* -------------------------------------------------------------------- */
+/*      Fetch acquisition date.                                         */
+/* -------------------------------------------------------------------- */
+    CPLXMLNode *psDateTime = CPLSearchXMLNode( psRoot, "=dateTime" );
+    if( psDateTime != NULL )
+    {
+        const char *pszDateTimeValue = CPLGetXMLValue( psDateTime, NULL, "" );
+        if( pszDateTimeValue )
+            SetMetadataItem( "BAG_DATETIME", pszDateTimeValue );
+    }
+
+    CPLDestroyXMLNode( psRoot );
 }
 
 /************************************************************************/
@@ -642,7 +716,7 @@ OGRErr BAGDataset::ParseWKTFromXML( const char *pszISOXML )
     oSRS.Clear();
 
     const char *pszSRCodeString = 
-        CPLGetXMLValue( psRSI, "MD_ReferenceSystem.referenceSystemIdentifier.RS_Identifier.code.CharacterString", "" );
+        CPLGetXMLValue( psRSI, "MD_ReferenceSystem.referenceSystemIdentifier.RS_Identifier.code.CharacterString", NULL );
     if( pszSRCodeString == NULL )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
@@ -683,7 +757,7 @@ OGRErr BAGDataset::ParseWKTFromXML( const char *pszISOXML )
     }
 
     pszSRCodeString = 
-      CPLGetXMLValue( psRSI, "MD_ReferenceSystem.referenceSystemIdentifier.RS_Identifier.code.CharacterString", "" );
+      CPLGetXMLValue( psRSI, "MD_ReferenceSystem.referenceSystemIdentifier.RS_Identifier.code.CharacterString", NULL );
     if( pszSRCodeString == NULL )
     {
       CPLError( CE_Failure, CPLE_AppDefined,
