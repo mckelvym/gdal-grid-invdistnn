@@ -7,7 +7,7 @@
 #  define GDAL_VERSION_MAJOR    1
 #  define GDAL_VERSION_MINOR    8
 #  define GDAL_VERSION_REV      0
-#  define GDAL_VERSION_BUILD    1
+#  define GDAL_VERSION_BUILD    2
 #endif
 
 #ifndef GDAL_VERSION_NUM

@@ -89,7 +89,6 @@ void CPL_STDCALL GDALAllRegister()
 
 #ifdef FRMT_nitf
     GDALRegister_NITF();
-    //GDALRegister_RPFTOC();
 #endif
 
 #ifdef FRMT_hfa
@@ -117,7 +116,6 @@ void CPL_STDCALL GDALAllRegister()
 #endif
     
 #ifdef FRMT_aigrid
-//    GDALRegister_AIGrid2();
     GDALRegister_AIGrid();
 #endif
 
@@ -247,12 +245,12 @@ void CPL_STDCALL GDALAllRegister()
 #endif
 
 #ifdef FRMT_jp2kak
-// JPEG2000 support using Kakadu toolkit
+    // JPEG2000 support using Kakadu toolkit
     GDALRegister_JP2KAK();
 #endif
 
 #ifdef FRMT_jpipkak
-// JPEG2000 support using Kakadu toolkit
+    // JPEG2000 support using Kakadu toolkit
     GDALRegister_JPIPKAK();
 #endif
 
@@ -262,14 +260,14 @@ void CPL_STDCALL GDALAllRegister()
 #endif
 
 #ifdef FRMT_openjpeg
-// JPEG2000 support using OpenJPEG library
+    // JPEG2000 support using OpenJPEG library
     GDALRegister_JP2OpenJPEG();
 #endif
 
 #ifdef FRMT_jpeg2000
-// JPEG2000 support using JasPer toolkit
-// This one should always be placed after other JasPer supported formats,
-// such as BMP or PNM. In other case we will get bad side effects.
+    // JPEG2000 support using JasPer toolkit
+    // This one should always be placed after other JasPer supported formats,
+    // such as BMP or PNM. In other case we will get bad side effects.
     GDALRegister_JPEG2000();
 #endif
 
