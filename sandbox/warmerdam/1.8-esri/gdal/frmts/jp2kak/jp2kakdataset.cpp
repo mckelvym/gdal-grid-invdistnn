@@ -1471,7 +1471,7 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
             if( CSLFetchNameValue( oJP2Geo.papszGMLMetadata,
                                    "TIFFTAG_XRESOLUTION" ) != NULL )
             {
-                char **papszMD = poDS->GDALPamDataset::GetMetadata();
+                char **papszMD = CSLDuplicate( poDS->GDALPamDataset::GetMetadata() );
                 const char *pszItem;
 
                 pszItem = CSLFetchNameValue( oJP2Geo.papszGMLMetadata,
@@ -1876,6 +1876,8 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
 /* -------------------------------------------------------------------- */
     if( poCodeStream == &oWCodeStream )
     {
+		if(poThreadEnv)
+			poThreadEnv->cs_terminate(oWCodeStream);
         oWCodeStream.destroy();
         wrk_jp2_src.close();
         wrk_family.close();
