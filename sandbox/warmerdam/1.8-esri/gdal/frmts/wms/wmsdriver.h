@@ -232,6 +232,7 @@ protected:
     int m_clamp_requests;
     int m_unsafeSsl;
     CPLString m_osUserAgent;
+    CPLString m_osUserPwd;
 };
 
 class GDALWMSRasterBand : public GDALPamRasterBand {

@@ -126,6 +126,11 @@ void CPLHTTPInitializeRequest(CPLHTTPRequest *psRequest, const char *pszURL, con
     psRequest->m_curl_error[0] = '\0';
     curl_easy_setopt(psRequest->m_curl_handle, CURLOPT_ERRORBUFFER, psRequest->m_curl_error);
     
+    /* Support setting userid:password */
+    const char *pszUserPwd = CSLFetchNameValue( const_cast<char **>(psRequest->papszOptions), "USERPWD" );
+    if( pszUserPwd != NULL )
+        curl_easy_setopt(psRequest->m_curl_handle, CURLOPT_USERPWD, pszUserPwd );
+
     /* Set Proxy parameters */
     const char* pszProxy = CSLFetchNameValue( const_cast<char **>(psRequest->papszOptions), "PROXY" );
     if (pszProxy == NULL)
