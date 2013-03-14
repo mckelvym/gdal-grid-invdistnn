@@ -67,12 +67,24 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
     char      *pachHeader;
     NITFSegmentInfo *psSegInfo;
     char       szTemp[128];
-    int        nOffset, iBand, i;
+    int        nOffset, iBand, i, iLUTEntry;
     int        nNICOM;
     const char* pszIID1;
     int        nFaultyLine = -1;
     int        bGotWrongOffset = FALSE;
     
+    short           word           = 0x0001;
+    char           *pByte          = (char*) &word;
+    double          scale          = 255.0/65535.0;
+    int             isLittleEndian = (pByte[0] == 0x01) ? 1 : 0;
+    unsigned long   szShort        = (unsigned long) sizeof(unsigned short);
+    unsigned char  *pMSB           = NULL;
+    unsigned char  *pLSB           = NULL;
+    unsigned char  *p3rdLUT        = NULL;
+    unsigned char   scaledVal      = 0;
+    unsigned short *pLUTVal        = NULL;
+
+
 /* -------------------------------------------------------------------- */
 /*      Verify segment, and return existing image accessor if there     */
 /*      is one.                                                         */
@@ -456,6 +468,7 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
                                    (int)psSegInfo->nSegmentHeaderStart;
 
         psBandInfo->pabyLUT = (unsigned char *) CPLCalloc(768,1);
+
         if ( (int)psSegInfo->nSegmentHeaderSize <
              nOffset + nLUTS * psBandInfo->nSignificantLUTEntries )
             GOTO_header_too_small();
@@ -473,6 +486,45 @@ NITFImage *NITFImageAccess( NITFFile *psFile, int iSegment )
             memcpy( psBandInfo->pabyLUT+512, pachHeader + nOffset, 
                     psBandInfo->nSignificantLUTEntries );
             nOffset += psBandInfo->nSignificantLUTEntries;
+        }
+        else if( (nLUTS == 2) && (EQUALN(psImage->szIREP,"MONO",4)) &&
+          ((EQUALN(psBandInfo->szIREPBAND, "M", 1)) || (EQUALN(psBandInfo->szIREPBAND, "LU", 2))) )
+        {
+          /* In this case, we have two LUTs. The first and second LUTs should map respectively to the most */
+          /* significant byte and the least significant byte of the 16 bit values. */
+
+          memcpy( psBandInfo->pabyLUT+256, pachHeader + nOffset, 
+                  psBandInfo->nSignificantLUTEntries );
+          nOffset += psBandInfo->nSignificantLUTEntries;
+
+          pMSB    = psBandInfo->pabyLUT;
+          pLSB    = psBandInfo->pabyLUT + 256;
+          p3rdLUT = psBandInfo->pabyLUT + 512;
+          pLUTVal = (unsigned short*) CPLMalloc(szShort*255);
+
+          if ((szShort == 2) && (pLUTVal != NULL))
+          {
+            for( iLUTEntry = 0; iLUTEntry < 255; ++iLUTEntry )
+            {
+              pLUTVal[iLUTEntry] = ((pMSB[iLUTEntry] << 8) | pLSB[iLUTEntry]);
+              if (isLittleEndian == 1) pLUTVal[iLUTEntry] = ((pLUTVal[iLUTEntry] >> 8) | (pLUTVal[iLUTEntry] << 8));
+            }
+
+            for( iLUTEntry = 0; iLUTEntry < 255; ++iLUTEntry )
+            {
+              scaledVal = (unsigned char) ceil((double) (pLUTVal[iLUTEntry]*scale));
+
+              pMSB[iLUTEntry]    = scaledVal;
+              pLSB[iLUTEntry]    = scaledVal;
+              p3rdLUT[iLUTEntry] = scaledVal;
+            } 
+          }
+          else
+          {
+            CPLError( CE_Warning, CPLE_AppDefined, "System error: sizeof(unsigned short) != 2 and/or memory allocation failed." );
+          }
+
+          if (pLUTVal != NULL) CPLFree((void*) pLUTVal);
         }
         else 
         {

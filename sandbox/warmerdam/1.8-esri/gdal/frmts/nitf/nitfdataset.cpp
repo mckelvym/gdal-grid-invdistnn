@@ -2098,8 +2098,8 @@ GDALDataset *NITFDataset::Open( GDALOpenInfo * poOpenInfo,
 
     int bHasRPC00 = ((psImage) && (NITFReadRPC00B(psImage, &sRPCInfo)) && (sRPCInfo.SUCCESS)) ? TRUE : FALSE;
 
-    if( (bHasRPC00 == FALSE) || ((bHasRPC00 == TRUE) &&
-      (psImage->chICORDS != 'C') && (psImage->chICORDS != 'D') && (psImage->chICORDS != 'G')) )
+    if( !bHasRPC00
+    ||  psImage->chICORDS != 'C' && psImage->chICORDS != 'D' && psImage->chICORDS != 'G' )
     {
         /* -------------------------------------------------------------------- */
         /*      Do we have IGEOLO data that can be treated as a                 */
