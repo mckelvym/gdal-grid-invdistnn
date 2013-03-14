@@ -214,10 +214,12 @@ CPLHTTPResult *CPLHTTPFetch( const char *pszURL, char **papszOptions )
         curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC );
     else if( EQUAL(pszHttpAuth,"NTLM") )
         curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_NTLM );
-    else if( EQUAL(pszHttpAuth,"NEGOTIATE") )
-        curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_GSSNEGOTIATE );
     else if( EQUAL(pszHttpAuth,"ANY") )
         curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_ANY );
+#ifdef CURLAUTH_GSSNEGOTIATE
+    else if( EQUAL(pszHttpAuth,"NEGOTIATE") )
+        curl_easy_setopt(http_handle, CURLOPT_HTTPAUTH, CURLAUTH_GSSNEGOTIATE );
+#endif
     else
     {
         CPLError( CE_Warning, CPLE_AppDefined,
