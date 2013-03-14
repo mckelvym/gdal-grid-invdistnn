@@ -179,6 +179,7 @@ OGRErr OSRImportFromPCI( OGRSpatialReferenceH hSRS, const char *pszProj,
  * [14] Azimuth east of north for center line
  * [15] Landsat satellite number
  * [16] Landsat path number
+ * [17] Units
  *
  * Particular projection uses different parameters, unused ones may be set to
  * zero. If NULL suppliet instead of array pointer default values will be
@@ -638,8 +639,8 @@ OGRErr OGRSpatialReference::importFromPCI( const char *pszProj,
 /* -------------------------------------------------------------------- */
 /*      Custom spheroid?                                                */
 /* -------------------------------------------------------------------- */
-            if( dfSemiMajor == 0.0 && EQUALN(szEarthModel,"E999",4) 
-                && padfPrjParams[0] != 0.0 )
+            if( dfSemiMajor == 0.0 
+                && (padfPrjParams[0] != 0.0 || EQUALN(szEarthModel,"E999",4)) )
             {
                 dfSemiMajor = padfPrjParams[0];
 

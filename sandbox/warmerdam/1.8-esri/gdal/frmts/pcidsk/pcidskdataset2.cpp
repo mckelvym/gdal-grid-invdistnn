@@ -1482,16 +1482,16 @@ const char *PCIDSK2Dataset::GetProjectionRef()
             {
                 osGeosys = poGeoref->GetGeosys();
                 adfParameters = poGeoref->GetParameters();
-                if( ((UnitCode)(int)adfParameters[16]) 
+                if( ((UnitCode)(int)adfParameters[17]) 
                     == PCIDSK::UNIT_DEGREE )
                     pszUnits = "DEGREE";
-                else if( ((UnitCode)(int)adfParameters[16]) 
+                else if( ((UnitCode)(int)adfParameters[17]) 
                          == PCIDSK::UNIT_METER )
                     pszUnits = "METER";
-                else if( ((UnitCode)(int)adfParameters[16]) 
+                else if( ((UnitCode)(int)adfParameters[17]) 
                          == PCIDSK::UNIT_US_FOOT )
                     pszUnits = "FOOT";
-                else if( ((UnitCode)(int)adfParameters[16]) 
+                else if( ((UnitCode)(int)adfParameters[17]) 
                          == PCIDSK::UNIT_INTL_FOOT )
                     pszUnits = "INTL FOOT";
             }
