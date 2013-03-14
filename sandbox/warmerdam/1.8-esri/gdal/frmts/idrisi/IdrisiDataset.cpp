@@ -1740,6 +1740,9 @@ CPLErr IdrisiRasterBand::SetUnitType( const char *pszUnitType )
 
 CPLErr IdrisiRasterBand::SetStatistics( double dfMin, double dfMax, double dfMean, double dfStdDev )
 {      
+    dfMinimum = dfMin;
+    dfMaximum = dfMax;
+
     IdrisiDataset *poGDS = (IdrisiDataset *) poDS;
 
     double adfMin[3] = {0.0, 0.0, 0.0};
