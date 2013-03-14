@@ -21,6 +21,96 @@
 #include "geo_tiffp.h" /* external TIFF interface */
 #include "geo_keyp.h"  /* private interface       */
 
+/* local function to verify if a key has a correct key type to prevent memory corruption */
+int VerifyKeyType(geokey_t thekey, tagtype_t type)
+{
+	static const geokey_t *shortKey[] = 
+	{
+		  GTModelTypeGeoKey,	
+      GTRasterTypeGeoKey,
+      GeographicTypeGeoKey,
+      GeogGeodeticDatumGeoKey,	
+      GeogPrimeMeridianGeoKey,	
+      GeogAngularUnitsGeoKey,	
+      GeogEllipsoidGeoKey,
+      GeogAzimuthUnitsGeoKey,	
+      ProjectedCSTypeGeoKey,	
+      ProjectionGeoKey,	 
+      ProjCoordTransGeoKey,	
+      ProjLinearUnitsGeoKey,	 
+      VerticalCSTypeGeoKey,	
+      VerticalDatumGeoKey,	
+      VerticalUnitsGeoKey,
+			0
+	};
+	static const geokey_t *doubleKey[] = 
+	{
+      GeogLinearUnitsGeoKey,	
+      GeogLinearUnitSizeGeoKey, 
+      GeogAngularUnitSizeGeoKey,
+      GeogSemiMajorAxisGeoKey,	
+      GeogSemiMinorAxisGeoKey,	
+      GeogInvFlatteningGeoKey,	 
+      GeogPrimeMeridianLongGeoKey,	
+      ProjLinearUnitSizeGeoKey,	
+      ProjStdParallelGeoKey,
+			ProjStdParallel1GeoKey,
+      ProjStdParallel2GeoKey,	
+      ProjNatOriginLongGeoKey,	
+      ProjOriginLongGeoKey,
+      ProjOriginLatGeoKey,
+			ProjNatOriginLatGeoKey,
+      ProjFalseEastingGeoKey,	
+      ProjFalseNorthingGeoKey,	
+      ProjFalseOriginLongGeoKey,	
+      ProjFalseOriginLatGeoKey,	
+      ProjFalseOriginEastingGeoKey,	
+      ProjFalseOriginNorthingGeoKey,	
+      ProjCenterLongGeoKey,	
+      ProjCenterLatGeoKey,	
+      ProjCenterEastingGeoKey,	
+      ProjCenterNorthingGeoKey,	
+      ProjScaleAtOriginGeoKey,
+			ProjScaleAtNatOriginGeoKey,
+      ProjScaleAtCenterGeoKey,	
+      ProjAzimuthAngleGeoKey,	
+      ProjStraightVertPoleLongGeoKey,	
+			0
+	};
+
+	static const geokey_t *asciiKey[] = 
+	{
+			GTCitationGeoKey,
+      GeogCitationGeoKey,	
+      PCSCitationGeoKey,	
+      VerticalCitationGeoKey,	
+			0
+	};
+
+	int retv = 1;
+  long i = 0;
+	static const geokey_t *keyArray; 
+	/* courrently, only short and double keys are verified.*/
+	/* check wrong case only */
+	if (type == TYPE_SHORT)
+		keyArray = doubleKey;
+	else if (type == TYPE_DOUBLE)
+		keyArray = shortKey;
+	else
+		return retv;
+	while (keyArray[i] != 0)
+	{
+		if (keyArray[i] == thekey)
+		{
+			retv = 0;
+			break;
+		}
+		i++;
+	}
+	return retv; 
+}
+
+
 /* return the Header info of this geotiff file */
 
 void GTIFDirectoryInfo(GTIF *gtif, int version[3], int *keycount)
@@ -163,6 +253,9 @@ int GTIFKeyGet(GTIF *gtif, geokey_t thekey, void *val, int index, int count)
         if (count > key->gk_count) count = key->gk_count;
         size = key->gk_size;
         type = key->gk_type;
+
+        if (!VerifyKeyType(thekey, type))
+          return 0;
 
         if (count==1 && type==TYPE_SHORT) data = (char *)&key->gk_data;
         else data = key->gk_data;
