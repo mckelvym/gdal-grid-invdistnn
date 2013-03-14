@@ -80,6 +80,16 @@ DumpModeDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
 	static const char module[] = "DumpModeDecode";
 	(void) s;
 	if (tif->tif_rawcc < cc) {
+		/* Work around certain badly encoded USDA files.
+		 * Some strip sizes are less than expected, but data is actually present.
+		 */
+		if (tif->tif_rawdatasize >= cc ) {
+			if (tif->tif_rawcp != buf)
+				_TIFFmemcpy(buf, tif->tif_rawcp, cc);
+			tif->tif_rawcp += cc;
+			tif->tif_rawcc -= cc;  
+			return (1);
+		}
 #if defined(__WIN32__) && (defined(_MSC_VER) || defined(__MINGW32__))
 		TIFFErrorExt(tif->tif_clientdata, module,
 "Not enough data for scanline %lu, expected a request for at most %I64d bytes, got a request for %I64d bytes",
