@@ -139,7 +139,7 @@ double NWT_GRDRasterBand::GetNoDataValue( int *pbSuccess )
     if( pbSuccess != NULL )
         *pbSuccess = TRUE;
 
-    return 0;                    //Northwood grid 0 is always null
+    return -1.e37;
 }
 
 GDALColorInterp NWT_GRDRasterBand::GetColorInterpretation()
