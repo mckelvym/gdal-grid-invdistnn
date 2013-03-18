@@ -285,6 +285,20 @@ GDALDataset *TILDataset::Open( GDALOpenInfo * poOpenInfo )
     GDALDataType eDT = poTemplateBand->GetRasterDataType();
     int          nBandCount = poTemplateDS->GetRasterCount();
 
+    //we suppose the first tile have the same projection as others (usually so) 
+    CPLString pszProjection(poTemplateDS->GetProjectionRef()); 
+    if(!pszProjection.empty()) 
+        poDS->SetProjection(pszProjection); 
+
+    //we suppose the first tile have the same GeoTransform as others (usually so) 
+    double      adfGeoTransform[6]; 
+    if( poTemplateDS->GetGeoTransform( adfGeoTransform ) == CE_None ) 
+    { 
+        adfGeoTransform[0] = CPLAtof(CSLFetchNameValueDef(papszIMD,"MAP_PROJECTED_PRODUCT.ULX","0")); 
+        adfGeoTransform[3] = CPLAtof(CSLFetchNameValueDef(papszIMD,"MAP_PROJECTED_PRODUCT.ULY","0")); 
+        poDS->SetGeoTransform(adfGeoTransform); 
+    } 
+
     poTemplateBand = NULL;
     GDALClose( poTemplateDS );
 

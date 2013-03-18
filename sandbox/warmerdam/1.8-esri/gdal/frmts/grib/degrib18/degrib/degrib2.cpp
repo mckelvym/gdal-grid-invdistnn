@@ -893,7 +893,9 @@ int ReadGrib2Record (DataSource &fp, sChar f_unit, double **Grib_Data,
          *f_endMsg = 1;
          free (buff);
          return 0;
-      } else if (version == -1) {
+      } 
+
+      if (version == -1) {
          if (ReadTDLPRecord (fp, Grib_Data, grib_DataLen, meta, IS,
                              sect0, gribLen, majEarth, minEarth) != 0) {
             preErrSprintf ("Problems with ReadGrib1Record called by "
@@ -1135,6 +1137,13 @@ int ReadGrib2Record (DataSource &fp, sChar f_unit, double **Grib_Data,
    */
    Nx = meta->gds.Nx;
    Ny = meta->gds.Ny;
+
+   // check for invalid grid size
+   if (Nx <= 0 || Ny <= 0) {
+      errSprintf ("Bad grid size.\n");
+      return -3;
+   }
+  
    x1 = 1;
    x2 = Nx;
    y1 = 1;
