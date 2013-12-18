@@ -393,6 +393,7 @@ double WCSRasterBand::GetNoDataValue( int *pbSuccess )
 
 {
     const char *pszSV = CPLGetXMLValue( poODS->psService, "NoDataValue", NULL);
+	  CPLLocaleC  oLocaleEnforcer;
 
     if( pszSV == NULL )
         return GDALPamRasterBand::GetNoDataValue( pbSuccess );
@@ -946,6 +947,7 @@ int WCSDataset::DescribeCoverage()
 int WCSDataset::ExtractGridInfo100()
 
 {
+    CPLLocaleC  oLocaleEnforcer;
     CPLXMLNode * psCO = CPLGetXMLNode( psService, "CoverageOffering" );
 
     if( psCO == NULL )
@@ -1275,6 +1277,7 @@ static int ParseBoundingBox( CPLXMLNode *psBoundingBox, CPLString &osCRS,
                              double &dfUpperX, double &dfUpperY )
 
 {
+    CPLLocaleC  oLocaleEnforcer;
     int nRet = TRUE;
 
     osCRS = CPLGetXMLValue( psBoundingBox, "crs", "" );
@@ -1312,6 +1315,11 @@ static int ParseBoundingBox( CPLXMLNode *psBoundingBox, CPLString &osCRS,
 int WCSDataset::ExtractGridInfo()
 
 {
+/* -------------------------------------------------------------------- */
+/*      All functions contain atof need to have locale support          */
+/* -------------------------------------------------------------------- */
+	  CPLLocaleC  oLocaleEnforcer;
+
     if( nVersion == 100 )
         return ExtractGridInfo100();
 
