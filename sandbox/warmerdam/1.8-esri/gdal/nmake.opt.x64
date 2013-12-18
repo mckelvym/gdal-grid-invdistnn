@@ -261,7 +261,7 @@ HDF4_FLAGS = -D_HDFDLL_ -DWIN32 -DWIN64
 HDF4_LIB = $(HDF4_DIR)\lib\amd64\hm425m.lib $(HDF4_DIR)\lib\amd64\hd425m.lib Ws2_32.lib
 !ELSE
 # Uncomment for building HDF4 driver using HDF debug dll
-HDF4_LIB = $(HDF4_DIR)\lib\amd64\hm425m.lib $(HDF4_DIR)\lib\amd64\hd425m.lib Ws2_32.lib
+HDF4_LIB = $(HDF4_DIR)\lib\amd64\hm425md.lib $(HDF4_DIR)\lib\amd64\hd425md.lib Ws2_32.lib
 !ENDIF
 
 # Uncomment the following and update to enable NCSA HDF Release 5 support.
