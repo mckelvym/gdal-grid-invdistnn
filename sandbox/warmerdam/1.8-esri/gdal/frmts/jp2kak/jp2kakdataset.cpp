@@ -76,6 +76,11 @@ static unsigned char jp2_header[] =
 static unsigned char jpc_header[] = 
 {0xff,0x4f};
 
+/* -------------------------------------------------------------------- */
+/*      The number of tiles at a time we will push through the          */
+/*      encoder per flush when writing jpeg2000 streams.                */
+/* -------------------------------------------------------------------- */
+#define TILE_CHUNK_SIZE  1024
 
 /************************************************************************/
 /* ==================================================================== */
@@ -97,6 +102,7 @@ class JP2KAKDataset : public GDALPamDataset
     bool           bPreferNPReads;
     kdu_thread_env *poThreadEnv;
 
+    int            bCached;
     int            bResilient;
     int            bFussy;
     bool           bUseYCC;
@@ -204,7 +210,7 @@ class JP2KAKRasterBand : public GDALPamRasterBand
 /* ==================================================================== */
 /************************************************************************/
 
-class kdu_cpl_error_message : public kdu_message 
+class kdu_cpl_error_message : public kdu_thread_safe_message 
 {
 public: // Member classes
     kdu_cpl_error_message( CPLErr eErrClass ) 
@@ -231,6 +237,8 @@ public: // Member classes
 
     void flush(bool end_of_message=false) 
     {
+        kdu_thread_safe_message::flush(end_of_message);
+
         if( m_pszError == NULL )
             return;
         if( m_pszError[strlen(m_pszError)-1] == '\n' )
@@ -577,12 +585,15 @@ CPLErr JP2KAKRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         {
             if( anBands[iBand] == nBand )
             {
+                // application requested band.
                 memcpy( pImage, pabyWrkBuffer + nBandStart, 
                         nWordSize * nBlockXSize * nBlockYSize );
             }
             else
             {
-                GDALRasterBand *poBaseBand = poBaseDS->GetRasterBand(anBands[iBand]);
+                // all others are pushed into cache.
+                GDALRasterBand *poBaseBand = 
+                    poBaseDS->GetRasterBand(anBands[iBand]);
                 JP2KAKRasterBand *poBand = NULL;
 
                 if( nDiscardLevels == 0 )
@@ -784,6 +795,8 @@ JP2KAKDataset::JP2KAKDataset()
     family = 0;
     jpip_client = 0;
     poThreadEnv = 0;
+
+    bCached = 0;
 
     bPreferNPReads = false;
 
@@ -1049,6 +1062,9 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
     int bResilient = CSLTestBoolean(
         CPLGetConfigOption( "JP2KAK_RESILIENT", "NO" ) );
 
+    int bBuffered = CSLTestBoolean(
+        CPLGetConfigOption( "JP2KAK_BUFFERED", "YES" ) );
+
 /* -------------------------------------------------------------------- */
 /*      Handle setting up datasource for JPIP.                          */
 /* -------------------------------------------------------------------- */
@@ -1071,7 +1087,7 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
             try
             {
                 poRawInput = new subfile_source;
-                poRawInput->open( poOpenInfo->pszFilename, bResilient );
+                poRawInput->open( poOpenInfo->pszFilename, bResilient, bBuffered );
                 poRawInput->seek( 0 );
 
                 poRawInput->read( abySubfileHeader, 16 );
@@ -1101,12 +1117,12 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
 /* -------------------------------------------------------------------- */
     if( poRawInput == NULL
         && !bIsJPIP
-        && (bResilient || poOpenInfo->fp == NULL) )
+        /*&& (bResilient || poOpenInfo->fp == NULL)*/ )
     {
         try
         {
             poRawInput = new subfile_source;
-            poRawInput->open( poOpenInfo->pszFilename, bResilient );
+            poRawInput->open( poOpenInfo->pszFilename, bResilient, bBuffered );
             poRawInput->seek( 0 );
         }
         catch( ... )
@@ -1251,6 +1267,7 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
         poDS->oCodeStream.create( poInput );
         poDS->oCodeStream.set_persistent();
 
+        poDS->bCached = bBuffered;
         poDS->bResilient = bResilient;
         poDS->bFussy = CSLTestBoolean(
             CPLGetConfigOption( "JP2KAK_FUSSY", "NO" ) );
@@ -1313,10 +1330,24 @@ GDALDataset *JP2KAKDataset::Open( GDALOpenInfo * poOpenInfo )
             poDS->poThreadEnv = new kdu_thread_env;
             poDS->poThreadEnv->create();
 
-            for( iThread=0; iThread < nNumThreads; iThread++ )
+            try 
             {
-                if( !poDS->poThreadEnv->add_thread() )
-                    break;
+                for( iThread=0; iThread < nNumThreads; iThread++ )
+                {
+                    if( !poDS->poThreadEnv->add_thread() )
+                    {
+                        poDS->poThreadEnv->destroy();
+                        delete poDS->poThreadEnv;
+                        poDS->poThreadEnv = 0;
+                        break;
+                    }
+                }
+            }
+            catch( ... )
+            {
+                poDS->poThreadEnv->destroy();
+                delete poDS->poThreadEnv;
+                poDS->poThreadEnv = 0;
             }
             CPLDebug( "JP2KAK", "Using %d threads.", nNumThreads );
         }
@@ -1633,7 +1664,7 @@ JP2KAKDataset::DirectRasterIO( GDALRWFlag eRWFlag,
 
     if( bPreferNPReads )
     {
-        subfile_src.open( GetDescription(), bResilient );
+        subfile_src.open( GetDescription(), bResilient, bCached );
 
         if( family != NULL )
         {
@@ -2086,14 +2117,13 @@ JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
 /*      computing machine all components to make good estimates.        */
 /* -------------------------------------------------------------------- */
     int  iLine, iLinesWritten = 0;
-#define CHUNK_SIZE  1024
 
     GByte *pabyBuffer = (GByte *) 
         CPLMalloc(nXSize * (GDALGetDataTypeSize(eType)/8) );
 
     CPLAssert( !oTile.get_ycc() );
 
-    for( iLine = 0; iLine < nYSize; iLine += CHUNK_SIZE )
+    for( iLine = 0; iLine < nYSize; iLine += TILE_CHUNK_SIZE )
     {
         for (c=0; c < num_components; c++)
         {
@@ -2101,7 +2131,7 @@ JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
             int iSubline = 0;
         
             for( iSubline = iLine; 
-                 iSubline < iLine+CHUNK_SIZE && iSubline < nYSize;
+                 iSubline < iLine+TILE_CHUNK_SIZE && iSubline < nYSize;
                  iSubline++ )
             {
                 if( poBand->RasterIO( GF_Read, 
@@ -2192,7 +2222,7 @@ JP2KAKCreateCopy_WriteTile( GDALDataset *poSrcDS, kdu_tile &oTile,
         {
             CPLDebug( "JP2KAK", 
                       "Calling oCodeStream.flush() at line %d",
-                      MIN(nYSize,iLine+CHUNK_SIZE) );
+                      MIN(nYSize,iLine+TILE_CHUNK_SIZE) );
             
             oCodeStream.flush( layer_bytes, layer_count, NULL,
                                true, bComseg );
@@ -2360,6 +2390,16 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
         nTileXSize = 20000;
     }
 
+    if( (nTileYSize / TILE_CHUNK_SIZE) > 253) 
+    {
+        // We don't want to process a tile in more than 255 chunks as there
+        // is a limit on the number of tile parts in a tile and we are likely
+        // to flush out a tile part for each processing chunk.  If we might
+        // go over try trimming our Y tile size such that we will get about
+        // 200 tile parts. 
+        nTileYSize = 200 * TILE_CHUNK_SIZE;
+    }
+
     if( CSLFetchNameValue( papszOptions, "BLOCKXSIZE" ) != NULL )
         nTileXSize = atoi(CSLFetchNameValue( papszOptions, "BLOCKXSIZE"));
 
@@ -2380,6 +2420,9 @@ JP2KAKCreateCopy( const char * pszFilename, GDALDataset *poSrcDS,
 
     if( nTileXSize > nXSize ) nTileXSize = nXSize;
     if( nTileYSize > nYSize ) nTileYSize = nYSize;
+
+    CPLDebug( "JP2KAK", "Final JPEG2000 Tile Size is %dP x %dL.", 
+              nTileXSize, nTileYSize );
       
 /* -------------------------------------------------------------------- */
 /*      Do we want a comment segment emitted?                           */
