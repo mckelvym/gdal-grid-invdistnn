@@ -308,31 +308,31 @@ class GeoPackage:
                         lut[c][i] = entry[c]
         else:
             lut = None
-        for tile_column in range(matrix_height):
-            for tile_row in range(matrix_width):
+        for tile_row in range(matrix_height):
+            for tile_column in range(matrix_width):
                 if not self.write_tile(src_bands, out_band_count,
                                        table_name, zoom_level,
-                                       tile_column, tile_row, expand_palette, lut):
+                                       tile_row, tile_column, expand_palette, lut):
                     print("Error writing full resolution image tiles to database.")
                     return False
         return True
 
-    def write_tile(self, src_bands, out_band_count, table_name, zoom_level, tile_column,
-                   tile_row, expand_palette=False, lut=None):
+    def write_tile(self, src_bands, out_band_count, table_name, zoom_level,
+                   tile_row, tile_column, expand_palette=False, lut=None):
         """
         Extract specified tile from source dataset and write as a blob into GeoPackage, expanding colormap if required.
         @param src_bands: Input bands.
         @param out_band_count: Number of output bands.
         @param table_name: Name of table to write pyramid data into.
         @param zoom_level: Zoom/Resolution level to write.
-        @param tile_column: Tile index (X).
         @param tile_row: Tile index (Y).
+        @param tile_column: Tile index (X).
         @param expand_palette: True if palette has to be expanded.
         @param lut: Color table.
         @return: True on success, False on failure.
         """
-        ulx = tile_row * self.tile_width
-        uly = tile_column * self.tile_height
+        ulx = tile_column * self.tile_width
+        uly = tile_row * self.tile_height
         tile_width = min(src_bands[0].XSize - ulx, self.tile_width)
         tile_height = min(src_bands[0].YSize - uly, self.tile_height)
         memory_dataset = self.mem_driver.Create('', self.tile_width, self.tile_height, out_band_count, self.data_type)
