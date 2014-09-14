@@ -7,6 +7,7 @@
  *
  ******************************************************************************
  * Copyright (c) 2009, Frank Warmerdam <warmerdam@pobox.com>
+ * Copyright (c) 2009-2013, Even Rouault <even dot rouault at mines-paris dot org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -152,7 +153,7 @@ bool BAGRasterBand::Initialize( hid_t hDatasetID, const char *pszName )
 
     hid_t datatype     = H5Dget_type( hDatasetID );
     dataspace          = H5Dget_space( hDatasetID );
-    hid_t n_dims       = H5Sget_simple_extent_ndims( dataspace );
+    int n_dims         = H5Sget_simple_extent_ndims( dataspace );
     native             = H5Tget_native_type( datatype, H5T_DIR_ASCEND );
     hsize_t dims[3], maxdims[3];
 
@@ -227,7 +228,12 @@ bool BAGRasterBand::Initialize( hid_t hDatasetID, const char *pszName )
                                     dfMaximum ) 
              && GH5_FetchAttribute( hDatasetID, "Minimum Uncertainty Value", 
                                     dfMinimum ) )
+    {
+        /* Some products where uncertainty band is completely set to nodata */
+        /* wrongly declare minimum and maximum to 0.0 */
+        if( dfMinimum != 0.0 && dfMaximum != 0.0 )
         bMinMaxSet = true;
+    }
     else if( EQUAL(pszName,"nominal_elevation") 
              && GH5_FetchAttribute( hDatasetID, "max_value", 
                                     dfMaximum ) 
@@ -284,7 +290,7 @@ double BAGRasterBand::GetNoDataValue( int * pbSuccess )
     if( EQUAL(GetDescription(),"elevation") )
         return  1000000.0;
     else if( EQUAL(GetDescription(),"uncertainty") )
-        return 0.0;
+        return 1000000.0;
     else if( EQUAL(GetDescription(),"nominal_elevation") )
         return 1000000.0;
     else
@@ -315,9 +321,7 @@ CPLErr BAGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
     nSizeOfData = H5Tget_size( native );
     memset( pImage,0,nBlockXSize*nBlockYSize*nSizeOfData );
 
-/* -------------------------------------------------------------------- */
 /*  blocksize may not be a multiple of imagesize */
-/* -------------------------------------------------------------------- */
     count[0]  = MIN( size_t(nBlockYSize), GetYSize() - offset[0]);
     count[1]  = MIN( size_t(nBlockXSize), GetXSize() - offset[1]);
 
@@ -330,10 +334,10 @@ CPLErr BAGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
 /*      Select block from file space                                    */
 /* -------------------------------------------------------------------- */
     status =  H5Sselect_hyperslab( dataspace,
-                                   H5S_SELECT_SET, 
-                                   offset, NULL, 
+                                   H5S_SELECT_SET,
+                                   offset, NULL,
                                    count, NULL );
-   
+
 /* -------------------------------------------------------------------- */
 /*      Create memory space to receive the data                         */
 /* -------------------------------------------------------------------- */
@@ -350,7 +354,7 @@ CPLErr BAGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                        native,
                        memspace,
                        dataspace,
-                       H5P_DEFAULT, 
+                       H5P_DEFAULT,
                        pImage );
 
     H5Sclose( memspace );
@@ -386,8 +390,8 @@ CPLErr BAGRasterBand::IReadBlock( int nBlockXOff, int nBlockYOff,
                   "H5Dread() failed for block." );
         return CE_Failure;
     }
-
-    return CE_None;
+    else
+        return CE_None;
 }
 
 /************************************************************************/
@@ -497,6 +501,8 @@ GDALDataset *BAGDataset::Open( GDALOpenInfo * poOpenInfo )
 
     if( hVersion < 0 )
     {
+        if( hBagRoot >= 0 )
+            H5Gclose( hBagRoot );
         H5Fclose( hHDF5 );
         return NULL;
     }
@@ -558,7 +564,7 @@ GDALDataset *BAGDataset::Open( GDALOpenInfo * poOpenInfo )
         delete poUBand;
 
 /* -------------------------------------------------------------------- */
-/*      Try to do the same for the uncertainty band.                    */
+/*      Try to do the same for the nominal_elevation band.              */
 /* -------------------------------------------------------------------- */
     hid_t hNominal = -1;
 
@@ -719,7 +725,7 @@ OGRErr BAGDataset::ParseWKTFromXML( const char *pszISOXML )
         CPLGetXMLValue( psRSI, "MD_ReferenceSystem.referenceSystemIdentifier.RS_Identifier.code.CharacterString", NULL );
     if( pszSRCodeString == NULL )
     {
-        CPLError( CE_Failure, CPLE_AppDefined,
+        CPLDebug("BAG",
           "Unable to find /MI_Metadata/referenceSystemInfo[1]/MD_ReferenceSystem[1]/referenceSystemIdentifier[1]/RS_Identifier[1]/code[1]/CharacterString[1] in metadata." );
         CPLDestroyXMLNode( psRoot );
         return eOGRErr;
@@ -760,10 +766,10 @@ OGRErr BAGDataset::ParseWKTFromXML( const char *pszISOXML )
       CPLGetXMLValue( psRSI, "MD_ReferenceSystem.referenceSystemIdentifier.RS_Identifier.code.CharacterString", NULL );
     if( pszSRCodeString == NULL )
     {
-      CPLError( CE_Failure, CPLE_AppDefined,
-          "Unable to find /MI_Metadata/referenceSystemInfo[2]/MD_ReferenceSystem[1]/referenceSystemIdentifier[1]/RS_Identifier[1]/code[1]/CharacterString[1] in metadata." );
-      CPLDestroyXMLNode( psRoot );
-      return eOGRErr;
+        CPLError( CE_Failure, CPLE_AppDefined,
+            "Unable to find /MI_Metadata/referenceSystemInfo[2]/MD_ReferenceSystem[1]/referenceSystemIdentifier[1]/RS_Identifier[1]/code[1]/CharacterString[1] in metadata." );
+        CPLDestroyXMLNode( psRoot );
+        return eOGRErr;
     }
 
     pszSRCodeSpace = 
@@ -775,17 +781,17 @@ OGRErr BAGDataset::ParseWKTFromXML( const char *pszISOXML )
         CPLDestroyXMLNode( psRoot );
         return eOGRErr;
     }
-	
+
     if( EQUALN(pszSRCodeString, "VERTCS", 6 ) )
-	{
-    	CPLString oString( pszProjection );
-    	oString += ",";
-    	oString += pszSRCodeString;
-    	if ( pszProjection )
-        	CPLFree( pszProjection );
-    	pszProjection = CPLStrdup( oString );
-	}
-    
+    {
+        CPLString oString( pszProjection );
+        oString += ",";
+        oString += pszSRCodeString;
+        if ( pszProjection )
+            CPLFree( pszProjection );
+        pszProjection = CPLStrdup( oString );
+    }
+
     CPLDestroyXMLNode( psRoot );
     
     return eOGRErr;
