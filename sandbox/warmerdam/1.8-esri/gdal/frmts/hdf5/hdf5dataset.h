@@ -34,14 +34,14 @@
 #include "cpl_list.h"
 
 typedef struct HDF5GroupObjects {
-  char	       *pszName;
+  char         *pszName;
   char         *pszPath;
   char         *pszUnderscorePath;
   char         *pszTemp;
-  int		nType;
-  int		nIndex;
-  hsize_t	nbObjs;
-  int		nbAttrs;
+  int           nType;
+  int           nIndex;
+  hsize_t       nbObjs;
+  int           nbAttrs;
   int           nRank;
   hsize_t       *paDims;
   hid_t          native;
@@ -56,21 +56,20 @@ herr_t HDF5CreateGroupObjs(hid_t, const char *,void *);
 
 /************************************************************************/
 /* ==================================================================== */
-/*				HDF5Dataset				*/
+/*                              HDF5Dataset                             */
 /* ==================================================================== */
 /************************************************************************/
 class HDF5Dataset : public GDALPamDataset
 {
   protected:
 
-  hid_t            hHDF5;     
-  hid_t            hDatasetID;
+  hid_t            hHDF5;
   hid_t            hGroupID; /* H handler interface */
   char             **papszSubDatasets;
   int              bIsHDFEOS;
   int              nDatasetType;
   int              nSubDataCount;
-
+  std::vector< CPLString >   osVarList;
 
   HDF5GroupObjects *poH5RootGroup; /* Contain hdf5 Groups information */
 
@@ -82,7 +81,7 @@ class HDF5Dataset : public GDALPamDataset
   HDF5GroupObjects* HDF5FindDatasetObjectsbyPath( HDF5GroupObjects *, const char * );
   char* CreatePath(HDF5GroupObjects *);
   void DestroyH5Objects(HDF5GroupObjects *);
- 
+
   GDALDataType GetDataType(hid_t);
   const char * GetDataTypeName(hid_t);
 
@@ -107,11 +106,12 @@ class HDF5Dataset : public GDALPamDataset
   public:
 
   char	           **papszMetadata;
-  HDF5GroupObjects *poH5CurrentObject; 
+  HDF5GroupObjects *poH5CurrentObject;
+  int              nVarCount;
 
   HDF5Dataset();
   ~HDF5Dataset();
-    
+
   static GDALDataset *Open(GDALOpenInfo *);
   static int Identify(GDALOpenInfo *);
 };
