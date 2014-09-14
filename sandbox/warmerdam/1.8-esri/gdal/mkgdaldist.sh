@@ -5,11 +5,12 @@
 # mkgdaldist.sh - prepares GDAL source distribution package
 #
 if [ $# -lt 1 ] ; then
-  echo "Usage: mkgdaldist.sh <version> [-date date] [-branch branch]"
+  echo "Usage: mkgdaldist.sh <version> [-date date] [-branch branch] [-rc n]"
   echo " <version> - version number used in name of generated archive."
   echo " -date     - date of package generation, current date used if not provided"
   echo " -branch   - path to SVN branch, trunk is used if not provided"
-  echo "Example: mkgdaldist.sh 1.1.4"
+  echo " -rc       - gives a release candidate id to embed in filenames"
+  echo "Example: mkgdaldist.sh 1.1.4 -branch branches/1.8 -rc RC2"
   exit
 fi
 
@@ -29,8 +30,18 @@ fi
 
 if test "$2" = "-branch"; then
   forcebranch=$3
+  shift
+  shift
 else
   forcebranch="trunk"
+fi
+ 
+if test "$2" = "-rc"; then
+  RC=$3
+  shift
+  shift
+else
+  RC=""
 fi
  
 #
@@ -51,7 +62,7 @@ echo
 # Disable for now, seems to depend on modern SVN versions.
 #SVN_CONFIG="--config-option config:miscellany:use-commit-times=yes"
 
-svn checkout ${SVNURL}/${SVNBRANCH}/${SVNMODULE} ${SVNMODULE} ${SVN_CONFIG}
+svn checkout -q ${SVNURL}/${SVNBRANCH}/${SVNMODULE} ${SVNMODULE} ${SVN_CONFIG}
 
 if [ \! -d gdal ] ; then
 	echo "svn checkout reported an error ... abandoning mkgdaldist"
@@ -84,7 +95,7 @@ if test -d "man"; then
     rm -rf man
 fi
 
-(cat Doxyfile ; echo "ENABLED_SECTIONS=man"; echo "INPUT=doc ogr"; echo "FILE_PATTERNS=*utilities.dox"; echo "GENERATE_HTML=NO"; echo "GENERATE_MAN=YES") | doxygen -
+(cat Doxyfile ; echo "ENABLED_SECTIONS=man"; echo "INPUT=apps swig/python/scripts"; echo "FILE_PATTERNS=*.cpp *.dox"; echo "GENERATE_HTML=NO"; echo "GENERATE_MAN=YES"; echo "QUIET=YES") | doxygen -
 
 if test ! -d "man"; then
     echo " make man failed"
@@ -106,15 +117,17 @@ cd ${CWD}
 echo "* Generating SWIG Perl interfaces..."
 CWD=${PWD}
 cd gdal/swig/perl
+
 rm *wrap*
+touch ../../GDALmake.opt
 make generate
+rm -f ../../GDALmake.opt
 cd ${CWD}
 
 #
 # Make distribution packages
 #
 echo "* Making distribution packages..."
-rm -rf gdal/viewer
 rm -rf gdal/dist_docs
 
 rm -f gdal/VERSION
@@ -122,11 +135,12 @@ echo $GDAL_VERSION > gdal/VERSION
 
 mv gdal gdal-${GDAL_VERSION}
 
-rm -f ../gdal-${GDAL_VERSION}.tar.gz ../gdal${COMPRESSED_VERSION}.zip
+rm -f ../gdal-${GDAL_VERSION}${RC}.tar.gz ../gdal${COMPRESSED_VERSION}${RC}.zip
 
-tar cf ../gdal-${GDAL_VERSION}.tar gdal-${GDAL_VERSION}
-gzip -9 ../gdal-${GDAL_VERSION}.tar
-zip -r ../gdal${COMPRESSED_VERSION}.zip gdal-${GDAL_VERSION}
+tar cf ../gdal-${GDAL_VERSION}${RC}.tar gdal-${GDAL_VERSION}
+xz -k9e ../gdal-${GDAL_VERSION}${RC}.tar
+gzip -9 ../gdal-${GDAL_VERSION}${RC}.tar
+zip -qr ../gdal${COMPRESSED_VERSION}${RC}.zip gdal-${GDAL_VERSION}
 
 echo "* Generating MD5 sums ..."
 
@@ -137,11 +151,12 @@ else
 MD5=md5sum
 fi
 
-$MD5 ../gdal-${GDAL_VERSION}.tar.gz > ../gdal-${GDAL_VERSION}.tar.gz.md5
-$MD5 ../gdal${COMPRESSED_VERSION}.zip > ../gdal${COMPRESSED_VERSION}.zip.md5
+cd ..
+$MD5 gdal-${GDAL_VERSION}${RC}.tar.xz > gdal-${GDAL_VERSION}${RC}.tar.xz.md5
+$MD5 gdal-${GDAL_VERSION}${RC}.tar.gz > gdal-${GDAL_VERSION}${RC}.tar.gz.md5
+$MD5 gdal${COMPRESSED_VERSION}${RC}.zip > gdal${COMPRESSED_VERSION}${RC}.zip.md5
 
 echo "* Cleaning..."
-cd ..
 rm -rf dist_wrk
 
 echo "*** The End ***"

@@ -18,7 +18,7 @@ LIBGDAL-$(HAVE_LD_SHARED)	+=	$(GDAL_SLIB)
 # override if we are using libtool
 LIBGDAL-$(HAVE_LIBTOOL)	:= $(LIBGDAL)
 
-default:	lib-target apps-target swig-target
+default:	lib-target apps-target swig-target gdal.pc
 
 lib-target:	check-lib;
 
@@ -74,7 +74,7 @@ else
 swig-target:    swig-modules;
 endif
 
-swig-modules:
+swig-modules:	lib-target
 	(cd swig; $(MAKE) build)
 
 clean:	lclean
@@ -127,6 +127,9 @@ docs:
 	cp doc/grid/*.png html
 	cp frmts/*.html frmts/*/frmt_*.html html
 	cp frmts/wms/frmt_wms_*.xml html
+	cp frmts/wms/frmt_twms_*.xml html
+
+.PHONY: man
 
 man:
 # Generate man pages
@@ -176,8 +179,9 @@ ifneq ($(BINDINGS),)
 	(cd swig; $(MAKE) install)
 endif
 	for f in LICENSE.TXT data/*.* ; do $(INSTALL_DATA) $$f $(DESTDIR)$(INST_DATA) ; done
-	$(LIBTOOL_FINISH) $(INST_LIB)
-
+	$(LIBTOOL_FINISH) $(DESTDIR)$(INST_LIB)
+	$(INSTALL_DIR) $(DESTDIR)$(INST_LIB)/pkgconfig
+	$(INSTALL_DATA) gdal.pc $(DESTDIR)$(INST_LIB)/pkgconfig/gdal.pc
 
 ifeq ($(HAVE_LIBTOOL),yes)
 
@@ -194,6 +198,8 @@ ifeq ($(MACOSX_FRAMEWORK),yes)
 	rm -f $(DESTDIR)$(INST_LIB)/libgdal.$(GDAL_VERSION_MAJOR).dylib
 	rm -f $(DESTDIR)$(INST_LIB)/libgdal.dylib
 	rm -f $(DESTDIR)$(INST_LIB)/libgdal.la
+else
+	$(INSTALL_DIR) $(DESTDIR)$(INST_LIB)/gdalplugins
 endif
 
 else
@@ -216,6 +222,7 @@ else
 	 ln -s $(GDAL_SLIB_B).$(GDAL_VER) $(GDAL_SLIB_B).$(GDAL_VERSION_MAJOR))
 	(cd $(DESTDIR)$(INST_LIB) ; \
 	 ln -s $(GDAL_SLIB_B).$(GDAL_VERSION_MAJOR) $(GDAL_SLIB_B))
+	$(INSTALL_DIR) $(DESTDIR)$(INST_LIB)/gdalplugins
 endif
 
 else
@@ -229,3 +236,12 @@ endif # HAVE_LD_SHARED=no
 
 endif # HAVE_LIBTOOL=no 
 
+
+gdal.pc:	gdal.pc.in GDALmake.opt ./GNUmakefile VERSION
+	rm -f gdal.pc
+	echo 'CONFIG_VERSION='`cat ./VERSION`'' >> gdal.pc
+	echo 'CONFIG_INST_PREFIX=$(INST_PREFIX)' >> gdal.pc
+	echo 'CONFIG_INST_LIBS=$(CONFIG_LIBS_INS)' >> gdal.pc
+	echo 'CONFIG_INST_CFLAGS=-I$(INST_INCLUDE)' >> gdal.pc
+	echo 'CONFIG_INST_DATA=$(INST_DATA)/data' >> gdal.pc
+	cat gdal.pc.in >> gdal.pc

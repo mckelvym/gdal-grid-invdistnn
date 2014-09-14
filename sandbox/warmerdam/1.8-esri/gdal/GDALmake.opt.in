@@ -5,18 +5,14 @@ top_builddir	=	$(GDAL_ROOT)
 # the library can be built by the native build or with the help of libtool
 #
 
-# Solaris users: the LIBTOOL line is expanded to $(SHELL) $(top_builddir)/libtool
-# but the libtool script uses bashism, so you may need to uncomment the following
-# line :
-#SHELL=/usr/bin/bash
-
+SHELL    =   @SHELL@
 HAVE_LIBTOOL	=	@HAVE_LIBTOOL@
 LIBTOOL	=	@LIBTOOL@
 ifeq ($(HAVE_LIBTOOL),yes)
 LIBTOOL_COMPILE_CC =	$(LIBTOOL) --mode=compile --tag=CC
 LIBTOOL_COMPILE_CXX =	$(LIBTOOL) --mode=compile --tag=CXX
 LIBTOOL_LINK	=	$(LIBTOOL) --mode=link
-LIBTOOL_INSTALL	=	$(LIBTOOL) --mode=install
+LIBTOOL_INSTALL	=	$(LIBTOOL) --mode=install 
 LIBTOOL_FINISH	=	$(LIBTOOL) --mode=finish --silent
 LIBTOOL_CLEAN	=	$(LIBTOOL) --mode=clean
 OBJ_EXT = lo
@@ -37,17 +33,14 @@ INSTALL_DIR	= 	$(GDAL_ROOT)/install-sh -d
 # SDE_LIB needs to be first because it embeds zlib.  We need to use its symbols instead of -lz's
 
 LIBS	=	$(SDE_LIB) @LIBS@ $(KAK_LIBS) $(DWG_LIBS) $(CURL_LIB) \
-		$(MRSID_LIBS) $(MRSID_LIDAR_LIBS) $(INGRES_LIB) \
-		$(PCIDSK_LIB) $(RASDAMAN_LIB) $(CHARLS_LIB) \
-		$(OPENCL_LIB)
+		$(MRSID_LIBS) $(MRSID_LIDAR_LIBS) $(ECW_LIBS) $(INGRES_LIB) \
+		$(PCIDSK_LIB) $(RASDAMAN_LIB) $(CHARLS_LIB) $(SOSI_LIB) \
+		$(OPENCL_LIB) $(JVM_LIB) $(LIBICONV) $(FGDB_LIB) $(LIBXML2_LIB)
 
-PYTHON_INCLUDES = @PYTHON_INCLUDES@
-PYTHON_LIBS = @PYTHON_LIBS@
-PYTHON_CFLAGS = @PYTHON_CFLAGS@ @NUMPY_FLAG@
+AVXFLAGS = @AVXFLAGS@
+HAVE_AVX_AT_COMPILE_TIME = @HAVE_AVX_AT_COMPILE_TIME@
+
 PYTHON = @PYTHON@
-PYTHON_DEV = @PYTHON_DEV@
-PY_LD_SHARED = @PY_LD_SHARED@
-PY_SO_EXT = @PY_SO_EXT@
 PY_HAVE_SETUPTOOLS=@PY_HAVE_SETUPTOOLS@
 
 # Next Generation SWIG bindings
@@ -72,8 +65,8 @@ INST_MAN	=	@mandir@
 INST_HTML	=	$(HOME)/www/gdal
 
 CPPFLAGS	= @CPPFLAGS@ -I$(GDAL_ROOT)/port @EXTRA_INCLUDES@
-CFLAGS		= @CFLAGS@ @C_WFLAGS@ $(USER_DEFS)
-CXXFLAGS	= @CXXFLAGS@ @CXX_WFLAGS@ $(USER_DEFS)
+CFLAGS		= @CFLAGS@ @C_WFLAGS@ $(USER_DEFS) -DESRI_BUILD -DDEBUG
+CXXFLAGS	= @CXXFLAGS@ @CXX_WFLAGS@ $(USER_DEFS) -DESRI_BUILD -DDEBUG
 LDFLAGS     = @LDFLAGS@
 
 RANLIB		=	@RANLIB@
@@ -93,9 +86,9 @@ GDAL_INCLUDE	=	-I$(GDAL_ROOT)/port -I$(GDAL_ROOT)/gcore \
 
 # libtool targets and help variables
 LIBGDAL	:=		libgdal.la
-LIBGDAL_CURRENT	:=	16
+LIBGDAL_CURRENT	:=	18
 LIBGDAL_REVISION	:=	0
-LIBGDAL_AGE	:=	15
+LIBGDAL_AGE	:=	17
 
 # native build targets and variables
 GDAL_VER	=	@GDAL_VER@
@@ -136,8 +129,14 @@ MYSQL_INC  =	@MYSQL_INC@
 LIBS	   +=	$(MYSQL_LIB)
 
 #
+# BOOST
+#
+BOOST_INCLUDE = -I/home/robin/install/include/boost
+
+#
 # HDF4 Support.
 #
+HAVE_HDF4     = @HAVE_HDF4@
 HDF4_INCLUDE  = @HDF4_INCLUDE@ -I$(GDAL_ROOT)/ogr
 
 #
@@ -145,6 +144,13 @@ HDF4_INCLUDE  = @HDF4_INCLUDE@ -I$(GDAL_ROOT)/ogr
 #
 HAVE_HDF5     = @HAVE_HDF5@
 HDF5_INCLUDE  = @HDF5_INCLUDE@ 
+
+#
+# NetCDF Support.
+#
+NETCDF_ROOT = @NETCDF_ROOT@
+NETCDF_HAS_NC4 = @NETCDF_HAS_NC4@
+NETCDF_HAS_HDF4 = @NETCDF_HAS_HDF4@
 
 #
 # DODS Include file location
@@ -160,8 +166,12 @@ endif
 # SQLite 
 #
 SQLITE_INC = @SQLITE_INC@
+SQLITE_HAS_COLUMN_METADATA = @SQLITE_HAS_COLUMN_METADATA@
 HAVE_SQLITE = @HAVE_SQLITE@
 HAVE_SPATIALITE = @HAVE_SPATIALITE@
+SPATIALITE_INC = @SPATIALITE_INC@
+SPATIALITE_AMALGAMATION = @SPATIALITE_AMALGAMATION@
+HAVE_PCRE = @HAVE_PCRE@
 
 #
 # JPEG2000 via Kakadu Support.
@@ -199,6 +209,13 @@ MRSID_LIBS	= @MRSID_LIBS@
 #
 MRSID_LIDAR_INCLUDE	= @MRSID_LIDAR_INCLUDE@
 MRSID_LIDAR_LIBS	= @MRSID_LIDAR_LIBS@
+
+# 
+# ECW Related
+# 
+ECW_FLAGS	= @ECW_FLAGS@
+ECW_INCLUDE 	= @ECW_INCLUDE@
+ECW_LIBS	= @ECW_LIBS@
 
 # Xerces C++ XML Parser for GML and ILI
 #
@@ -248,17 +265,18 @@ SDE_LIB	= @SDE_LIB@
 SDE_INC = @SDE_INC@
 
 # 
+# FileGDB
+#
+HAVE_FGDB = @FGDB_ENABLED@
+FGDB_LIB = @FGDB_LIB@
+FGDB_INC = @FGDB_INC@
+
+# 
 # ArcObjects
 #
 HAVE_ARCOBJECTS = @ARCOBJECTS_ENABLED@
 ARCOBJECTS_LIB	= @ARCOBJECTS_LIB@
 ARCOBJECTS_INC = @ARCOBJECTS_INC@
-
-
-# 
-# VFK
-#
-HAVE_VFK = @HAVE_VFK@
 
 #
 # Curl
@@ -267,6 +285,12 @@ CURL_SETTING 	=	@CURL_SETTING@
 CURL_LIB	=	@CURL_LIB@
 CURL_INC	=	@CURL_INC@
 
+#
+# libjson-c
+#
+LIBJSONC_SETTING = @LIBJSONC_SETTING@
+JSON_INCLUDE = @JSON_INCLUDE@
+
 # 
 # OpenCL support
 #
@@ -274,11 +298,32 @@ OPENCL_LIB	=	@OPENCL_LIB@
 OPENCL_FLAGS	=	@OPENCL_FLAGS@
 
 #
+# SOSI support
+#
+SOSI_INC = @SOSI_INC@
+SOSI_LIB = @SOSI_LIB@
+HAVE_SOSI = @SOSI_ENABLED@
+
+
+#
 # PCIDSK SDK
 # 
 PCIDSK_SETTING  =       @PCIDSK_SETTING@
 PCIDSK_LIB	=	@PCIDSK_LIB@
 PCIDSK_INCLUDE	=	@PCIDSK_INCLUDE@
+
+#
+# Iconv
+#
+LIBICONV	=	@LIBICONV@
+
+#
+# LIBXML2
+#
+
+HAVE_LIBXML2 = @HAVE_LIBXML2@
+LIBXML2_INC = @LIBXML2_INC@
+LIBXML2_LIB = @LIBXML2_LIB@
 
 # 
 # DWGdirect Library
@@ -335,10 +380,13 @@ OGDI_INCLUDE	=	@OGDI_INCLUDE@
 PNG_SETTING     =	@PNG_SETTING@
 JPEG_SETTING	=	@JPEG_SETTING@
 JPEG12_ENABLED =	@JPEG12_ENABLED@
+TIFF_JPEG12_ENABLED =    @TIFF_JPEG12_ENABLED@
 TIFF_SETTING	=	@TIFF_SETTING@
 TIFF_OPTS	=	@TIFF_OPTS@
+RENAME_INTERNAL_LIBTIFF_SYMBOLS = @RENAME_INTERNAL_LIBTIFF_SYMBOLS@
 GEOTIFF_SETTING	=	@GEOTIFF_SETTING@
 GEOTIFF_INCLUDE =	@GEOTIFF_INCLUDE@
+RENAME_INTERNAL_LIBGEOTIFF_SYMBOLS = @RENAME_INTERNAL_LIBGEOTIFF_SYMBOLS@
 GIF_SETTING	=	@GIF_SETTING@
 FITS_SETTING    =       @FITS_SETTING@
 OGDI_SETTING	=	@HAVE_OGDI@
@@ -346,9 +394,15 @@ ODBC_SETTING    =       @ODBC_SETTING@
 # PGeo driver is built-in when ODBC is available
 PGEO_SETTING    =       @ODBC_SETTING@
 MSSQLSPATIAL_SETTING    =       @ODBC_SETTING@
+GEOMEDIA_SETTING    =       @ODBC_SETTING@
 NETCDF_SETTING  =       @NETCDF_SETTING@
 LIBZ_SETTING	=	@LIBZ_SETTING@
 LIBLZMA_SETTING	=	@LIBLZMA_SETTING@
+
+#
+# DDS via Crunch Support.
+#
+CRUNCHDIR = @CRUNCHDIR@
 
 #
 # Rasdaman stuff
@@ -364,7 +418,16 @@ RASDAMAN_LIB  =   @RASDAMAN_LIB@
 HAVE_POPPLER = @HAVE_POPPLER@
 POPPLER_HAS_OPTCONTENT = @POPPLER_HAS_OPTCONTENT@
 POPPLER_BASE_STREAM_HAS_TWO_ARGS = @POPPLER_BASE_STREAM_HAS_TWO_ARGS@
+POPPLER_0_20_OR_LATER = @POPPLER_0_20_OR_LATER@
+POPPLER_0_23_OR_LATER = @POPPLER_0_23_OR_LATER@
 POPPLER_INC = @POPPLER_INC@
+
+#
+# Podofo stuff
+#
+
+HAVE_PODOFO = @HAVE_PODOFO@
+PODOFO_INC = @PODOFO_INC@
 
 #
 # CharLs stuff
@@ -393,34 +456,65 @@ GDAL_LIBS	=	$(GDAL_LIB)
 endif
 
 #
+# Java stuff
+#
+JAVA_INC  =   @JAVA_INC@
+JVM_LIB  =   @JVM_LIB@
+
+MDB_ENABLED =   @MDB_ENABLED@
+
+HAVE_ARMADILLO = @HAVE_ARMADILLO@
+
+#
+# freexl stuff
+#
+
+HAVE_FREEXL = @HAVE_FREEXL@
+FREEXL_INCLUDE = @FREEXL_INCLUDE@
+
+#
 #	Note these codes have to exactly match the format directory names, 
 #	and their uppercase form should be the format portion of the
 #	format registration entry point.  eg. gdb -> GDALRegister_GDB().
 #
-GDAL_FORMATS = 	gxf gtiff hfa aigrid aaigrid ceos ceos2 iso8211 xpm \
-		sdts raw dted mem jdem envisat elas fit vrt usgsdem l1b \
-		nitf bmp pcidsk airsar rs2 ilwis rmf leveller sgi srtmhgt \
-		idrisi gsg ingr ers jaxapalsar dimap gff cosar pds adrg \
-		coasp tsx terragen blx msgn til r northwood saga xyz hf2 \
-		kmlsuperoverlay ozi \
-		@OPT_GDAL_FORMATS@
+GDAL_FORMATS = 	ceos aigrid elas hfa gtiff\
+		sdts raw gxf ceos2 png \
+		dted mem jdem gif \
+		envisat aaigrid usgsdem l1b \
+		fit vrt xpm bmp rmf \
+		nitf pcidsk airsar rs2 \
+		ilwis msgn rik pcraster \
+		leveller sgi srtmhgt idrisi \
+		jaxapalsar ers ingr dimap \
+		gff terragen gsg cosar pds \
+		adrg coasp tsx blx til \
+		r northwood saga xyz hf2 \
+		kmlsuperoverlay ozi iso8211 \
+		netcdf grib jpeg jp2kak mrsid \
+		mrsid_lidar hdf4 hdf5 urlproxy \
+		wms wcs painter geopackage
 
-ifneq ($(LIBZ_SETTING),no)
-GDAL_FORMATS := $(GDAL_FORMATS) rik
-endif
+
+# ifneq ($(LIBZ_SETTING),no)
+# GDAL_FORMATS := $(GDAL_FORMATS) rik ozi pdf
+# endif
 
 ifeq ($(OGR_ENABLED),yes)
 ifeq ($(HAVE_SQLITE),yes)
-GDAL_FORMATS := $(GDAL_FORMATS) rasterlite
+GDAL_FORMATS := $(GDAL_FORMATS) rasterlite mbtiles
 endif
 endif
 
-ifeq ($(HAVE_POSTGISRASTER),yes)
-GDAL_FORMATS := $(GDAL_FORMATS) postgisraster
-endif
+# ifeq ($(HAVE_POSTGISRASTER),yes)
+# GDAL_FORMATS := $(GDAL_FORMATS) postgisraster
+# endif
 
 ifeq ($(HAVE_CHARLS),yes)
 GDAL_FORMATS := $(GDAL_FORMATS) jpegls
+endif
+
+ifeq ($(OGR_ENABLED),yes)
+GDAL_FORMATS := $(GDAL_FORMATS) arg
 endif
 
 #
