@@ -83,6 +83,7 @@ class VSIWin32Handle : public VSIVirtualHandle
 {
   public:
     HANDLE       hFile;
+    int          bEOF;
 
     virtual int       Seek( vsi_l_offset nOffset, int nWhence );
     virtual vsi_l_offset Tell();
@@ -91,6 +92,7 @@ class VSIWin32Handle : public VSIVirtualHandle
     virtual int       Eof();
     virtual int       Flush();
     virtual int       Close();
+    virtual int       Truncate( vsi_l_offset nNewSize );
 };
 
 /************************************************************************/
@@ -199,6 +201,8 @@ int VSIWin32Handle::Seek( vsi_l_offset nOffset, int nWhence )
     GUInt32       nMoveLow;
     LARGE_INTEGER li;
 
+    bEOF = FALSE;
+
     switch(nWhence)
     {
         case SEEK_CUR:
@@ -291,6 +295,9 @@ size_t VSIWin32Handle::Read( void * pBuffer, size_t nSize, size_t nCount )
     else
         nResult = dwSizeRead / nSize;
 
+    if( nResult != nCount )
+        bEOF = TRUE;
+
     return nResult;
 }
 
@@ -325,14 +332,24 @@ size_t VSIWin32Handle::Write( const void *pBuffer, size_t nSize, size_t nCount)
 int VSIWin32Handle::Eof()
 
 {
-    vsi_l_offset       nCur, nEnd;
+    return bEOF;
+}
 
-    nCur = Tell();
-    Seek( 0, SEEK_END );
-    nEnd = Tell();
+/************************************************************************/
+/*                             Truncate()                               */
+/************************************************************************/
+
+int VSIWin32Handle::Truncate( vsi_l_offset nNewSize )
+{
+    vsi_l_offset nCur = Tell();
+    Seek( nNewSize, SEEK_SET );
+    BOOL bRes = SetEndOfFile( hFile );
     Seek( nCur, SEEK_SET );
 
-    return (nCur == nEnd);
+    if (bRes)
+        return 0;
+    else
+        return -1;
 }
 
 /************************************************************************/
@@ -352,18 +369,22 @@ VSIVirtualHandle *VSIWin32FilesystemHandler::Open( const char *pszFilename,
     DWORD dwDesiredAccess, dwCreationDisposition, dwFlagsAndAttributes;
     HANDLE hFile;
 
-    if( strchr(pszAccess, '+') != NULL || strchr(pszAccess, 'w') != 0 )
-        dwDesiredAccess = GENERIC_READ | GENERIC_WRITE;
+    if( strchr(pszAccess, '+') != NULL ||
+        strchr(pszAccess, 'w') != 0 ||
+        strchr(pszAccess, 'a') != 0 )
+        dwDesiredAccess = FILE_GENERIC_READ | FILE_GENERIC_WRITE;
     else
-        dwDesiredAccess = GENERIC_READ;
+        dwDesiredAccess = FILE_GENERIC_READ;
 
     if( strstr(pszAccess, "w") != NULL )
         dwCreationDisposition = CREATE_ALWAYS;
+    else if( strstr(pszAccess, "a") != NULL )
+        dwCreationDisposition = OPEN_ALWAYS;
     else
         dwCreationDisposition = OPEN_EXISTING;
 
-    dwFlagsAndAttributes = (dwDesiredAccess == GENERIC_READ) ? 
-        FILE_ATTRIBUTE_READONLY : FILE_ATTRIBUTE_NORMAL;
+    dwFlagsAndAttributes = (dwDesiredAccess == FILE_GENERIC_READ) ?
+        FILE_ATTRIBUTE_READONLY | FILE_FLAG_RANDOM_ACCESS : FILE_ATTRIBUTE_NORMAL;
     
 /* -------------------------------------------------------------------- */
 /*      On Win32 consider treating the filename as utf-8 and            */
@@ -411,6 +432,7 @@ VSIVirtualHandle *VSIWin32FilesystemHandler::Open( const char *pszFilename,
     VSIWin32Handle *poHandle = new VSIWin32Handle;
     
     poHandle->hFile = hFile;
+    poHandle->bEOF = FALSE;
     
     if (strchr(pszAccess, 'a') != 0)
         poHandle->Seek(0, SEEK_END);
@@ -585,7 +607,8 @@ char **VSIWin32FilesystemHandler::ReadDir( const char *pszPath )
     {
         struct _wfinddata_t c_file;
         intptr_t hFile;
-        char    *pszFileSpec, **papszDir = NULL;
+        char    *pszFileSpec;
+        CPLStringList oDir;
         
         if (strlen(pszPath) == 0)
             pszPath = ".";
@@ -596,29 +619,10 @@ char **VSIWin32FilesystemHandler::ReadDir( const char *pszPath )
         
         if ( (hFile = _wfindfirst( pwszFileSpec, &c_file )) != -1L )
         {
-            /* In case of really big number of files in the directory, CSLAddString */
-            /* can be slow (see #2158). We then directly build the list. */
-            int nItems=0;
-            int nAllocatedItems=0;
             do
             {
-                if (nItems == 0)
-                {
-                    papszDir = (char**) CPLCalloc(2,sizeof(char*));
-                    nAllocatedItems = 1;
-                }
-                else if (nItems >= nAllocatedItems)
-                {
-                    nAllocatedItems = nAllocatedItems * 2;
-                    papszDir = (char**)CPLRealloc(papszDir, 
-                                                  (nAllocatedItems+2)*sizeof(char*));
-                }
-                
-                papszDir[nItems] =
-                    CPLRecodeFromWChar(c_file.name,CPL_ENC_UCS2,CPL_ENC_UTF8);
-                papszDir[nItems+1] = NULL;
-                
-                nItems++;
+                oDir.AddStringDirectly(
+                    CPLRecodeFromWChar(c_file.name,CPL_ENC_UCS2,CPL_ENC_UTF8));
             } while( _wfindnext( hFile, &c_file ) == 0 );
             
             _findclose( hFile );
@@ -633,14 +637,15 @@ char **VSIWin32FilesystemHandler::ReadDir( const char *pszPath )
         CPLFree(pszFileSpec);
         CPLFree(pwszFileSpec);
 
-        return papszDir;
+        return oDir.StealList();
     }
     else
 #endif
     {
         struct _finddata_t c_file;
         intptr_t hFile;
-        char    *pszFileSpec, **papszDir = NULL;
+        char    *pszFileSpec;
+        CPLStringList oDir;
         
         if (strlen(pszPath) == 0)
             pszPath = ".";
@@ -649,28 +654,9 @@ char **VSIWin32FilesystemHandler::ReadDir( const char *pszPath )
         
         if ( (hFile = _findfirst( pszFileSpec, &c_file )) != -1L )
         {
-            /* In case of really big number of files in the directory, CSLAddString */
-            /* can be slow (see #2158). We then directly build the list. */
-            int nItems=0;
-            int nAllocatedItems=0;
             do
             {
-                if (nItems == 0)
-                {
-                    papszDir = (char**) CPLCalloc(2,sizeof(char*));
-                    nAllocatedItems = 1;
-                }
-                else if (nItems >= nAllocatedItems)
-                {
-                    nAllocatedItems = nAllocatedItems * 2;
-                    papszDir = (char**)CPLRealloc(papszDir, 
-                                                  (nAllocatedItems+2)*sizeof(char*));
-                }
-                
-                papszDir[nItems] = CPLStrdup(c_file.name);
-                papszDir[nItems+1] = NULL;
-                
-                nItems++;
+                oDir.AddString(c_file.name);
             } while( _findnext( hFile, &c_file ) == 0 );
             
             _findclose( hFile );
@@ -684,7 +670,7 @@ char **VSIWin32FilesystemHandler::ReadDir( const char *pszPath )
 
         CPLFree(pszFileSpec);
 
-        return papszDir;
+        return oDir.StealList();
     }
 }
 
@@ -696,6 +682,121 @@ void VSIInstallLargeFileHandler()
 
 {
     VSIFileManager::InstallHandler( "", new VSIWin32FilesystemHandler );
+}
+
+int VSIExists1( const char *pszFilename, int type )
+{
+    HANDLE hFile;
+    DWORD dwAccessMode = GENERIC_READ;
+    DWORD dwShareMode = FILE_SHARE_READ;
+    DWORD dwCreationDisposition = OPEN_EXISTING;
+    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
+    int exists = 0;
+
+#if (defined(WIN32) && _MSC_VER >= 1310) || __MSVCRT_VERSION__ >= 0x0601
+    if( CSLTestBoolean(
+        CPLGetConfigOption( "GDAL_FILENAME_IS_UTF8", "YES" ) ) )
+    {
+        wchar_t *pwszFilename = 
+            CPLRecodeToWChar( pszFilename, CPL_ENC_UTF8, CPL_ENC_UCS2 );
+
+        hFile = ::CreateFileW(pwszFilename, dwAccessMode, dwShareMode, NULL, dwCreationDisposition, dwFlagsAndAttributes, NULL);
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            exists = 1;
+            ::CloseHandle(hFile);
+        }
+        CPLFree( pwszFilename );
+    }
+    else
+#endif
+    {
+        hFile = ::CreateFileA(pszFilename, dwAccessMode, dwShareMode, NULL, dwCreationDisposition, dwFlagsAndAttributes, NULL);
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            exists = 1;
+            ::CloseHandle(hFile);
+        }
+    }
+    return exists;
+}
+
+int VSIExists2( const char *pszFilename, int type )
+{
+    HANDLE hFile;
+    DWORD dwAccessMode = FILE_READ_ATTRIBUTES;
+    DWORD dwShareMode = FILE_SHARE_READ;
+    DWORD dwCreationDisposition = OPEN_EXISTING;
+    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS;
+    int exists = 0;
+
+#if (defined(WIN32) && _MSC_VER >= 1310) || __MSVCRT_VERSION__ >= 0x0601
+    if( CSLTestBoolean(
+        CPLGetConfigOption( "GDAL_FILENAME_IS_UTF8", "YES" ) ) )
+    {
+        wchar_t *pwszFilename = 
+            CPLRecodeToWChar( pszFilename, CPL_ENC_UTF8, CPL_ENC_UCS2 );
+
+        hFile = ::CreateFileW(pwszFilename, dwAccessMode, dwShareMode, NULL, dwCreationDisposition, dwFlagsAndAttributes, NULL);
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            exists = 1;
+            ::CloseHandle(hFile);
+        }
+        CPLFree( pwszFilename );
+    }
+    else
+#endif
+    {
+        hFile = ::CreateFileA(pszFilename, dwAccessMode, dwShareMode, NULL, dwCreationDisposition, dwFlagsAndAttributes, NULL);
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            exists = 1;
+            ::CloseHandle(hFile);
+        }
+    }
+    return exists;
+}
+
+int VSIExists3( const char *pszFilename, int type )
+{
+    HANDLE hFile;
+    DWORD dwAccessMode = FILE_READ_ATTRIBUTES;
+    DWORD dwShareMode = FILE_SHARE_READ;
+    DWORD dwCreationDisposition = OPEN_EXISTING;
+    DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS;
+    int exists = 0;
+
+#if (defined(WIN32) && _MSC_VER >= 1310) || __MSVCRT_VERSION__ >= 0x0601
+    if( CSLTestBoolean(
+        CPLGetConfigOption( "GDAL_FILENAME_IS_UTF8", "YES" ) ) )
+    {
+        wchar_t *pwszFilename = 
+            CPLRecodeToWChar( pszFilename, CPL_ENC_UTF8, CPL_ENC_UCS2 );
+
+        hFile = ::CreateFileW(pwszFilename, dwAccessMode, dwShareMode, NULL, dwCreationDisposition, dwFlagsAndAttributes, NULL);
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            exists = 1;
+            BY_HANDLE_FILE_INFORMATION info;
+            GetFileInformationByHandle( hFile, &info );
+            ::CloseHandle(hFile);
+        }
+        CPLFree( pwszFilename );
+    }
+    else
+#endif
+    {
+        hFile = ::CreateFileA(pszFilename, dwAccessMode, dwShareMode, NULL, dwCreationDisposition, dwFlagsAndAttributes, NULL);
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            exists = 1;
+            BY_HANDLE_FILE_INFORMATION info;
+            GetFileInformationByHandle( hFile, &info );
+            ::CloseHandle(hFile);
+        }
+    }
+    return exists;
 }
 
 #endif /* def WIN32 */

@@ -1,33 +1,34 @@
 /******************************************************************************
- * $Id$
- *
- * Project:  VSI Virtual File System
- * Purpose:  Implementation of caching IO layer.
- * Author:   Frank Warmerdam, warmerdam@pobox.com
- *
- ******************************************************************************
- * Copyright (c) 2011, Frank Warmerdam <warmerdam@pobox.com>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- ****************************************************************************/
+* $Id$
+*
+* Project:  VSI Virtual File System
+* Purpose:  Implementation of caching IO layer.
+* Author:   Frank Warmerdam, warmerdam@pobox.com
+*
+******************************************************************************
+* Copyright (c) 2011, Frank Warmerdam <warmerdam@pobox.com>
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the "Software"),
+* to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense,
+* and/or sell copies of the Software, and to permit persons to whom the
+* Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included
+* in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+* OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+* THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+* DEALINGS IN THE SOFTWARE.
+****************************************************************************/
 
 #include "cpl_vsi_virtual.h"
+#include "cpl_multiproc.h"
 
 CPL_CVSID("$Id$");
 
@@ -43,7 +44,7 @@ class VSICacheChunk
 {
 public:
     VSICacheChunk() 
-	{ 
+    { 
         poLRUPrev = poLRUNext = NULL;
         nDataFilled = 0;
         bDirty = FALSE;
@@ -52,22 +53,22 @@ public:
 
     virtual ~VSICacheChunk()
     {
-      if ( abyData )
-      {
-        VSIFree( abyData );
-      }
+        if ( abyData )
+        {
+            VSIFree( abyData );
+        }
     }
 
 	bool Allocate( size_t nChunkSize = CHUNK_SIZE )
-	{
-		if ( abyData )
-			VSIFree( abyData);
-		abyData = (GByte *)VSIMalloc( nChunkSize );
-		return (abyData != NULL);
-	}
+    {
+        if ( abyData )
+            VSIFree( abyData);
+        abyData = (GByte *)VSIMalloc( nChunkSize );
+        return (abyData != NULL);
+    }
 
     int            bDirty;
-    size_t         iBlock;
+    vsi_l_offset   iBlock;
 
     VSICacheChunk *poLRUPrev;
     VSICacheChunk *poLRUNext;
@@ -84,15 +85,15 @@ public:
 
 class VSICachedFile : public VSIVirtualHandle
 { 
-  public:
+public:
     VSICachedFile( VSIVirtualHandle *poBaseHandle, 
-		           size_t nBlockSize = CHUNK_SIZE,
-		           size_t nCacheSize = 0 );
-    ~VSICachedFile() { Close(); }
+		               size_t nBlockSize = CHUNK_SIZE,
+                   size_t nCacheSize = 0 );
+    virtual ~VSICachedFile();
 
     void          FlushLRU();
-    int           LoadBlocks( size_t nStartBlock, size_t nBlockCount, 
-                              void *pBuffer, size_t nBufferSize );
+    int           LoadBlocks( vsi_l_offset nStartBlock, size_t nBlockCount, 
+                            void *pBuffer, size_t nBufferSize );
     void          Demote( VSICacheChunk * );
 
     VSIVirtualHandle *poBase;
@@ -109,8 +110,10 @@ class VSICachedFile : public VSIVirtualHandle
     VSICacheChunk *poLRUEnd;
 
     std::vector<VSICacheChunk*> apoCache;
+    
+    void          *poMutex;
 
-    int            bEOF;
+    int           bEOF;
 
     virtual int       Seek( vsi_l_offset nOffset, int nWhence );
     virtual vsi_l_offset Tell();
@@ -132,11 +135,11 @@ VSICachedFile::VSICachedFile( VSIVirtualHandle *poBaseHandle, size_t nBlockSize,
     nChunkSize = nBlockSize;
 
     nCacheUsed = 0;
-	if ( nCacheSize == 0 )
+    if ( nCacheSize == 0 )
     nCacheMax = CPLScanUIntBig( 
         CPLGetConfigOption( "VSI_CACHE_SIZE", "25000000" ), 40 );
-	else
-		nCacheMax = nCacheSize;
+    else
+        nCacheMax = nCacheSize;
 
     poLRUStart = NULL;
     poLRUEnd = NULL;
@@ -146,6 +149,22 @@ VSICachedFile::VSICachedFile( VSIVirtualHandle *poBaseHandle, size_t nBlockSize,
 
     nOffset = 0;
     bEOF = FALSE;
+    
+    poMutex = CPLCreateMutex();
+    if ( poMutex )
+        CPLReleaseMutex( poMutex );
+}
+
+/************************************************************************/
+/*                          ~VSICachedFile()                            */
+/************************************************************************/
+
+VSICachedFile::~VSICachedFile()
+
+{ 
+    Close(); 
+    CPLDestroyMutex( poMutex );
+    poMutex = 0;
 }
 
 /************************************************************************/
@@ -155,6 +174,7 @@ VSICachedFile::VSICachedFile( VSIVirtualHandle *poBaseHandle, size_t nBlockSize,
 int VSICachedFile::Close()
 
 {
+    CPLMutexHolderD( &poMutex );
     size_t i;
     for( i = 0; i < apoCache.size(); i++ )
         delete apoCache[i];
@@ -183,6 +203,8 @@ int VSICachedFile::Close()
 int VSICachedFile::Seek( vsi_l_offset nReqOffset, int nWhence )
 
 {
+    CPLMutexHolderD( &poMutex );
+
     bEOF = FALSE;
 
     if( nWhence == SEEK_SET )
@@ -286,8 +308,8 @@ void VSICachedFile::Demote( VSICacheChunk *poBlock )
 /*      buffer if it would be helpful.                                  */
 /************************************************************************/
 
-int VSICachedFile::LoadBlocks( size_t nStartBlock, size_t nBlockCount,
-                               void *pBuffer, size_t nBufferSize )
+int VSICachedFile::LoadBlocks( vsi_l_offset nStartBlock, size_t nBlockCount,
+                            void *pBuffer, size_t nBufferSize )
 
 {
     if( nBlockCount == 0 )
@@ -305,12 +327,12 @@ int VSICachedFile::LoadBlocks( size_t nStartBlock, size_t nBlockCount,
         poBase->Seek( (vsi_l_offset)nStartBlock * nChunkSize, SEEK_SET );
 
         VSICacheChunk *poBlock = new VSICacheChunk();
-		if ( !poBlock || !poBlock->Allocate( nChunkSize ) )
-		{
-			if ( poBlock )
-				delete poBlock;
-			return 0;
-		}
+        if ( !poBlock || !poBlock->Allocate( nChunkSize ) )
+        {
+            if ( poBlock )
+                delete poBlock;
+            return 0;
+        }
 
         apoCache[nStartBlock] = poBlock;
 
@@ -361,12 +383,12 @@ int VSICachedFile::LoadBlocks( size_t nStartBlock, size_t nBlockCount,
     for( size_t i = 0; i < nBlockCount; i++ )
     {
         VSICacheChunk *poBlock = new VSICacheChunk();
-		if ( !poBlock || !poBlock->Allocate( nChunkSize ) )
-		{
-			if ( poBlock )
-				delete poBlock;
-			return 0;
-		}
+        if ( !poBlock || !poBlock->Allocate( nChunkSize ) )
+        {
+            if ( poBlock )
+                delete poBlock;
+            return 0;
+        }
 
         poBlock->iBlock = nStartBlock + i;
 
@@ -400,7 +422,9 @@ int VSICachedFile::LoadBlocks( size_t nStartBlock, size_t nBlockCount,
 
 size_t VSICachedFile::Read( void * pBuffer, size_t nSize, size_t nCount )
 
-{
+{  
+    CPLMutexHolderD( &poMutex );
+
     if( nOffset >= nFileSize )
     {
         bEOF = TRUE;
@@ -410,17 +434,17 @@ size_t VSICachedFile::Read( void * pBuffer, size_t nSize, size_t nCount )
 /* ==================================================================== */
 /*      Make sure the cache is loaded for the whole request region.     */
 /* ==================================================================== */
-    size_t nStartBlock = (size_t) (nOffset / nChunkSize);
-    size_t nEndBlock = (size_t) ((nOffset + nSize * nCount - 1) / nChunkSize);
-    
-    for( size_t iBlock = nStartBlock; iBlock <= nEndBlock; iBlock++ )
+    vsi_l_offset nStartBlock = nOffset / nChunkSize;
+    vsi_l_offset nEndBlock = (nOffset + nSize * nCount - 1) / nChunkSize;
+
+    for( vsi_l_offset iBlock = nStartBlock; iBlock <= nEndBlock; iBlock++ )
     {
         if( apoCache.size() <= iBlock || apoCache[iBlock] == NULL )
         {
             size_t nBlocksToLoad = 1;
             while( iBlock + nBlocksToLoad <= nEndBlock
-                   && (apoCache.size() <= iBlock+nBlocksToLoad 
-                       || apoCache[iBlock+nBlocksToLoad] == NULL) )
+                && (apoCache.size() <= iBlock+nBlocksToLoad 
+                    || apoCache[iBlock+nBlocksToLoad] == NULL) )
                 nBlocksToLoad++;
 
             LoadBlocks( iBlock, nBlocksToLoad, pBuffer, nSize * nCount );
@@ -434,7 +458,7 @@ size_t VSICachedFile::Read( void * pBuffer, size_t nSize, size_t nCount )
 
     while( nAmountCopied < nSize * nCount )
     {
-        size_t iBlock = (size_t) ((nOffset + nAmountCopied) / nChunkSize);
+        vsi_l_offset iBlock = (nOffset + nAmountCopied) / nChunkSize;
         size_t nThisCopy;
         VSICacheChunk *poBlock = apoCache[iBlock];
         if( poBlock == NULL )
@@ -447,10 +471,10 @@ size_t VSICachedFile::Read( void * pBuffer, size_t nSize, size_t nCount )
             CPLAssert(poBlock != NULL);
         }
 
-		vsi_l_offset nStartOffset = (vsi_l_offset)iBlock * nChunkSize;
+        vsi_l_offset nStartOffset = (vsi_l_offset)iBlock * nChunkSize;
         nThisCopy = (size_t)
             ((nStartOffset + poBlock->nDataFilled) 
-             - nAmountCopied - nOffset);
+            - nAmountCopied - nOffset);
         
         if( nThisCopy > nSize * nCount - nAmountCopied )
             nThisCopy = nSize * nCount - nAmountCopied;

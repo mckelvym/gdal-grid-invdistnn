@@ -50,7 +50,7 @@ CPL_C_START
 void CPL_DLL CPLVerifyConfiguration(void);
 
 const char CPL_DLL * CPL_STDCALL
-CPLGetConfigOption( const char *, const char * );
+CPLGetConfigOption( const char *, const char * ) CPL_WARN_UNUSED_RESULT;
 void CPL_DLL CPL_STDCALL CPLSetConfigOption( const char *, const char * );
 void CPL_DLL CPL_STDCALL CPLSetThreadLocalConfigOption( const char *pszKey, 
                                                         const char *pszValue );
@@ -60,10 +60,10 @@ void CPL_DLL CPL_STDCALL CPLFreeConfig(void);
 /*      Safe malloc() API.  Thin cover over VSI functions with fatal    */
 /*      error reporting if memory allocation fails.                     */
 /* -------------------------------------------------------------------- */
-void CPL_DLL *CPLMalloc( size_t );
-void CPL_DLL *CPLCalloc( size_t, size_t );
-void CPL_DLL *CPLRealloc( void *, size_t );
-char CPL_DLL *CPLStrdup( const char * );
+void CPL_DLL *CPLMalloc( size_t ) CPL_WARN_UNUSED_RESULT;
+void CPL_DLL *CPLCalloc( size_t, size_t ) CPL_WARN_UNUSED_RESULT;
+void CPL_DLL *CPLRealloc( void *, size_t ) CPL_WARN_UNUSED_RESULT;
+char CPL_DLL *CPLStrdup( const char * ) CPL_WARN_UNUSED_RESULT;
 char CPL_DLL *CPLStrlwr( char *);
 
 #define CPLFree VSIFree
@@ -190,6 +190,7 @@ FILE CPL_DLL    *CPLOpenShared( const char *, const char *, int );
 void CPL_DLL     CPLCloseShared( FILE * );
 CPLSharedFileInfo CPL_DLL *CPLGetSharedList( int * );
 void CPL_DLL     CPLDumpSharedList( FILE * );
+void CPL_DLL     CPLCleanupSharedFileMutex();
 
 /* -------------------------------------------------------------------- */
 /*      DMS to Dec to DMS conversion.                                   */
@@ -220,7 +221,25 @@ CPLErr CPL_DLL CPLCreateFileInZip( void *hZip, const char *pszFilename,
 CPLErr CPL_DLL CPLWriteFileInZip( void *hZip, const void *pBuffer, int nBufferSize );
 CPLErr CPL_DLL CPLCloseFileInZip( void *hZip );
 CPLErr CPL_DLL CPLCloseZip( void *hZip );
-                            
+
+/* -------------------------------------------------------------------- */
+/*      ZLib compression                                                */
+/* -------------------------------------------------------------------- */
+
+void CPL_DLL *CPLZLibDeflate( const void* ptr, size_t nBytes, int nLevel,
+                              void* outptr, size_t nOutAvailableBytes,
+                              size_t* pnOutBytes );
+void CPL_DLL *CPLZLibInflate( const void* ptr, size_t nBytes,
+                              void* outptr, size_t nOutAvailableBytes,
+                              size_t* pnOutBytes );
+
+/* -------------------------------------------------------------------- */
+/*      XML validation.                                                 */
+/* -------------------------------------------------------------------- */
+int CPL_DLL CPLValidateXML(const char* pszXMLFilename,
+                           const char* pszXSDFilename,
+                           char** papszOptions);
+
 CPL_C_END
 
 /* -------------------------------------------------------------------- */
@@ -229,7 +248,7 @@ CPL_C_END
 
 #if defined(__cplusplus) && !defined(CPL_SUPRESS_CPLUSPLUS)
 
-class CPLLocaleC
+class CPL_DLL CPLLocaleC
 {
 public:
     CPLLocaleC();
@@ -238,7 +257,7 @@ public:
 private:
     char *pszOldLocale;
 
-    // Make it non-copyable
+    /* Make it non-copyable */
     CPLLocaleC(CPLLocaleC&);
     CPLLocaleC& operator=(CPLLocaleC&);
 };

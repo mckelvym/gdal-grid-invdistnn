@@ -252,9 +252,11 @@ static XMLTokenType ReadToken( ParseContext *psContext )
                 do
                 {
                     chNext = ReadChar( psContext );
+                    if (chNext == ']')
+                        break;
                     AddToToken( psContext, chNext );
                 }
-                while( chNext != ']' && chNext != '\0'
+                while( chNext != '\0'
                     && !EQUALN(psContext->pszInput+psContext->nInputOffset,"]>", 2) );
                     
                 if (chNext == '\0')
@@ -266,11 +268,14 @@ static XMLTokenType ReadToken( ParseContext *psContext )
                     break;
                 }
 
-                chNext = ReadChar( psContext );
-                AddToToken( psContext, chNext );
+                if (chNext != ']')
+                {
+                    chNext = ReadChar( psContext );
+                    AddToToken( psContext, chNext );
 
-                // Skip ">" character, will be consumed below
-                chNext = ReadChar( psContext );
+                    // Skip ">" character, will be consumed below
+                    chNext = ReadChar( psContext );
+                }
             }
 
 
@@ -654,6 +659,20 @@ CPLXMLNode *CPLParseXMLString( const char *pszString )
                 }
                 else
                 {
+                    if (strcmp(sContext.pszToken+1,
+                         sContext.papsStack[sContext.nStackSize-1].psFirstNode->pszValue) != 0)
+                    {
+                        /* TODO: at some point we could just error out like any other */
+                        /* sane XML parser would do */
+                        CPLError( CE_Warning, CPLE_AppDefined,
+                                "Line %d: <%.500s> matches <%.500s>, but the case isn't the same. "
+                                "Going on, but this is invalid XML that might be rejected in "
+                                "future versions.",
+                                sContext.nInputLine,
+                                sContext.papsStack[sContext.nStackSize-1].psFirstNode->pszValue,
+                                sContext.pszToken );
+                    }
+
                     if( ReadToken(&sContext) != TClose )
                     {
                         CPLError( CE_Failure, CPLE_AppDefined, 
@@ -816,7 +835,7 @@ CPLXMLNode *CPLParseXMLString( const char *pszString )
 /* -------------------------------------------------------------------- */
 /*      Did we pop all the way out of our stack?                        */
 /* -------------------------------------------------------------------- */
-    if( CPLGetLastErrorType() == CE_None && sContext.nStackSize != 0 )
+    if( CPLGetLastErrorType() != CE_Failure && sContext.nStackSize != 0 )
     {
         CPLError( CE_Failure, CPLE_AppDefined, 
                   "Parse error at EOF, not all elements have been closed,\n"
@@ -831,7 +850,7 @@ CPLXMLNode *CPLParseXMLString( const char *pszString )
     if( sContext.papsStack != NULL )
         CPLFree( sContext.papsStack );
 
-    if( CPLGetLastErrorType() != CE_None )
+    if( CPLGetLastErrorType() == CE_Failure )
     {
         CPLDestroyXMLNode( sContext.psFirstNode );
         sContext.psFirstNode = NULL;
@@ -861,7 +880,7 @@ static void _GrowBuffer( size_t nNeeded,
 /************************************************************************/
 
 static void
-CPLSerializeXMLNode( CPLXMLNode *psNode, int nIndent, 
+CPLSerializeXMLNode( const CPLXMLNode *psNode, int nIndent,
                      char **ppszText, unsigned int *pnLength, 
                      unsigned int *pnMaxLength )
 
@@ -882,7 +901,7 @@ CPLSerializeXMLNode( CPLXMLNode *psNode, int nIndent,
 /* -------------------------------------------------------------------- */
     if( psNode->eType == CXT_Text )
     {
-        char *pszEscaped = CPLEscapeString( psNode->pszValue, -1, CPLES_XML );
+        char *pszEscaped = CPLEscapeString( psNode->pszValue, -1, CPLES_XML_BUT_QUOTES );
 
         CPLAssert( psNode->psChild == NULL );
 
@@ -903,8 +922,18 @@ CPLSerializeXMLNode( CPLXMLNode *psNode, int nIndent,
                    && psNode->psChild->eType == CXT_Text );
 
         sprintf( *ppszText + *pnLength, " %s=\"", psNode->pszValue );
-        CPLSerializeXMLNode( psNode->psChild, 0, ppszText, 
-                             pnLength, pnMaxLength );
+        *pnLength += strlen(*ppszText + *pnLength);
+
+        char *pszEscaped = CPLEscapeString( psNode->psChild->pszValue, -1, CPLES_XML );
+
+        _GrowBuffer( strlen(pszEscaped) + *pnLength,
+                     ppszText, pnMaxLength );
+        strcat( *ppszText + *pnLength, pszEscaped );
+
+        CPLFree( pszEscaped );
+
+        *pnLength += strlen(*ppszText + *pnLength);
+        _GrowBuffer( 3 + *pnLength, ppszText, pnMaxLength );
         strcat( *ppszText + *pnLength, "\"" );
     }
 
@@ -969,6 +998,9 @@ CPLSerializeXMLNode( CPLXMLNode *psNode, int nIndent,
         
         if( !bHasNonAttributeChildren )
         {
+            _GrowBuffer( *pnLength + 40,
+                         ppszText, pnMaxLength );
+
             if( psNode->pszValue[0] == '?' )
                 strcat( *ppszText + *pnLength, "?>\n" );
             else
@@ -1027,17 +1059,17 @@ CPLSerializeXMLNode( CPLXMLNode *psNode, int nIndent,
  * document becomes owned by the caller and should be freed with CPLFree()
  * when no longer needed.
  *
- * @param psNode
+ * @param psNode the node to serialize.
  *
  * @return the document on success or NULL on failure. 
  */
 
-char *CPLSerializeXMLTree( CPLXMLNode *psNode )
+char *CPLSerializeXMLTree( const CPLXMLNode *psNode )
 
 {
     unsigned int nMaxLength = 100, nLength = 0;
     char *pszText = NULL;
-    CPLXMLNode *psThis;
+    const CPLXMLNode *psThis;
 
     pszText = (char *) CPLMalloc(nMaxLength);
     pszText[0] = '\0';
@@ -1922,7 +1954,7 @@ CPLXMLNode *CPLParseXMLFile( const char *pszFilename )
  * @return TRUE on success, FALSE otherwise.
  */
 
-int CPLSerializeXMLTreeToFile( CPLXMLNode *psTree, const char *pszFilename )
+int CPLSerializeXMLTreeToFile( const CPLXMLNode *psTree, const char *pszFilename )
 
 {
     char    *pszDoc;

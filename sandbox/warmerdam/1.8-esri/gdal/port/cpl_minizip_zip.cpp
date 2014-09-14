@@ -746,9 +746,9 @@ extern int ZEXPORT cpl_zipOpenNewFileInZip3 (
     zi->ci.flag = 0;
     if ((level==8) || (level==9))
       zi->ci.flag |= 2;
-    if ((level==2))
+    if (level==2)
       zi->ci.flag |= 4;
-    if ((level==1))
+    if (level==1)
       zi->ci.flag |= 6;
     if (password != NULL)
       zi->ci.flag |= 1;
@@ -1207,6 +1207,14 @@ extern int ZEXPORT cpl_zipClose (
 /* ==================================================================== */
 /************************************************************************/
 
+#include "cpl_minizip_unzip.h"
+
+typedef struct
+{
+    zipFile   hZip;
+    char    **papszFilenames;
+} CPLZip;
+
 /************************************************************************/
 /*                            CPLCreateZip()                            */
 /************************************************************************/
@@ -1217,8 +1225,41 @@ void *CPLCreateZip( const char *pszZipFilename, char **papszOptions )
     (void) papszOptions;
 
     int bAppend = CSLTestBoolean(CSLFetchNameValueDef(papszOptions, "APPEND", "FALSE"));
+    char** papszFilenames = NULL;
 
-    return cpl_zipOpen( pszZipFilename, bAppend ? APPEND_STATUS_ADDINZIP : APPEND_STATUS_CREATE);
+    if( bAppend )
+    {
+        zipFile unzF = cpl_unzOpen(pszZipFilename);
+        if( unzF != NULL )
+        {
+            if( cpl_unzGoToFirstFile(unzF) == UNZ_OK )
+            {
+                do
+                {
+                    char fileName[8193];
+                    unz_file_info file_info;
+                    cpl_unzGetCurrentFileInfo (unzF, &file_info, fileName,
+                                            sizeof(fileName) - 1, NULL, 0, NULL, 0);
+                    fileName[sizeof(fileName) - 1] = '\0';
+                    papszFilenames = CSLAddString(papszFilenames, fileName);
+                }
+                while( cpl_unzGoToNextFile(unzF) == UNZ_OK );
+            }
+            cpl_unzClose(unzF);
+        }
+    }
+
+    zipFile hZip = cpl_zipOpen( pszZipFilename, bAppend ? APPEND_STATUS_ADDINZIP : APPEND_STATUS_CREATE);
+    if( hZip == NULL )
+    {
+        CSLDestroy(papszFilenames);
+        return NULL;
+    }
+    
+    CPLZip* psZip = (CPLZip*)CPLMalloc(sizeof(CPLZip));
+    psZip->hZip = hZip;
+    psZip->papszFilenames = papszFilenames;
+    return psZip;
 }
 
 /************************************************************************/
@@ -1232,18 +1273,31 @@ CPLErr CPLCreateFileInZip( void *hZip, const char *pszFilename,
     int  nErr;
 
     (void) papszOptions;
-
-    if( hZip == NULL )
+    
+    CPLZip* psZip = (CPLZip*)hZip;
+    if( psZip == NULL )
         return CE_Failure;
 
-    nErr = cpl_zipOpenNewFileInZip( (zipFile) hZip, pszFilename, NULL, 
+    if( CSLFindString(psZip->papszFilenames, pszFilename ) >= 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                "%s already exists in ZIP file", pszFilename);
+        return CE_Failure;
+    }
+
+    int bCompressed = CSLTestBoolean(CSLFetchNameValueDef(papszOptions, "COMPRESSED", "TRUE"));
+
+    nErr = cpl_zipOpenNewFileInZip( psZip->hZip, pszFilename, NULL, 
                                     NULL, 0, NULL, 0, "", 
-                                    Z_DEFLATED, Z_DEFAULT_COMPRESSION );
-    
+                                    bCompressed ? Z_DEFLATED : 0, bCompressed ? Z_DEFAULT_COMPRESSION : 0 );
+
     if( nErr != ZIP_OK )
         return CE_Failure;
     else
+    {
+        psZip->papszFilenames = CSLAddString(psZip->papszFilenames, pszFilename);
         return CE_None;
+    }
 }
 
 /************************************************************************/
@@ -1254,8 +1308,12 @@ CPLErr CPLWriteFileInZip( void *hZip, const void *pBuffer, int nBufferSize )
 
 {
     int nErr;
-    
-    nErr = cpl_zipWriteInFileInZip( (zipFile) hZip, pBuffer, 
+
+    CPLZip* psZip = (CPLZip*)hZip;
+    if( psZip == NULL )
+        return CE_Failure;
+
+    nErr = cpl_zipWriteInFileInZip( psZip->hZip, pBuffer, 
                                     (unsigned int) nBufferSize );
 
     if( nErr != ZIP_OK )
@@ -1273,7 +1331,11 @@ CPLErr CPLCloseFileInZip( void *hZip )
 {
     int nErr;
 
-    nErr = cpl_zipCloseFileInZip( (zipFile) hZip );
+    CPLZip* psZip = (CPLZip*)hZip;
+    if( psZip == NULL )
+        return CE_Failure;
+
+    nErr = cpl_zipCloseFileInZip( psZip->hZip );
 
     if( nErr != ZIP_OK )
         return CE_Failure;
@@ -1290,7 +1352,16 @@ CPLErr CPLCloseZip( void *hZip )
 {
     int nErr;
 
-    nErr = cpl_zipClose((zipFile) hZip, NULL);
+    CPLZip* psZip = (CPLZip*)hZip;
+    if( psZip == NULL )
+        return CE_Failure;
+
+    nErr = cpl_zipClose(psZip->hZip, NULL);
+
+    psZip->hZip = NULL;
+    CSLDestroy(psZip->papszFilenames);
+    psZip->papszFilenames = NULL;
+    CPLFree(psZip);
 
     if( nErr != ZIP_OK )
         return CE_Failure;

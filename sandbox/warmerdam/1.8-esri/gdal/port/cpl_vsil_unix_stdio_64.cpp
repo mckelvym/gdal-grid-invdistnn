@@ -35,12 +35,15 @@
  *
  ****************************************************************************/
 
+//#define VSI_COUNT_BYTES_READ
+
 #include "cpl_port.h"
 
 #if !defined(WIN32) && !defined(WIN32CE)
 
 #include "cpl_vsi_virtual.h"
 #include "cpl_string.h"
+#include "cpl_multiproc.h"
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -67,6 +70,9 @@ CPL_CVSID("$Id$");
 #ifndef VSI_STAT64_T
 #define VSI_STAT64_T stat64
 #endif
+#ifndef VSI_FTRUNCATE64
+#define VSI_FTRUNCATE64 ftruncate64
+#endif
 
 #else /* not UNIX_STDIO_64 */
 
@@ -85,6 +91,9 @@ CPL_CVSID("$Id$");
 #ifndef VSI_STAT64_T
 #define VSI_STAT64_T stat
 #endif
+#ifndef VSI_FTRUNCATE64
+#define VSI_FTRUNCATE64 ftruncate
+#endif
 
 #endif /* ndef UNIX_STDIO_64 */
 
@@ -96,7 +105,17 @@ CPL_CVSID("$Id$");
 
 class VSIUnixStdioFilesystemHandler : public VSIFilesystemHandler 
 {
+#ifdef VSI_COUNT_BYTES_READ
+    vsi_l_offset  nTotalBytesRead;
+    void         *hMutex;
+#endif
+
 public:
+                              VSIUnixStdioFilesystemHandler();
+#ifdef VSI_COUNT_BYTES_READ
+    virtual                  ~VSIUnixStdioFilesystemHandler();
+#endif
+
     virtual VSIVirtualHandle *Open( const char *pszFilename, 
                                     const char *pszAccess);
     virtual int      Stat( const char *pszFilename, VSIStatBufL *pStatBuf, int nFlags );
@@ -105,6 +124,10 @@ public:
     virtual int      Mkdir( const char *pszDirname, long nMode );
     virtual int      Rmdir( const char *pszDirname );
     virtual char   **ReadDir( const char *pszDirname );
+
+#ifdef VSI_COUNT_BYTES_READ
+    void             AddToTotal(vsi_l_offset nBytes);
+#endif
 };
 
 /************************************************************************/
@@ -115,12 +138,18 @@ public:
 
 class VSIUnixStdioHandle : public VSIVirtualHandle
 {
-  public:
     FILE          *fp;
     vsi_l_offset  nOffset;
     int           bLastOpWrite;
     int           bLastOpRead;
     int           bAtEOF;
+#ifdef VSI_COUNT_BYTES_READ
+    vsi_l_offset  nTotalBytesRead;
+    VSIUnixStdioFilesystemHandler *poFS;
+#endif
+  public:
+                      VSIUnixStdioHandle(VSIUnixStdioFilesystemHandler *poFSIn,
+                                         FILE* fpIn);
 
     virtual int       Seek( vsi_l_offset nOffset, int nWhence );
     virtual vsi_l_offset Tell();
@@ -129,7 +158,22 @@ class VSIUnixStdioHandle : public VSIVirtualHandle
     virtual int       Eof();
     virtual int       Flush();
     virtual int       Close();
+    virtual int       Truncate( vsi_l_offset nNewSize );
 };
+
+
+/************************************************************************/
+/*                       VSIUnixStdioHandle()                           */
+/************************************************************************/
+
+VSIUnixStdioHandle::VSIUnixStdioHandle(VSIUnixStdioFilesystemHandler *poFSIn,
+                                       FILE* fpIn) :
+    fp(fpIn), nOffset(0), bLastOpWrite(FALSE), bLastOpRead(FALSE), bAtEOF(FALSE)
+#ifdef VSI_COUNT_BYTES_READ
+    , nTotalBytesRead(0), poFS(poFSIn)
+#endif
+{
+}
 
 /************************************************************************/
 /*                               Close()                                */
@@ -139,6 +183,10 @@ int VSIUnixStdioHandle::Close()
 
 {
     VSIDebug1( "VSIUnixStdioHandle::Close(%p)", fp );
+
+#ifdef VSI_COUNT_BYTES_READ
+    poFS->AddToTotal(nTotalBytesRead);
+#endif
 
     return fclose( fp );
 }
@@ -153,9 +201,6 @@ int VSIUnixStdioHandle::Seek( vsi_l_offset nOffset, int nWhence )
     // seeks that do nothing are still surprisingly expensive with MSVCRT.
     // try and short circuit if possible.
     if( nWhence == SEEK_SET && nOffset == this->nOffset )
-        return 0;
-
-    if( nWhence == SEEK_END && nOffset == 0 && bAtEOF )
         return 0;
 
     int     nResult = VSI_FSEEK64( fp, nOffset, nWhence );
@@ -191,22 +236,20 @@ int VSIUnixStdioHandle::Seek( vsi_l_offset nOffset, int nWhence )
         if( nWhence == SEEK_SET )
         {
             this->nOffset = nOffset;
-            bAtEOF = FALSE;
         }
         else if( nWhence == SEEK_END )
         {
             this->nOffset = VSI_FTELL64( fp );
-            bAtEOF = TRUE;
         }
         else if( nWhence == SEEK_CUR )
         {
             this->nOffset += nOffset;
-            bAtEOF = FALSE;
         }
     }
         
     bLastOpWrite = FALSE;
     bLastOpRead = FALSE;
+    bAtEOF = FALSE;
 
     errno = nError;
     return nResult;
@@ -274,10 +317,21 @@ size_t VSIUnixStdioHandle::Read( void * pBuffer, size_t nSize, size_t nCount )
 /* -------------------------------------------------------------------- */
 /*      Update current offset.                                          */
 /* -------------------------------------------------------------------- */
+
+#ifdef VSI_COUNT_BYTES_READ
+    nTotalBytesRead += nSize * nResult;
+#endif
+
     nOffset += nSize * nResult;
     bLastOpWrite = FALSE;
     bLastOpRead = TRUE;
-    
+
+    if (nResult != nCount)
+    {
+        nOffset = VSI_FTELL64( fp );
+        bAtEOF = feof(fp);
+    }
+
     return nResult;
 }
 
@@ -327,9 +381,6 @@ size_t VSIUnixStdioHandle::Write( const void * pBuffer, size_t nSize,
 int VSIUnixStdioHandle::Eof()
 
 {
-    if( !bAtEOF )
-        bAtEOF = feof(fp);
-
     if( bAtEOF )
         return 1;
     else
@@ -337,10 +388,50 @@ int VSIUnixStdioHandle::Eof()
 }
 
 /************************************************************************/
+/*                             Truncate()                               */
+/************************************************************************/
+
+int VSIUnixStdioHandle::Truncate( vsi_l_offset nNewSize )
+{
+    fflush(fp);
+    int nRet = VSI_FTRUNCATE64(fileno(fp), nNewSize);
+    return nRet;
+}
+
+
+/************************************************************************/
 /* ==================================================================== */
 /*                       VSIUnixStdioFilesystemHandler                  */
 /* ==================================================================== */
 /************************************************************************/
+
+/************************************************************************/
+/*                      VSIUnixStdioFilesystemHandler()                 */
+/************************************************************************/
+
+VSIUnixStdioFilesystemHandler::VSIUnixStdioFilesystemHandler()
+#ifdef VSI_COUNT_BYTES_READ
+     : nTotalBytesRead(0), hMutex(NULL)
+#endif
+{
+}
+
+#ifdef VSI_COUNT_BYTES_READ
+/************************************************************************/
+/*                     ~VSIUnixStdioFilesystemHandler()                 */
+/************************************************************************/
+
+VSIUnixStdioFilesystemHandler::~VSIUnixStdioFilesystemHandler()
+{
+    CPLDebug( "VSI",
+              "~VSIUnixStdioFilesystemHandler() : nTotalBytesRead = " CPL_FRMT_GUIB,
+              nTotalBytesRead );
+
+    if( hMutex != NULL )
+        CPLDestroyMutex( hMutex );
+    hMutex = NULL;
+}
+#endif
 
 /************************************************************************/
 /*                                Open()                                */
@@ -363,13 +454,7 @@ VSIUnixStdioFilesystemHandler::Open( const char *pszFilename,
         return NULL;
     }
 
-    VSIUnixStdioHandle *poHandle = new VSIUnixStdioHandle;
-    
-    poHandle->fp = fp;
-    poHandle->nOffset = 0;
-    poHandle->bLastOpWrite = FALSE;
-    poHandle->bLastOpRead = FALSE;
-    poHandle->bAtEOF = FALSE;
+    VSIUnixStdioHandle *poHandle = new VSIUnixStdioHandle(this, fp);
 
     errno = nError;
 
@@ -451,36 +536,18 @@ char **VSIUnixStdioFilesystemHandler::ReadDir( const char *pszPath )
 {
     DIR           *hDir;
     struct dirent *psDirEntry;
-    char          **papszDir = NULL;
+    CPLStringList  oDir;
 
     if (strlen(pszPath) == 0)
         pszPath = ".";
 
     if ( (hDir = opendir(pszPath)) != NULL )
     {
-        /* In case of really big number of files in the directory, CSLAddString */
-        /* can be slow (see #2158). We then directly build the list. */
-        int nItems=0;
-        int nAllocatedItems=0;
+        // we want to avoid returning NULL for an empty list.
+        oDir.Assign( (char**) CPLCalloc(2,sizeof(char*)) );
+
         while( (psDirEntry = readdir(hDir)) != NULL )
-        {
-            if (nItems == 0)
-            {
-                papszDir = (char**) CPLCalloc(2,sizeof(char*));
-                nAllocatedItems = 1;
-            }
-            else if (nItems >= nAllocatedItems)
-            {
-                nAllocatedItems = nAllocatedItems * 2;
-                papszDir = (char**)CPLRealloc(papszDir, 
-                                              (nAllocatedItems+2)*sizeof(char*));
-            }
-
-            papszDir[nItems] = CPLStrdup(psDirEntry->d_name);
-            papszDir[nItems+1] = NULL;
-
-            nItems++;
-        }
+            oDir.AddString( psDirEntry->d_name );
 
         closedir( hDir );
     }
@@ -491,8 +558,21 @@ char **VSIUnixStdioFilesystemHandler::ReadDir( const char *pszPath )
          */
     }
 
-    return papszDir;
+    return oDir.StealList();
 }
+
+#ifdef VSI_COUNT_BYTES_READ
+/************************************************************************/
+/*                            AddToTotal()                              */
+/************************************************************************/
+
+void VSIUnixStdioFilesystemHandler::AddToTotal(vsi_l_offset nBytes)
+{
+    CPLMutexHolder oHolder(&hMutex);
+    nTotalBytesRead += nBytes;
+}
+
+#endif
 
 /************************************************************************/
 /*                     VSIInstallLargeFileHandler()                     */
@@ -501,7 +581,7 @@ char **VSIUnixStdioFilesystemHandler::ReadDir( const char *pszPath )
 void VSIInstallLargeFileHandler()
 
 {
-    VSIFileManager::InstallHandler( "", new VSIUnixStdioFilesystemHandler );
+    VSIFileManager::InstallHandler( "", new VSIUnixStdioFilesystemHandler() );
 }
 
 #endif /* ndef WIN32 */

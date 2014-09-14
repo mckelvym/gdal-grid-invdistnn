@@ -47,6 +47,17 @@
 #include <string>
 
 /************************************************************************/
+// Chunk and buffer sizes when using the cached I/O handler.
+// Some drivers have horrible I/O performance running on Windows/VMs,
+// especially ones that do too many tiny reads.
+/************************************************************************/
+#define JP2KAK_IO_CHUNK_SIZE 65536L
+#define JP2KAK_IO_BUFFER_SIZE 1048576L
+
+#define GRIB_IO_CHUNK_SIZE 1048576L
+#define GRIB_IO_BUFFER_SIZE 5242880L
+
+/************************************************************************/
 /*                           VSIVirtualHandle                           */
 /************************************************************************/
 
@@ -55,10 +66,12 @@ class CPL_DLL VSIVirtualHandle {
     virtual int       Seek( vsi_l_offset nOffset, int nWhence ) = 0;
     virtual vsi_l_offset Tell() = 0;
     virtual size_t    Read( void *pBuffer, size_t nSize, size_t nMemb ) = 0;
+    virtual int       ReadMultiRange( int nRanges, void ** ppData, const vsi_l_offset* panOffsets, const size_t* panSizes );
     virtual size_t    Write( const void *pBuffer, size_t nSize,size_t nMemb)=0;
     virtual int       Eof() = 0;
     virtual int       Flush() {return 0;}
     virtual int       Close() = 0;
+    virtual int       Truncate( vsi_l_offset nNewSize ) { return -1; }
     virtual           ~VSIVirtualHandle() { }
 };
 
@@ -185,6 +198,7 @@ public:
 };
 
 VSIVirtualHandle* VSICreateBufferedReaderHandle(VSIVirtualHandle* poBaseHandle);
-VSIVirtualHandle* VSICreateCachedFile( VSIVirtualHandle* poBaseHandle, size_t nBlockSize = 32768, size_t nCacheSize = 0 );
+VSIVirtualHandle CPL_DLL *VSICreateCachedFile( VSIVirtualHandle* poBaseHandle, size_t nBlockSize = 32768, size_t nCacheSize = 0 );
+VSIVirtualHandle* VSICreateGZipWritable( VSIVirtualHandle* poBaseHandle, int bRegularZLibIn, int bAutoCloseBaseHandle );
 
 #endif /* ndef CPL_VSI_VIRTUAL_H_INCLUDED */

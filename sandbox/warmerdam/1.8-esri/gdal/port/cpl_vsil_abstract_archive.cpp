@@ -130,9 +130,24 @@ const VSIArchiveContent* VSIArchiveFilesystemHandler::GetContentOfArchive
         CPLString osFileName = poReader->GetFileName();
         const char* fileName = osFileName.c_str();
 
+        /* Remove ./ pattern at the beginning of a filename */
+        if (fileName[0] == '.' && fileName[1] == '/')
+        {
+            fileName += 2;
+            if (fileName[0] == '\0')
+                continue;
+        }
+
         char* pszStrippedFileName = CPLStrdup(fileName);
+        char* pszIter;
+        for(pszIter = pszStrippedFileName;*pszIter;pszIter++)
+        {
+            if (*pszIter == '\\')
+                *pszIter = '/';
+        }
+
         int bIsDir = strlen(fileName) > 0 &&
-                      (fileName[strlen(fileName)-1] == '/' || fileName[strlen(fileName)-1] == '\\');
+                      fileName[strlen(fileName)-1] == '/';
         if (bIsDir)
         {
             /* Remove trailing slash */
@@ -144,10 +159,9 @@ const VSIArchiveContent* VSIArchiveFilesystemHandler::GetContentOfArchive
             oSet.insert(pszStrippedFileName);
 
             /* Add intermediate directory structure */
-            char* pszIter;
             for(pszIter = pszStrippedFileName;*pszIter;pszIter++)
             {
-                if (*pszIter == '/' || *pszIter == '\\')
+                if (*pszIter == '/')
                 {
                     char* pszStrippedFileName2 = CPLStrdup(pszStrippedFileName);
                     pszStrippedFileName2[pszIter - pszStrippedFileName] = 0;
@@ -336,11 +350,11 @@ char* VSIArchiveFilesystemHandler::SplitFilename(const char *pszFilename,
                     osFileInArchive = "";
 
                 /* Remove trailing slash */
-                if (strlen(osFileInArchive))
+                if (osFileInArchive.size())
                 {
                     char lastC = osFileInArchive[strlen(osFileInArchive) - 1];
                     if (lastC == '\\' || lastC == '/')
-                        osFileInArchive[strlen(osFileInArchive) - 1] = 0;
+                        osFileInArchive.resize(strlen(osFileInArchive) - 1);
                 }
 
                 return archiveFilename;
