@@ -37,6 +37,7 @@
 #include "cpl_string.h"
 #include "ogr_spatialref.h"
 #include "netcdf.h"
+#include "netcdfvariables.h"
 
 
 /************************************************************************/
@@ -652,6 +653,8 @@ static const oNetcdfSRS_PT poNetcdfSRS_PT[] = {
     {"TM_south_oriented", SRS_PT_TRANSVERSE_MERCATOR_SOUTH_ORIENTED, NULL },
     {NULL, NULL, NULL },
 };
+// ESRI WKT attribute name
+#define ESRI_PE_STRING       "esri_pe_string"
 
 /************************************************************************/
 /* ==================================================================== */
@@ -669,6 +672,8 @@ class netCDFDataset : public GDALPamDataset
     CPLString     osFilename;
     int           cdfid;
     char          **papszSubDatasets;
+    char          **papszSubdatasetStrings;
+    int           bSubdatasetOneString; /* Pass one big string containing all subdatasets */
     char          **papszMetadata;
     CPLStringList papszDimName;
     bool          bBottomUp;
@@ -698,8 +703,16 @@ class netCDFDataset : public GDALPamDataset
     char         **papszCreationOptions;
     int          nCompress;
     int          nZLevel;
+    int          bChunking;
     int          nCreateMode;
     int          bSignedData;
+
+    int          bDelayedSubdatasetCreation;
+    
+    int          bSkipBlacklisted;
+    char         **papszBlacklist;
+    
+    netCDFVariableMap oVariables;
 
     double       rint( double );
 
@@ -709,7 +722,7 @@ class netCDFDataset : public GDALPamDataset
     char **      FetchStandardParallels( const char *pszGridMappingValue );
 
     void ProcessCreationOptions( );
-    int DefVarDeflate( int nVarId, int bChunking=TRUE );
+    int DefVarDeflate( int nVarId, int bChunkingArg=TRUE );
     CPLErr AddProjectionVars( GDALProgressFunc pfnProgress=GDALDummyProgress, 
                               void * pProgressData=NULL );
     void AddGridMappingRef(); 
@@ -720,6 +733,7 @@ class netCDFDataset : public GDALPamDataset
     CPLErr      ReadAttributes( int, int );
 
     void  CreateSubDatasetList( );
+    void  ExtractMetadataMD( );
 
     void  SetProjectionFromVar( int );
 
