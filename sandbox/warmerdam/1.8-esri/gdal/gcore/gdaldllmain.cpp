@@ -30,7 +30,16 @@
 #include "gdal.h"
 #include "ogr_api.h"
 #include "cpl_multiproc.h"
+#include "cpl_conv.h"
+#include "cpl_string.h"
 
+static int bInGDALGlobalDestructor = FALSE;
+extern "C" int CPL_DLL GDALIsInGlobalDestructor(void);
+
+int GDALIsInGlobalDestructor(void)
+{
+    return bInGDALGlobalDestructor;
+}
 
 /************************************************************************/
 /*  The library set-up/clean-up routines implemented with               */
@@ -62,13 +71,18 @@ static void GDALDestroy(void)
 {
     // TODO: Confirm if calling CPLCleanupTLS here is safe
     //CPLCleanupTLS();
+    
+    if( !CSLTestBoolean(CPLGetConfigOption("GDAL_DESTROY", "YES")) )
+        return;
 
     CPLDebug("GDAL", "In GDALDestroy - unloading GDAL shared library.");
+    bInGDALGlobalDestructor = TRUE;
     GDALDestroyDriverManager();
 
 #ifdef OGR_ENABLED
     OGRCleanupAll();
 #endif
+    bInGDALGlobalDestructor = FALSE;
 }
 
 #endif // __GNUC__

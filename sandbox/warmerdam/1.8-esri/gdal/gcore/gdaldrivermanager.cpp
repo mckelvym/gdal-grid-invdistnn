@@ -150,6 +150,8 @@ GDALDriverManager::~GDALDriverManager()
         delete poDriver;
     }
 
+    m_NameDriverMap.clear();
+
 /* -------------------------------------------------------------------- */
 /*      Cleanup local memory.                                           */
 /* -------------------------------------------------------------------- */
@@ -296,11 +298,13 @@ int GDALDriverManager::RegisterDriver( GDALDriver * poDriver )
 {
     CPLMutexHolderD( &hDMMutex );
 
+    const char *pszDriverDesc = poDriver->GetDescription();
+
 /* -------------------------------------------------------------------- */
 /*      If it is already registered, just return the existing           */
 /*      index.                                                          */
 /* -------------------------------------------------------------------- */
-    if( GetDriverByName( poDriver->GetDescription() ) != NULL )
+    if( GetDriverByName( pszDriverDesc ) != NULL )
     {
         int             i;
 
@@ -331,6 +335,40 @@ int GDALDriverManager::RegisterDriver( GDALDriver * poDriver )
         poDriver->SetMetadataItem( GDAL_DCAP_CREATECOPY, "YES" );
 
     int iResult = nDrivers - 1;
+
+/* -------------------------------------------------------------------- */
+/*      Add the driver to the map along with extension                  */
+/* -------------------------------------------------------------------- */
+    CPLString osDriverName(pszDriverDesc);
+    m_NameDriverMap[osDriverName.tolower()] = poDriver;
+    
+    const char *pszPossibleExtensions = poDriver->GetMetadataItem( GDAL_DMD_POSSIBLEEXTENSIONS );
+    if( pszPossibleExtensions )
+    {
+        CPLStringList osExtensionList( CSLTokenizeString2( pszPossibleExtensions,
+                                                           ";",
+                                                           CSLT_STRIPENDSPACES | CSLT_STRIPLEADSPACES ) );
+        for (int i = 0; i < osExtensionList.size(); ++i)
+        {
+            CPLString osExtension(osExtensionList[i]);
+            osExtension.tolower();
+            NameDriverMap::iterator oIter = m_NameDriverMap.find( osExtension );
+            if( oIter == m_NameDriverMap.end() )
+                m_NameDriverMap[osExtension] = poDriver;
+        }
+    }
+    else
+    {
+        const char *pszDefaultExtension = poDriver->GetMetadataItem( GDAL_DMD_EXTENSION );
+        if( pszDefaultExtension )
+        {
+            CPLString osExtension(pszDefaultExtension);
+            osExtension.tolower();
+            NameDriverMap::iterator oIter = m_NameDriverMap.find( osExtension );
+            if( oIter == m_NameDriverMap.end() )
+                m_NameDriverMap[osExtension] = poDriver;
+        }
+    }
 
     return iResult;
 }
@@ -373,6 +411,18 @@ void GDALDriverManager::DeregisterDriver( GDALDriver * poDriver )
 {
     int         i;
     CPLMutexHolderD( &hDMMutex );
+
+/* -------------------------------------------------------------------- */
+/*      Remove all instances of the driver in lookup map.               */
+/* -------------------------------------------------------------------- */
+    NameDriverMap::iterator oIter = m_NameDriverMap.begin();
+    while( oIter != m_NameDriverMap.end() )
+    {
+        if ( oIter->second == poDriver )
+            m_NameDriverMap.erase( oIter++ );
+        else
+            ++oIter;
+    }
 
     for( i = 0; i < nDrivers; i++ )
     {
@@ -430,6 +480,11 @@ GDALDriver * GDALDriverManager::GetDriverByName( const char * pszName )
     int         i;
 
     CPLMutexHolderD( &hDMMutex );
+
+    CPLString osDriverName(pszName);
+    NameDriverMap::iterator oIter = m_NameDriverMap.find(osDriverName.tolower());
+    if( oIter != m_NameDriverMap.end() )
+      return oIter->second;
 
     for( i = 0; i < nDrivers; i++ )
     {

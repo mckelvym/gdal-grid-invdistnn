@@ -63,8 +63,8 @@ void __pure_virtual()
  * \brief Return the smallest data type that can fully express both input data
  * types.
  *
- * @param eType1 
- * @param eType2
+ * @param eType1 first data type.
+ * @param eType2 second data type.
  *
  * @return a data type able to express eType1 and eType2.
  */
@@ -208,7 +208,7 @@ GDALDataTypeUnion( GDALDataType eType1, GDALDataType eType2 )
  *
  * Returns the size of a a GDT_* type in bits, <b>not bytes</b>!
  *
- * @param data type, such as GDT_Byte. 
+ * @param eDataType type, such as GDT_Byte.
  * @return the number of bits or zero if it is not recognised.
  */
 
@@ -384,11 +384,11 @@ GDALDataType CPL_STDCALL GDALGetDataTypeByName( const char *pszName )
  */
 GDALAsyncStatusType CPL_DLL CPL_STDCALL GDALGetAsyncStatusTypeByName( const char *pszName )
 {
-	VALIDATE_POINTER1( pszName, "GDALGetAsyncStatusTypeByName", GARIO_ERROR);
+    VALIDATE_POINTER1( pszName, "GDALGetAsyncStatusTypeByName", GARIO_ERROR);
 
     int	iType;
 
-	for( iType = 1; iType < GARIO_TypeCount; iType++ )
+    for( iType = 1; iType < GARIO_TypeCount; iType++ )
     {
         if( GDALGetAsyncStatusTypeName((GDALAsyncStatusType)iType) != NULL
             && EQUAL(GDALGetAsyncStatusTypeName((GDALAsyncStatusType)iType), pszName) )
@@ -397,7 +397,7 @@ GDALAsyncStatusType CPL_DLL CPL_STDCALL GDALGetAsyncStatusTypeByName( const char
         }
     }
 
-	return GARIO_ERROR;
+    return GARIO_ERROR;
 }
 
 
@@ -589,209 +589,6 @@ GDALColorInterp GDALGetColorInterpretationByName( const char *pszName )
     }
 
     return GCI_Undefined;
-}
-
-/************************************************************************/
-/*                         GDALDummyProgress()                          */
-/************************************************************************/
-
-/**
- * \brief Stub progress function.
- *
- * This is a stub (does nothing) implementation of the GDALProgressFunc()
- * semantics.  It is primarily useful for passing to functions that take
- * a GDALProgressFunc() argument but for which the application does not want
- * to use one of the other progress functions that actually do something.
- */
-
-int CPL_STDCALL GDALDummyProgress( double dfComplete, const char *pszMessage, 
-                                   void *pData )
-
-{
-    return TRUE;
-}
-
-/************************************************************************/
-/*                         GDALScaledProgress()                         */
-/************************************************************************/
-typedef struct { 
-    GDALProgressFunc pfnProgress;
-    void *pData;
-    double dfMin;
-    double dfMax;
-} GDALScaledProgressInfo;
-
-/**
- * \brief Scaled progress transformer.
- *
- * This is the progress function that should be passed along with the
- * callback data returned by GDALCreateScaledProgress().
- */
-
-int CPL_STDCALL GDALScaledProgress( double dfComplete, const char *pszMessage, 
-                                    void *pData )
-
-{
-    GDALScaledProgressInfo *psInfo = (GDALScaledProgressInfo *) pData;
-
-    return psInfo->pfnProgress( dfComplete * (psInfo->dfMax - psInfo->dfMin)
-                                + psInfo->dfMin,
-                                pszMessage, psInfo->pData );
-}
-
-/************************************************************************/
-/*                      GDALCreateScaledProgress()                      */
-/************************************************************************/
-
-/**
- * \brief Create scaled progress transformer.
- *
- * Sometimes when an operations wants to report progress it actually
- * invokes several subprocesses which also take GDALProgressFunc()s, 
- * and it is desirable to map the progress of each sub operation into
- * a portion of 0.0 to 1.0 progress of the overall process.  The scaled
- * progress function can be used for this. 
- *
- * For each subsection a scaled progress function is created and
- * instead of passing the overall progress func down to the sub functions,
- * the GDALScaledProgress() function is passed instead.
- *
- * @param dfMin the value to which 0.0 in the sub operation is mapped.
- * @param dfMax the value to which 1.0 is the sub operation is mapped.
- * @param pfnProgress the overall progress function.
- * @param pData the overall progress function callback data. 
- *
- * @return pointer to pass as pProgressArg to sub functions.  Should be freed
- * with GDALDestroyScaledProgress(). 
- *
- * Example:
- *
- * \code
- *   int MyOperation( ..., GDALProgressFunc pfnProgress, void *pProgressData );
- *
- *   {
- *       void *pScaledProgress;
- *
- *       pScaledProgress = GDALCreateScaledProgress( 0.0, 0.5, pfnProgress, 
- *                                                   pProgressData );
- *       GDALDoLongSlowOperation( ..., GDALScaledProgress, pScaledProgress );
- *       GDALDestroyScaledProgress( pScaledProgress );
- *
- *       pScaledProgress = GDALCreateScaledProgress( 0.5, 1.0, pfnProgress, 
- *                                                   pProgressData );
- *       GDALDoAnotherOperation( ..., GDALScaledProgress, pScaledProgress );
- *       GDALDestroyScaledProgress( pScaledProgress );
- *
- *       return ...;
- *   }
- * \endcode
- */
-
-void * CPL_STDCALL GDALCreateScaledProgress( double dfMin, double dfMax, 
-                                GDALProgressFunc pfnProgress, 
-                                void * pData )
-
-{
-    GDALScaledProgressInfo *psInfo;
-
-    psInfo = (GDALScaledProgressInfo *) 
-        CPLCalloc(sizeof(GDALScaledProgressInfo),1);
-
-    if( ABS(dfMin-dfMax) < 0.0000001 )
-        dfMax = dfMin + 0.01;
-
-    psInfo->pData = pData;
-    psInfo->pfnProgress = pfnProgress;
-    psInfo->dfMin = dfMin;
-    psInfo->dfMax = dfMax;
-
-    return (void *) psInfo;
-}
-
-/************************************************************************/
-/*                     GDALDestroyScaledProgress()                      */
-/************************************************************************/
-
-/**
- * \brief Cleanup scaled progress handle.
- *
- * This function cleans up the data associated with a scaled progress function
- * as returned by GADLCreateScaledProgress(). 
- *
- * @param pData scaled progress handle returned by GDALCreateScaledProgress().
- */
-
-void CPL_STDCALL GDALDestroyScaledProgress( void * pData )
-
-{
-    CPLFree( pData );
-}
-
-/************************************************************************/
-/*                          GDALTermProgress()                          */
-/************************************************************************/
-
-/**
- * \brief Simple progress report to terminal.
- *
- * This progress reporter prints simple progress report to the
- * terminal window.  The progress report generally looks something like
- * this:
-
-\verbatim
-0...10...20...30...40...50...60...70...80...90...100 - done.
-\endverbatim
-
- * Every 2.5% of progress another number or period is emitted.  Note that
- * GDALTermProgress() uses internal static data to keep track of the last
- * percentage reported and will get confused if two terminal based progress
- * reportings are active at the same time.
- *
- * The GDALTermProgress() function maintains an internal memory of the 
- * last percentage complete reported in a static variable, and this makes
- * it unsuitable to have multiple GDALTermProgress()'s active eithin a 
- * single thread or across multiple threads.
- *
- * @param dfComplete completion ratio from 0.0 to 1.0.
- * @param pszMessage optional message.
- * @param pProgressArg ignored callback data argument. 
- *
- * @return Always returns TRUE indicating the process should continue.
- */
-
-int CPL_STDCALL GDALTermProgress( double dfComplete, const char *pszMessage, 
-                      void * pProgressArg )
-
-{
-    static int nLastTick = -1;
-    int nThisTick = (int) (dfComplete * 40.0);
-
-    (void) pProgressArg;
-
-    nThisTick = MIN(40,MAX(0,nThisTick));
-
-    // Have we started a new progress run?  
-    if( nThisTick < nLastTick && nLastTick >= 39 )
-        nLastTick = -1;
-
-    if( nThisTick <= nLastTick )
-        return TRUE;
-
-    while( nThisTick > nLastTick )
-    {
-        nLastTick++;
-        if( nLastTick % 4 == 0 )
-            fprintf( stdout, "%d", (nLastTick / 4) * 10 );
-        else
-            fprintf( stdout, "." );
-    }
-
-    if( nThisTick == 40 )
-        fprintf( stdout, " - done.\n" );
-    else
-        fflush( stdout );
-
-    return TRUE;
 }
 
 /************************************************************************/
@@ -1186,7 +983,7 @@ int CPL_STDCALL GDALLoadOziMapFile( const char *pszFilename,
         }
     }
 
-    // Iterate all lines in the TAB-file
+    // Iterate all lines in the MAP-file
     for ( iLine = 5; iLine < nLines; iLine++ )
     {
         char    **papszTok = NULL;
@@ -1401,7 +1198,7 @@ int CPL_STDCALL GDALLoadTabFile( const char *pszFilename,
             // Only RASTER-type will be handled
             if (EQUAL(papszTok[1], "RASTER"))
             {
-	        bTypeRasterFound = TRUE;
+                bTypeRasterFound = TRUE;
             }
             else
             {
@@ -1514,13 +1311,48 @@ int CPL_STDCALL GDALReadTabFile( const char * pszBaseFilename,
 
 
 {
+    return GDALReadTabFile2(pszBaseFilename, padfGeoTransform,
+                            ppszWKT, pnGCPCount, ppasGCPs,
+                            NULL, NULL);
+}
+
+
+int GDALReadTabFile2( const char * pszBaseFilename,
+                      double *padfGeoTransform, char **ppszWKT,
+                      int *pnGCPCount, GDAL_GCP **ppasGCPs,
+                      char** papszSiblingFiles, char** ppszTabFileNameOut )
+{
     const char	*pszTAB;
     VSILFILE	*fpTAB;
+
+    if (ppszTabFileNameOut)
+        *ppszTabFileNameOut = NULL;
+
+    pszTAB = CPLResetExtension( pszBaseFilename, "tab" );
+
+    if (papszSiblingFiles)
+    {
+        int iSibling = CSLFindString(papszSiblingFiles, CPLGetFilename(pszTAB));
+        if (iSibling >= 0)
+        {
+            CPLString osTabFilename = pszBaseFilename;
+            osTabFilename.resize(strlen(pszBaseFilename) -
+                                 strlen(CPLGetFilename(pszBaseFilename)));
+            osTabFilename += papszSiblingFiles[iSibling];
+            if ( GDALLoadTabFile(osTabFilename, padfGeoTransform, ppszWKT,
+                                 pnGCPCount, ppasGCPs ) )
+            {
+                if (ppszTabFileNameOut)
+                    *ppszTabFileNameOut = CPLStrdup(osTabFilename);
+                return TRUE;
+            }
+        }
+        return FALSE;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Try lower case, then upper case.                                */
 /* -------------------------------------------------------------------- */
-    pszTAB = CPLResetExtension( pszBaseFilename, "tab" );
 
     fpTAB = VSIFOpenL( pszTAB, "rt" );
 
@@ -1538,8 +1370,14 @@ int CPL_STDCALL GDALReadTabFile( const char * pszBaseFilename,
 /* -------------------------------------------------------------------- */
 /*      We found the file, now load and parse it.                       */
 /* -------------------------------------------------------------------- */
-    return GDALLoadTabFile( pszTAB, padfGeoTransform, ppszWKT,
-                            pnGCPCount, ppasGCPs );
+    if (GDALLoadTabFile( pszTAB, padfGeoTransform, ppszWKT,
+                         pnGCPCount, ppasGCPs ) )
+    {
+        if (ppszTabFileNameOut)
+            *ppszTabFileNameOut = CPLStrdup(pszTAB);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 /************************************************************************/
@@ -1670,12 +1508,23 @@ GDALReadWorldFile( const char *pszBaseFilename, const char *pszExtension,
                    double *padfGeoTransform )
 
 {
+    return GDALReadWorldFile2(pszBaseFilename, pszExtension,
+                              padfGeoTransform, NULL, NULL);
+}
+
+int GDALReadWorldFile2( const char *pszBaseFilename, const char *pszExtension,
+                        double *padfGeoTransform, char** papszSiblingFiles,
+                        char** ppszWorldFileNameOut )
+{
     const char  *pszTFW;
     char        szExtUpper[32], szExtLower[32];
     int         i;
 
     VALIDATE_POINTER1( pszBaseFilename, "GDALReadWorldFile", FALSE );
     VALIDATE_POINTER1( padfGeoTransform, "GDALReadWorldFile", FALSE );
+
+    if (ppszWorldFileNameOut)
+        *ppszWorldFileNameOut = NULL;
 
 /* -------------------------------------------------------------------- */
 /*      If we aren't given an extension, try both the unix and          */
@@ -1695,8 +1544,9 @@ GDALReadWorldFile( const char *pszBaseFilename, const char *pszExtension,
         szDerivedExtension[2] = 'w';
         szDerivedExtension[3] = '\0';
         
-        if( GDALReadWorldFile( pszBaseFilename, szDerivedExtension, 
-                               padfGeoTransform ) )
+        if( GDALReadWorldFile2( pszBaseFilename, szDerivedExtension,
+                                padfGeoTransform, papszSiblingFiles,
+                                ppszWorldFileNameOut ) )
             return TRUE;
 
         // unix version - extension + 'w'
@@ -1705,8 +1555,9 @@ GDALReadWorldFile( const char *pszBaseFilename, const char *pszExtension,
 
         strcpy( szDerivedExtension, oBaseExt.c_str() );
         strcat( szDerivedExtension, "w" );
-        return GDALReadWorldFile( pszBaseFilename, szDerivedExtension, 
-                                  padfGeoTransform );
+        return GDALReadWorldFile2( pszBaseFilename, szDerivedExtension,
+                                  padfGeoTransform, papszSiblingFiles,
+                                  ppszWorldFileNameOut );
     }
 
 /* -------------------------------------------------------------------- */
@@ -1727,13 +1578,33 @@ GDALReadWorldFile( const char *pszBaseFilename, const char *pszExtension,
         szExtLower[i] = (char) tolower(szExtLower[i]);
     }
 
-/* -------------------------------------------------------------------- */
-/*      Try lower case, then upper case.                                */
-/* -------------------------------------------------------------------- */
     VSIStatBufL sStatBuf;
     int bGotTFW;
 
     pszTFW = CPLResetExtension( pszBaseFilename, szExtLower );
+
+    if (papszSiblingFiles)
+    {
+        int iSibling = CSLFindString(papszSiblingFiles, CPLGetFilename(pszTFW));
+        if (iSibling >= 0)
+        {
+            CPLString osTFWFilename = pszBaseFilename;
+            osTFWFilename.resize(strlen(pszBaseFilename) -
+                                 strlen(CPLGetFilename(pszBaseFilename)));
+            osTFWFilename += papszSiblingFiles[iSibling];
+            if (GDALLoadWorldFile( osTFWFilename, padfGeoTransform ))
+            {
+                if (ppszWorldFileNameOut)
+                    *ppszWorldFileNameOut = CPLStrdup(osTFWFilename);
+                return TRUE;
+            }
+        }
+        return FALSE;
+    }
+
+/* -------------------------------------------------------------------- */
+/*      Try lower case, then upper case.                                */
+/* -------------------------------------------------------------------- */
 
     bGotTFW = VSIStatExL( pszTFW, &sStatBuf, VSI_STAT_EXISTS_FLAG ) == 0;
 
@@ -1749,7 +1620,13 @@ GDALReadWorldFile( const char *pszBaseFilename, const char *pszExtension,
 /* -------------------------------------------------------------------- */
 /*      We found the file, now load and parse it.                       */
 /* -------------------------------------------------------------------- */
-    return GDALLoadWorldFile( pszTFW, padfGeoTransform );
+    if (GDALLoadWorldFile( pszTFW, padfGeoTransform ))
+    {
+        if (ppszWorldFileNameOut)
+            *ppszWorldFileNameOut = CPLStrdup(pszTFW);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 /************************************************************************/
@@ -1837,14 +1714,17 @@ GDALWriteWorldFile( const char * pszBaseFilename, const char *pszExtension,
  * Available pszRequest values:
  * <ul>
  * <li> "VERSION_NUM": Returns GDAL_VERSION_NUM formatted as a string.  ie. "1170"
+ *      Note: starting with GDAL 1.10, this string will be longer than 4 characters.
  * <li> "RELEASE_DATE": Returns GDAL_RELEASE_DATE formatted as a string.  
  * ie. "20020416".
  * <li> "RELEASE_NAME": Returns the GDAL_RELEASE_NAME. ie. "1.1.7"
  * <li> "--version": Returns one line version message suitable for use in 
  * response to --version requests.  ie. "GDAL 1.1.7, released 2002/04/16"
- * <li> "LICENCE": Returns the content of the LICENSE.TXT file from the GDAL_DATA directory.
+ * <li> "LICENSE": Returns the content of the LICENSE.TXT file from the GDAL_DATA directory.
  *      Before GDAL 1.7.0, the returned string was leaking memory but this is now resolved.
  *      So the result should not been freed by the caller.
+ * <li> "BUILD_INFO": List of NAME=VALUE pairs separated by newlines with 
+ * information on build time options.
  * </ul>
  *
  * @param pszRequest the type of version info desired, as listed above.
@@ -1855,6 +1735,28 @@ GDALWriteWorldFile( const char * pszBaseFilename, const char *pszExtension,
 const char * CPL_STDCALL GDALVersionInfo( const char *pszRequest )
 
 {
+/* -------------------------------------------------------------------- */
+/*      Try to capture as much build information as practical.          */
+/* -------------------------------------------------------------------- */
+    if( pszRequest != NULL && EQUAL(pszRequest,"BUILD_INFO") ) 
+    {
+        CPLString osBuildInfo;
+
+#ifdef ESRI_BUILD
+        osBuildInfo += "ESRI_BUILD=YES\n";
+#endif
+#ifdef PAM_ENABLED
+        osBuildInfo += "PAM_ENABLED=YES\n";
+#endif
+#ifdef OGR_ENABLED
+        osBuildInfo += "OGR_ENABLED=YES\n";
+#endif
+
+        CPLFree(CPLGetTLS(CTLS_VERSIONINFO));
+        CPLSetTLS(CTLS_VERSIONINFO, CPLStrdup(osBuildInfo), TRUE );
+        return (char *) CPLGetTLS(CTLS_VERSIONINFO);
+    }
+
 /* -------------------------------------------------------------------- */
 /*      LICENSE is a special case. We try to find and read the          */
 /*      LICENSE.TXT file from the GDAL_DATA directory and return it     */
@@ -1899,27 +1801,27 @@ const char * CPL_STDCALL GDALVersionInfo( const char *pszRequest )
         return pszResultLicence;
     }
 
-    char* pszResultSmall = (char*) CPLGetTLS( CTLS_VERSIONINFO );
-    if( pszResultSmall == NULL )
-    {
-        pszResultSmall = (char*) CPLCalloc(128, 1);
-        CPLSetTLS( CTLS_VERSIONINFO, pszResultSmall, TRUE );
-    }
+/* -------------------------------------------------------------------- */
+/*      All other strings are fairly small.                             */
+/* -------------------------------------------------------------------- */
+    CPLString osVersionInfo;
 
     if( pszRequest == NULL || EQUAL(pszRequest,"VERSION_NUM") )
-        sprintf(pszResultSmall, "%d", GDAL_VERSION_NUM );
+        osVersionInfo.Printf( "%d", GDAL_VERSION_NUM );
     else if( EQUAL(pszRequest,"RELEASE_DATE") )
-        sprintf(pszResultSmall, "%d", GDAL_RELEASE_DATE );
+        osVersionInfo.Printf( "%d", GDAL_RELEASE_DATE );
     else if( EQUAL(pszRequest,"RELEASE_NAME") )
-        sprintf(pszResultSmall, GDAL_RELEASE_NAME );
+        osVersionInfo.Printf( GDAL_RELEASE_NAME );
     else // --version
-        sprintf(pszResultSmall, "GDAL %s, released %d/%02d/%02d",
-                 GDAL_RELEASE_NAME, 
-                 GDAL_RELEASE_DATE / 10000, 
-                 (GDAL_RELEASE_DATE % 10000) / 100,
-                 GDAL_RELEASE_DATE % 100 );
+        osVersionInfo.Printf( "GDAL %s, released %d/%02d/%02d",
+                              GDAL_RELEASE_NAME, 
+                              GDAL_RELEASE_DATE / 10000, 
+                              (GDAL_RELEASE_DATE % 10000) / 100,
+                              GDAL_RELEASE_DATE % 100 );
 
-    return pszResultSmall;
+    CPLFree(CPLGetTLS(CTLS_VERSIONINFO)); // clear old value.
+    CPLSetTLS(CTLS_VERSIONINFO, CPLStrdup(osVersionInfo), TRUE ); 
+    return (char *) CPLGetTLS(CTLS_VERSIONINFO);
 }
 
 /************************************************************************/
@@ -2102,6 +2004,56 @@ GDALGCPsToGeoTransform( int nGCPCount, const GDAL_GCP *pasGCPs,
     }
 
 /* -------------------------------------------------------------------- */
+/*      Compute source and destination ranges so we can normalize       */
+/*      the values to make the least squares computation more stable.   */
+/* -------------------------------------------------------------------- */
+    double min_pixel = pasGCPs[0].dfGCPPixel;
+    double max_pixel = pasGCPs[0].dfGCPPixel;
+    double min_line = pasGCPs[0].dfGCPLine;
+    double max_line = pasGCPs[0].dfGCPLine;
+    double min_geox = pasGCPs[0].dfGCPX;
+    double max_geox = pasGCPs[0].dfGCPX;
+    double min_geoy = pasGCPs[0].dfGCPY;
+    double max_geoy = pasGCPs[0].dfGCPY;
+
+    for (i = 1; i < nGCPCount; ++i) {
+        min_pixel = MIN(min_pixel, pasGCPs[i].dfGCPPixel);
+        max_pixel = MAX(max_pixel, pasGCPs[i].dfGCPPixel);
+        min_line = MIN(min_line, pasGCPs[i].dfGCPLine);
+        max_line = MAX(max_line, pasGCPs[i].dfGCPLine);
+        min_geox = MIN(min_geox, pasGCPs[i].dfGCPX);
+        max_geox = MAX(max_geox, pasGCPs[i].dfGCPX);
+        min_geoy = MIN(min_geoy, pasGCPs[i].dfGCPY);
+        max_geoy = MAX(max_geoy, pasGCPs[i].dfGCPY);
+    }
+
+    double EPS = 1.0e-12;
+
+    if( ABS(max_pixel - min_pixel) < EPS
+        || ABS(max_line - min_line) < EPS
+        || ABS(max_geox - min_geox) < EPS
+        || ABS(max_geoy - min_geoy) < EPS) 
+    {
+        return FALSE;  // degenerate in at least one dimension.
+    }
+
+    double pl_normalize[6], geo_normalize[6];
+    
+    pl_normalize[0] = -min_pixel / (max_pixel - min_pixel);
+    pl_normalize[1] = 1.0 / (max_pixel - min_pixel);
+    pl_normalize[2] = 0.0;
+    pl_normalize[3] = -min_line / (max_line - min_line);
+    pl_normalize[4] = 0.0;
+    pl_normalize[5] = 1.0 / (max_line - min_line);
+
+    geo_normalize[0] = -min_geox / (max_geox - min_geox);
+    geo_normalize[1] = 1.0 / (max_geox - min_geox);
+    geo_normalize[2] = 0.0;
+    geo_normalize[3] = -min_geoy / (max_geoy - min_geoy);
+    geo_normalize[4] = 0.0;
+    geo_normalize[5] = 1.0 / (max_geoy - min_geoy);
+
+/* -------------------------------------------------------------------- */
 /* In the general case, do a least squares error approximation by       */
 /* solving the equation Sum[(A - B*x + C*y - Lon)^2] = minimum		*/
 /* -------------------------------------------------------------------- */
@@ -2110,19 +2062,30 @@ GDALGCPsToGeoTransform( int nGCPCount, const GDAL_GCP *pasGCPs,
     double sum_Lon = 0.0, sum_Lonx = 0.0, sum_Lony = 0.0;
     double sum_Lat = 0.0, sum_Latx = 0.0, sum_Laty = 0.0;
     double divisor;
-	
+
     for (i = 0; i < nGCPCount; ++i) {
-        sum_x += pasGCPs[i].dfGCPPixel;
-        sum_y += pasGCPs[i].dfGCPLine;
-        sum_xy += pasGCPs[i].dfGCPPixel * pasGCPs[i].dfGCPLine;
-        sum_xx += pasGCPs[i].dfGCPPixel * pasGCPs[i].dfGCPPixel;
-        sum_yy += pasGCPs[i].dfGCPLine * pasGCPs[i].dfGCPLine;
-        sum_Lon += pasGCPs[i].dfGCPX;
-        sum_Lonx += pasGCPs[i].dfGCPX * pasGCPs[i].dfGCPPixel;
-        sum_Lony += pasGCPs[i].dfGCPX * pasGCPs[i].dfGCPLine;
-        sum_Lat += pasGCPs[i].dfGCPY;
-        sum_Latx += pasGCPs[i].dfGCPY * pasGCPs[i].dfGCPPixel;
-        sum_Laty += pasGCPs[i].dfGCPY * pasGCPs[i].dfGCPLine;
+        double pixel, line, geox, geoy;
+
+        GDALApplyGeoTransform(pl_normalize, 
+                              pasGCPs[i].dfGCPPixel,
+                              pasGCPs[i].dfGCPLine,
+                              &pixel, &line);
+        GDALApplyGeoTransform(geo_normalize, 
+                              pasGCPs[i].dfGCPX,
+                              pasGCPs[i].dfGCPY,
+                              &geox, &geoy);
+
+        sum_x += pixel;
+        sum_y += line;
+        sum_xy += pixel * line;
+        sum_xx += pixel * pixel;
+        sum_yy += line * line;
+        sum_Lon += geox;
+        sum_Lonx += geox * pixel;
+        sum_Lony += geox * line;
+        sum_Lat += geoy;
+        sum_Latx += geoy * pixel;
+        sum_Laty += geoy * line;
     }
 
     divisor = nGCPCount * (sum_xx * sum_yy - sum_xy * sum_xy)
@@ -2138,43 +2101,54 @@ GDALGCPsToGeoTransform( int nGCPCount, const GDAL_GCP *pasGCPs,
 /* -------------------------------------------------------------------- */
 /*      Compute top/left origin.                                        */
 /* -------------------------------------------------------------------- */
-	
-    padfGeoTransform[0] = (sum_Lon * (sum_xx * sum_yy - sum_xy * sum_xy)
-                           + sum_Lonx * (sum_y * sum_xy - sum_x *  sum_yy)
-                           + sum_Lony * (sum_x * sum_xy - sum_y * sum_xx))
+    double gt_normalized[6];
+    gt_normalized[0] = (sum_Lon * (sum_xx * sum_yy - sum_xy * sum_xy)
+                  + sum_Lonx * (sum_y * sum_xy - sum_x *  sum_yy)
+                  + sum_Lony * (sum_x * sum_xy - sum_y * sum_xx))
         / divisor;
 
-    padfGeoTransform[3] = (sum_Lat * (sum_xx * sum_yy - sum_xy * sum_xy)
-                           + sum_Latx * (sum_y * sum_xy - sum_x *  sum_yy)
-                           + sum_Laty * (sum_x * sum_xy - sum_y * sum_xx)) 
+    gt_normalized[3] = (sum_Lat * (sum_xx * sum_yy - sum_xy * sum_xy)
+                  + sum_Latx * (sum_y * sum_xy - sum_x *  sum_yy)
+                  + sum_Laty * (sum_x * sum_xy - sum_y * sum_xx)) 
         / divisor;
-	
+
 /* -------------------------------------------------------------------- */
 /*      Compute X related coefficients.                                 */
 /* -------------------------------------------------------------------- */
-    padfGeoTransform[1] = (sum_Lon * (sum_y * sum_xy - sum_x * sum_yy)
-                           + sum_Lonx * (nGCPCount * sum_yy - sum_y * sum_y)
-                           + sum_Lony * (sum_x * sum_y - sum_xy * nGCPCount))
+    gt_normalized[1] = (sum_Lon * (sum_y * sum_xy - sum_x * sum_yy)
+                  + sum_Lonx * (nGCPCount * sum_yy - sum_y * sum_y)
+                  + sum_Lony * (sum_x * sum_y - sum_xy * nGCPCount))
         / divisor;
-	
-    padfGeoTransform[2] = (sum_Lon * (sum_x * sum_xy - sum_y * sum_xx)
-                           + sum_Lonx * (sum_x * sum_y - nGCPCount * sum_xy)
-                           + sum_Lony * (nGCPCount * sum_xx - sum_x * sum_x))
+
+    gt_normalized[2] = (sum_Lon * (sum_x * sum_xy - sum_y * sum_xx)
+                  + sum_Lonx * (sum_x * sum_y - nGCPCount * sum_xy)
+                  + sum_Lony * (nGCPCount * sum_xx - sum_x * sum_x))
         / divisor;
 
 /* -------------------------------------------------------------------- */
 /*      Compute Y related coefficients.                                 */
 /* -------------------------------------------------------------------- */
-    padfGeoTransform[4] = (sum_Lat * (sum_y * sum_xy - sum_x * sum_yy)
-                           + sum_Latx * (nGCPCount * sum_yy - sum_y * sum_y)
-                           + sum_Laty * (sum_x * sum_y - sum_xy * nGCPCount))
-        / divisor;
-	
-    padfGeoTransform[5] = (sum_Lat * (sum_x * sum_xy - sum_y * sum_xx)
-                           + sum_Latx * (sum_x * sum_y - nGCPCount * sum_xy)
-                           + sum_Laty * (nGCPCount * sum_xx - sum_x * sum_x))
+    gt_normalized[4] = (sum_Lat * (sum_y * sum_xy - sum_x * sum_yy)
+                  + sum_Latx * (nGCPCount * sum_yy - sum_y * sum_y)
+                  + sum_Laty * (sum_x * sum_y - sum_xy * nGCPCount))
         / divisor;
 
+    gt_normalized[5] = (sum_Lat * (sum_x * sum_xy - sum_y * sum_xx)
+                  + sum_Latx * (sum_x * sum_y - nGCPCount * sum_xy)
+                  + sum_Laty * (nGCPCount * sum_xx - sum_x * sum_x))
+        / divisor;
+
+/* -------------------------------------------------------------------- */
+/*      Compose the resulting transformation with the normalization     */
+/*      geotransformations.                                             */
+/* -------------------------------------------------------------------- */
+    double gt1p2[6], inv_geo_normalize[6];
+    if( !GDALInvGeoTransform(geo_normalize, inv_geo_normalize))
+        return FALSE;
+
+    GDALComposeGeoTransforms(pl_normalize, gt_normalized, gt1p2);
+    GDALComposeGeoTransforms(gt1p2, inv_geo_normalize, padfGeoTransform);
+    
 /* -------------------------------------------------------------------- */
 /*      Now check if any of the input points fit this poorly.           */
 /* -------------------------------------------------------------------- */
@@ -2210,6 +2184,64 @@ GDALGCPsToGeoTransform( int nGCPCount, const GDAL_GCP *pasGCPs,
 }
 
 /************************************************************************/
+/*                      GDALComposeGeoTransforms()                      */
+/************************************************************************/
+
+/**
+ * \brief Compose two geotransforms.
+ *
+ * The resulting geotransform is the equivelent to padfGT1 and then padfGT2
+ * being applied to a point.
+ * 
+ * @param padfGT1 the first geotransform, six values.
+ * @param padfGT2 the second geotransform, six values.
+ * @param padfGTOut the output geotransform, six values, may safely be the same
+ * array as padfGT1 or padfGT2.
+ */
+
+void GDALComposeGeoTransforms(const double *padfGT1, const double *padfGT2, 
+                              double *padfGTOut)
+
+{
+    double gtwrk[6];
+    // We need to think of the geotransform in a more normal form to do
+    // the matrix multiple:
+    //
+    //  __                     __ 
+    //  | gt[1]   gt[2]   gt[0] |
+    //  | gt[4]   gt[5]   gt[3] |
+    //  |  0.0     0.0     1.0  |
+    //  --                     --
+    // 
+    // Then we can use normal matrix multiplication to produce the 
+    // composed transformation.  I don't actually reform the matrix 
+    // explicitly which is why the following may seem kind of spagettish.
+
+    gtwrk[1] = 
+        padfGT2[1] * padfGT1[1]
+        + padfGT2[2] * padfGT1[4];
+    gtwrk[2] = 
+        padfGT2[1] * padfGT1[2]
+        + padfGT2[2] * padfGT1[5];
+    gtwrk[0] = 
+        padfGT2[1] * padfGT1[0]
+        + padfGT2[2] * padfGT1[3]
+        + padfGT2[0] * 1.0;
+
+    gtwrk[4] = 
+        padfGT2[4] * padfGT1[1]
+        + padfGT2[5] * padfGT1[4];
+    gtwrk[5] = 
+        padfGT2[4] * padfGT1[2]
+        + padfGT2[5] * padfGT1[5];
+    gtwrk[3] = 
+        padfGT2[4] * padfGT1[0]
+        + padfGT2[5] * padfGT1[3]
+        + padfGT2[3] * 1.0;
+    memcpy(padfGTOut, gtwrk, sizeof(double) * 6);
+}
+
+/************************************************************************/
 /*                    GDALGeneralCmdLineProcessor()                     */
 /************************************************************************/
 
@@ -2221,6 +2253,7 @@ GDALGCPsToGeoTransform( int nGCPCount, const GDAL_GCP *pasGCPs,
  * commandline options:
  *  
  *  --version: report version of GDAL in use. 
+ *  --build: report build info about GDAL in use.
  *  --license: report GDAL license info.
  *  --formats: report all format drivers configured.
  *  --format [format]: report details of one format driver. 
@@ -2228,6 +2261,8 @@ GDALGCPsToGeoTransform( int nGCPCount, const GDAL_GCP *pasGCPs,
  *  --config key value: set system configuration option. 
  *  --debug [on/off/value]: set debug level.
  *  --mempreload dir: preload directory contents into /vsimem
+ *  --pause: Pause for user input (allows time to attach debugger)
+ *  --locale [locale]: Install a locale using setlocale() (debugging)
  *  --help-general: report detailed help on general options. 
  *
  * The argument array is replaced "in place" and should be freed with 
@@ -2244,7 +2279,8 @@ GDALGCPsToGeoTransform( int nGCPCount, const GDAL_GCP *pasGCPs,
  *        exit( -argc );
  *
  * @param nArgc number of values in the argument list.
- * @param Pointer to the argument list array (will be updated in place). 
+ * @param ppapszArgv pointer to the argument list array (will be updated in place).
+ * @param nOptions unused for now.
  *
  * @return updated nArgc argument count.  Return of 0 requests terminate 
  * without error, return of -1 requests exit with error code.
@@ -2276,6 +2312,16 @@ GDALGeneralCmdLineProcessor( int nArgc, char ***ppapszArgv, int nOptions )
         if( EQUAL(papszArgv[iArg],"--version") )
         {
             printf( "%s\n", GDALVersionInfo( "--version" ) );
+            CSLDestroy( papszReturn );
+            return 0;
+        }
+
+/* -------------------------------------------------------------------- */
+/*      --build                                                         */
+/* -------------------------------------------------------------------- */
+        else if( EQUAL(papszArgv[iArg],"--build") )
+        {
+            printf( "%s", GDALVersionInfo( "BUILD_INFO" ) );
             CSLDestroy( papszReturn );
             return 0;
         }
@@ -2445,7 +2491,7 @@ GDALGeneralCmdLineProcessor( int nArgc, char ***ppapszArgv, int nOptions )
             for( iDr = 0; iDr < GDALGetDriverCount(); iDr++ )
             {
                 GDALDriverH hDriver = GDALGetDriver(iDr);
-                const char *pszRWFlag, *pszVirtualIO;
+                const char *pszRWFlag, *pszVirtualIO, *pszSubdatasets;
                 
                 if( GDALGetMetadataItem( hDriver, GDAL_DCAP_CREATE, NULL ) )
                     pszRWFlag = "rw+";
@@ -2460,9 +2506,15 @@ GDALGeneralCmdLineProcessor( int nArgc, char ***ppapszArgv, int nOptions )
                 else
                     pszVirtualIO = "";
 
-                printf( "  %s (%s%s): %s\n",
+                pszSubdatasets = GDALGetMetadataItem( hDriver, GDAL_DMD_SUBDATASETS, NULL );
+                if( pszSubdatasets && CSLTestBoolean( pszSubdatasets ) )
+                    pszSubdatasets = "s";
+                else
+                    pszSubdatasets = "";
+
+                printf( "  %s (%s%s%s): %s\n",
                         GDALGetDriverShortName( hDriver ),
-                        pszRWFlag, pszVirtualIO,
+                        pszRWFlag, pszVirtualIO, pszSubdatasets,
                         GDALGetDriverLongName( hDriver ) );
             }
 
@@ -2514,6 +2566,8 @@ GDALGeneralCmdLineProcessor( int nArgc, char ***ppapszArgv, int nOptions )
                 printf( "  Help Topic: %s\n", 
                         CSLFetchNameValue( papszMD, GDAL_DMD_HELPTOPIC ) );
             
+            if( CSLFetchBoolean( papszMD, GDAL_DMD_SUBDATASETS, FALSE ) )
+                printf( "  Supports: Subdatasets\n" );
             if( CSLFetchBoolean( papszMD, GDAL_DCAP_CREATE, FALSE ) )
                 printf( "  Supports: Create() - Create writeable dataset.\n" );
             if( CSLFetchBoolean( papszMD, GDAL_DCAP_CREATECOPY, FALSE ) )
@@ -2553,6 +2607,8 @@ GDALGeneralCmdLineProcessor( int nArgc, char ***ppapszArgv, int nOptions )
             printf( "  --optfile filename: expand an option file into the argument list.\n" );
             printf( "  --config key value: set system configuration option.\n" );
             printf( "  --debug [on/off/value]: set debug level.\n" );
+            printf( "  --pause: wait for user input, time to attach debugger\n" );
+            printf( "  --locale [locale]: install locale for debugging (ie. en_US.UTF-8)\n" );
             printf( "  --help-general: report detailed help on general options.\n" );
             CSLDestroy( papszReturn );
             return 0;
@@ -2564,6 +2620,15 @@ GDALGeneralCmdLineProcessor( int nArgc, char ***ppapszArgv, int nOptions )
         else if( EQUAL(papszArgv[iArg],"--locale") && iArg < nArgc-1 )
         {
             setlocale( LC_ALL, papszArgv[++iArg] );
+        }
+
+/* -------------------------------------------------------------------- */
+/*      --pause                                                         */
+/* -------------------------------------------------------------------- */
+        else if( EQUAL(papszArgv[iArg],"--pause") )
+        {
+            printf( "Hit <ENTER> to Continue.\n" );
+            CPLReadLine( stdin );
         }
 
 /* -------------------------------------------------------------------- */
@@ -2984,4 +3049,3 @@ int GDALCheckBandCount( int nBands, int bIsZeroAllowed )
 }
 
 CPL_C_END
-

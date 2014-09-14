@@ -57,6 +57,7 @@ class GDALAsyncReader;
 #include "cpl_string.h"
 #include "cpl_minixml.h"
 #include <vector>
+#include <map>
 
 #define GMO_VALID                0x0001
 #define GMO_IGNORE_UNIMPLEMENTED 0x0002
@@ -73,7 +74,7 @@ class CPL_DLL GDALMultiDomainMetadata
 {
 private:
     char **papszDomainList;
-    char ***papapszMetadataLists;
+    CPLStringList **papoMetadataLists;
 
 public:
     GDALMultiDomainMetadata();
@@ -112,6 +113,8 @@ class CPL_DLL GDALMajorObject
     CPLString           sDescription;
     GDALMultiDomainMetadata oMDMD;
     
+    char               **BuildMetadataDomainList(char** papszList, int bCheckNonEmpty, ...);
+    
   public:
                         GDALMajorObject();
     virtual            ~GDALMajorObject();
@@ -122,6 +125,8 @@ class CPL_DLL GDALMajorObject
     virtual const char *GetDescription() const;
     virtual void        SetDescription( const char * );
 
+    virtual char      **GetMetadataDomainList();
+    
     virtual char      **GetMetadata( const char * pszDomain = "" );
     virtual CPLErr      SetMetadata( char ** papszMetadata,
                                      const char * pszDomain = "" );
@@ -202,6 +207,35 @@ class CPL_DLL GDALDefaultOverviews
     int        HaveMaskFile( char **papszSiblings = NULL, 
                              const char *pszBasename = NULL );
 
+    char**     GetSiblingFiles() { return papszInitSiblingFiles; }
+};
+
+/* ******************************************************************** */
+/*                             GDALOpenInfo                             */
+/*                                                                      */
+/*      Structure of data about dataset for open functions.             */
+/* ******************************************************************** */
+
+class CPL_DLL GDALOpenInfo
+{
+  public:
+                GDALOpenInfo( const char * pszFile, GDALAccess eAccessIn,
+                              char **papszSiblingFiles = NULL );
+                ~GDALOpenInfo( void );
+
+    char        *pszFilename;
+    char        **papszSiblingFiles;
+
+    GDALAccess  eAccess;
+
+    int         bStatOK;
+    int         bIsDirectory;
+
+    FILE        *fp;
+
+    int         nHeaderBytes;
+    GByte       *pabyHeader;
+
 };
 
 /* ******************************************************************** */
@@ -225,6 +259,7 @@ class CPL_DLL GDALDataset : public GDALMajorObject
     friend class GDALDriver;
     friend class GDALDefaultOverviews;
     friend class GDALProxyDataset;
+    friend class GDALDriverManager;
 
   protected:
     GDALDriver  *poDriver;
@@ -258,6 +293,13 @@ class CPL_DLL GDALDataset : public GDALMajorObject
                                void *, int, int, GDALDataType,
                                int, int *, int, int, int );
     void   BlockBasedFlushCache();
+
+    CPLErr ValidateRasterIOOrAdviseReadParameters(
+                               const char* pszCallingFunc,
+                               int* pbStopProcessingOnCENone,
+                               int nXOff, int nYOff, int nXSize, int nYSize,
+                               int nBufXSize, int nBufYSize, 
+                               int nBandCount, int *panBandMap);
 
     friend class GDALRasterBand;
     
@@ -323,7 +365,9 @@ class CPL_DLL GDALDataset : public GDALMajorObject
     CPLErr BuildOverviews( const char *, int, int *,
                            int, int *, GDALProgressFunc, void * );
 
-		inline virtual GDALDefaultOverviews* GetOverviewManager() { return &oOvManager; }
+    inline virtual GDALDefaultOverviews* GetOverviewManager() { return &oOvManager; }
+
+    void ReportError(CPLErr eErrClass, int err_no, const char *fmt, ...)  CPL_PRINT_FUNC_FORMAT (4, 5);
 };
 
 /* ******************************************************************** */
@@ -384,6 +428,9 @@ class CPL_DLL GDALRasterBlock
     static void Verify();
 
     static int  SafeLockBlock( GDALRasterBlock ** );
+    
+    /* Should only be called by GDALDestroyDriverManager() */
+    static void DestroyRBMutex();
 };
 
 /* ******************************************************************** */
@@ -566,6 +613,8 @@ class CPL_DLL GDALRasterBand : public GDALMajorObject
     virtual GDALRasterBand *GetMaskBand();
     virtual int             GetMaskFlags();
     virtual CPLErr          CreateMaskBand( int nFlags );
+
+    void ReportError(CPLErr eErrClass, int err_no, const char *fmt, ...)  CPL_PRINT_FUNC_FORMAT (4, 5);
 };
 
 /* ******************************************************************** */
@@ -596,6 +645,9 @@ class CPL_DLL GDALNoDataMaskBand : public GDALRasterBand
 
   protected:
     virtual CPLErr IReadBlock( int, int, void * );
+    virtual CPLErr IRasterIO( GDALRWFlag, int, int, int, int,
+                              void *, int, int, GDALDataType,
+                              int, int );
 
   public:
                 GDALNoDataMaskBand( GDALRasterBand * );
@@ -616,34 +668,6 @@ class CPL_DLL GDALNoDataValuesMaskBand : public GDALRasterBand
   public:
                 GDALNoDataValuesMaskBand( GDALDataset * );
     virtual     ~GDALNoDataValuesMaskBand();
-};
-
-/* ******************************************************************** */
-/*                             GDALOpenInfo                             */
-/*                                                                      */
-/*      Structure of data about dataset for open functions.             */
-/* ******************************************************************** */
-
-class CPL_DLL GDALOpenInfo
-{
-  public:
-                GDALOpenInfo( const char * pszFile, GDALAccess eAccessIn,
-                              char **papszSiblingFiles = NULL );
-                ~GDALOpenInfo( void );
-    
-    char        *pszFilename;
-    char        **papszSiblingFiles;
-
-    GDALAccess  eAccess;
-
-    int         bStatOK;
-    int         bIsDirectory;
-
-    FILE        *fp;
-
-    int         nHeaderBytes;
-    GByte       *pabyHeader;
-
 };
 
 /* ******************************************************************** */
@@ -673,7 +697,7 @@ class CPL_DLL GDALDriver : public GDALMajorObject
 /* -------------------------------------------------------------------- */
     GDALDataset         *Create( const char * pszName,
                                  int nXSize, int nYSize, int nBands,
-                                 GDALDataType eType, char ** papszOptions );
+                                 GDALDataType eType, char ** papszOptions ) CPL_WARN_UNUSED_RESULT;
 
     CPLErr              Delete( const char * pszName );
     CPLErr              Rename( const char * pszNewName,
@@ -684,7 +708,7 @@ class CPL_DLL GDALDriver : public GDALMajorObject
     GDALDataset         *CreateCopy( const char *, GDALDataset *, 
                                      int, char **,
                                      GDALProgressFunc pfnProgress, 
-                                     void * pProgressData );
+                                     void * pProgressData ) CPL_WARN_UNUSED_RESULT;
     
 /* -------------------------------------------------------------------- */
 /*      The following are semiprivate, not intended to be accessed      */
@@ -722,7 +746,7 @@ class CPL_DLL GDALDriver : public GDALMajorObject
     GDALDataset         *DefaultCreateCopy( const char *, GDALDataset *, 
                                             int, char **,
                                             GDALProgressFunc pfnProgress, 
-                                            void * pProgressData );
+                                            void * pProgressData ) CPL_WARN_UNUSED_RESULT;
     static CPLErr        DefaultCopyMasks( GDALDataset *poSrcDS, 
                                            GDALDataset *poDstDS, 
                                            int bStrict );
@@ -751,6 +775,9 @@ class CPL_DLL GDALDriverManager : public GDALMajorObject
     GDALDriver  **papoDrivers;
 
     char        *pszHome;
+
+    typedef std::map<CPLString, GDALDriver*, EQUAL_CPLString> NameDriverMap;
+    NameDriverMap m_NameDriverMap;
     
  public:
                 GDALDriverManager();
@@ -898,15 +925,36 @@ int CPL_DLL GDALCheckDatasetDimensions( int nXSize, int nYSize );
 int CPL_DLL GDALCheckBandCount( int nBands, int bIsZeroAllowed );
 
 
-// Test if pixel value matches nodata value. Avoid using strict comparison as
-// the stored nodata value in GeoTIFF files is stored as a string, so there might
-// be numerical imprecision when reading it back. See #3573
-#define EQUAL_TO_NODATA(dfValue, dfNoDataValue) \
- (dfValue == dfNoDataValue || (dfNoDataValue != 0 && fabs(1 - dfValue / dfNoDataValue) < 1e-10 ))
+// Test if 2 floating point values match. Usefull when comparing values
+// stored as a string at some point. See #3573, #4183, #4506
+#define ARE_REAL_EQUAL(dfVal1, dfVal2) \
+ (dfVal1 == dfVal2 || fabs(dfVal1 - dfVal2) < 1e-10 || (dfVal2 != 0 && fabs(1 - dfVal1 / dfVal2) < 1e-10 ))
+
+/* Internal use only */
+
+/* CPL_DLL exported, but only for in-tree drivers that can be built as plugins */
+int CPL_DLL GDALReadWorldFile2( const char *pszBaseFilename, const char *pszExtension,
+                                double *padfGeoTransform, char** papszSiblingFiles,
+                                char** ppszWorldFileNameOut);
+int GDALReadTabFile2( const char * pszBaseFilename,
+                      double *padfGeoTransform, char **ppszWKT,
+                      int *pnGCPCount, GDAL_GCP **ppasGCPs,
+                      char** papszSiblingFiles, char** ppszTabFileNameOut );
 
 CPL_C_END
 
 CPLString GDALFindAssociatedFile( const char *pszBasename, const char *pszExt,
                                   char **papszSiblingFiles, int nFlags );
+
+CPLErr EXIFExtractMetadata(char**& papszMetadata,
+                           void *fpL, int nOffset,
+                           int bSwabflag, int nTIFFHEADER,
+                           int& nExifOffset, int& nInterOffset, int& nGPSOffset);
+
+#define DIV_ROUND_UP(a, b) ( ((a) % (b)) == 0 ? ((a) / (b)) : (((a) / (b)) + 1) )
+
+// Number of data samples that will be used to compute approximate statistics
+// (minimum value, maximum value, etc.)
+#define GDALSTAT_APPROX_NUMSAMPLES 2500
 
 #endif /* ndef GDAL_PRIV_H_INCLUDED */

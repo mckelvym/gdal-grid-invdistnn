@@ -160,6 +160,10 @@ void CPL_DLL GDALRegister_HF2(void);
 void CPL_DLL GDALRegister_PDF(void);
 void CPL_DLL GDALRegister_JPEGLS(void);
 void CPL_DLL GDALRegister_OZI(void);
+void CPL_DLL GDALRegister_Painter(void);
+void CPL_DLL GDALRegister_urlproxy(void);
+void CPL_DLL GDALRegister_GeoPackage(void);
+void CPL_DLL GDALRegister_mrf(void);
 CPL_C_END
 
 #endif /* ndef GDAL_FRMTS_H_INCLUDED */

@@ -74,7 +74,7 @@ public:
 
     int         IsSuperBox();
 
-    int         DumpReadable( FILE * );
+    int         DumpReadable( FILE *, int nIndentLevel = 0 );
 
     VSILFILE   *GetFILE() { return fpVSIL; }
 
@@ -98,6 +98,8 @@ public:
 /*                           GDALJP2Metadata                            */
 /************************************************************************/
 
+typedef struct _GDALJP2GeoTIFFBox GDALJP2GeoTIFFBox;
+
 class CPL_DLL GDALJP2Metadata
 
 {
@@ -105,22 +107,25 @@ private:
     void    CollectGMLData( GDALJP2Box * );
     int     GMLSRSLookup( const char *pszURN );
 
-    int    nGeoTIFFSize;
-    GByte  *pabyGeoTIFFData;
+    int    nGeoTIFFBoxesCount;
+    GDALJP2GeoTIFFBox  *pasGeoTIFFBoxes;
 
     int    nMSIGSize;
     GByte  *pabyMSIGData;
 
 public:
-    char   **papszGMLMetadata;
+    char  **papszGMLMetadata;
     
     int     bHaveGeoTransform;
     double  adfGeoTransform[6];
 
-    char    *pszProjection;
+    char   *pszProjection;
 
     int         nGCPCount;
     GDAL_GCP    *pasGCPList;
+
+    char  **papszMetadata;
+    char   *pszXMPMetadata;
 
 public:
             GDALJP2Metadata();

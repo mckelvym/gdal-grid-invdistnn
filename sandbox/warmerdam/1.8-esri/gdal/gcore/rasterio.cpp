@@ -2651,6 +2651,10 @@ static void GDALCopyWholeRasterGetSwathSize(GDALRasterBand *poSrcPrototypeBand,
     // aim for one row of blocks.  Do not settle for less.
     int nSwathCols  = nXSize;
     int nSwathLines = nBlockYSize;
+    if (CPLGetConfigOption("GDAL_SWATH_COLS", NULL))
+        nSwathCols = atoi(CPLGetConfigOption("GDAL_SWATH_COLS", "1024"));
+    if (CPLGetConfigOption("GDAL_SWATH_ROWS", NULL))
+        nSwathLines = atoi(CPLGetConfigOption("GDAL_SWATH_ROWS", "1024"));
 
 #define IS_MULTIPLE_OF(x,y) ((y)%(x) == 0)
 #define ROUND_TO(x,y) (((x)/(y))*(y))

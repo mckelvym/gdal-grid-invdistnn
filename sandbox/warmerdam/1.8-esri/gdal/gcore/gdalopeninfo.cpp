@@ -163,8 +163,13 @@ retry:
     }
     else if( bStatOK && !bIsDirectory )
     {
-        if( CSLTestBoolean( 
-                CPLGetConfigOption( "GDAL_DISABLE_READDIR_ON_OPEN", "NO" )) )
+        const char* pszOptionVal =
+            CPLGetConfigOption( "GDAL_DISABLE_READDIR_ON_OPEN", "NO" );
+        if (EQUAL(pszOptionVal, "EMPTY_DIR"))
+        {
+            papszSiblingFiles = CSLAddString( NULL, CPLGetFilename(pszFilename) );
+        }
+        else if( CSLTestBoolean(pszOptionVal) )
         {
             /* skip reading the directory */
             papszSiblingFiles = NULL;
@@ -173,6 +178,15 @@ retry:
         {
             CPLString osDir = CPLGetDirname( pszFilename );
             papszSiblingFiles = VSIReadDir( osDir );
+
+            /* Small optimization to avoid unnecessary stat'ing from PAux or ENVI */
+            /* drivers. The MBTiles driver needs no companion file. */
+            if( papszSiblingFiles == NULL &&
+                strncmp(pszFilename, "/vsicurl/", 9) == 0 &&
+                EQUAL(CPLGetExtension( pszFilename ),"mbtiles") )
+            {
+                papszSiblingFiles = CSLAddString( NULL, CPLGetFilename(pszFilename) );
+            }
         }
     }
     else
