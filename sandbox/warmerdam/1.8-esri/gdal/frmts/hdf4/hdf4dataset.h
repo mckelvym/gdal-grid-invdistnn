@@ -84,6 +84,25 @@ class HDF4Dataset : public GDALPamDataset
 
     CPLErr              ReadGlobalAttributes( int32 );
 
+    //
+    //  Functions to extract metadata in a format similar to netCDF
+    //  for use with Esri's scientific data functionality.
+    //
+    void                TranslateHDF4AttributesMD( int32 iHandle, int32 iAttribute, 
+                                                   char *pszAttrName, int32 iNumType, 
+                                                   int32 nValues, const char *pszVarName = NULL );
+    void                TranslateHDF4EOSAttributesMD( int32 iHandle, int32 iAttribute,
+                                                      int32 nValues, const char *pszVarName = NULL );
+    void                ExtractGlobalMetadataMD( int32 iHandle );
+    void                ExtractFieldMetadataMD( const char *pszParent, const char *pszField, int32 iRank, int32 aiDimSizes[],
+                                                const CPLStringList& oDimList, const CPLString& osVarName );
+    void                ExtractSDMetadataMD( const char *pszField, int32 iRank, int32 aiDimSizes[],
+                                          const CPLString& osVarName, int32 iSDS, int32 nAttrs );
+    void                ExtractGRMetadataMD( const char *pszField, const CPLString& osVarName, int32 iGR, int32 nAttrs );
+
+    void                ExtractAllVdata( int32 iHandle );
+    void                ExtractVdata( int32 iHandle, int32 iVdataID );
+
     static GDALDataType GetDataType( int32 ) ;
     static const char   *GetDataTypeName( int32 );
     static int          GetDataTypeSize( int32 );
@@ -92,6 +111,10 @@ class HDF4Dataset : public GDALPamDataset
                                                    int32, int32, char ** );
     static char         **TranslateHDF4EOSAttributes( int32, int32, int32,
                                                       char ** );
+
+    static int          GetYIndex( int32 iRank, const CPLStringList& oDimList );
+    static int          GetXIndex( int32 iRank, const CPLStringList& oDimList );
+    static int          GetBandIndex( int iRank, const CPLStringList& oDimList );
 
   public:
                 HDF4Dataset();
@@ -105,6 +128,7 @@ class HDF4Dataset : public GDALPamDataset
 char *SPrintArray( GDALDataType eDataType, const void *paDataArray,
                    int nValues, const char *pszDelimiter );
 
+CPLString CleanHDFNameString( const char *pszName );
 
 #endif /* _HDF4DATASET_H_INCLUDED_ */
 
