@@ -33,6 +33,8 @@
 #endif
 
 #include "gdal_pam.h"
+#include "cpl_multiproc.h"
+
 #define CPL_SERV_H_INCLUDED
 
 #include "xtiffio.h"
@@ -49,6 +51,8 @@
 #include "tifvsi.h"
 
 CPL_CVSID("$Id$");
+
+static void *hGTFFMutex = NULL;
 
 /************************************************************************/
 /* ==================================================================== */
@@ -8633,8 +8637,11 @@ static void GTiffTagExtender(TIFF *tif)
           TRUE,	TRUE,	(char*) "RPCCoefficient" }
     };
 
-    if (_ParentExtender) 
+    if (_ParentExtender)
+    {
+        CPLMutexHolderD( &hGTFFMutex );
         (*_ParentExtender)(tif);
+    }
 
     TIFFMergeFieldInfo( tif, xtiffFieldInfo,
 		        sizeof(xtiffFieldInfo) / sizeof(xtiffFieldInfo[0]) );
@@ -8659,6 +8666,8 @@ int GTiffOneTimeInit()
     static int bInitIsOk = TRUE;
     static int bOneTimeInitDone = FALSE;
     
+    CPLMutexHolderD( &hGTFFMutex );
+
     if( bOneTimeInitDone )
         return bInitIsOk;
 
@@ -8914,7 +8923,8 @@ void GDALRegister_GTiff()
         poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "frmt_gtiff.html" );
         poDriver->SetMetadataItem( GDAL_DMD_MIMETYPE, "image/tiff" );
         poDriver->SetMetadataItem( GDAL_DMD_EXTENSION, "tif" );
-        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES, 
+        poDriver->SetMetadataItem( GDAL_DMD_POSSIBLEEXTENSIONS, "tif;tiff" );
+        poDriver->SetMetadataItem( GDAL_DMD_CREATIONDATATYPES,
                                    "Byte UInt16 Int16 UInt32 Int32 Float32 "
                                    "Float64 CInt16 CInt32 CFloat32 CFloat64" );
         poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST, 

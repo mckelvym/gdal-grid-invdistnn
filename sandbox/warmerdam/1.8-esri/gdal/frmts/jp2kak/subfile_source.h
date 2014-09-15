@@ -31,8 +31,6 @@
 #include "cpl_error.h"
 #include "cpl_vsi_virtual.h"
 
-#define IO_CHUNK_SIZE 65536L
-#define IO_BUFFER_SIZE 1048576L
 /************************************************************************/
 /*                            subfile_source                            */
 /************************************************************************/
@@ -101,7 +99,7 @@ class subfile_source : public kdu_compressed_source {
 
           if ( bCached )
           {
-              file = (VSILFILE*)VSICreateCachedFile( (VSIVirtualHandle*)file, IO_CHUNK_SIZE, IO_BUFFER_SIZE );
+              file = (VSILFILE*)VSICreateCachedFile( (VSIVirtualHandle*)file, JP2KAK_IO_CHUNK_SIZE, JP2KAK_IO_BUFFER_SIZE );
               if( file == NULL )
               {
                   kdu_error e;

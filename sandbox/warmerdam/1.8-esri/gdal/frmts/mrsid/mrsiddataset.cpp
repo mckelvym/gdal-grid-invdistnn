@@ -457,8 +457,32 @@ MrSIDRasterBand::MrSIDRasterBand( MrSIDDataset *poDS, int nBand )
                 eBandInterp = GCI_Undefined;
             break;
 
+        case LTI_COLORSPACE_CMYKA:
+            if( nBand == 1 )
+                eBandInterp = GCI_CyanBand;
+            else if( nBand == 2 )
+                eBandInterp = GCI_MagentaBand;
+            else if( nBand == 3 )
+                eBandInterp = GCI_YellowBand;
+            else if( nBand == 4 )
+                eBandInterp = GCI_BlackBand;
+            else if( nBand == 5 )
+                eBandInterp = GCI_AlphaBand;
+            else
+                eBandInterp = GCI_Undefined;
+            break;
+
         case LTI_COLORSPACE_GRAYSCALE:
             eBandInterp = GCI_GrayIndex;
+            break;
+
+        case LTI_COLORSPACE_GRAYSCALEA:
+            if( nBand == 1 )
+                eBandInterp = GCI_GrayIndex;
+            else if( nBand == 2 )
+                eBandInterp = GCI_AlphaBand;
+            else
+                eBandInterp = GCI_Undefined;
             break;
 
         default:
@@ -1516,11 +1540,20 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo, int bIsJP2 )
 
 #if defined(LTI_SDK_MAJOR) && LTI_SDK_MAJOR >= 7
 
+#if defined(ESRI_THREADING)
+        int nNumThreads = atoi(CPLGetConfigOption("MRSID_THREADS","1"));
+#else
+        int nNumThreads = atoi(CPLGetConfigOption("MRSID_THREADS","0"));
+#endif
+
 #ifdef MRSID_J2K
     if ( bIsJP2 )
     {
         J2KImageReader  *reader = J2KImageReader::create();
         eStat = reader->initialize( *(poDS->poStream) );
+#if defined(ESRI_THREADING)
+        reader->setMaxWorkerThreads( nNumThreads );
+#endif
         poDS->poImageReader = reader;
     }
     else
@@ -1528,6 +1561,9 @@ GDALDataset *MrSIDDataset::Open( GDALOpenInfo * poOpenInfo, int bIsJP2 )
     {
         MrSIDImageReader    *reader = MrSIDImageReader::create();
         eStat = reader->initialize( poDS->poStream, NULL );
+#if defined(ESRI_THREADING)
+        reader->setMaxWorkerThreads( nNumThreads );
+#endif
         poDS->poImageReader = reader;           
     }
 

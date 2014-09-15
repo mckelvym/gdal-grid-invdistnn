@@ -912,7 +912,7 @@ VRTAveragedSource::RasterIO( int nXOff, int nYOff, int nXSize, int nYSize,
                     if (CPLIsNan(fSampledValue))
                         continue;
 
-                    if( bNoDataSet && EQUAL_TO_NODATA(fSampledValue, dfNoDataValue))
+                    if( bNoDataSet && ARE_REAL_EQUAL(fSampledValue, dfNoDataValue))
                         continue;
 
                     nPixelCount++;
@@ -1244,7 +1244,7 @@ VRTComplexSource::RasterIO( int nXOff, int nYOff, int nXSize, int nYSize,
                 fResult = pafData[iX + iY * nOutXSize];
                 if( CPLIsNan(dfNoDataValue) && CPLIsNan(fResult) )
                     continue;
-                if( bNoDataSet && EQUAL_TO_NODATA(fResult, dfNoDataValue) )
+                if( bNoDataSet && ARE_REAL_EQUAL(fResult, dfNoDataValue) )
                     continue;
 
                 if (nColorTableComponent)

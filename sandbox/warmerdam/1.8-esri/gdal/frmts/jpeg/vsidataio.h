@@ -1,13 +1,13 @@
 /******************************************************************************
- * $Id$
+ * $Id: vsidataio.h 27044 2014-03-16 23:41:27Z rouault $
  *
- * Project:  GDAL
- * Purpose:  ECW Driver: user defined data box.  Simple one to read/write
- *           user defined data.
+ * Project:  JPEG JFIF Driver
+ * Purpose:  Implement JPEG read/write io indirection through VSI.
  * Author:   Frank Warmerdam, warmerdam@pobox.com
  *
  ******************************************************************************
  * Copyright (c) 2005, Frank Warmerdam <warmerdam@pobox.com>
+ * Copyright (c) 2012, Even Rouault <even dot rouault at mines-paris dot org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,43 +28,16 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#ifndef JP2USERBOX_H_INCLUDED
-#define JP2USERBOX_H_INCLUDED
+#ifndef VSIDATAIO_H_INCLUDED
+#define VSIDATAIO_H_INCLUDED
 
-#include "vsiiostream.h"
+#include "cpl_vsi.h"
 
-#if defined(HAVE_COMPRESS)
+CPL_C_START
+#include "jpeglib.h"
+CPL_C_END
 
-class JP2UserBox : public CNCSJP2Box {
+void jpeg_vsiio_src (j_decompress_ptr cinfo, VSILFILE * infile);
+void jpeg_vsiio_dest (j_compress_ptr cinfo, VSILFILE * outfile);
 
-private:
-    int           nDataLength;
-    unsigned char *pabyData;
-
-public:
-    JP2UserBox();
-
-    virtual ~JP2UserBox();
-
-#if ECWSDK_VERSION >= 40
-    virtual CNCSError Parse( NCS::JP2::CFile &JP2File, 
-                             NCS::CIOStream &Stream);
-    virtual CNCSError UnParse( NCS::JP2::CFile &JP2File, 
-								NCS::CIOStream &Stream);
-#else        
-    virtual CNCSError Parse(class CNCSJP2File &JP2File, 
-                            CNCSJPCIOStream &Stream);
-    virtual CNCSError UnParse(class CNCSJP2File &JP2File, 
-                              CNCSJPCIOStream &Stream);
-#endif
-    virtual void UpdateXLBox(void);
-
-    void    SetData( int nDataLength, const unsigned char *pabyDataIn );
-    
-    int     GetDataLength() { return nDataLength; }
-    unsigned char *GetData() { return pabyData; }
-};
-#endif /* HAVE_COMPRES */
-         
-#endif /* ndef JP2USERBOX_H_INCLUDED */
-
+#endif // VSIDATAIO_H_INCLUDED

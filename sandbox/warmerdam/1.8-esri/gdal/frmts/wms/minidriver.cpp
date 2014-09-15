@@ -53,6 +53,14 @@ void GDALWMSMiniDriver::ImageRequest(CPLString *url, const GDALWMSImageRequestIn
 void GDALWMSMiniDriver::TiledImageRequest(CPLString *url, const GDALWMSImageRequestInfo &iri, const GDALWMSTiledImageRequestInfo &tiri) {
 }
 
+void GDALWMSMiniDriver::GetTiledImageInfo(CPLString *url,
+                                              const GDALWMSImageRequestInfo &iri,
+                                              const GDALWMSTiledImageRequestInfo &tiri,
+                                              int nXInBlock,
+                                              int nYInBlock)
+{
+}
+
 const char *GDALWMSMiniDriver::GetProjectionInWKT() {
     return NULL;
 }
@@ -64,9 +72,9 @@ GDALWMSMiniDriverFactory::~GDALWMSMiniDriverFactory() {
 }
 
 GDALWMSMiniDriverManager *GetGDALWMSMiniDriverManager() {
-    if (g_mini_driver_manager == 0) {
+    if (g_mini_driver_manager == NULL) {
         CPLMutexHolderD(&g_mini_driver_manager_mutex);
-        if (g_mini_driver_manager == 0) {
+        if (g_mini_driver_manager == NULL) {
             g_mini_driver_manager = new GDALWMSMiniDriverManager();
         }
         CPLAssert(g_mini_driver_manager != NULL);

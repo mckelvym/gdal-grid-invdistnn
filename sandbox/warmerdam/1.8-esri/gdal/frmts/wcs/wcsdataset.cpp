@@ -393,7 +393,7 @@ double WCSRasterBand::GetNoDataValue( int *pbSuccess )
 
 {
     const char *pszSV = CPLGetXMLValue( poODS->psService, "NoDataValue", NULL);
-	  CPLLocaleC  oLocaleEnforcer;
+	CPLLocaleC  oLocaleEnforcer;
 
     if( pszSV == NULL )
         return GDALPamRasterBand::GetNoDataValue( pbSuccess );
@@ -1318,7 +1318,7 @@ int WCSDataset::ExtractGridInfo()
 /* -------------------------------------------------------------------- */
 /*      All functions contain atof need to have locale support          */
 /* -------------------------------------------------------------------- */
-	  CPLLocaleC  oLocaleEnforcer;
+	CPLLocaleC  oLocaleEnforcer;
 
     if( nVersion == 100 )
         return ExtractGridInfo100();
