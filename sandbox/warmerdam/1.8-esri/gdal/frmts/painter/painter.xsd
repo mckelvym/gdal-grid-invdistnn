@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="Painter">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="Generator"/>
+        <xs:element ref="Projection" minOccurs="0"/>
+        <xs:element ref="GeoTransform" minOccurs="0"/>
+        <xs:element ref="RasterXSize"/>
+        <xs:element ref="RasterYSize"/>
+        <xs:element ref="BandCount"/>
+        <xs:element ref="DataType"/>
+        <xs:element ref="Values" maxOccurs="1" minOccurs="0"/>
+        <xs:element ref="Low" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="High" minOccurs="0" maxOccurs="1"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Projection" type="xs:string"/>
+  <xs:element name="GeoTransform" type="xs:string"/>
+  <xs:element name="RasterXSize" type="xs:integer"/>
+  <xs:element name="RasterYSize" type="xs:integer"/>
+  <xs:element name="BandCount" type="xs:integer"/>
+  <xs:element name="DataType">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:enumeration value="Byte"/>
+        <xs:enumeration value="UInt16"/>
+        <xs:enumeration value="Int16"/>
+        <xs:enumeration value="UInt32"/>
+        <xs:enumeration value="Int32"/>
+        <xs:enumeration value="Float32"/>
+        <xs:enumeration value="Float64"/>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+  <xs:element name="Generator">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:enumeration value="SolidFill"/>
+        <xs:enumeration value="RandomFill"/>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+  <xs:element name="Values" type="xs:string"/>
+  <xs:element name="Low" type="xs:double" default="0.00"/>
+  <xs:element name="High" type="xs:double" default="255.00"/>
+</xs:schema>
