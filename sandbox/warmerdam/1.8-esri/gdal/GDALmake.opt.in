@@ -492,7 +492,7 @@ GDAL_FORMATS = 	ceos aigrid elas hfa gtiff\
 		kmlsuperoverlay ozi iso8211 \
 		netcdf grib jpeg jp2kak mrsid \
 		mrsid_lidar hdf4 hdf5 urlproxy \
-		wms wcs painter geopackage
+                wms wcs painter
 
 
 # ifneq ($(LIBZ_SETTING),no)
